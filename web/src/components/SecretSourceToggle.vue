@@ -33,6 +33,8 @@ export default {
     disabled: Boolean,
   },
 
+  emits: ['input'],
+
   data() {
     return {
       sources: [

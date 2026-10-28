@@ -85,6 +85,8 @@ export default {
     editable: { type: Boolean, default: false },
   },
 
+  emits: ['remove', 'change'],
+
   computed: {
     options() {
       return [

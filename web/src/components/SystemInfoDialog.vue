@@ -348,6 +348,8 @@ export default {
     value: Boolean,
   },
 
+  emits: ['input'],
+
   data() {
     return {
       dialog: false,

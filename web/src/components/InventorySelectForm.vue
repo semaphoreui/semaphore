@@ -45,6 +45,8 @@ export default {
 
   components: {},
 
+  emits: ['error', 'save'],
+
   watch: {
     async needSave(val) {
       if (val) {

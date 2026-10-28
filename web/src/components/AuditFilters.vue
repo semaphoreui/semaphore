@@ -147,6 +147,8 @@ export default {
     projects: Array,
   },
 
+  emits: ['input'],
+
   computed: {
     hasFilters() {
       return Object.keys(filterParams(this.value)).length > 0;

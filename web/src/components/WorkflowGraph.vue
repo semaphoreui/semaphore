@@ -154,6 +154,15 @@ export default {
     canResolveApprovals: { type: Boolean, default: false },
   },
 
+  emits: [
+    'node-selected',
+    'node-click',
+    'resolve-approval',
+    'change',
+    'connection-selected',
+    'blocked',
+  ],
+
   data() {
     return {
       editor: null,

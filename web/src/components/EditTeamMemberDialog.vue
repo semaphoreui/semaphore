@@ -49,6 +49,8 @@ export default {
     roles: Array,
   },
 
+  emits: ['input', 'save'],
+
   data() {
     return {
       dialog: false,

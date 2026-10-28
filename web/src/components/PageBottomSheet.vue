@@ -41,6 +41,8 @@ export default {
     value: Boolean,
   },
 
+  emits: ['input'],
+
   data() {
     return {
       sheet: false,

@@ -315,6 +315,7 @@ export default {
     // clear. The template form keeps the full list.
     allowSecret: { type: Boolean, default: true },
   },
+  emits: ['change'],
   computed: {
     availableVarTypes() {
       if (this.allowSecret) return this.varTypes;

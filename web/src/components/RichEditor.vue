@@ -108,6 +108,8 @@ export default {
     codemirror,
   },
 
+  emits: ['maximize', 'input'],
+
   watch: {
     envEditorDialog(val) {
       this.$emit('maximize', {

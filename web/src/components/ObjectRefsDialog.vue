@@ -48,6 +48,7 @@ export default {
       default: 'objectRefsDialog',
     },
   },
+  emits: ['input'],
   data() {
     return {
       dialog: false,

@@ -293,7 +293,7 @@
           style="margin-top: 20px; font-weight: bold; color: #00bc00"
           data-testid="subscription-renews"
         >
-          Renews in {{ subscriptionTimeRemainingMs | formatMilliseconds }}
+          Renews in {{ $filters.formatMilliseconds(subscriptionTimeRemainingMs) }}
           <span>(if auto-renew is activated)</span>
         </div>
       </v-card-text>
@@ -334,6 +334,8 @@ export default {
   props: {
     feature: String,
   },
+
+  emits: ['save'],
 
   data() {
     return {

@@ -406,6 +406,8 @@ export default {
 
   mixins: [ItemFormBase],
 
+  emits: ['show-action-buttons', 'hide-action-buttons'],
+
   data() {
     return {
       passwordDialog: null,

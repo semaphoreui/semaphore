@@ -61,6 +61,8 @@ export default {
     running: Boolean,
   },
 
+  emits: ['input', 'run'],
+
   data() {
     return {
       dialog: this.value,

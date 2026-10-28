@@ -51,6 +51,7 @@ export default {
     // Builds data-testid of the button, the menu and its items only, no behaviour.
     testId: { type: String, default: 'workflowVarAssign' },
   },
+  emits: ['select'],
 };
 </script>
 

@@ -129,6 +129,8 @@ export default {
     templateParams: Object,
   },
 
+  emits: ['input'],
+
   watch: {
     value(val) {
       this.params = val;

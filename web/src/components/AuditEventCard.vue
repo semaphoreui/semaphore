@@ -86,6 +86,8 @@ export default {
     pivots: Boolean,
   },
 
+  emits: ['close', 'pivot'],
+
   computed: {
     json() {
       return JSON.stringify(this.event, null, 2);

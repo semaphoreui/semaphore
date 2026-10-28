@@ -54,5 +54,6 @@ export default {
     title: String,
     badge: String,
   },
+  emits: ['input'],
 };
 </script>

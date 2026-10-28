@@ -27,6 +27,8 @@ export default {
 
   components: { PageBottomSheet },
 
+  emits: ['input', 'change'],
+
   data() {
     return {
       sheet: false,

@@ -152,6 +152,8 @@ export default {
     surveyInputs: { type: Array, default: () => [] },
   },
 
+  emits: ['unbind', 'bind'],
+
   data() {
     return { env: this.value, secret: this.secretValue };
   },

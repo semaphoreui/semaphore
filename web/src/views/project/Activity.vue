@@ -28,7 +28,7 @@
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.created="{ item }">
-        {{ item.created | formatDate }}
+        {{ $filters.formatDate(item.created) }}
       </template>
     </v-data-table>
   </div>

@@ -124,14 +124,14 @@
       </template>
 
       <template v-slot:item.created="{ item }">
-        {{ item.created | formatDate }}
+        {{ $filters.formatDate(item.created) }}
       </template>
 
       <template v-slot:item.expires_at="{ item }">
         <span
           v-if="item.expires_at"
           data-testid="tokens-rowExpiresAt"
-        >{{ item.expires_at | formatDate }}</span>
+        >{{ $filters.formatDate(item.expires_at) }}</span>
         <span
           v-else
           class="text--disabled"

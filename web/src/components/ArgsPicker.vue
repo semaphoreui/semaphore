@@ -145,6 +145,7 @@ export default {
     // Builds data-testid of the picker and its parts only, no behaviour.
     testId: { type: String, default: 'argsPicker' },
   },
+  emits: ['change'],
   watch: {
     vars(val) {
       this.var = val || [];

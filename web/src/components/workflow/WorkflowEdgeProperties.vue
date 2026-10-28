@@ -211,6 +211,8 @@ export default {
     outputHints: { type: Object, default: null },
   },
 
+  emits: ['close', 'delete', 'input'],
+
   data() {
     return {
       edge: this.normalize(this.value),

@@ -314,7 +314,7 @@
             </template>
 
             <template v-slot:item.created="{ item }">
-              {{ item.created | formatDate }}
+              {{ $filters.formatDate(item.created) }}
             </template>
 
             <template v-slot:expanded-item="{ headers, item }">
@@ -397,6 +397,8 @@ export default {
     template: Object,
     features: Object,
   },
+
+  emits: ['update-template'],
 
   watch: {
     async inventoryId() {

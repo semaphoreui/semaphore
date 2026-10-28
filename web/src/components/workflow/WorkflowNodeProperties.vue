@@ -198,6 +198,8 @@ export default {
     surveyVars: { type: Array, default: () => [] },
   },
 
+  emits: ['close', 'delete', 'input'],
+
   data() {
     return { node: this.value };
   },

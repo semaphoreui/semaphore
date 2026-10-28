@@ -124,6 +124,7 @@ export default {
     projectId: Number,
     vaults: Array,
   },
+  emits: ['change'],
   watch: {
     vaults(val) {
       this.var = val || [];

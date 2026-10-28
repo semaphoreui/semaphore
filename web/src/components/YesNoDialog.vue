@@ -52,6 +52,8 @@ export default {
     },
   },
 
+  emits: ['input', 'yes', 'no'],
+
   data() {
     return {
       dialog: false,

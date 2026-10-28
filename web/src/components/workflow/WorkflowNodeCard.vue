@@ -67,7 +67,7 @@
           depressed
           color="success"
           data-testid="workflowCanvas-nodeApprove"
-          @mousedown.native.stop
+          @mousedown.stop
           @click.stop="resolve('approved')"
         >{{ $t('workflowApprove') }}</v-btn>
         <v-btn
@@ -76,7 +76,7 @@
           color="error"
           class="ml-1"
           data-testid="workflowCanvas-nodeReject"
-          @mousedown.native.stop
+          @mousedown.stop
           @click.stop="resolve('rejected')"
         >{{ $t('workflowReject') }}</v-btn>
       </div>
@@ -141,6 +141,8 @@ export default {
     nodeId: { type: Number, required: true },
     editable: { type: Boolean, default: false },
   },
+
+  emits: ['quick-add', 'resolve-approval', 'activate', 'select'],
 
   data() {
     return {

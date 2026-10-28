@@ -38,6 +38,8 @@ export default {
     itemId: [String, Number],
   },
 
+  emits: ['input', 'save'],
+
   data() {
     return {
       dialog: false,

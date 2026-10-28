@@ -61,6 +61,8 @@ export default {
     testId: { type: String, default: 'templateDialog' },
   },
 
+  emits: ['input', 'save'],
+
   data() {
     return {
       id: Math.round(Math.random() * 1000000),

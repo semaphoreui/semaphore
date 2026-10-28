@@ -107,6 +107,8 @@ export default {
     SurveyFields,
   },
 
+  emits: ['bind', 'unbind', 'input'],
+
   data() {
     return {
       item: null,

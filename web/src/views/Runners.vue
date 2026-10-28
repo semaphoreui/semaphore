@@ -607,7 +607,7 @@ semaphore runner start --config ./config.runner.json</pre
           </template>
           <div style="font-weight: bold">{{ $t('lastActivity') }}</div>
           <div style="font-size: 12px; line-height: 1.2" data-testid="runners-rowLastActivity">
-            <span v-if="item.touched">{{ item.touched | formatDate }}</span>
+            <span v-if="item.touched">{{ $filters.formatDate(item.touched) }}</span>
             <span v-else>{{ $t('Never') }}</span>
           </div>
         </v-tooltip>
@@ -715,9 +715,9 @@ semaphore runner start --config ./config.runner.json</pre
               data-testid="runners-rowCleaningInfo"
             >
               <span v-if="item.touched < item.cleaning_requested">
-                Already requested {{ item.cleaning_requested | formatDate }}.
+                Already requested {{ $filters.formatDate(item.cleaning_requested) }}.
               </span>
-              <span v-else> Last cleaned {{ item.cleaning_requested | formatDate }}. </span>
+              <span v-else> Last cleaned {{ $filters.formatDate(item.cleaning_requested) }}. </span>
             </div>
           </v-tooltip>
         </div>

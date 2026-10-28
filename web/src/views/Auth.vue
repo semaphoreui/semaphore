@@ -195,7 +195,7 @@
                 class="mt-6"
                 outlined
                 v-model="recoveryCode"
-                @keyup.enter.native="signIn"
+                @keyup.enter="signIn"
                 :label="$t('Recovery code')"
                 :rules="[(v) => !!v || $t('recoveryCode_required')]"
                 required
@@ -265,7 +265,7 @@
                   outlined
                   dense
                   :disabled="signInProcess"
-                  @keyup.enter.native="signIn"
+                  @keyup.enter="signIn"
                   id="auth-password"
                   data-testid="auth-password"
                 ></v-text-field>
@@ -291,7 +291,7 @@
                   type="email"
                   required
                   :disabled="signInProcess"
-                  @keyup.enter.native="signInWithEmail"
+                  @keyup.enter="signInWithEmail"
                   style="margin-bottom: 20px"
                   data-testid="auth-password"
                   outlined

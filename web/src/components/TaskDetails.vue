@@ -129,21 +129,21 @@
                 </tr>
                 <tr>
                   <td><b>{{ $t('created') }}</b></td>
-                  <td data-testid="taskDetails-created">{{ item.created | formatDate }}</td>
+                  <td data-testid="taskDetails-created">{{ $filters.formatDate(item.created) }}</td>
                 </tr>
                 <tr>
                   <td><b>{{ $t('started') }}</b></td>
-                  <td data-testid="taskDetails-started">{{ item.start | formatDate }}</td>
+                  <td data-testid="taskDetails-started">{{ $filters.formatDate(item.start) }}</td>
                 </tr>
                 <tr>
                   <td><b>{{ $t('end') }}</b></td>
-                  <td data-testid="taskDetails-end">{{ item.end | formatDate }}</td>
+                  <td data-testid="taskDetails-end">{{ $filters.formatDate(item.end) }}</td>
                 </tr>
                 <tr>
                   <td><b>{{ $t('duration') }}</b></td>
                   <td
                     data-testid="taskDetails-duration"
-                  >{{ [item.start, item.end] | formatMilliseconds }}</td>
+                  >{{ $filters.formatMilliseconds([item.start, item.end]) }}</td>
                 </tr>
                 <tr v-if="item.used_runner_name">
                   <td><b>Runner</b></td>

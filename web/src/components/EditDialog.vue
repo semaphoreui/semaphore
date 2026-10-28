@@ -163,6 +163,8 @@ export default {
     noEscape: Boolean,
   },
 
+  emits: ['input', 'save', 'close'],
+
   data() {
     return {
       dialog: false,

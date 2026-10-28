@@ -87,6 +87,8 @@ export default {
     systemInfo: Object,
   },
 
+  emits: ['input', 'close'],
+
   watch: {
     async dialog(val) {
       this.$emit('input', val);

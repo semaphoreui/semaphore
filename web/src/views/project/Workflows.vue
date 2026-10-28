@@ -107,7 +107,7 @@
             data-testid="workflows-rowLastRun"
           >#{{ item.last_run.id }}</router-link>
           <div style="color: gray; font-size: 14px;" data-testid="workflows-rowLastRunStart">
-            {{ item.last_run.start | formatDate }}
+            {{ $filters.formatDate(item.last_run.start) }}
           </div>
         </div>
         <div v-else data-testid="workflows-rowLastRunEmpty">&mdash;</div>
@@ -167,10 +167,10 @@
               {{ run.version || '—' }}
             </template>
             <template v-slot:item.start="{ item: run }">
-              {{ run.start | formatDate }}
+              {{ $filters.formatDate(run.start) }}
             </template>
             <template v-slot:item.end="{ item: run }">
-              {{ run.end | formatDate }}
+              {{ $filters.formatDate(run.end) }}
             </template>
           </v-data-table>
         </td>

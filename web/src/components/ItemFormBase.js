@@ -34,6 +34,8 @@ export default {
     needReset: Boolean, // flag which signal about user want to reset form
   },
 
+  emits: ['error', 'save'],
+
   data() {
     return {
       item: null,

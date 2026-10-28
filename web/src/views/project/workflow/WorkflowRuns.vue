@@ -31,10 +31,10 @@
         {{ run.version || '—' }}
       </template>
       <template v-slot:item.start="{ item: run }">
-        {{ run.start | formatDate }}
+        {{ $filters.formatDate(run.start) }}
       </template>
       <template v-slot:item.end="{ item: run }">
-        {{ run.end | formatDate }}
+        {{ $filters.formatDate(run.end) }}
       </template>
     </v-data-table>
   </div>

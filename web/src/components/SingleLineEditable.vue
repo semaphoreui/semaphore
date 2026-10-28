@@ -85,6 +85,7 @@ export default {
     placeholder: String,
     canEdit: Boolean,
   },
+  emits: ['input', 'save'],
   data() {
     return {
       editable: false,

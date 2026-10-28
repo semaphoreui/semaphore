@@ -108,6 +108,8 @@ export default {
     hint: { type: String, default: null },
   },
 
+  emits: ['input', 'add'],
+
   data() {
     return { search: '' };
   },

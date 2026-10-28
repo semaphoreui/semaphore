@@ -35,6 +35,8 @@ export default {
     editable: { type: Boolean, default: false },
   },
 
+  emits: ['zoom-in', 'zoom-out', 'fit', 'tidy'],
+
   computed: {
     items() {
       const items = [

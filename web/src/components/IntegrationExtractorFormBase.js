@@ -5,6 +5,7 @@ export default {
   props: {
     integrationId: [Number, String],
   },
+  emits: ['error', 'save'],
   methods: {
     /**
      * Saves or creates item via API.

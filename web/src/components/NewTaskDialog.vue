@@ -54,6 +54,7 @@ export default {
       default: 'newTaskDialog',
     },
   },
+  emits: ['input', 'save', 'close'],
   data() {
     return {
       dialog: false,
