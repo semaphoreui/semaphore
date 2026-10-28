@@ -44,6 +44,10 @@ only when the task touches that topic. Keep this file under 150 lines.
   a wildcard downgrades the Pro workspace.
 - `integration-tests/` inside the checkout is a separate untracked git repo (Java/Gradle,
   Bookwright); see `integration-testing.md`.
+- goreleaser's `sboms` pipe runs the command from the dist dir (`bin/`, hence `../` for the module)
+  with a fresh env (only HOME/PATH/TMP* pass through): every Go var the SBOM needs (`GOOS`, `GOARCH`,
+  `GOFLAGS`, `GOWORK`) must be listed in `sboms[].env`, or a local `GOWORK=off` run gets a Pro graph.
+  Test with `goreleaser release --snapshot --skip=sign,publish,nfpm` on a config copy with one target.
 - Docker Desktop on this Mac is not running by default: `open -a Docker` starts it in ~2 s.
 - The shell `grep` is ugrep and silently returns 0 matches on Cyrillic patterns in built HTML;
   verify locale pages with Python.
@@ -94,6 +98,11 @@ only when the task touches that topic. Keep this file under 150 lines.
   quotes ignored: `!unsafe "2026.08"` is a float, `"00123"` the int 83. Tag only strings holding a
   Jinja2 delimiter or a `#jinja2:` header (`isPossiblyTemplate`, `services/tasks/extra_vars_file.go`);
   check a generated extra-vars file with the real loader, not yaml.v3 (`extra_vars_ansible_test.go`).
+- A new per-task execution step (hooks, extra commands) must be implemented twice: in
+  `services/tasks/local_executor.go` (server and runner local executor share it) and in the Pro
+  container executors, which render one `sh -c` script under `set -e` in
+  `pro_impl/services/tasks/containerexec` (Docker and K8s). On `develop` the server stores no runner
+  version (`db/Runner.go`), so an old runner silently ignores new `JobData.Template` fields.
 - The `migrations` ledger records a version *string*, so a number applied on one branch never re-runs
   on another where it means different SQL. Use one database per branch; to repair, delete the rows
   (`delete from migrations where version in (…)`) and restart so the real migrations apply.
