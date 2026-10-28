@@ -48,10 +48,11 @@
     </div>
 
     <v-tabs class="task-log-view__tabs" align-tabs="end" v-model="tab" data-testid="taskLog-tabs">
-      <v-tab data-testid="taskLog-tab-log">Log</v-tab>
-      <v-tab data-testid="taskLog-tab-details">Details</v-tab>
+      <v-tab :value="0" data-testid="taskLog-tab-log">Log</v-tab>
+      <v-tab :value="1" data-testid="taskLog-tab-details">Details</v-tab>
       <v-tab
         v-if="isPro"
+        :value="2"
         :disabled="!isTaskStopped"
         data-testid="taskLog-tab-summary"
       >
@@ -267,6 +268,9 @@ import ProjectMixin from '@/components/ProjectMixin';
 import AnsibleStageView from '@/components/AnsibleStageView.vue';
 import TaskDetails from '@/components/TaskDetails.vue';
 
+const LOG_KEEPS = 100;
+const LOG_BUFFER = Math.round(LOG_KEEPS / 3);
+
 export default {
   components: {
     TaskDetails, AnsibleStageView, TaskStatus, TaskLogViewRecord,
@@ -281,7 +285,8 @@ export default {
     features: null,
   },
 
-  // The log is a virtual list: only the records in view (and an overscan) are rendered.
+  // The log is a virtual list: a window of LOG_KEEPS records around the view is rendered,
+  // a third of it above the first visible record (as vue-virtual-scroll-list with keeps="100").
   setup() {
     const output = ref([]);
     const records = ref(null);
@@ -289,7 +294,13 @@ export default {
       count: output.value.length,
       getScrollElement: () => records.value,
       estimateSize: () => 22,
-      overscan: 50,
+      rangeExtractor: (range) => {
+        const last = range.count - 1;
+        let start = Math.max(range.startIndex - LOG_BUFFER, 0);
+        const end = Math.min(Math.max(start + LOG_KEEPS - 1, range.endIndex), last);
+        start = Math.max(Math.min(start, end - LOG_KEEPS + 1), 0);
+        return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+      },
     })));
     const measureRecord = (el) => {
       if (el) {

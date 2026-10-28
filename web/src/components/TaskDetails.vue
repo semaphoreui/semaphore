@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     class="pb-3"
     data-testid="taskDetails-panel"
@@ -295,7 +295,7 @@
 <style lang="scss">
 .TaskDetails__table {
   background-color: transparent !important;
-  .v-data-table__wrapper {
+  .v-table__wrapper {
     padding-left: 0 !important;
     padding-right: 0 !important;
   }

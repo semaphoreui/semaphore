@@ -22,7 +22,8 @@ import re
 import pytest
 from playwright.sync_api import Page, Route, expect
 
-from vu.ui import TASKS_LAST_RE, fail_api, goto, goto_after_apps, settle, snap, tid, wait_state, wait_until
+from vu.ui import (TASKS_LAST_RE, expect_no_snackbar, fail_api, goto, goto_after_apps, settle, snap, tid, wait_state,
+                   wait_until)
 
 ZONE = "z10"
 DEMO = "Seed Demo"
@@ -972,8 +973,9 @@ def test_stop_forbidden(ui, data):
     wait_until(page, lambda: hits, "the 403 on stop")
     status_is(page, "running")
     expect(tid(page, "taskLog-stop")).to_be_visible()
-    expect(tid(page, "app-snackbar")).to_have_attribute("data-state", "ready")
-    expect(tid(page, "app-snackbarClose")).to_be_hidden()  # no snackbar shown
+    # no snackbar shown: Vuetify 3 renders the app-snackbar root only from its first opening on
+    expect(tid(page, "app-snackbar").filter(has_text=re.compile(r"\S"))).to_have_count(0)
+    expect_no_snackbar(page)
 
 
 @pytest.mark.functional

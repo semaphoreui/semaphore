@@ -8,24 +8,26 @@
     @close="onClose()"
     test-id="taskLogDialog"
   >
-    <template v-slot:title={}>
+    <template v-slot:title>
       <div
         class="text-truncate"
         style="max-width: calc(100% - 36px);"
         data-testid="taskLog-title"
         :data-state="item == null || template == null ? 'loading' : 'ready'"
       >
+        <!-- Vuetify 3: the button bone fills the loader (max 64 px + 16 px margins);
+             an inline-block loader without a width shrinks it to nothing -->
         <v-skeleton-loader
           v-if="template == null"
           data-testid="taskLog-titleLoading"
           type="button"
-          style="display: inline-block; margin-right: 10px;"
+          width="96"
+          style="display: inline-block; margin-right: 10px; vertical-align: middle;"
         ></v-skeleton-loader>
         <router-link
           v-else
           class="breadcrumbs__item breadcrumbs__item--link"
           :to="`/project/${projectId}/templates/${template ? template.id : null}`"
-          @click="close()"
           data-testid="taskLog-templateLink"
         >{{ template ? template.name : null }}</router-link>
         <v-icon>mdi-chevron-right</v-icon>
@@ -35,7 +37,7 @@
         >{{ $t('task', {expr: item ? item.id : null}) }}</span>
       </div>
     </template>
-    <template v-slot:form="{}">
+    <template v-slot:form>
 
       <TaskLogView
         v-if="item != null"

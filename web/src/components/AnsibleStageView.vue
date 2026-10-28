@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     style="overflow: hidden"
     class="pb-5"
@@ -17,7 +17,6 @@
       </span>
 
       <v-btn
-        dark
         class="ml-2"
         color="hsl(348deg, 86%, 61%)"
         @click="upgradeToPro('task_summary')"
@@ -62,11 +61,13 @@
     <v-data-table
       v-if="tab === 'notOkServers'"
       hide-default-footer
-      single-expand
       show-expand
+      :expanded="expanded"
+      @update:expanded="expanded = $event.slice(-1)"
+      :mobile-breakpoint="600"
       :headers="notOkServersHeaders"
       :items="failedTasks"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
       class="w-100"
       data-testid="taskSummary-errorsTable"
       :data-state="hosts == null ? 'loading' : (failedTasks.length === 0 ? 'empty' : 'ready')"
@@ -79,24 +80,27 @@
           {{ item.error }}
         </div>
       </template>
-      <template v-slot:expanded-item="{ headers, item }">
-        <td :colspan="headers.length">
-          <pre
-            style="
-              overflow: auto;
-              background: gray;
-              font-size: 14px;
-              color: white;
-              border-radius: 10px;
-              white-space: pre-wrap;
-              margin-top: 5px;
-              margin-bottom: 5px;
-            "
-            class="pa-2"
-            data-testid="taskSummary-errorDetails"
-            >{{ item.error.trim() }}</pre
-          >
-        </td>
+      <!-- the slot draws the whole row: Vuetify 3 does not wrap it in a <tr> -->
+      <template v-slot:expanded-row="{ columns, item }">
+        <tr>
+          <td :colspan="columns.length">
+            <pre
+              style="
+                overflow: auto;
+                background: gray;
+                font-size: 14px;
+                color: white;
+                border-radius: 10px;
+                white-space: pre-wrap;
+                margin-top: 5px;
+                margin-bottom: 5px;
+              "
+              class="pa-2"
+              data-testid="taskSummary-errorDetails"
+              >{{ item.error.trim() }}</pre
+            >
+          </td>
+        </tr>
       </template>
     </v-data-table>
 
@@ -246,20 +250,25 @@ export default {
       tab: 'notOkServers',
       failedTasks: [],
       hosts: null,
+      // single expand: only the last opened row stays in the list
+      expanded: [],
       notOkServersHeaders: [
         {
-          text: 'Server',
-          value: 'host',
+          key: 'data-table-expand',
+        },
+        {
+          title: 'Server',
+          key: 'host',
           sortable: false,
         },
         {
-          text: 'Task',
-          value: 'task',
+          title: 'Task',
+          key: 'task',
           sortable: false,
         },
         {
-          text: 'Error',
-          value: 'error',
+          title: 'Error',
+          key: 'error',
           sortable: false,
         },
       ],
@@ -267,6 +276,11 @@ export default {
   },
 
   watch: {
+    // the errors table is drawn anew on every switch of the filter: no row comes back opened
+    tab() {
+      this.expanded = [];
+    },
+
     async taskId() {
       await this.loadData();
       this.calcStats();
