@@ -33,7 +33,7 @@ from playwright.sync_api import Page, Route, expect
 
 from vu.ui import answer_api, button, chip_close, dialog_frame, fail_api, field_input, field_message, \
     field_selection, goto, goto_after_apps, hold_api, only_names, open_menu, patch_api, patch_info, pick, press, \
-    settle, shown, snap, tid, wait_state, wait_until
+    goto_apps_loaded, settle, shown, snap, tid, wait_state, wait_until
 
 ZONE = "z05"
 DEMO, EMPTY = "Seed Demo", "Seed Empty"
@@ -157,8 +157,10 @@ def open_new(page, project, app, name=DEMO, ready=True):
 
 
 def open_template(page, project, name, role_ready=True):
+    """The template screen with the GET /api/apps of its dialogs in: «Edit» / «Copy» pressed earlier
+    open nothing for good (goto_apps_loaded)."""
     pid = project(DEMO)
-    goto(page, f"/project/{pid}/templates/{template_id(page, pid, name)}", "template-page", "ready")
+    goto_apps_loaded(page, f"/project/{pid}/templates/{template_id(page, pid, name)}", "template-page", "ready")
 
 
 def open_edit(page, project, name, ready=True):
@@ -1471,7 +1473,7 @@ def test_create_edit_delete(ui, project, api, cleanup):
     assert created and created["app"] == "bash" and created["playbook"] == "ok.sh"
     cleanup(f"{path}/{created['id']}")
 
-    goto(page, f"/project/{pid}/templates/{created['id']}", "template-page", "ready")
+    goto_apps_loaded(page, f"/project/{pid}/templates/{created['id']}", "template-page", "ready")
     expect(tid(page, "template-name")).to_have_text(OWN)
     press(tid(page, "template-edit"))
     card = wait_form(shown(page, "templateDialog"))

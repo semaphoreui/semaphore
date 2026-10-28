@@ -799,6 +799,35 @@ def goto_after_apps(page: Page, path, pattern, ready_test_id=None, state=None, c
     settle_tabs(page)
 
 
+# Counts the GET /api/apps the document sends and finishes (XHR — axios). Counted in the page, not by
+# Playwright events: with routes on, a «request» event may reach Python after the screen shows «ready».
+APPS_COUNT_JS = r"""(() => {
+  if (window.__vuApps) return;
+  const s = window.__vuApps = {started: 0, done: 0};
+  const open = XMLHttpRequest.prototype.open, send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+    this.__vuApps = String(method).toUpperCase() === 'GET' && /\/api\/apps$/.test(new URL(url, location.href).pathname);
+    return open.call(this, method, url, ...rest);
+  };
+  XMLHttpRequest.prototype.send = function (...args) {
+    if (this.__vuApps) { s.started++; this.addEventListener('loadend', () => { s.done++; }); }
+    return send.apply(this, args);
+  };
+})();"""
+APPS_DONE_JS = "() => !!window.__vuApps && window.__vuApps.started > 0 && window.__vuApps.done === window.__vuApps.started"
+
+
+def goto_apps_loaded(page: Page, path, ready_test_id=None, state=None):
+    """goto(), then wait until every GET /api/apps the screen sent has finished (ok or not). For screens
+    whose controls need the apps: the template screen renders EditTemplateDialog only once its own GET
+    /api/apps is in, and «Edit» / «Copy» pressed before that open nothing for good (EditDialog takes
+    v-model only on a change) — a missing dialog in some loaded runs. The screen must send at least one
+    GET /api/apps once it is <state>."""
+    page.add_init_script(APPS_COUNT_JS)  # the guard in the script makes a second call harmless
+    goto(page, path, ready_test_id, state)
+    page.wait_for_function(APPS_DONE_JS, timeout=20000)
+
+
 def open_history(page: Page, project_id, state="ready", query="", last_task=None):
     """/project/<id>/history with the task list after /api/apps (goto_after_apps). <last_task>: cut the
     list to tasks with id ≤ it (seed.base.BASE_LAST_TASK — the base tasks #1–#5 of Seed Demo)."""
