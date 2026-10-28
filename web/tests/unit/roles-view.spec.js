@@ -51,7 +51,9 @@ describe('Roles.vue', () => {
   });
 
   it('asks again with the impact when the role is assigned', async () => {
-    const impact = { members: 2, projects: 1, template_grants: 3 };
+    const impact = {
+      members: 2, projects: 1, template_grants: 3, workflow_grants: 1,
+    };
     http.respond(() => { throw httpError(409, { error: 'assigned', impact }); });
     const c = ctx();
 
