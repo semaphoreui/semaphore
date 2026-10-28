@@ -5,7 +5,7 @@
         @click="showDrawer()"
         data-testid="workflowRun-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="workflowRun-title">
+      <v-toolbar-title class="flex-0-1" data-testid="workflowRun-title">
         <router-link
           :to="`/project/${projectId}/workflows`"
           data-testid="workflowRun-backToList"

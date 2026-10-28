@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div v-if="items == null" data-testid="workflows-page" data-state="loading">
     <v-progress-linear
       indeterminate
@@ -31,7 +31,7 @@
         @click="showDrawer()"
         data-testid="workflows-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="workflows-title">
+      <v-toolbar-title class="flex-0-1" data-testid="workflows-title">
         {{ $t('workflows') }}
       </v-toolbar-title>
       <v-spacer></v-spacer>
@@ -56,12 +56,13 @@
     <v-data-table
       hide-default-footer
       class="mt-4 workflows-table"
-      single-expand
       show-expand
-      :headers="filteredHeaders"
+      :headers="tableHeaders"
       :items="items"
-      :items-per-page="Number.MAX_VALUE"
-      v-model:expanded="openedItems"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
+      :expanded="openedItems"
+      @update:expanded="openedItems = $event.slice(-1)"
       data-testid="workflows-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -114,9 +115,8 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
           data-testid="workflows-rowActions"
         >
           <v-btn
@@ -127,53 +127,54 @@
           >
             <v-icon>mdi-play</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
 
-      <template v-slot:expanded-item="{ headers, item }">
-        <td
-          :colspan="headers.length"
-          v-if="openedItems.some((w) => w.id === item.id)"
-        >
-          <v-data-table
-            style="border: 1px solid lightgray; border-radius: 6px; margin: 10px 0;"
-            hide-default-footer
-            :headers="runHeaders"
-            :items="runs[item.id] || []"
-            :loading="runsLoading[item.id]"
-            :items-per-page="5"
-            :no-data-text="$t('notLaunched')"
-            data-testid="workflows-runsTable"
-            :data-state="runsLoading[item.id]
-              ? 'loading'
-              : ((runs[item.id] || []).length === 0 ? 'empty' : 'ready')"
-          >
-            <template v-slot:item.id="{ item: run }">
-              <router-link
-                :to="`/project/${projectId}/workflows/${item.id}/runs/${run.id}`"
-                data-testid="workflows-runsRowId"
-              >
-                #{{ run.id }}
-              </router-link>
-            </template>
-            <template v-slot:item.status="{ item: run }">
-              <v-chip
-                :color="statusColor(run.status)"
-                size="small"
-                :data-testid="`workflows-runsRowStatus-${run.status}`"
-              >{{ run.status }}</v-chip>
-            </template>
-            <template v-slot:item.version="{ item: run }">
-              {{ run.version || '—' }}
-            </template>
-            <template v-slot:item.start="{ item: run }">
-              {{ $filters.formatDate(run.start) }}
-            </template>
-            <template v-slot:item.end="{ item: run }">
-              {{ $filters.formatDate(run.end) }}
-            </template>
-          </v-data-table>
-        </td>
+      <!-- the slot draws the whole row: Vuetify 3 does not wrap it in a <tr> as Vuetify 2 did -->
+      <template v-slot:expanded-row="{ columns, item }">
+        <tr v-if="openedItems.includes(item.id)">
+          <td :colspan="columns.length">
+            <v-data-table
+              style="border: 1px solid lightgray; border-radius: 6px; margin: 10px 0;"
+              hide-default-footer
+              :headers="runHeaders"
+              :items="runs[item.id] || []"
+              :loading="runsLoading[item.id]"
+              :items-per-page="5"
+              :mobile-breakpoint="600"
+              :no-data-text="$t('notLaunched')"
+              data-testid="workflows-runsTable"
+              :data-state="runsLoading[item.id]
+                ? 'loading'
+                : ((runs[item.id] || []).length === 0 ? 'empty' : 'ready')"
+            >
+              <template v-slot:item.id="{ item: run }">
+                <router-link
+                  :to="`/project/${projectId}/workflows/${item.id}/runs/${run.id}`"
+                  data-testid="workflows-runsRowId"
+                >
+                  #{{ run.id }}
+                </router-link>
+              </template>
+              <template v-slot:item.status="{ item: run }">
+                <v-chip
+                  :color="statusColor(run.status)"
+                  size="small"
+                  :data-testid="`workflows-runsRowStatus-${run.status}`"
+                >{{ run.status }}</v-chip>
+              </template>
+              <template v-slot:item.version="{ item: run }">
+                {{ run.version || '—' }}
+              </template>
+              <template v-slot:item.start="{ item: run }">
+                {{ $filters.formatDate(run.start) }}
+              </template>
+              <template v-slot:item.end="{ item: run }">
+                {{ $filters.formatDate(run.end) }}
+              </template>
+            </v-data-table>
+          </td>
+        </tr>
       </template>
     </v-data-table>
 
@@ -190,12 +191,15 @@
 @use 'sass:map';
 @use '@/scss/variables' as settings;
 
-.workflows-table .text-start:first-child {
+// The expand column, first (Vuetify 3 adds it last unless the headers place it).
+.workflows-table thead th:first-child,
+.workflows-table .v-data-table__td--expanded-row {
   padding-right: 0 !important;
 }
 
+// Mobile rows: no expand cell (Vuetify 2 hid the first mobile row, the same cell).
 @media #{map.get(settings.$display-breakpoints, 'sm-and-down')} {
-  .workflows-table .v-data-table__mobile-row:first-child {
+  .workflows-table .v-data-table__tr--mobile > .v-data-table__td--expanded-row {
     display: none !important;
   }
 }
@@ -229,20 +233,27 @@ export default {
   },
 
   computed: {
+    // The expand column first, as Vuetify 2 drew it.
+    tableHeaders() {
+      return [{ key: 'data-table-expand' }, ...this.filteredHeaders];
+    },
+
     runHeaders() {
       return [
-        { text: this.$t('workflowRun'), value: 'id', sortable: false },
-        { text: this.$t('status'), value: 'status', sortable: false },
-        { text: this.$t('version'), value: 'version', sortable: false },
-        { text: this.$t('start'), value: 'start', sortable: false },
-        { text: this.$t('end'), value: 'end', sortable: false },
+        { title: this.$t('workflowRun'), key: 'id', sortable: false },
+        { title: this.$t('status'), key: 'status', sortable: false },
+        { title: this.$t('version'), key: 'version', sortable: false },
+        { title: this.$t('start'), key: 'start', sortable: false },
+        { title: this.$t('end'), key: 'end', sortable: false },
       ];
     },
   },
 
   watch: {
-    openedItems(items) {
-      items.forEach((item) => this.loadRuns(item.id));
+    // Ids of the expanded rows (Vuetify 3 keeps item values, not items): one at most,
+    // as single-expand of Vuetify 2 did — the update handler keeps the last one.
+    openedItems(ids) {
+      ids.forEach((id) => this.loadRuns(id));
     },
   },
 

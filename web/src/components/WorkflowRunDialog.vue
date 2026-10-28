@@ -9,7 +9,6 @@
         >{{ $t('workflowRunDialogHint') }}</div>
         <v-form
           ref="form"
-          lazy-validation
           @submit.prevent="run()"
           data-testid="workflowRunDialog-form"
         >

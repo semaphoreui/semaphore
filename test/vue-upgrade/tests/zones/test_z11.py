@@ -187,6 +187,14 @@ def open_list(page, data, state="ready", empty=False):
         wait_state(page, "workflows-table", state)
 
 
+def queued_timers_run(page):
+    """Wait until every timer the page has queued so far has fired: a setTimeout queued now runs after
+    them. Vuetify 3 moves the top of its overlay stack (globalTop, which the Esc handler of an overlay
+    asks) in a setTimeout after it opens; under the suite's fake clock that timer fires late
+    (JOURNAL@C559E533D7), so an Esc pressed at once would meet the previous top."""
+    page.evaluate("() => new Promise(r => setTimeout(r))")
+
+
 def wf_row(page, name):
     return row(page, "workflows-table", name).filter(
         has=page.locator(f'[data-testid="workflows-rowName"]:text-is("{name}")'))
@@ -389,6 +397,7 @@ def test_list__column_hidden(ui, data):
     tid(page, "workflows-tableSettings").click()
     expect(tid(page, "tableSettings-title")).to_be_visible()
     field_input(page, "tableSettings-column-version").click(force=True)
+    queued_timers_run(page)
     page.keyboard.press("Escape")
     expect(tid(page, "tableSettings-title")).to_be_hidden()
     expect(tid(page, "workflows-rowVersionEmpty")).to_have_count(0)
@@ -922,6 +931,7 @@ def test_run_with_survey_body(ui, data):
     field_input(card, "surveyFields-var-z11_required").fill("v9")
     field_input(card, "surveyFields-var-z11_regions").click()
     page.get_by_role("option", name="us", exact=True).click()
+    queued_timers_run(page)
     page.keyboard.press("Escape")
     button(card, "workflow-run-dialog-run").click()
     wait_until(page, lambda: sent, "the intercepted POST run")
@@ -962,6 +972,7 @@ def test_dialog_validation_and_reset(ui, data):
 def test_dialog_escape_only_when_idle(ui, data):
     page = ui("admin")
     card = open_survey_dialog(page, data)
+    queued_timers_run(page)
     page.keyboard.press("Escape")
     expect(card).to_be_hidden()
 
@@ -973,6 +984,7 @@ def test_dialog_escape_only_when_idle(ui, data):
         button(card, "workflow-run-dialog-run").click()
         wait_until(page, lambda: held, "the held POST run")
         expect(card).to_have_attribute("data-state", "loading")
+        queued_timers_run(page)
         page.keyboard.press("Escape")
         settle(page)
         expect(card).to_be_visible()

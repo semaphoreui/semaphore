@@ -27,7 +27,7 @@
         @click="showDrawer()"
         data-testid="workflow-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title class="breadcrumbs" data-testid="workflow-title">
+      <v-toolbar-title class="breadcrumbs flex-0-1" data-testid="workflow-title">
         <router-link
           class="breadcrumbs__item breadcrumbs__item--link"
           :to="`/project/${projectId}/workflows/`"

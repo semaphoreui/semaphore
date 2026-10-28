@@ -9,7 +9,8 @@
       :headers="headers"
       :items="runs || []"
       :loading="runs == null"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       :no-data-text="$t('notLaunched')"
       data-testid="workflowRuns-table"
       :data-state="runs == null ? 'loading' : (runs.length === 0 ? 'empty' : 'ready')"
@@ -60,11 +61,11 @@ export default {
   computed: {
     headers() {
       return [
-        { text: this.$t('workflowRun'), value: 'id', sortable: false },
-        { text: this.$t('status'), value: 'status', sortable: false },
-        { text: this.$t('version'), value: 'version', sortable: false },
-        { text: this.$t('start'), value: 'start', sortable: false },
-        { text: this.$t('end'), value: 'end', sortable: false },
+        { title: this.$t('workflowRun'), key: 'id', sortable: false },
+        { title: this.$t('status'), key: 'status', sortable: false },
+        { title: this.$t('version'), key: 'version', sortable: false },
+        { title: this.$t('start'), key: 'start', sortable: false },
+        { title: this.$t('end'), key: 'end', sortable: false },
       ];
     },
   },
