@@ -222,6 +222,7 @@ type RoleImpact struct {
 	Members        int `json:"members"`
 	Projects       int `json:"projects"`
 	TemplateGrants int `json:"template_grants"`
+	WorkflowGrants int `json:"workflow_grants"`
 	Mappings       int `json:"mappings"`
 }
 
@@ -237,9 +238,10 @@ type RoleMember struct {
 
 // RoleAssignments is everything that points to a role: the members who hold it, its template grants and its mappings.
 type RoleAssignments struct {
-	Members  []RoleMember
-	Grants   []TemplateRolePerm
-	Mappings []RoleMapping
+	Members        []RoleMember
+	Grants         []TemplateRolePerm
+	WorkflowGrants []WorkflowRolePerm
+	Mappings       []RoleMapping
 	// Assignments that go with Mappings.
 	MappedRoles []MappedRole
 }
@@ -260,6 +262,9 @@ func (a RoleAssignments) Impact() RoleImpact {
 	for _, g := range a.Grants {
 		projects[g.ProjectID] = true
 	}
+	for _, g := range a.WorkflowGrants {
+		projects[g.ProjectID] = true
+	}
 
 	for _, m := range a.Mappings {
 		projects[m.ProjectID] = true
@@ -268,6 +273,7 @@ func (a RoleAssignments) Impact() RoleImpact {
 		Members:        len(members),
 		Projects:       len(projects),
 		TemplateGrants: len(a.Grants),
+		WorkflowGrants: len(a.WorkflowGrants),
 		Mappings:       len(a.Mappings),
 	}
 }

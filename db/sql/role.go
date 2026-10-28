@@ -128,6 +128,10 @@ func (d *SqlDb) roleAssignments(q gorp.SqlExecutor, roleID int) (assigned db.Rol
 	if err != nil {
 		return
 	}
+	_, err = q.Select(&assigned.WorkflowGrants, d.PrepareQuery("select id, workflow_id, project_id from project__workflow_role where role_id=?"), roleID)
+	if err != nil {
+		return
+	}
 	_, err = q.Select(&assigned.Mappings, d.PrepareQuery(`
 		select
 		  m.*, p.name as project_name, r.slug as role_slug, r.name as role_name
@@ -151,7 +155,7 @@ func (d *SqlDb) roleAssignments(q gorp.SqlExecutor, roleID int) (assigned db.Rol
 	return
 }
 
-// DeleteRoleWithAssignments removes a custom role with its member assignments and template grants and returns
+// DeleteRoleWithAssignments removes a custom role with its member assignments and object grants and returns
 // what it removed. A member whose only role it was stops being a member. Without withMappings the foreign key
 // refuses a role that a group mapping uses, with db.ErrInvalidOperation, and nothing is removed.
 func (d *SqlDb) DeleteRoleWithAssignments(roleID int, withMappings bool) (db.RoleAssignments, error) {
@@ -176,6 +180,10 @@ func (d *SqlDb) DeleteRoleWithAssignments(roleID int, withMappings bool) (db.Rol
 		return db.RoleAssignments{}, err
 	}
 	if _, err = d.execTx(tx, "delete from project__template_role where role_id=?", roleID); err != nil {
+		_ = tx.Rollback()
+		return db.RoleAssignments{}, err
+	}
+	if _, err = d.execTx(tx, "delete from project__workflow_role where role_id=?", roleID); err != nil {
 		_ = tx.Rollback()
 		return db.RoleAssignments{}, err
 	}
