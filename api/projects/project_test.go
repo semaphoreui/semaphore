@@ -41,7 +41,7 @@ func TestProjectMiddleware_PermissionsComeFromRoles(t *testing.T) {
 		roleIDs []int
 		want    db.ProjectUserPermission
 	}{
-		{"built-in role", []int{f.roles[db.ProjectManager].ID}, db.CanRunProjectTasks | db.CanManageProjectResources},
+		{"built-in role", []int{f.roles[db.ProjectManager].ID}, db.CanRunProjectTasks | db.CanManageProjectResources | db.CanRunWorkflows | db.CanEditWorkflows | db.CanApproveWorkflows},
 		{"global custom role", []int{global.ID}, db.CanManageProjectResources},
 		{"project custom role", []int{local.ID}, db.CanUpdateProject},
 		{"two roles", []int{global.ID, local.ID}, db.CanManageProjectResources | db.CanUpdateProject},
