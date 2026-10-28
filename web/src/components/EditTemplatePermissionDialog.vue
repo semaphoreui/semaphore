@@ -2,15 +2,15 @@
   <EditDialog
     v-model="dialog"
     :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-    :title="$t('templatePermission', { expr: itemId === 'new' ? $t('nnew') : $t('edit') })"
+    :title="title"
     @save="onSave"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <EditTemplatePermissionForm
         :project-id="projectId"
-        :template-id="templateId"
+        :object-id="objectId"
         :item-id="itemId"
-        scope="template"
+        :scope="scope"
         @save="onSave"
         @error="onError"
         :need-save="needSave"
@@ -33,7 +33,8 @@ export default {
   props: {
     value: Boolean,
     projectId: Number,
-    templateId: [String, Number],
+    scope: String,
+    objectId: [String, Number],
     itemId: [String, Number],
   },
 
@@ -41,6 +42,13 @@ export default {
     return {
       dialog: false,
     };
+  },
+
+  computed: {
+    title() {
+      const key = this.scope === 'workflow' ? 'workflowPermission' : 'templatePermission';
+      return this.$t(key, { expr: this.itemId === 'new' ? this.$t('nnew') : this.$t('edit') });
+    },
   },
 
   watch: {

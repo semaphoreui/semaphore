@@ -63,6 +63,12 @@
       <v-tab :to="`/project/${projectId}/workflows/${itemId}/stats`">
         {{ $t('workflowStats') }}
       </v-tab>
+      <v-tab
+        v-if="isPro && can(USER_PERMISSIONS.editWorkflows)"
+        :to="`/project/${projectId}/workflows/${itemId}/perms`"
+      >
+        {{ $t('Permissions') }}
+      </v-tab>
     </v-tabs>
 
     <v-divider style="margin-top: -1px;" />
@@ -70,6 +76,8 @@
     <router-view
       :project-id="projectId"
       :workflow="item"
+      :features="features"
+      :is-admin="isAdmin"
     ></router-view>
   </div>
 </template>
@@ -94,6 +102,7 @@ export default {
 
   props: {
     projectId: Number,
+    features: Object,
   },
 
   data() {
@@ -107,6 +116,10 @@ export default {
   },
 
   computed: {
+    isPro() {
+      return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
+
     canRun() {
       return this.can(USER_PERMISSIONS.runProjectTasks);
     },
