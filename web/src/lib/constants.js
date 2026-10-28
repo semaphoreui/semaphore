@@ -23,6 +23,9 @@ export const USER_PERMISSIONS = {
   updateProject: 2,
   manageProjectResources: 4,
   manageProjectUsers: 8,
+  runWorkflows: 16,
+  editWorkflows: 32,
+  approveWorkflows: 64,
 };
 
 // Instance-wide permissions of a global role, as db.GlobalPermission. An admin holds all of them.
@@ -311,16 +314,47 @@ export const ROLE_PERMISSIONS = {
     label: 'canManageProjectUsers',
     color: 'red',
     textColor: 'white',
+  }, {
+    permission: 16,
+    label: 'canRunWorkflows',
+    color: 'teal',
+    textColor: 'white',
+  }, {
+    permission: 32,
+    label: 'canEditWorkflows',
+    color: 'indigo',
+    textColor: 'white',
+  }, {
+    permission: 64,
+    label: 'canApproveWorkflows',
+    color: 'deep-purple',
+    textColor: 'white',
   }],
   template: [{
     permission: 1,
-    label: 'Can run tasks',
+    label: 'canRunTemplate',
     color: 'blue',
     textColor: 'white',
   }, {
     permission: 4,
-    label: 'Can update the template',
+    label: 'canEditTemplate',
     color: 'orange',
+    textColor: 'white',
+  }],
+  workflow: [{
+    permission: 16,
+    label: 'canRunWorkflow',
+    color: 'teal',
+    textColor: 'white',
+  }, {
+    permission: 32,
+    label: 'canEditWorkflow',
+    color: 'indigo',
+    textColor: 'white',
+  }, {
+    permission: 64,
+    label: 'canApproveWorkflow',
+    color: 'deep-purple',
     textColor: 'white',
   }],
   global: [{

@@ -31,14 +31,27 @@ describe('EditRoleForm', () => {
     });
   });
 
-  it('keeps the verbs the form does not show', () => {
-    const form = { item: { permissions: 245 }, permissions: {} };
-    EditRoleForm.watch.permissions.handler.call(form, { canRunProjectTasks: true });
-    expect(form.item.permissions).to.equal(241);
+  it('packs the seven checkboxes into the mask', () => {
+    const form = { item: { permissions: 0 }, permissions: {} };
+    EditRoleForm.watch.permissions.handler.call(form, {
+      1: true, 16: true, 32: true, 64: true,
+    });
+    expect(form.item.permissions).to.equal(113);
 
-    form.permissions = { canManageProjectUsers: true };
+    EditRoleForm.watch['item.permissions'].handler.call(form, 113);
+    expect(form.permissions).to.deep.equal({
+      1: true, 2: false, 4: false, 8: false, 16: true, 32: true, 64: true,
+    });
+  });
+
+  it('keeps bits the form does not know', () => {
+    const form = { item: { permissions: 128 | 1 }, permissions: {} };
+    EditRoleForm.watch.permissions.handler.call(form, { 1: false });
+    expect(form.item.permissions).to.equal(128);
+
+    form.permissions = { 8: true };
     EditRoleForm.methods.beforeSave.call(form);
-    expect(form.item.permissions).to.equal(248);
+    expect(form.item.permissions).to.equal(136);
   });
 
   it('starts a new role without permissions', () => {
