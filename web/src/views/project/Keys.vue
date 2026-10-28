@@ -1,11 +1,14 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null"
     data-testid="keystore-page"
     :data-state="items.length === 0 ? 'empty' : 'ready'"
   >
+    <!-- eager after the first opening: Vuetify 3 unmounts the content of a closed dialog, Vuetify 2
+         kept the form mounted — KeyForm loads the storages once per screen, needReset clears it -->
     <EditDialog
       v-model="editDialog"
+      :eager="editDialog != null"
       test-id="keystoreDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Key`"
@@ -76,15 +79,18 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-app-bar-nav-icon
         @click="showDrawer()"
         data-testid="keystore-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="keystore-title">{{ $t('keyStore') }}</v-toolbar-title>
+      <v-toolbar-title class="flex-0-1" data-testid="keystore-title">
+        {{ $t('keyStore') }}
+      </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
         data-testid="keystore-new"
@@ -99,7 +105,8 @@
       :items="items"
       hide-default-footer
       class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       data-testid="keystore-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
@@ -125,9 +132,8 @@
         <code data-testid="keystore-rowType">{{ item.type }}</code>
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
           data-testid="keystore-rowActions"
         >
           <v-btn
@@ -142,7 +148,7 @@
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
 

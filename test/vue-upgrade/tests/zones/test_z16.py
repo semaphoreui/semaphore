@@ -18,8 +18,8 @@ import re
 import pytest
 from playwright.sync_api import Page, Route, expect
 
-from vu.ui import (button, dialog, fail_api, field_input, field_message, goto, open_dialog, row, snap,
-                   tid, wait_state, wait_until)
+from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, open_dialog,
+                   row, snap, tid, toggle, wait_state, wait_until)
 from vu.ui import VUETIFY_APPEND_BUTTON, VUETIFY_TAB_DISABLED  # noqa: E402 — step 2.4: shared selectors
 
 ZONE = "z16"
@@ -100,6 +100,14 @@ def patch_json(page: Page, method, pattern, change):
     return hits
 
 
+def queued_timers_run(page: Page):
+    """Wait until every timer the page has queued so far has fired: a setTimeout queued now runs after
+    them. Vuetify 3 moves the top of its overlay stack (globalTop, which EditDialog's Esc handler asks)
+    in a setTimeout after a dialog or menu opens; under the suite's fake clock that timer fires late
+    (JOURNAL@C559E533D7), so an Esc pressed at once would meet the previous top."""
+    page.evaluate("() => new Promise(r => setTimeout(r))")
+
+
 def requests_of(page: Page, method, part):
     """Every <method> request whose URL contains <part>, from now on."""
     out = []
@@ -164,9 +172,8 @@ def pick_type(page, card, label):
 
 
 def tick(card, test_id):
-    """A v-checkbox: the mark is on its input, the click goes to the input's wrapper."""
-    tid(card, test_id).locator("xpath=..").click()
-    expect(tid(card, test_id)).to_be_checked()
+    """Tick a v-checkbox (Vuetify 2: the mark on its input; 3: on the root .v-input) — toggle of vu/ui.py."""
+    toggle(card, test_id, True)
 
 
 def tab(card, test_id):
@@ -218,7 +225,7 @@ def pick_storage(page, card, name):
     field_input(card, "key-sourceStorageId").click()
     option(page, name).click()
     expect(option(page, name)).to_be_hidden()
-    expect(field_input(card, "key-sourceStorageId")).to_have_value(name)
+    expect(field_selection(card, "key-sourceStorageId")).to_have_text(name)
 
 
 def no_storage_license(page):
@@ -351,7 +358,7 @@ def test_new_ssh_generate(ui, project):
     open_list(page, project)
     card = new_ssh(page)
     tick(card, "key-generateSshKey")
-    expect(tid(card, "key-sshPrivateKey")).to_be_disabled()
+    expect(field_input(card, "key-sshPrivateKey")).to_be_disabled()
     snap(page, ZONE, "key-new", "ssh-generate", element=DIALOG)
 
 
@@ -364,7 +371,7 @@ def test_new_ssh_generate_after_error(ui, project):
     button(card, "editDialog-save").click()
     expect(field_message(card, "key-sshPrivateKey")).to_have_text("Private key is required")
     tick(card, "key-generateSshKey")
-    expect(tid(card, "key-sshPrivateKey")).to_be_disabled()
+    expect(field_input(card, "key-sshPrivateKey")).to_be_disabled()
     snap(page, ZONE, "key-new", "ssh-generate-after-error", element=DIALOG)
 
 
@@ -576,7 +583,7 @@ def test_edit_ssh(ui, project):
     page = ui("admin")
     open_list(page, project)
     card = open_edit(page, "Seed SSH")
-    expect(tid(card, "key-overrideSecret")).not_to_be_checked()
+    expect(field_input(card, "key-overrideSecret")).not_to_be_checked()
     expect(field_input(card, "key-type")).to_be_disabled()
     expect(tid(card, "key-publicKey")).to_have_count(0)
     snap(page, ZONE, "key-edit", "ssh", element=DIALOG)
@@ -589,8 +596,8 @@ def test_edit_ssh_override(ui, project):
     card = open_edit(page, "Seed SSH")
     tick(card, "key-overrideSecret")
     expect(field_input(card, "key-type")).to_be_enabled()
-    expect(tid(card, "key-generateSshKey")).to_be_enabled()
-    expect(tid(card, "key-sshPrivateKey")).to_be_enabled()
+    expect(field_input(card, "key-generateSshKey")).to_be_enabled()
+    expect(field_input(card, "key-sshPrivateKey")).to_be_enabled()
     snap(page, ZONE, "key-edit", "ssh-override", element=DIALOG)
 
 
@@ -663,7 +670,7 @@ def test_edit_storage_readonly(ui, project):
     open_list(page, project)
     card = open_edit(page, "Z16 Vault RO")
     expect(tid(card, "key-tab-storage")).to_have_attribute("aria-selected", "true")
-    expect(field_input(card, "key-sourceStorageId")).to_have_value("Z16 Vault RO")
+    expect(field_selection(card, "key-sourceStorageId")).to_have_text("Z16 Vault RO")
     expect(field_input(card, "key-sourceStorageKey")).to_have_value("secret/z16")
     expect(tid(card, "key-readOnlyAlert")).to_be_visible()
     snap(page, ZONE, "key-edit", "storage-readonly", element=DIALOG)
@@ -678,7 +685,7 @@ def test_edit_synced_override(ui, project, api):
     open_list(page, project)
     card = open_edit(page, "Seed SSH")
     tick(card, "key-overrideSecret")
-    expect(tid(card, "key-sshPrivateKey")).to_be_enabled()
+    expect(field_input(card, "key-sshPrivateKey")).to_be_enabled()
     for name in ("local", "storage", "env", "file"):
         tab_disabled(card, f"key-tab-{name}")
     snap(page, ZONE, "key-edit", "synced-override", element=DIALOG)
@@ -869,12 +876,15 @@ def test_password_eye(ui, project):
     page = ui("admin")
     open_list(page, project)
     card = new_login_password(page)
-    field = tid(page, "key-loginPasswordPassword")
+    # the masking class is on the .v-input of the field: Vuetify 2 — around the marked input, 3 — the
+    # marked root itself
+    masked = card.locator('.masked-secret-input:has([data-testid="key-loginPasswordPassword"]), '
+                          '.masked-secret-input[data-testid="key-loginPasswordPassword"]')
     expect(eye(card, "key-loginPasswordPassword")).to_contain_class("mdi-eye-off")
-    expect(card.locator(".masked-secret-input").filter(has=field)).to_have_count(1)
+    expect(masked).to_have_count(1)
     eye(card, "key-loginPasswordPassword").click()
     expect(eye(card, "key-loginPasswordPassword")).not_to_contain_class("mdi-eye-off")
-    expect(card.locator(".masked-secret-input").filter(has=field)).to_have_count(0)
+    expect(masked).to_have_count(0)
 
 
 @pytest.mark.functional
@@ -883,11 +893,13 @@ def test_escape(ui, project):
     page = ui("admin")
     open_list(page, project)
     card = open_new(page)
+    queued_timers_run(page)
     page.keyboard.press("Escape")
     expect(card).to_be_hidden()
     card = open_new(page)
     field_input(card, "key-type").click()
     expect(option(page, "SSH Key")).to_be_visible()
+    queued_timers_run(page)
     page.keyboard.press("Escape")
     expect(option(page, "SSH Key")).to_be_hidden()
     expect(card).to_be_visible()

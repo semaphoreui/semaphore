@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null && secretStorages != null"
     data-testid="key-form"
@@ -77,7 +76,6 @@
         >
           <span v-html="$t('project_runners_only_pro')"></span>
           <v-btn
-            dark
             class="ml-2"
             color="hsl(348deg, 86%, 61%)"
             @click="upgradeToPro()"
@@ -140,10 +138,13 @@
       data-testid="key-type"
     />
 
+    <!-- mb-4: the margin of a Vuetify 2 v-alert (none in 3) — without it Override (absolute, at the
+         bottom of the dialog) touches the alert -->
     <v-alert
       v-if="isReadOnly"
       type="info"
       variant="tonal"
+      class="mb-4"
       data-testid="key-readOnlyAlert"
     >Read-only secret storage chosen.</v-alert>
 
@@ -159,7 +160,7 @@
 
     <v-text-field
       v-model="item.login_password.password"
-      :append-icon="showLoginPassword ? 'mdi-eye' : 'mdi-eye-off'"
+      :append-inner-icon="showLoginPassword ? 'mdi-eye' : 'mdi-eye-off'"
       :label="$t('password')"
       :rules="[(v) => !!v || !canEditSecrets || $t('password_required')]"
       :class="{ 'masked-secret-input': !showLoginPassword }"
@@ -167,7 +168,7 @@
       :required="canEditSecrets"
       :disabled="formSaving || !canEditSecrets"
       autocomplete="new-password"
-      @click:append="showLoginPassword = !showLoginPassword"
+      @click:append-inner="showLoginPassword = !showLoginPassword"
       variant="outlined"
       density="compact"
       data-testid="key-loginPasswordPassword"
@@ -185,12 +186,12 @@
 
     <v-text-field
       v-model="item.ssh.passphrase"
-      :append-icon="showSSHPassphrase ? 'mdi-eye' : 'mdi-eye-off'"
+      :append-inner-icon="showSSHPassphrase ? 'mdi-eye' : 'mdi-eye-off'"
       label="Passphrase (Optional)"
       :class="{ 'masked-secret-input': !showSSHPassphrase }"
       v-if="!isReadOnly && item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
-      @click:append="showSSHPassphrase = !showSSHPassphrase"
+      @click:append-inner="showSSHPassphrase = !showSSHPassphrase"
       variant="outlined"
       density="compact"
       data-testid="key-sshPassphrase"
@@ -274,6 +275,7 @@
       variant="tonal"
       type="info"
       v-if="item.type === 'none'"
+      class="mb-4"
       data-testid="key-noneInfo"
     >
       {{ $t('useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook') }}
