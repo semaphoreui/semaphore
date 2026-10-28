@@ -136,11 +136,13 @@ func TestTemplatePermissions_RejectUnknownBits(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, rec := templatePermRequest(t, store, tt.method, `{"role_slug":"guest","permissions":17}`, tt.permID)
-			w := httptest.NewRecorder()
-			tt.handle(w, r)
-			assert.Equal(t, http.StatusBadRequest, w.Code)
-			assert.Empty(t, rec.All())
+			for _, body := range []string{`{"role_slug":"guest","permissions":1024}`, `{"role_slug":"guest","permissions":16}`} {
+				r, rec := templatePermRequest(t, store, tt.method, body, tt.permID)
+				w := httptest.NewRecorder()
+				tt.handle(w, r)
+				assert.Equal(t, http.StatusBadRequest, w.Code, body)
+				assert.Empty(t, rec.All())
+			}
 		})
 	}
 }
