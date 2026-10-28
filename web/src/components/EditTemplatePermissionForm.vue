@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null"
     data-testid="templatePerm-form"
@@ -10,7 +9,7 @@
     <v-alert
       :model-value="!!formError"
       color="error"
-      class="pb-2"
+      class="pb-2 mb-4"
       data-testid="templatePerm-error"
     >{{ formError }}
     </v-alert>
@@ -28,20 +27,20 @@
       :disabled="formSaving"
       data-testid="templatePerm-roleSlug"
     >
-      <template v-slot:item="{ item: role }">
-        <v-list-item-content
-          :data-testid="`templatePerm-roleSlug-${role.slug}`"
-        >
-          <v-list-item-title>{{ role.name }}</v-list-item-title>
-          <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
-        </v-list-item-content>
+      <template v-slot:item="{ item: { raw: role }, props }">
+        <v-list-item v-bind="props" :title="undefined">
+          <div :data-testid="`templatePerm-roleSlug-${role.slug}`">
+            <v-list-item-title>{{ role.name }}</v-list-item-title>
+            <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
+          </div>
+        </v-list-item>
       </template>
     </v-select>
 
-    <v-subheader
+    <v-list-subheader
       class="pl-0"
       data-testid="templatePerm-permissionsTitle"
-    >{{ $t('permissions') }}</v-subheader>
+    >{{ $t('permissions') }}</v-list-subheader>
 
     <v-checkbox
       v-for="p in ROLE_PERMISSIONS[scope]"
@@ -173,7 +172,7 @@ export default {
 </script>
 
 <style scoped>
-.v-subheader {
+.v-list-subheader {
   font-weight: 500;
   font-size: 14px;
 }

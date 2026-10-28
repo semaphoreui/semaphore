@@ -147,7 +147,7 @@ def pick_role(page, card, slug, name):
 
 
 def check(card, bit, on=True):
-    box = tid(card, f"templatePerm-permission-{bit}")
+    box = field_input(card, f"templatePerm-permission-{bit}")  # its <input> (Vuetify 3: inside the .v-input)
     box.set_checked(on, force=True)
     expect(box).to_be_checked(checked=on)
 
@@ -257,8 +257,8 @@ def test_z07__dialog__new(ui, api, project):
     open_perms(page, api, project)
     card = new_dialog(page)
     expect(field_selection(card, "templatePerm-roleSlug")).to_have_count(0)
-    expect(tid(card, "templatePerm-permission-1")).not_to_be_checked()
-    expect(tid(card, "templatePerm-permission-4")).not_to_be_checked()
+    expect(field_input(card, "templatePerm-permission-1")).not_to_be_checked()
+    expect(field_input(card, "templatePerm-permission-4")).not_to_be_checked()
     expect(button(card, "editDialog-save")).to_have_text("Create")
     snap(page, ZONE, "dialog", "new", element="templatePermDialog")
 
@@ -314,7 +314,7 @@ def test_z07__dialog__saving(ui, api, project):
     expect(tid(card, "templatePerm-form")).to_have_attribute("data-state", "loading")
     expect(card).to_have_attribute("data-state", "loading")
     expect(field_input(card, "templatePerm-roleSlug")).to_be_disabled()
-    expect(tid(card, "templatePerm-permission-1")).to_be_disabled()
+    expect(field_input(card, "templatePerm-permission-1")).to_be_disabled()
     snap(page, ZONE, "dialog", "saving", element="templatePermDialog")
     for route in held:
         route.fulfill(status=500, content_type="application/json", body='{"error": "vu released"}')
@@ -371,8 +371,8 @@ def test_z07__dialog__edit(ui, api, project):
     open_perms(page, api, project)
     card = edit_dialog(page, "owner")
     expect(field_selection(card, "templatePerm-roleSlug")).to_have_text("Owner")
-    expect(tid(card, "templatePerm-permission-1")).to_be_checked()
-    expect(tid(card, "templatePerm-permission-4")).to_be_checked()
+    expect(field_input(card, "templatePerm-permission-1")).to_be_checked()
+    expect(field_input(card, "templatePerm-permission-4")).to_be_checked()
     expect(button(card, "editDialog-save")).to_have_text("Save")
     snap(page, ZONE, "dialog", "edit", element="templatePermDialog")
 
@@ -506,8 +506,8 @@ def test_edit_body(ui, api, project):
     reqs = answer_api(page, "PUT", RULE_GLOB, 204)
     card = edit_dialog(page, "manager")
     expect(field_selection(card, "templatePerm-roleSlug")).to_have_text("Manager")
-    expect(tid(card, "templatePerm-permission-1")).not_to_be_checked()
-    expect(tid(card, "templatePerm-permission-4")).to_be_checked()
+    expect(field_input(card, "templatePerm-permission-1")).not_to_be_checked()
+    expect(field_input(card, "templatePerm-permission-4")).to_be_checked()
     check(card, 1)
     check(card, 4, False)
     pick_role(page, card, "guest", "Guest")
@@ -531,8 +531,8 @@ def test_dialog_cancel_and_reopen(ui, api, project):
     expect(card).to_be_hidden()
     card = new_dialog(page)
     expect(field_selection(card, "templatePerm-roleSlug")).to_have_count(0)
-    expect(tid(card, "templatePerm-permission-1")).not_to_be_checked()
-    expect(tid(card, "templatePerm-permission-4")).not_to_be_checked()
+    expect(field_input(card, "templatePerm-permission-1")).not_to_be_checked()
+    expect(field_input(card, "templatePerm-permission-4")).not_to_be_checked()
     button(card, "editDialog-close").click()
     expect(card).to_be_hidden()
     assert puts == [] and posts == []

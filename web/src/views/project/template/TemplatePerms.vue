@@ -34,7 +34,6 @@
       ></span>
 
       <v-btn
-        dark
         variant="flat"
         v-if="isAdmin"
         color="amber-darken-3"
@@ -66,6 +65,7 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
+      :mobile-breakpoint="600"
       data-testid="templatePerms-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -99,9 +99,8 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
           data-testid="templatePerms-rowActions"
         >
           <v-btn @click="editItem(item.id)" data-testid="templatePerms-rowEdit">
@@ -110,7 +109,7 @@
           <v-btn @click="askDeleteItem(item.id)" data-testid="templatePerms-rowDelete">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
