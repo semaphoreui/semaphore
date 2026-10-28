@@ -93,6 +93,14 @@ func TestRoleAssignments_Impact(t *testing.T) {
 		},
 		{name: "nothing", want: RoleImpact{}},
 		{
+			name: "workflow grant in a project of its own",
+			assigned: RoleAssignments{
+				Members:        []RoleMember{{ProjectID: 1, UserID: 1}},
+				WorkflowGrants: []WorkflowRolePerm{{ProjectID: 4}},
+			},
+			want: RoleImpact{Members: 1, Projects: 2, WorkflowGrants: 1},
+		},
+		{
 			name: "manual member, mapped member and mapping",
 			assigned: RoleAssignments{
 				Members:     []RoleMember{{ProjectID: 1, UserID: 1}},
