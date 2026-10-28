@@ -143,6 +143,16 @@ type TemplateRolePerm struct {
 	RoleSlug    string                `db:"role_slug" json:"role_slug"`
 }
 
+// WorkflowRolePerm is a role grant on one workflow, the twin of TemplateRolePerm.
+type WorkflowRolePerm struct {
+	ID          int                   `db:"id" json:"id"`
+	RoleID      int                   `db:"role_id" json:"-"`
+	WorkflowID  int                   `db:"workflow_id" json:"workflow_id"`
+	ProjectID   int                   `db:"project_id" json:"project_id"`
+	Permissions ProjectUserPermission `db:"permissions" json:"permissions"`
+	RoleSlug    string                `db:"role_slug" json:"role_slug"`
+}
+
 // GlobalRoleAssignment gives a user the permissions of a global role.
 type GlobalRoleAssignment struct {
 	ID     int `db:"id" json:"id"`
