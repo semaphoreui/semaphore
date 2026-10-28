@@ -104,32 +104,41 @@ func sourceIP(r *http.Request) string {
 // verifyIntegrationAuth checks the request against the integration's auth
 // method and returns why it was rejected, empty when it passed.
 func verifyIntegrationAuth(integration db.Integration, r *http.Request, payload []byte) string {
-	secret := integration.AuthSecret.LoginPassword
+	// A key that cannot provide the shared secret refuses the request here,
+	// before the method-specific check.
+	secret, ok := integration.VerificationSecret()
+	if !ok {
+		return "Auth secret is empty or its key type does not fit the auth method"
+	}
 
 	switch integration.AuthMethod {
 	case db.IntegrationAuthGitHub:
-		if !isValidHmacPayload(secret.Password, r.Header.Get("X-Hub-Signature-256"), payload, "sha256=", sha256.New) {
+		if !isValidHmacPayload(secret, r.Header.Get("X-Hub-Signature-256"), payload, "sha256=", sha256.New) {
 			return "Invalid GitHub/HMAC signature"
 		}
 	case db.IntegrationAuthBitbucket:
-		if !isValidHmacPayload(secret.Password, r.Header.Get("x-hub-signature"), payload, "sha256=", sha256.New) {
+		if !isValidHmacPayload(secret, r.Header.Get("x-hub-signature"), payload, "sha256=", sha256.New) {
 			return "Invalid Bitbucket/HMAC signature"
 		}
 	case db.IntegrationAuthHmac:
-		if !isValidHmacPayload(secret.Password, r.Header.Get(integration.AuthHeader), payload, "", sha256.New) {
+		if !isValidHmacPayload(secret, r.Header.Get(integration.AuthHeader), payload, "", sha256.New) {
 			return "Invalid HMAC signature"
 		}
 	case db.IntegrationAuthHmacSha512:
-		if !isValidHmacPayload(secret.Password, r.Header.Get(integration.AuthHeader), payload, "", sha512.New) {
+		if !isValidHmacPayload(secret, r.Header.Get(integration.AuthHeader), payload, "", sha512.New) {
 			return "Invalid HMAC-SHA512 signature"
 		}
 	case db.IntegrationAuthToken:
-		if secret.Password != r.Header.Get(integration.AuthHeader) {
+		if secret != r.Header.Get(integration.AuthHeader) {
 			return "Invalid verification token"
 		}
 	case db.IntegrationAuthBasic:
+		if integration.AuthSecret.Type != db.AccessKeyLoginPassword {
+			return "BasicAuth needs a login/password credential"
+		}
+		creds := integration.AuthSecret.LoginPassword
 		login, password, ok := r.BasicAuth()
-		if !ok || secret.Password != password || secret.Login != login {
+		if !ok || creds.Password != password || creds.Login != login {
 			return "Invalid BasicAuth: incorrect login or password"
 		}
 	case db.IntegrationAuthNone:
@@ -253,105 +262,6 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			// Anyone who knows the URL can fail auth, so such a body is not kept.
 			call.RequestBody = nil
 			c.recordCall(call, started, db.IntegrationCallUnauthorized, reason)
-      continue
-		}
-
-		// A key that cannot provide the shared secret refuses the request here,
-		// before the method-specific check.
-		secret, ok := integration.VerificationSecret()
-		if !ok {
-			log.WithFields(log.Fields{
-				"context":       "integrations",
-				"integrationId": integration.ID,
-			}).Error("auth secret is empty or its key type does not fit the auth method")
-			continue
-		}
-
-		switch integration.AuthMethod {
-		case db.IntegrationAuthGitHub:
-			ok := isValidHmacPayload(
-				secret,
-				r.Header.Get("X-Hub-Signature-256"),
-				payload,
-				"sha256=",
-				sha256.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid GitHub/HMAC signature")
-				continue
-			}
-		case db.IntegrationAuthBitbucket:
-			ok := isValidHmacPayload(
-				secret,
-				r.Header.Get("x-hub-signature"),
-				payload,
-				"sha256=",
-				sha256.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid Bitbucket/HMAC signature")
-				continue
-			}
-		case db.IntegrationAuthHmac:
-			ok := isValidHmacPayload(
-				secret,
-				r.Header.Get(integration.AuthHeader),
-				payload,
-				"",
-				sha256.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid HMAC signature")
-				continue
-			}
-		case db.IntegrationAuthHmacSha512:
-			ok := isValidHmacPayload(
-				secret,
-				r.Header.Get(integration.AuthHeader),
-				payload,
-				"",
-				sha512.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid HMAC-SHA512 signature")
-				continue
-			}
-		case db.IntegrationAuthToken:
-			if secret != r.Header.Get(integration.AuthHeader) {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid verification token")
-				continue
-			}
-		case db.IntegrationAuthBasic:
-			if integration.AuthSecret.Type != db.AccessKeyLoginPassword {
-				log.WithFields(log.Fields{
-					"context":       "integrations",
-					"integrationId": integration.ID,
-				}).Error("BasicAuth needs a login/password credential")
-				continue
-			}
-			var username, password, auth = r.BasicAuth()
-			if !auth || integration.AuthSecret.LoginPassword.Password != password || integration.AuthSecret.LoginPassword.Login != username {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid BasicAuth: incorrect login or password")
-				continue
-			}
-		case db.IntegrationAuthNone:
-			// Do nothing
-		default:
-			log.WithFields(log.Fields{
-				"context": "integrations",
-			}).Error("Unknown verification method: " + integration.AuthMethod)
 			continue
 		}
 
