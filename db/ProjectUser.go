@@ -24,6 +24,9 @@ const (
 	CanUpdateProject
 	CanManageProjectResources
 	CanManageProjectUsers
+	CanRunWorkflows
+	CanEditWorkflows
+	CanApproveWorkflows
 )
 
 type ProjectUser struct {
