@@ -21,7 +21,7 @@
           <b>{{ row.slug }}</b>
           <span v-if="row.name" class="ml-1">{{ row.name }}</span>
         </div>
-        <div class="text--secondary">{{ row.templates.map((tpl) => tpl.name).join(', ') }}</div>
+        <div class="text--secondary">{{ objectNames(row) }}</div>
 
         <v-select
           v-model="choices[row.slug]"
@@ -147,9 +147,14 @@ export default {
       return items.concat(groupRolesForSelect(this.roles, (key) => this.$i18n.t(key)));
     },
 
-    /** A row keeps its role once a template is granted, so a retry cannot split the grants. */
+    objectNames(row) {
+      return row.templates.map((tpl) => tpl.name).concat(row.workflows.map((wf) => wf.name)).join(', ');
+    },
+
+    /** A row keeps its role once an object is granted, so a retry cannot split the grants. */
     locked(row) {
-      return row.templates.some((tpl) => this.granted[`${row.slug}/${tpl.id}`]);
+      return row.templates.some((tpl) => this.granted[`${row.slug}/${tpl.id}`])
+        || row.workflows.some((wf) => this.granted[`${row.slug}/wf/${wf.id}`]);
     },
 
     /** The slug the row's templates go to, or null when there is nothing valid to do yet. */
@@ -203,6 +208,22 @@ export default {
             this.$set(this.granted, key, true);
           } catch (err) {
             failed.push(`${tpl.name}: ${getErrorMessage(err)}`);
+          }
+        }
+      }
+      for (let i = 0; i < row.workflows.length; i += 1) {
+        const wf = row.workflows[i];
+        const key = `${row.slug}/wf/${wf.id}`;
+        if (!this.granted[key]) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            await axios.post(`${base}/workflows/${wf.id}/perms`, {
+              role_slug: roleSlug,
+              permissions: wf.permissions,
+            });
+            this.$set(this.granted, key, true);
+          } catch (err) {
+            failed.push(`${wf.name}: ${getErrorMessage(err)}`);
           }
         }
       }
