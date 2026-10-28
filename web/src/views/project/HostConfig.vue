@@ -37,10 +37,14 @@
         @click="showDrawer()"
         data-testid="hostConfig-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="hostConfig-title">{{ $t('hostConfig') }}</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="hostConfig-title"
+      >{{ $t('hostConfig') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
         data-testid="hostConfig-new"
@@ -64,7 +68,8 @@
       :items="items"
       hide-default-footer
       class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       data-testid="hostConfig-table"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px); margin: auto;"
     >
@@ -82,9 +87,8 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
           data-testid="hostConfig-rowActions"
         >
           <v-btn
@@ -99,7 +103,7 @@
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
