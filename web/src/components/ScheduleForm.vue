@@ -1,8 +1,11 @@
 <template>
+  <!-- position: relative — «Enabled» is placed from the form: Vuetify 3 scrolls the dialog
+       card itself, so a box placed from the card stays at the bottom of its first screen and
+       covers the form when the card scrolls (Vuetify 2 scrolled the dialog around the card) -->
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
+    style="position: relative"
     v-if="templates && item != null"
     data-testid="scheduleForm-form"
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
@@ -19,10 +22,11 @@
       <code>schedule.timezone</code> to set timezone for Schedule.
     </v-alert>
 
+    <!-- mb-4: the margin of a Vuetify 2 alert; without it the alert covers the label of «Name» -->
     <v-alert
       :model-value="!!formError"
       color="error"
-      class="pb-2"
+      class="pb-2 mb-4"
       data-testid="scheduleForm-error"
     >{{ formError }}
     </v-alert>
@@ -53,7 +57,7 @@
     />
 
     <v-card
-      style="background: var(--highlighted-card-bg-color)"
+      style="background: var(--highlighted-card-bg-color); overflow: visible"
       v-if="item.template_id"
       class="mb-8 pt-3"
       data-testid="scheduleForm-taskParamsCard"
@@ -285,8 +289,10 @@
       </template>
     </v-table>
 
+    <!-- bottom left of the card, level with the dialog buttons, as in Vuetify 2: 15 px above
+         the card bottom = 45 px below the form (8 px margin of the table, 52 px button row) -->
     <v-checkbox
-      style="position: absolute; bottom: 15px; left: 22px;"
+      style="position: absolute; bottom: -45px; left: -2px;"
       v-model="item.active"
       hide-details
       data-testid="scheduleForm-active"
@@ -302,31 +308,32 @@
 <style lang="scss">
 .ScheduleCheckbox {
 
-  .v-input__slot {
+  .v-selection-control {
     padding: 4px 6px;
     font-weight: bold;
     border-radius: 6px;
   }
 
-  .v-messages {
+  .v-input__details {
     display: none;
   }
+}
 
-  &.theme--light {
-    .v-input__slot {
-      background: #e4e4e4;
-    }
+// Vuetify 3 puts the theme class on an ancestor (the app, the dialog overlay), not on the field.
+.v-theme--light .ScheduleCheckbox {
+  .v-selection-control {
+    background: #e4e4e4;
   }
+}
 
-  &.theme--dark {
-    .v-input__slot {
-      background: gray;
-    }
+.v-theme--dark .ScheduleCheckbox {
+  .v-selection-control {
+    background: gray;
   }
 }
 
 .ScheduleCheckbox--active {
-  .v-input__slot {
+  .v-selection-control {
     background: #4caf50 !important;
   }
 

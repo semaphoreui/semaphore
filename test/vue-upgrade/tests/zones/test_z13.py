@@ -14,7 +14,7 @@ a schedule without a name «30 6 * * 1», «Z13 Hourly macro» @hourly). Shots: 
 - Every cron form POSTs schedules/validate when it opens and on each key: the check only parses the
   string, so snapshot tests let it reach the server (an aborted check shows as a false cron error).
 - The next run time and the default «Run at» come from the frozen browser clock (meta.json clock).
-- A dialog is shot as its box (the scroll container of the card) scrolled to the top — what the user
+- A dialog is shot as its window (dialog_frame) scrolled to the top — what the user
   sees; a state whose card is taller than the box in some size (TALL) also gets <state>-end, the box
   scrolled to the bottom, in all three sizes.
 - z13__list__no-access is not reachable: App.vue moves a user who is not a member of the project to
@@ -28,8 +28,8 @@ import re
 import pytest
 from playwright.sync_api import Page, Route, expect
 
-from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, settle, snap,
-                   tid, wait_state, wait_until)
+from vu.ui import (button, dialog, dialog_frame, fail_api, field_input, field_message, field_selection, goto,
+                   settle, snap, tid, wait_state, wait_until)
 
 ZONE = "z13"
 DEMO, OTHER, EMPTY = "Seed Demo", "Seed Other", "Seed Empty"
@@ -116,10 +116,11 @@ def local(page: Page, key):
     return page.evaluate("k => localStorage.getItem(k)", key)
 
 
-def dialog_box(card):
-    """The visible box of an open dialog: the parent of the card (the scroll container of v-dialog).
-    Base request: a VUETIFY_DIALOG_FRAME / snap clip in vu/ui.py."""
-    return card.locator("xpath=..")
+def scroll_dialog(card, to):
+    """Scroll the dialog holding <card> to the top / the bottom: Vuetify 2 scrolls the window around the
+    card, Vuetify 3 the card itself inside its window — both are set, the one that does not scroll keeps 0."""
+    card.evaluate("(e, to) => { for (const x of [e, e.parentElement]) x.scrollTop = to ? x.scrollHeight : 0; }",
+                  to == "bottom")
 
 
 # ---- steps ------------------------------------------------------------------------------------------
@@ -189,13 +190,13 @@ def pick(page, card, field, name):
 
 def pick_template(page, card, name):
     pick(page, card, "scheduleForm-templateId", name)
-    expect(field_input(card, "scheduleForm-templateId")).to_have_value(name)
+    expect(field_selection(card, "scheduleForm-templateId")).to_have_text(name)
     wait_state(card, "scheduleForm-taskParams", "ready")
 
 
 def to_simple(page, card):
     """Switch «Show cron format» off: the simple mode (the switch writes schedule__raw_cron = '1')."""
-    tid(card, "scheduleForm-rawCron").uncheck(force=True)
+    field_input(card, "scheduleForm-rawCron").uncheck(force=True)
     expect(tid(card, "scheduleForm-timing").first).to_be_attached()
     settle(page)
 
@@ -215,12 +216,13 @@ TALL = {"edit-cron", "edit-macro", "edit-run-at", "edit-simple", "run-at-invalid
 def shot_dialog(page, state, test_id="scheduleDialog"):
     """The dialog box (the card in its scroll container) scrolled to the top; a TALL state also
     scrolled to the bottom (<state>-end: next run time, «Enabled», the buttons)."""
-    box = dialog_box(tid(page, test_id))
-    box.evaluate("e => { e.scrollTop = 0; }")
+    card = tid(page, test_id)
+    box = dialog_frame(page, test_id)
+    scroll_dialog(card, "top")
     settle(page)
     path = snap(page, ZONE, "dialog", state, element=box)
     if state in TALL:
-        box.evaluate("e => { e.scrollTop = e.scrollHeight; }")
+        scroll_dialog(card, "bottom")
         settle(page)
         path = snap(page, ZONE, "dialog", f"{state}-end", element=box)
     return path
@@ -238,7 +240,7 @@ def test_list_ready(ui, project):
     open_list(page, project)
     wait_state(page, "schedule-table", "ready")
     expect(tid(page, "schedule-rowName")).to_have_count(len(ROWS))
-    expect(sched_row(page, NEW_YEAR).get_by_test_id("schedule-rowActive")).to_be_checked()
+    expect(field_input(sched_row(page, NEW_YEAR), "schedule-rowActive")).to_be_checked()
     shot_list(page, "ready")
 
 
@@ -250,7 +252,7 @@ def test_list_no_actions(ui, project):
     expect(tid(page, "schedule-rowName")).to_have_count(len(ROWS))
     expect(tid(page, "schedule-new")).to_have_count(0)
     expect(tid(page, "schedule-rowActions")).to_have_count(0)
-    expect(tid(page, "schedule-rowActive").first).to_be_disabled()
+    expect(field_input(page, "schedule-rowActive")).to_be_disabled()
     shot_list(page, "no-actions")
 
 
@@ -304,7 +306,7 @@ def test_list_toggle_error(ui, project):
     page = ui("admin")
     open_list(page, project)
     hits = fail_api(page, "PUT", ACTIVE, 500, {"error": "Z13 toggle fail"})
-    switch = sched_row(page, NIGHTLY).get_by_test_id("schedule-rowActive")
+    switch = field_input(sched_row(page, NIGHTLY), "schedule-rowActive")
     switch.click(force=True)
     wait_until(page, lambda: hits, "the failed PUT active")
     expect(switch).to_be_checked()
@@ -369,8 +371,8 @@ def test_dialog_new_cron(ui, project):
     card = new_schedule(page)
     expect(field_input(card, "scheduleForm-cronFormat")).to_have_value("* * * * *")
     expect(tid(card, "scheduleForm-timezoneInfo")).to_be_visible()
-    expect(tid(card, "scheduleForm-rawCron")).to_be_checked()
-    expect(tid(card, "scheduleForm-active")).to_be_checked()
+    expect(field_input(card, "scheduleForm-rawCron")).to_be_checked()
+    expect(field_input(card, "scheduleForm-active")).to_be_checked()
     shot_dialog(page, "new-cron")
 
 
@@ -381,7 +383,7 @@ def test_dialog_edit_cron(ui, project):
     card = edit_schedule(page, NIGHTLY)
     expect(field_input(card, "scheduleForm-name")).to_have_value(NIGHTLY)
     expect(field_input(card, "scheduleForm-cronFormat")).to_have_value("0 3 * * *")
-    expect(tid(card, "scheduleForm-active")).not_to_be_checked()
+    expect(field_input(card, "scheduleForm-active")).not_to_be_checked()
     wait_state(card, "scheduleForm-taskParams", "ready")
     shot_dialog(page, "edit-cron")
 
@@ -396,8 +398,8 @@ def test_dialog_edit_macro(ui, project, clock):
     card = edit_schedule(page, MACRO)
     expect(field_input(card, "scheduleForm-cronFormat")).to_have_value("@hourly")
     expect(field_message(card, "scheduleForm-cronFormat")).to_have_count(0)
-    expect(tid(card, "scheduleForm-rawCron")).to_be_enabled()
-    expect(tid(card, "scheduleForm-rawCron")).to_be_checked()
+    expect(field_input(card, "scheduleForm-rawCron")).to_be_enabled()
+    expect(field_input(card, "scheduleForm-rawCron")).to_be_checked()
     nxt = (clock + dt.timedelta(hours=1)).replace(minute=0)
     expect(tid(card, "scheduleForm-nextRunServer")).to_contain_text(nxt.strftime("%H:%M"))
     wait_state(card, "scheduleForm-taskParams", "ready")
@@ -414,7 +416,7 @@ def test_dialog_cron_invalid(ui, project):
         field.fill("abc")
     expect(field_message(card, "scheduleForm-cronFormat")).to_have_text(
         "Cron: expected exactly 5 fields, found 1: [abc]")
-    expect(tid(card, "scheduleForm-rawCron")).to_be_disabled()
+    expect(field_input(card, "scheduleForm-rawCron")).to_be_disabled()
     expect(tid(card, "scheduleForm-nextRunServer")).to_contain_text("—")
     field.blur()
     shot_dialog(page, "cron-invalid")
@@ -439,7 +441,7 @@ def test_dialog_simple_hourly(ui, project):
     expect(tid(card, "scheduleForm-minutes")).to_be_visible()
     expect(tid(card, "scheduleForm-cronFormat")).to_have_count(0)
     for m in range(0, 60, 5):
-        expect(tid(card, f"scheduleForm-minute-{m}")).not_to_be_checked()
+        expect(field_input(card, f"scheduleForm-minute-{m}")).not_to_be_checked()
     assert local(page, "schedule__raw_cron") == "1"
     shot_dialog(page, "simple-hourly")
 
@@ -501,7 +503,7 @@ def test_dialog_edit_simple(ui, project):
     to_simple(page, card)
     expect(field_selection(card, "scheduleForm-timing")).to_have_text("Yearly")
     for t in ("scheduleForm-month-1", "scheduleForm-day-1", "scheduleForm-hour-3", "scheduleForm-minute-0"):
-        expect(tid(card, t)).to_be_checked()
+        expect(field_input(card, t)).to_be_checked()
     shot_dialog(page, "edit-simple")
 
 
@@ -514,7 +516,7 @@ def test_dialog_new_run_at(ui, project, clock):
     card = new_schedule(page, "runAt")
     default = (clock + dt.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
     expect(field_input(card, "scheduleForm-runAt")).to_have_value(default.strftime("%Y-%m-%dT%H:%M"))
-    expect(tid(card, "scheduleForm-deleteAfterRun")).not_to_be_checked()
+    expect(field_input(card, "scheduleForm-deleteAfterRun")).not_to_be_checked()
     expect(tid(card, "scheduleForm-rawCron")).to_have_count(0)
     shot_dialog(page, "new-run-at")
 
@@ -525,7 +527,7 @@ def test_dialog_edit_run_at(ui, project):
     open_list(page, project)
     card = edit_schedule(page, RUN_ONCE, check=False)
     expect(field_input(card, "scheduleForm-runAt")).to_have_value("2099-01-01T09:00")
-    expect(tid(card, "scheduleForm-deleteAfterRun")).to_be_checked()
+    expect(field_input(card, "scheduleForm-deleteAfterRun")).to_be_checked()
     expect(tid(card, "scheduleForm-nextRunServer")).to_contain_text("2099-01-01")
     wait_state(card, "scheduleForm-taskParams", "ready")
     shot_dialog(page, "edit-run-at")
@@ -703,7 +705,7 @@ def test_list_marks(ui, project, api):
         expect(sched_row(page, name).get_by_test_id("schedule-rowCron")).to_have_text(cron)
     expect(sched_row(page, RUN_ONCE).get_by_test_id("schedule-rowRunAt")).to_have_text("2099-01-01 09:00 (UTC)")
     for name in ROWS:
-        switch = sched_row(page, name).get_by_test_id("schedule-rowActive")
+        switch = field_input(sched_row(page, name), "schedule-rowActive")
         if name in (NEW_YEAR, RUN_ONCE):
             expect(switch).to_be_checked()
         else:
@@ -726,8 +728,8 @@ def test_runner_cannot_manage(ui, project):
     expect(tid(page, "schedule-new")).to_have_count(0)
     expect(tid(page, "schedule-rowActions")).to_have_count(0)
     expect(tid(page, "schedule-rowEdit")).to_have_count(0)
-    for i in range(len(ROWS)):
-        expect(tid(page, "schedule-rowActive").nth(i)).to_be_disabled()
+    for name in ROWS:
+        expect(field_input(sched_row(page, name), "schedule-rowActive")).to_be_disabled()
 
 
 @pytest.mark.functional
@@ -745,7 +747,7 @@ def test_toggle_sends_active(ui, project):
     page = ui("admin")
     open_list(page, project)
     hits = answer(page, "PUT", ACTIVE, 204)
-    switch = sched_row(page, NIGHTLY).get_by_test_id("schedule-rowActive")
+    switch = field_input(sched_row(page, NIGHTLY), "schedule-rowActive")
     switch.click(force=True)
     wait_until(page, lambda: hits, "PUT active")
     assert hits[0].post_data_json == {"active": True}
@@ -761,7 +763,7 @@ def test_toggle_error_silent(ui, project):
     page = ui("admin")
     open_list(page, project)
     hits = fail_api(page, "PUT", ACTIVE, 500, {"error": "Z13 toggle fail"})
-    switch = sched_row(page, NEW_YEAR).get_by_test_id("schedule-rowActive")
+    switch = field_input(sched_row(page, NEW_YEAR), "schedule-rowActive")
     switch.click(force=True)
     wait_until(page, lambda: hits, "the failed PUT active")
     expect(switch).not_to_be_checked()  # stays in the new position (JOURNAL@2A4F320FD7)
@@ -797,8 +799,15 @@ def test_validation_sends_nothing(ui, project):
     button(card, "editDialog-save").click()
     expect(field_message(card, "scheduleForm-name")).to_have_text("Name is required")
     expect(field_message(card, "scheduleForm-templateId")).to_have_text("template_required")
+    # the rule message shows while the server check of the empty value is on its way; its answer then
+    # takes the place (error-messages win over rules in Vuetify 2 and 3) — the check is held to see both
+    checks = hold(page, "POST", VALIDATE)
     field_input(card, "scheduleForm-cronFormat").fill("")
+    wait_until(page, lambda: checks, "the held cron check")
     expect(field_message(card, "scheduleForm-cronFormat")).to_have_text("Cron required")
+    for route in checks:
+        route.fallback()  # on to the server (allow_cron_check)
+    expect(field_message(card, "scheduleForm-cronFormat")).to_have_text("Cron: empty spec string")
     expect(card).to_be_visible()
     assert posts == []
 
@@ -840,7 +849,7 @@ def test_create_edit_delete_cron(ui, project, api, cleanup):
     with page.expect_response(lambda r: r.url.endswith("/schedules/validate") and r.ok):
         field.fill("15 4 * * *")
     expect(tid(card, "scheduleForm-nextRunServer")).to_contain_text("04:15")
-    tid(card, "scheduleForm-active").uncheck(force=True)
+    field_input(card, "scheduleForm-active").uncheck(force=True)
     button(card, "editDialog-save").click()
     expect(card).to_be_hidden()
     created = api.find(path, "vu-z13-cron")
@@ -878,7 +887,7 @@ def test_create_run_at(ui, project, api, cleanup):
     field_input(card, "scheduleForm-runAt").fill("2099-06-01T10:00")
     expect(tid(card, "scheduleForm-nextRunServer")).to_contain_text("2099-06-01")
     expect(tid(card, "scheduleForm-nextRunServer")).to_contain_text("10:00")
-    tid(card, "scheduleForm-deleteAfterRun").check(force=True)
+    field_input(card, "scheduleForm-deleteAfterRun").check(force=True)
     button(card, "editDialog-save").click()
     expect(card).to_be_hidden()
     created = api.find(path, "vu-z13-runat")
@@ -901,7 +910,7 @@ def test_raw_cron_storage(ui, project):
     assert local(page, "schedule__raw_cron") is None
     to_simple(page, card)
     assert local(page, "schedule__raw_cron") == "1"
-    tid(card, "scheduleForm-rawCron").check(force=True)
+    field_input(card, "scheduleForm-rawCron").check(force=True)
     expect(field_input(card, "scheduleForm-cronFormat")).to_be_visible()
     assert local(page, "schedule__raw_cron") is None
 
@@ -909,7 +918,7 @@ def test_raw_cron_storage(ui, project):
     page2.context.add_init_script("localStorage.setItem('schedule__raw_cron', '1')")
     open_list(page2, project)
     card2 = new_schedule(page2)
-    expect(tid(card2, "scheduleForm-rawCron")).not_to_be_checked()
+    expect(field_input(card2, "scheduleForm-rawCron")).not_to_be_checked()
     expect(tid(card2, "scheduleForm-timing").first).to_be_attached()
     expect(tid(card2, "scheduleForm-cronFormat")).to_have_count(0)
 
@@ -922,8 +931,8 @@ def test_simple_mode_builds_cron(ui, project):
     to_simple(page, card)
     set_timing(page, card, "Weekly")
     for t in ("scheduleForm-weekday-1", "scheduleForm-hour-9", "scheduleForm-minute-0"):
-        tid(card, t).check(force=True)
-    tid(card, "scheduleForm-rawCron").check(force=True)
+        field_input(card, t).check(force=True)
+    field_input(card, "scheduleForm-rawCron").check(force=True)
     expect(field_input(card, "scheduleForm-cronFormat")).to_have_value("0 9 * * 1")
     expect(tid(card, "scheduleForm-nextRunServer")).to_contain_text("09:00")
 
@@ -931,9 +940,9 @@ def test_simple_mode_builds_cron(ui, project):
     to_simple(page, card)
     set_timing(page, card, "Yearly")
     for t in ("scheduleForm-month-3", "scheduleForm-day-2", "scheduleForm-hour-5"):
-        tid(card, t).check(force=True)
+        field_input(card, t).check(force=True)
     set_timing(page, card, "Hourly")
-    tid(card, "scheduleForm-rawCron").check(force=True)
+    field_input(card, "scheduleForm-rawCron").check(force=True)
     expect(field_input(card, "scheduleForm-cronFormat")).to_have_value("0 * * * *")
 
 
@@ -951,9 +960,9 @@ def test_stale_days_kept(ui, project):
     to_simple(page, card)
     expect(field_selection(card, "scheduleForm-timing")).to_have_text("Weekly")
     set_timing(page, card, "Monthly")
-    expect(tid(card, "scheduleForm-day-1")).to_be_checked()
-    expect(tid(card, "scheduleForm-day-15")).to_be_checked()
-    tid(card, "scheduleForm-rawCron").check(force=True)
+    expect(field_input(card, "scheduleForm-day-1")).to_be_checked()
+    expect(field_input(card, "scheduleForm-day-15")).to_be_checked()
+    field_input(card, "scheduleForm-rawCron").check(force=True)
     expect(field).to_have_value("0 3 1,15 * *")
 
 
@@ -968,10 +977,10 @@ def test_macro_simple_mode(ui, project):
     to_simple(page, card)
     expect(field_selection(card, "scheduleForm-timing")).to_have_text("Hourly")
     for m in range(0, 60, 5):
-        expect(tid(card, f"scheduleForm-minute-{m}")).not_to_be_checked()
+        expect(field_input(card, f"scheduleForm-minute-{m}")).not_to_be_checked()
     set_timing(page, card, "Daily")
     set_timing(page, card, "Hourly")
-    tid(card, "scheduleForm-rawCron").check(force=True)
+    field_input(card, "scheduleForm-rawCron").check(force=True)
     expect(field_input(card, "scheduleForm-cronFormat")).to_have_value("* * * * *")
 
 
@@ -1022,7 +1031,7 @@ def test_cron_check_stale_answer(ui, project):
     held[0].fulfill(status=400, content_type="application/json", body=json.dumps({"error": "Z13 stale"}))
     settle(page)
     expect(field_message(card, "scheduleForm-cronFormat")).to_have_count(0)
-    expect(tid(card, "scheduleForm-rawCron")).to_be_enabled()
+    expect(field_input(card, "scheduleForm-rawCron")).to_be_enabled()
 
 
 @pytest.mark.functional

@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null"
     data-testid="schedule-page"
@@ -47,16 +47,17 @@
         @click="showDrawer()"
         data-testid="schedule-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="schedule-title">{{ $t('schedule') }}</v-toolbar-title>
+      <v-toolbar-title class="flex-0-1" data-testid="schedule-title">
+        {{ $t('schedule') }}
+      </v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-menu
-        offset-y
-      >
+      <v-menu location="bottom">
         <template v-slot:activator="{ props }">
           <v-btn
             class="pr-2"
             v-bind="props"
             color="primary"
+            variant="elevated"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
             data-testid="schedule-new"
           >{{ $t('newSchedule') }}
@@ -70,9 +71,9 @@
             @click="editSchedule('new', '');"
             data-testid="schedule-new-cron"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-calendar-sync</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>Cron</v-list-item-title>
           </v-list-item>
           <v-list-item
@@ -80,9 +81,9 @@
             @click="editSchedule('new', 'run_at');"
             data-testid="schedule-new-runAt"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-clock-time-eight-outline</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>Run once</v-list-item-title>
           </v-list-item>
         </v-list>
@@ -97,7 +98,8 @@
       :items="items"
       hide-default-footer
       class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       data-testid="schedule-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="
@@ -106,11 +108,15 @@
         "
     >
       <template v-slot:item.active="{ item }">
+        <!-- min-width: the grid of a Vuetify 3 v-input is 0 px at its narrowest, and the column
+             of the switch (beside the 100 % wide «Template») shrank to it: the switch covered
+             the names -->
         <v-switch
           :disabled="!can(USER_PERMISSIONS.manageProjectResources)"
           v-model="item.active"
           inset
-          @update:model-value="setActive(item.id, item.active)"
+          style="min-width: max-content"
+          @update:model-value="setActive(item.id, $event)"
           data-testid="schedule-rowActive"
         ></v-switch>
       </template>
@@ -138,9 +144,8 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
           data-testid="schedule-rowActions"
         >
           <v-btn
@@ -155,7 +160,7 @@
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
 
       <template v-slot:expanded-item="{ headers, item }">
