@@ -11,6 +11,7 @@ import datetime as dt
 import json
 import os
 import shutil
+import subprocess
 import sqlite3
 import time
 from pathlib import Path
@@ -125,6 +126,8 @@ def restore(ws, start=True):
     _check_binary(ws)
     if st.env(ws) is None:
         st.project_sh(ws, "stand", "init")
+    # `stand stop` also ends `stand web` (the hot-reload UI on port +1): note it to bring it back
+    web_was_up = _web_up(ws)
     st.project_sh(ws, "stand", "stop", check=False)
     stand = st.env(ws)
     inst = stand.instance
@@ -164,4 +167,25 @@ def restore(ws, start=True):
     if start:
         st.project_sh(ws, "stand", "start")
         _wait_up(stand)
+        if web_was_up:
+            _start_web(ws)
     return stand
+
+
+def _web_up(ws):
+    pid_file = ROOT / "runtime" / "instances" / ws / "web.pid"
+    try:
+        os.kill(int(pid_file.read_text().strip()), 0)
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def _start_web(ws):
+    """Relaunch `stand web` detached (it runs in the foreground), log in the instance's logs/."""
+    log = ROOT / "runtime" / "instances" / ws / "logs" / "stand-web.out"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with open(log, "ab") as out:
+        subprocess.Popen([str(ROOT / "project.sh"), "-w", ws, "stand", "web"], cwd=ROOT, stdout=out,
+                         stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True)
+    print(f"vu: stand web of {ws} relaunched (was running before the restore)", flush=True)
