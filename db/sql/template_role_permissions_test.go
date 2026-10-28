@@ -79,3 +79,15 @@ func TestCreateTemplateRole_RejectsRoleOfAnotherProject(t *testing.T) {
 
 	assert.ErrorContains(t, err, "Role is not available in this project")
 }
+
+func TestCreateTemplateRole_RefusesASecondGrantForTheRole(t *testing.T) {
+	store, projectID, templateID := newTemplatePermissionTest(t)
+	role, err := store.CreateRole(db.Role{Slug: "ops", Name: "Ops", ProjectID: &projectID})
+	require.NoError(t, err)
+	_, err = store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: projectID, TemplateID: templateID, RoleID: role.ID, Permissions: db.CanRunProjectTasks})
+	require.NoError(t, err)
+
+	_, err = store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: projectID, TemplateID: templateID, RoleID: role.ID, Permissions: db.CanUpdateProject})
+
+	assert.ErrorContains(t, err, "Role already has permissions on this template")
+}
