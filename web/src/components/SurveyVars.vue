@@ -15,7 +15,6 @@
         <v-card-text class="pb-0">
           <v-form
             ref="form"
-            lazy-validation
             v-if="editedVar != null"
             @submit.prevent="saveVar()"
             data-testid="surveyVarDialog-form"
@@ -86,7 +85,7 @@
 
             <v-card
               v-if="editedVar.type === 'enum' || editedVar.type === 'select'"
-              style="background: var(--highlighted-card-bg-color)"
+              style="background: var(--highlighted-card-bg-color); overflow: visible"
               class="mb-4 pt-3"
               data-testid="surveyVarDialog-values"
             >
@@ -108,6 +107,7 @@
                   :items="editedValues"
                   :items-per-page="-1"
                   class="elevation-1 FieldTable"
+                  hide-default-header
                   hide-default-footer
                   :no-data-text="$t('noValues')"
                   data-testid="surveyVarDialog-valuesTable"
@@ -181,7 +181,7 @@
                       closable
                       data-testid="surveyVarDialog-defaultChip"
                       @click:close="removeDefaultItem(index)"
-                      >{{ selectedItemLabel(item) }}
+                      >{{ selectedItemLabel(item.raw) }}
                     </v-chip>
                   </template>
                 </v-select>
@@ -262,6 +262,8 @@
         data-testid="surveyVars-title"
       >{{ $t('surveyVariables') }}</legend>
       <v-chip-group column style="margin-top: -4px">
+        <!-- base-color: inside a v-chip-group Vuetify 3 shows `color` on a selected chip only;
+             flat: a coloured chip of Vuetify 2 was filled with its colour -->
         <draggable
           v-model="modifiedVars"
           @end="onDragEnd"
@@ -275,7 +277,8 @@
             @click:close="deleteVar(i)"
             :key="v.name"
             @click="editVar(i)"
-            :color="v.type === 'int' ? '#61e2ff' : 'gray'"
+            :base-color="v.type === 'int' ? '#61e2ff' : 'gray'"
+            :variant="v.type === 'int' ? 'flat' : undefined"
             class="draggable-chip"
             :data-testid="`surveyVars-chip-${v.name}`"
           >

@@ -33,7 +33,7 @@ from playwright.sync_api import Page, Route, expect
 
 from vu.ui import answer_api, button, chip_close, dialog_frame, fail_api, field_input, field_message, \
     field_selection, goto, goto_after_apps, hold_api, only_names, open_menu, patch_api, patch_info, pick, press, \
-    goto_apps_loaded, settle, shown, snap, tid, wait_state, wait_until
+    goto_apps_loaded, settle, shown, snap, tid, toggle, wait_state, wait_until
 
 ZONE = "z05"
 DEMO, EMPTY = "Seed Demo", "Seed Empty"
@@ -93,6 +93,14 @@ APPS_RE = re.compile(r"/api/apps$")
 def allow_cron_check(page: Page):
     """POST schedules/validate only checks a cron string: let it reach the server in snapshot tests."""
     page.route(SCHEDULE_VALIDATE_RE, lambda route: route.continue_())
+
+
+def queued_timers_run(page: Page):
+    """Wait until every timer the page has queued so far has fired: a setTimeout queued now runs after
+    them. Vuetify 3 moves the top of its overlay stack (globalTop, which its Esc handler asks) in a
+    setTimeout after a dialog opens; under the suite's fake clock that timer fires late
+    (JOURNAL@C559E533D7), so an Esc pressed at once would meet the previous top."""
+    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def scroll_to(loc, block="start"):
@@ -286,6 +294,7 @@ def test_dialog_new_empty_project(ui, project):
     page = open_page(ui)
     card = open_new(page, project, "ansible", name=EMPTY)
     expect(field_input(card, "templateForm-repositoryId")).to_have_value("")
+    expect(field_selection(card, "templateForm-repositoryId")).to_have_count(0)
     snap_dialog_parts(page, "new-empty-project", card, True)
 
 
@@ -326,7 +335,7 @@ def test_dialog_edit_deploy(ui, project):
     page = open_page(ui)
     card = open_edit(page, project, "Ansible deploy")
     expect(tid(card, "templateForm-tab-deploy")).to_have_attribute("aria-selected", "true")
-    expect(field_input(card, "templateForm-buildTemplateId")).to_have_value("Ansible build")
+    expect(field_selection(card, "templateForm-buildTemplateId")).to_have_text("Ansible build")
     expect(tid(card, "templateForm-autorun")).to_be_visible()
     snap_dialog_parts(page, "edit-deploy", card, True)
 
@@ -335,7 +344,7 @@ def test_dialog_edit_deploy(ui, project):
 def test_dialog_edit_terraform(ui, project):
     page = open_page(ui)
     card = open_edit(page, project, "Terraform plan")
-    expect(field_input(card, "templateForm-inventoryId")).to_have_value("Terraform default")
+    expect(field_selection(card, "templateForm-inventoryId")).to_have_text("Terraform default")
     snap_dialog_parts(page, "edit-terraform", card, True)
 
 
@@ -533,7 +542,7 @@ def test_form_schedule_save_error(ui, project):
     pick(page, card, "templateForm-repositoryId", "Seed scripts")
     field_input(card, "templateForm-playbook").fill("ok.sh")
     tid(card, "templateForm-commonTitle").click()
-    tid(card, "templateForm-cronVisible").check(force=True)
+    toggle(card, "templateForm-cronVisible")
     pick(page, card, "templateForm-cronRepositoryId", "Seed infra")
     button(card, "editDialog-save").click()
     expect(tid(card, "templateForm-error")).to_have_text("Z05 schedule failed")
@@ -579,7 +588,7 @@ def test_form_monorepo(ui, project):
     page = open_page(ui)
     card = open_edit(page, project, MONO)
     expect(tid(card, "templateForm-branchChip")).to_have_text("main")
-    expect(tid(card, "templateForm-allowOverrideBranchInTask")).to_be_disabled()
+    expect(field_input(card, "templateForm-allowOverrideBranchInTask")).to_be_disabled()
     snap_form(page, "monorepo", card)
 
 
@@ -627,7 +636,7 @@ def test_form_working_directory(ui, project):
     page = open_page(ui)
     puts = hold_api(page, "PUT", TEMPLATE_ITEM_RE)
     card = open_edit(page, project, "Ansible hello")
-    tid(card, "templateForm-workingDirectoryToggle").check(force=True)
+    toggle(card, "templateForm-workingDirectoryToggle")
     button(card, "editDialog-save").click()
     expect(field_message(card, "templateForm-workingDirectory")).to_have_text("Working directory is required")
     assert len(puts) == 0
@@ -638,7 +647,7 @@ def test_form_working_directory(ui, project):
 def test_form_cron_card(ui, project):
     page = open_page(ui)
     card = open_edit(page, project, "Ansible hello")
-    tid(card, "templateForm-cronVisible").check(force=True)
+    toggle(card, "templateForm-cronVisible")
     button(card, "editDialog-save").click()
     cron = tid(card, "templateForm-cronCard")
     expect(field_message(cron, "templateForm-cronRepositoryId")).to_have_text("Repository is required")
@@ -672,7 +681,7 @@ def test_form_jwt(ui, project):
     page = open_page(ui)
     patch_jwt(page, {"enabled": True, "max_ttl": "24h"})
     card = open_new(page, project, "ansible")
-    tid(card, "templateForm-jwtEnabled").check(force=True)
+    toggle(card, "templateForm-jwtEnabled")
     jwt = tid(card, "templateForm-jwtCard")
     expect(jwt).to_be_visible()
     expect(tid(card, "templateForm-jwtNew")).to_have_text("New")
@@ -688,7 +697,7 @@ def test_form_jwt(ui, project):
 def test_form_backend_filename(ui, project, value, state, message):
     page = open_page(ui)
     card = open_new(page, project, "tofu")
-    tid(card, "templateForm-overrideBackend").check(force=True)
+    toggle(card, "templateForm-overrideBackend")
     field = field_input(card, "templateForm-backendFilename")
     expect(field).to_be_enabled()
     field.fill(value)
@@ -866,13 +875,14 @@ def test_survey_dialog_type(ui, project, type_name, state):
     page = open_page(ui)
     _, s = _survey_script_dialog(page, project)
     survey_type(page, s, type_name)
-    default = tid(s, "surveyVarDialog-defaultValue")
+    default = field_input(s, "surveyVarDialog-defaultValue")
     if state == "int":
         expect(default).to_have_attribute("type", "number")
     elif state == "text":
-        expect(s.locator("textarea[data-testid=surveyVarDialog-defaultValue]")).to_be_visible()
+        expect(default).to_be_visible()
+        assert default.evaluate("e => e.tagName") == "TEXTAREA"
     else:
-        expect(default).to_have_count(0)
+        expect(tid(s, "surveyVarDialog-defaultValue")).to_have_count(0)
     snap(page, ZONE, "survey-dialog", state, element=s)
 
 
@@ -1144,19 +1154,22 @@ def test_open_and_close(ui, project):
 
 @pytest.mark.functional
 def test_two_cards_after_copy_and_edit(ui, project):
-    """After copy and edit on the template screen: two cards of each dialog in the DOM, one shown."""
+    """After copy and edit on the template screen only the edit card and its own survey dialog are
+    shown. Vuetify 2 kept a hidden copy of every closed dialog in the DOM (two cards of each); Vuetify 3
+    drops the content of a closed dialog, so the closed copy card and its survey dialog are gone."""
     page = open_page(ui)
     card = open_copy(page, project, "Survey script")
     new_survey_var(page, card)
     tid(survey_dialog(page), "surveyVarDialog-cancel").click()
+    expect(shown(page, "surveyVarDialog")).to_have_count(0)
     button(card, "editDialog-close").click()
     press(tid(page, "template-edit"))
     card = wait_form(shown(page, "templateDialog"))
-    expect(tid(page, "templateCopyDialog")).to_have_count(1)
     expect(shown(page, "templateCopyDialog")).to_have_count(0)
+    expect(shown(page, "templateDialog")).to_have_count(1)
     new_survey_var(page, card)
-    expect(tid(page, "surveyVarDialog")).to_have_count(2)
     expect(shown(page, "surveyVarDialog")).to_have_count(1)
+    expect(tid(page, "surveyVarDialog")).to_have_count(1)
 
 
 @pytest.mark.functional
@@ -1168,12 +1181,12 @@ def test_validation_sends_nothing(ui, project):
     expect(field_message(card, "templateForm-name")).to_have_text("Name is required")
     button(card, "editDialog-close").click()
     card = open_edit(page, project, "Ansible hello")
-    tid(card, "templateForm-workingDirectoryToggle").check(force=True)
+    toggle(card, "templateForm-workingDirectoryToggle")
     button(card, "editDialog-save").click()
     expect(field_message(card, "templateForm-workingDirectory")).to_have_text("Working directory is required")
-    tid(card, "templateForm-workingDirectoryToggle").uncheck(force=True)
+    toggle(card, "templateForm-workingDirectoryToggle", False)
     expect(tid(card, "templateForm-workingDirectory")).to_have_count(0)
-    tid(card, "templateForm-cronVisible").check(force=True)
+    toggle(card, "templateForm-cronVisible")
     button(card, "editDialog-save").click()
     expect(field_message(card, "templateForm-cronRepositoryId")).to_have_text("Repository is required")
     assert sent == []
@@ -1206,6 +1219,7 @@ def test_help_dialogs(ui, project):
     expect(tid(h, "templateHelpDialog-buildVersionLink")).to_have_attribute(
         "href", "https://docs.semaphoreui.com/user-guide/task-templates#build")
     expect(tid(h, "templateHelpDialog-build")).to_have_count(0)
+    queued_timers_run(page)  # the help is the top of the overlay stack
     page.keyboard.press("Escape")
     expect(shown(page, "templateHelpDialog")).to_have_count(0)
     expect(card).to_be_visible()  # Esc closes the help, not the template dialog
@@ -1272,8 +1286,8 @@ def test_monorepo_branch(ui, project):
     chip = tid(card, "templateForm-branchChip")
     chip.click()
     expect(tid(card, "templateForm-branchCard")).to_have_count(0)
-    expect(tid(card, "templateForm-allowOverrideBranchInTask")).to_be_disabled()
-    expect(tid(card, "templateForm-allowOverrideBranchInTask")).not_to_be_checked()
+    expect(field_input(card, "templateForm-allowOverrideBranchInTask")).to_be_disabled()
+    expect(field_input(card, "templateForm-allowOverrideBranchInTask")).not_to_be_checked()
     chip.hover()
     expect(page.get_by_text("Disabled: the repository is a single checkout shared by all templates",
                             exact=False).first).to_be_visible()
@@ -1339,7 +1353,7 @@ def test_survey_add_variable(ui, project):
     survey_type(page, s, "Enum")
     survey_values(s, [("dev", "d"), ("prod", "p")])
     pick(page, s, "surveyVarDialog-defaultValue", "prod")
-    tid(s, "surveyVarDialog-required").check(force=True)
+    toggle(s, "surveyVarDialog-required")
     tid(s, "surveyVarDialog-save").click()
     expect(s).to_be_hidden()
     expect(tid(card, "surveyVars-chip-VU_Z05_ENV")).to_have_text("Vu env")
@@ -1405,7 +1419,7 @@ def test_galaxy_toggle_and_badge(ui, project):
     galaxy = tid(card, "templateForm-galaxy")
     tid(galaxy, "collapsibleSection-toggle").click()
     expect(tid(galaxy, "collapsibleSection-body")).to_be_visible()
-    tid(galaxy, "templateForm-skipGalaxyInstall").check(force=True)
+    toggle(galaxy, "templateForm-skipGalaxyInstall")
     expect(tid(galaxy, "collapsibleSection-badge")).to_have_text("1 customized")
     tid(galaxy, "collapsibleSection-toggle").click()
     expect(tid(galaxy, "collapsibleSection-body")).to_have_count(0)
@@ -1430,7 +1444,7 @@ def test_jwt_block(ui, project):
     button(card, "editDialog-close").click()
     patch_jwt(page, {"enabled": True})
     card = open_new(page, project, "ansible")
-    tid(card, "templateForm-jwtEnabled").check(force=True)
+    toggle(card, "templateForm-jwtEnabled")
     jwt = tid(card, "templateForm-jwtCard")
     expect(field_input(jwt, "templateForm-jwtTtl")).to_be_visible()
     expect(field_message(jwt, "templateForm-jwtTtl")).not_to_contain_text("Maximum")

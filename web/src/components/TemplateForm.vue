@@ -43,7 +43,6 @@
     class="mt-1"
     v-else
     ref="form"
-    lazy-validation
     v-model="formValid"
     data-testid="templateForm-form"
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
@@ -51,12 +50,17 @@
     <v-dialog v-model="helpDialog" :scrim="false" content-class="NestedDialog" width="300">
       <v-alert
         border="top"
-        colored-border
+        border-color="info"
         type="info"
+        color="surface"
         elevation="2"
         class="mb-0 pb-0"
         data-testid="templateHelpDialog"
       >
+        <!-- colored-border of Vuetify 2 coloured the icon along with the border -->
+        <template v-slot:prepend>
+          <v-icon color="info" />
+        </template>
         <div v-if="helpKey === 'build_version'" data-testid="templateHelpDialog-buildVersion">
           <p>
             {{ $t('definesStartVersionOfYourArtifactEachRunIncrements') }}
@@ -200,7 +204,6 @@
           <v-tooltip
             location="bottom"
             :disabled="!isMonorepo"
-            color="black"
             content-class="opacity1"
             max-width="400"
             transition="fade-transition"
@@ -231,7 +234,7 @@
 
         <v-card
           v-if="setBranch"
-          style="background: var(--highlighted-card-bg-color)"
+          style="background: var(--highlighted-card-bg-color); overflow: visible"
           class="mb-6 pt-3"
           data-testid="templateForm-branchCard"
         >
@@ -303,7 +306,7 @@
             data-testid="templateForm-playbook"
             :data-state="playbooksLoading ? 'loading' : 'ready'"
           >
-            <template v-slot:append-outer>
+            <template v-slot:append>
               <v-btn
                 variant="flat"
                 @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
@@ -367,7 +370,6 @@
           chips
           closable-chips
           variant="outlined"
-          small-chips
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
           v-if="needField('environment')"
@@ -426,7 +428,8 @@
             <v-chip
               v-if="!isExecutorImageAvailable"
               color="hsl(348deg, 86%, 61%)"
-              text-color="white"
+              variant="flat"
+              class="text-white"
               size="small"
               label
               style="position: absolute; top: -10px; right: 15px"
@@ -478,7 +481,6 @@
                 persistent-hint
                 multiple
                 chips
-                small-chips
                 closable-chips
                 variant="outlined"
                 density="compact"
@@ -582,7 +584,6 @@
           <v-tooltip
             location="bottom"
             :disabled="!isMonorepo"
-            color="black"
             content-class="opacity1"
             max-width="400"
             transition="fade-transition"
@@ -650,7 +651,7 @@
 
           <TemplateVaults
             v-if="needField('vault')"
-            :project-id="this.projectId"
+            :project-id="projectId"
             :vaults="vaults"
             @change="setTemplateVaults"
           ></TemplateVaults>
@@ -1293,13 +1294,13 @@ export default {
         switch (t.type) {
           case 'build':
             if (builds.length === 0) {
-              builds.push({ header: 'Build Templates' });
+              builds.push({ type: 'subheader', name: 'Build Templates' });
             }
             builds.push(t);
             break;
           case 'deploy':
             if (deploys.length === 0) {
-              deploys.push({ header: 'Deploy Templates' });
+              deploys.push({ type: 'subheader', name: 'Deploy Templates' });
             }
             deploys.push(t);
             break;
@@ -1310,7 +1311,7 @@ export default {
 
       this.buildTemplates = builds;
       if (this.buildTemplates.length > 0 && deploys.length > 0) {
-        this.buildTemplates.push({ divider: true });
+        this.buildTemplates.push({ type: 'divider' });
       }
       this.buildTemplates.push(...deploys);
     },
@@ -1406,7 +1407,14 @@ export default {
         }
       }
 
-      this.itemTypeIndex = Object.keys(TEMPLATE_TYPE_ICONS).indexOf(this.item.type);
+      // The tabs of Vuetify 2 were mandatory: a type they do not know (a new template has none)
+      // fell back to the first tab and wrote it back through the model; Vuetify 3 tabs leave
+      // nothing selected.
+      const typeIndex = Object.keys(TEMPLATE_TYPE_ICONS).indexOf(this.item.type);
+      if (typeIndex < 0) {
+        this.item.type = Object.keys(TEMPLATE_TYPE_ICONS)[0];
+      }
+      this.itemTypeIndex = Math.max(typeIndex, 0);
     },
 
     getItemsUrl() {

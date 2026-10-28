@@ -14,7 +14,6 @@
         <v-card-text class="pb-0">
           <v-form
             ref="form"
-            lazy-validation
             v-if="editedVault != null"
             data-testid="templateVaultDialog-form"
           >
@@ -29,7 +28,7 @@
               :label="$t('vaultName')"
               placeholder="default"
               v-model.trim="editedVault.name"
-              :rules="[v => this.vaultNameRules(v)]"
+              :rules="[v => vaultNameRules(v)]"
               data-testid="templateVaultDialog-name"
             />
 
@@ -49,7 +48,7 @@
               v-model="editedVault.vault_key_id"
               v-if="editedVault.type === 'password'"
               :label="$t('vaultPassword2')"
-              :items="vaultKeys"
+              :items="vaultKeys || []"
               item-value="id"
               item-title="name"
               required
@@ -62,7 +61,7 @@
               v-model="editedVault.script"
               v-if="editedVault.type === 'script'"
               :label="$t('vaultScript')"
-              :rules="[v => this.vaultScriptRules(v)]"
+              :rules="[v => vaultScriptRules(v)]"
               data-testid="templateVaultDialog-script"
             />
 

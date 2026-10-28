@@ -1,6 +1,6 @@
 <template>
   <v-card
-    style="background: rgba(133, 133, 133, 0.06)"
+    style="background: rgba(133, 133, 133, 0.06); overflow: visible"
     class="mb-6"
   >
     <div
