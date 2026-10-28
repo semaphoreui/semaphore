@@ -358,11 +358,11 @@ definitions:
 
   ProjectBackup:
     type: object
-    example: {"version":2,"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","app":"ansible","working_directory":".","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"suppress_error_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}],"roles":[{"slug":"deployer","name":"Deployer","permissions":1}]}
+    example: {"version":3,"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","app":"ansible","working_directory":".","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"suppress_error_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}],"roles":[{"slug":"deployer","name":"Deployer","permissions":1}]}
     properties:
       version:
         type: integer
-        description: Format version of the backup file. Files written by a newer version are refused. A file without a version is accepted only when it carries no roles and no template permissions.
+        description: Format version of the backup file, 3. Files written by a newer version are refused. A version 2 file is accepted and its roles get the workflow verbs the upgrade gives stored roles. A file without a version is accepted only when it carries no roles and no template permissions.
       meta:
         type: object
         properties:
@@ -503,7 +503,7 @@ definitions:
               type: string
       roles:
         type: array
-        description: Project roles. Template permissions refer to them by slug.
+        description: Project roles. Template and workflow permissions refer to them by slug.
         items:
           type: object
           properties:
@@ -513,6 +513,55 @@ definitions:
               type: string
             permissions:
               type: integer
+      workflows:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            roles:
+              type: array
+              description: Workflow permissions granted to roles, by role slug.
+              items:
+                type: object
+                properties:
+                  slug:
+                    type: string
+                  permissions:
+                    type: integer
+
+  TemplateRolePermission:
+    type: object
+    description: A role grant on one template. The role is addressed by slug.
+    properties:
+      id:
+        type: integer
+      template_id:
+        type: integer
+      project_id:
+        type: integer
+      role_slug:
+        type: string
+      permissions:
+        type: integer
+        description: run_tasks (1) and manage_resources (4).
+
+  WorkflowRolePermission:
+    type: object
+    description: A role grant on one workflow. The role is addressed by slug.
+    properties:
+      id:
+        type: integer
+      workflow_id:
+        type: integer
+      project_id:
+        type: integer
+      role_slug:
+        type: string
+      permissions:
+        type: integer
+        description: run_workflows (16), edit_workflows (32) and approve_workflows (64).
 
   APIToken:
     type: object
@@ -583,9 +632,10 @@ definitions:
           unassigned_roles:
             type: array
             description: >-
-              Roles the restore left for you to decide about. A template grant to a role that is not in the
-              file (reason not_in_file) or a project role whose slug a shared role already holds (reason
-              slug_taken) is not restored. Assign the templates to a role of this instance yourself.
+              Roles the restore left for you to decide about. A template or workflow grant to a role that is
+              not in the file (reason not_in_file) or a project role whose slug a shared role already holds
+              (reason slug_taken) is not restored. Assign the templates and workflows to a role of this
+              instance yourself.
             example: []
             items:
               type: object
@@ -602,6 +652,17 @@ definitions:
                   type: integer
                   description: Permissions of the role in the file, only for slug_taken.
                 templates:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      permissions:
+                        type: integer
+                workflows:
                   type: array
                   items:
                     type: object
@@ -1740,6 +1801,9 @@ definitions:
         type: string
       description:
         type: string
+      permissions:
+        type: integer
+        description: What the caller may do with this workflow, the project verbs plus the grants on it (read-only).
       revision_id:
         type: integer
         description: Revision the nodes and edges were read from (read-only).
@@ -1991,6 +2055,13 @@ parameters:
     type: integer
     required: true
     x-example: 18
+  perm_id:
+    name: perm_id
+    description: role grant ID
+    in: path
+    type: integer
+    required: true
+    x-example: 3
   run_id:
     name: run_id
     description: workflow run ID
@@ -3816,6 +3887,74 @@ paths:
           description: template removed
 
   # project workflows
+  /project/{project_id}/templates/{template_id}/perms:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    get:
+      tags:
+        - template
+      summary: Get template permissions
+      responses:
+        200:
+          description: role grants on the template
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/TemplateRolePermission"
+    post:
+      tags:
+        - template
+      summary: Grant a role on the template
+      parameters:
+        - name: permission
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/TemplateRolePermission"
+      responses:
+        201:
+          description: grant created
+          schema:
+            $ref: "#/definitions/TemplateRolePermission"
+        400:
+          description: unknown role or permissions outside the template verbs
+
+  /project/{project_id}/templates/{template_id}/perms/{perm_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+      - $ref: "#/parameters/perm_id"
+    get:
+      tags:
+        - template
+      summary: Get one template permission
+      responses:
+        200:
+          description: role grant
+          schema:
+            $ref: "#/definitions/TemplateRolePermission"
+    put:
+      tags:
+        - template
+      summary: Change the permissions of a grant
+      parameters:
+        - name: permission
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/TemplateRolePermission"
+      responses:
+        204:
+          description: grant updated
+    delete:
+      tags:
+        - template
+      summary: Remove a grant
+      responses:
+        204:
+          description: grant removed
+
   /project/{project_id}/workflows:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -3912,6 +4051,74 @@ paths:
           description: workflow template at the revision
           schema:
             $ref: "#/definitions/WorkflowTemplate"
+
+  /project/{project_id}/workflows/{workflow_id}/perms:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflow permissions
+      responses:
+        200:
+          description: role grants on the workflow
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/WorkflowRolePermission"
+    post:
+      tags:
+        - workflow
+      summary: Grant a role on the workflow
+      parameters:
+        - name: permission
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowRolePermission"
+      responses:
+        201:
+          description: grant created
+          schema:
+            $ref: "#/definitions/WorkflowRolePermission"
+        400:
+          description: unknown role or permissions outside the workflow verbs
+
+  /project/{project_id}/workflows/{workflow_id}/perms/{perm_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/perm_id"
+    get:
+      tags:
+        - workflow
+      summary: Get one workflow permission
+      responses:
+        200:
+          description: role grant
+          schema:
+            $ref: "#/definitions/WorkflowRolePermission"
+    put:
+      tags:
+        - workflow
+      summary: Change the permissions of a grant
+      parameters:
+        - name: permission
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowRolePermission"
+      responses:
+        204:
+          description: grant updated
+    delete:
+      tags:
+        - workflow
+      summary: Remove a grant
+      responses:
+        204:
+          description: grant removed
 
   /project/{project_id}/workflows/{workflow_id}/runs:
     parameters:
