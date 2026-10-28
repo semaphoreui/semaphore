@@ -358,8 +358,11 @@ definitions:
 
   ProjectBackup:
     type: object
-    example: {"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","app":"ansible","working_directory":".","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"suppress_error_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}]}
+    example: {"version":2,"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","app":"ansible","working_directory":".","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"suppress_error_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}],"roles":[{"slug":"deployer","name":"Deployer","permissions":1}]}
     properties:
+      version:
+        type: integer
+        description: Format version of the backup file. Files written by a newer version are refused. A file without a version is accepted only when it carries no roles and no template permissions.
       meta:
         type: object
         properties:
@@ -426,6 +429,16 @@ definitions:
               type: string
             allow_override_branch_in_task:
               type: boolean
+            roles:
+              type: array
+              description: Template permissions granted to roles, by role slug.
+              items:
+                type: object
+                properties:
+                  slug:
+                    type: string
+                  permissions:
+                    type: integer
       repositories:
         type: array
         items:
@@ -488,6 +501,18 @@ definitions:
               type: string
             env:
               type: string
+      roles:
+        type: array
+        description: Project roles. Template permissions refer to them by slug.
+        items:
+          type: object
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+            permissions:
+              type: integer
 
   APIToken:
     type: object
@@ -549,6 +574,44 @@ definitions:
         minimum: 0
       type:
         type: string
+
+  RestoredProject:
+    allOf:
+      - $ref: "#/definitions/Project"
+      - type: object
+        properties:
+          unassigned_roles:
+            type: array
+            description: >-
+              Roles the restore left for you to decide about. A template grant to a role that is not in the
+              file (reason not_in_file) or a project role whose slug a shared role already holds (reason
+              slug_taken) is not restored. Assign the templates to a role of this instance yourself.
+            example: []
+            items:
+              type: object
+              properties:
+                slug:
+                  type: string
+                reason:
+                  type: string
+                  enum: [not_in_file, slug_taken]
+                name:
+                  type: string
+                  description: Name of the role in the file, only for slug_taken.
+                permissions:
+                  type: integer
+                  description: Permissions of the role in the file, only for slug_taken.
+                templates:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      permissions:
+                        type: integer
 
   AccessKeyRequest:
     type: object
@@ -2736,7 +2799,7 @@ paths:
         200:
           description: Created project
           schema:
-            $ref: "#/definitions/Project"
+            $ref: "#/definitions/RestoredProject"
 
   /events:
     get:

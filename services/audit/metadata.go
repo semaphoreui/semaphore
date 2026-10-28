@@ -178,14 +178,12 @@ func PermissionNames(p db.ProjectUserPermission) []string {
 }
 
 type ProjectCreateMetadata struct {
-	Demo    bool `json:"demo"`
-	Partial bool `json:"partial,omitempty"`
+	Demo bool `json:"demo"`
 }
 
 type BackupRestoreMetadata struct {
 	// Object counts per backup section, never the objects.
 	Objects map[string]int `json:"objects"`
-	Partial bool           `json:"partial,omitempty"`
 }
 
 type TemplateMetadata struct {
