@@ -1,5 +1,5 @@
 <template>
-  <div class="pb-6" style="margin-top: -10px;">
+  <div class="pb-6" style="margin-top: -10px;" data-testid="surveyVars">
     <v-dialog
       v-model="editDialog"
       hide-overlay
@@ -9,18 +9,22 @@
       <v-card
         :color="$vuetify.theme.dark ? '#212121' : 'white'"
         @keydown.enter.prevent
+        data-testid="surveyVarDialog"
       >
-        <v-card-title></v-card-title>
+        <v-card-title data-testid="surveyVarDialog-heading"></v-card-title>
         <v-card-text class="pb-0">
           <v-form
             ref="form"
             lazy-validation
             v-if="editedVar != null"
             @submit.prevent="saveVar()"
+            data-testid="surveyVarDialog-form"
+            :data-state="formError != null ? 'error' : 'ready'"
           >
             <v-alert
               :value="formError != null"
               color="error"
+              data-testid="surveyVarDialog-error"
             >{{ formError }}
             </v-alert>
 
@@ -31,6 +35,7 @@
               required
               dense
               outlined
+              data-testid="surveyVarDialog-name"
             />
 
             <v-text-field
@@ -40,6 +45,7 @@
               required
               dense
               outlined
+              data-testid="surveyVarDialog-title"
             />
 
             <v-text-field
@@ -48,6 +54,7 @@
               required
               dense
               outlined
+              data-testid="surveyVarDialog-description"
             />
 
             <v-row>
@@ -60,6 +67,7 @@
                   item-text="name"
                   dense
                   outlined
+                  data-testid="surveyVarDialog-type"
                 ></v-select>
               </v-col>
               <v-col cols="7">
@@ -71,6 +79,7 @@
                   item-text="name"
                   dense
                   outlined
+                  data-testid="surveyVarDialog-target"
                 ></v-select>
               </v-col>
             </v-row>
@@ -79,6 +88,7 @@
               v-if="editedVar.type === 'enum' || editedVar.type === 'select'"
               style="background: var(--highlighted-card-bg-color)"
               class="mb-4 pt-3"
+              data-testid="surveyVarDialog-values"
             >
               <div
                 style="
@@ -100,9 +110,11 @@
                   class="elevation-1 FieldTable"
                   hide-default-footer
                   :no-data-text="$t('noValues')"
+                  data-testid="surveyVarDialog-valuesTable"
+                  :data-state="editedValues.length === 0 ? 'empty' : 'ready'"
                 >
                   <template v-slot:item="props">
-                    <tr>
+                    <tr data-testid="surveyVarDialog-valueRow">
                       <td class="pa-1">
                         <v-text-field
                           solo-inverted
@@ -111,6 +123,7 @@
                           v-model="props.item.name"
                           :label="$t('matchKey')"
                           class="v-text-field--solo--no-min-height"
+                          data-testid="surveyVarDialog-valueName"
                         ></v-text-field>
                       </td>
                       <td class="pa-1">
@@ -121,10 +134,16 @@
                           v-model="props.item.value"
                           :label="$t('matchValue')"
                           class="v-text-field--solo--no-min-height"
+                          data-testid="surveyVarDialog-valueValue"
                         ></v-text-field>
                       </td>
                       <td style="width: 38px">
-                        <v-icon small class="pa-1" @click="removeEditedVarValue(props.item)">
+                        <v-icon
+                          small
+                          class="pa-1"
+                          @click="removeEditedVarValue(props.item)"
+                          data-testid="surveyVarDialog-valueDelete"
+                        >
                           mdi-delete
                         </v-icon>
                       </td>
@@ -133,7 +152,11 @@
                 </v-data-table>
 
                 <div class="text-right mt-2 mb-2">
-                  <v-btn color="primary" @click="addEditedVarValue()">Add Value</v-btn>
+                  <v-btn
+                    color="primary"
+                    @click="addEditedVarValue()"
+                    data-testid="surveyVarDialog-addValue"
+                  >Add Value</v-btn>
                 </div>
 
                 <v-select
@@ -148,6 +171,7 @@
                   hide-details
                   :multiple="editedVar.type === 'select'"
                   :chips="editedVar.type === 'select'"
+                  data-testid="surveyVarDialog-defaultValue"
                 >
                   <template
                     v-slot:selection="{ item, index }"
@@ -155,6 +179,7 @@
                     <v-chip
                       small
                       close
+                      data-testid="surveyVarDialog-defaultChip"
                       @click:close="removeDefaultItem(index)"
                       >{{ selectedItemLabel(item) }}
                     </v-chip>
@@ -170,6 +195,7 @@
               v-model="editedVar.default_value"
               dense
               outlined
+              data-testid="surveyVarDialog-defaultValue"
             />
 
             <v-textarea
@@ -180,6 +206,7 @@
               auto-grow
               dense
               outlined
+              data-testid="surveyVarDialog-defaultValue"
             />
 
             <v-text-field
@@ -188,6 +215,7 @@
               v-model="editedVar.default_value"
               dense
               outlined
+              data-testid="surveyVarDialog-defaultValue"
             />
           </v-form>
         </v-card-text>
@@ -197,12 +225,23 @@
             v-model="editedVar.required"
             v-if="editedVar != null"
             class="ml-1"
+            data-testid="surveyVarDialog-required"
           />
           <v-spacer></v-spacer>
-          <v-btn color="blue darken-1" text @click="editDialog = false">
+          <v-btn
+            color="blue darken-1"
+            text
+            @click="editDialog = false"
+            data-testid="surveyVarDialog-cancel"
+          >
             {{ $t('cancel') }}
           </v-btn>
-          <v-btn color="blue darken-1" text @click="saveVar()">
+          <v-btn
+            color="blue darken-1"
+            text
+            @click="saveVar()"
+            data-testid="surveyVarDialog-save"
+          >
             {{ editedVarIndex == null ? $t('add') : $t('save') }}
           </v-btn>
         </v-card-actions>
@@ -218,7 +257,10 @@
         font-size: 12px;
       "
     >
-      <legend style="padding: 0 3px">{{ $t('surveyVariables') }}</legend>
+      <legend
+        style="padding: 0 3px"
+        data-testid="surveyVars-title"
+      >{{ $t('surveyVariables') }}</legend>
       <v-chip-group column style="margin-top: -4px">
         <draggable
           v-model="modifiedVars"
@@ -235,11 +277,12 @@
             @click="editVar(i)"
             :color="v.type === 'int' ? '#61e2ff' : 'gray'"
             class="draggable-chip"
+            :data-testid="`surveyVars-chip-${v.name}`"
           >
             {{ v.title }}
           </v-chip>
         </draggable>
-        <v-chip @click="editVar(null)">
+        <v-chip @click="editVar(null)" data-testid="surveyVars-add">
           + <span class="ml-1" v-if="modifiedVars.length === 0">{{ $t('addVariable') }}</span>
         </v-chip>
       </v-chip-group>

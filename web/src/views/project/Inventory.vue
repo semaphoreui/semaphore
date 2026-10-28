@@ -1,8 +1,13 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="inventory-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
 
     <EditDialog
       v-model="attachInventoryDialog"
+      test-id="inventoryAttachDialog"
       :save-button-text="$t('Attach')"
       :icon="getAppIcon(itemApp)"
       :icon-color="getAppColor(itemApp)"
@@ -23,6 +28,7 @@
 
     <EditDialog
       v-model="editDialog"
+      test-id="inventoryDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :icon="getAppIcon(itemApp)"
       :icon-color="getAppColor(itemApp)"
@@ -44,6 +50,7 @@
     </EditDialog>
 
     <ObjectRefsDialog
+      test-id="inventoryRefsDialog"
       object-title="inventory"
       :object-refs="itemRefs"
       :project-id="projectId"
@@ -51,6 +58,7 @@
     />
 
     <YesNoDialog
+      test-id="inventoryDeleteDialog"
       :title="$t('deleteInventory')"
       :text="$t('askDeleteInv')"
       v-model="deleteItemDialog"
@@ -58,8 +66,11 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('inventory') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="inventory-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="inventory-title">{{ $t('inventory') }}</v-toolbar-title>
       <v-spacer></v-spacer>
 
       <v-menu
@@ -72,16 +83,18 @@
             v-on="on"
             color="primary"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
+            data-testid="inventory-new"
           >{{ $t('newInventory') }}
             <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
-        <v-list>
+        <v-list data-testid="inventory-newMenu">
           <v-list-item
             v-for="item in apps"
             :key="item"
             link
             @click="itemApp = item; editItem('new');"
+            :data-testid="`inventory-new-${item}`"
           >
             <v-list-item-icon>
               <v-icon
@@ -103,10 +116,12 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
+      data-testid="inventory-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
     >
       <template v-slot:item.name="{ item }">
-        <v-icon class="mr-3" small>
+        <v-icon class="mr-3" small data-testid="inventory-rowIcon">
           {{ getAppIcon(getAppByType(item.type)) }}
         </v-icon>
 
@@ -114,19 +129,27 @@
       </template>
 
       <template v-slot:item.type="{ item }">
-        <code>{{ item.type }}</code>
+        <code data-testid="inventory-rowType">{{ item.type }}</code>
       </template>
       <template v-slot:item.inventory="{ item }">
         {{ ['file', 'terraform-workspace'].includes(item.type) ? item.inventory : '&mdash;' }}
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)">
+        <v-btn-toggle
+          dense
+          :value-comparator="() => false"
+          data-testid="inventory-rowActions"
+        >
+          <v-btn
+            @click="askDeleteItem(item.id)"
+            data-testid="inventory-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
           <v-btn
             @click="itemApp = getAppByType(item.type); editItem(item.id)"
             v-if="!['tofu', 'terraform'].includes(getAppByType(item.type))"
+            data-testid="inventory-rowEdit"
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
@@ -137,6 +160,7 @@
               itemApp = getAppByType(item.type);
               attachInventoryDialog = true;
             "
+            data-testid="inventory-rowAttach"
           >
             <v-icon>mdi-connection</v-icon>
           </v-btn>

@@ -4,15 +4,19 @@
     lazy-validation
     v-model="formValid"
     v-if="item"
+    data-testid="integrationMatcherForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="integrationMatcherForm-error"
     >{{ formError }}
     </v-alert>
     <v-text-field
       v-model="item.name"
+      data-testid="integrationMatcherForm-name"
       label="Name"
       :rules="[v => !!v || 'Name is required']"
       required
@@ -26,6 +30,7 @@
     <div>
       <v-select
         v-model="item.match_type"
+        data-testid="integrationMatcherForm-matchType"
         label="Match on *"
         :items="matchTypes"
         item-value="id"
@@ -38,6 +43,7 @@
       ></v-select>
       <v-select
         v-model="item.body_data_type"
+        data-testid="integrationMatcherForm-bodyDataType"
         v-if="item.match_type == 'body'"
         label="Body Data Format *"
         :items="bodyDataFormats"
@@ -51,6 +57,7 @@
       ></v-select>
       <v-text-field
         v-model="item.key"
+        data-testid="integrationMatcherForm-key"
         label="Key *"
         :rules="[v => !!v || 'Key is required']"
         outlined
@@ -60,6 +67,7 @@
       ></v-text-field>
       <v-select
         v-model="item.method"
+        data-testid="integrationMatcherForm-method"
         label="Comparison Method *"
         :items="methods"
         item-value="id"
@@ -72,6 +80,7 @@
       ></v-select>
       <v-text-field
         v-model="item.value"
+        data-testid="integrationMatcherForm-value"
         label="Value *"
         :rules="[v => !!v || 'Value is required']"
         outlined

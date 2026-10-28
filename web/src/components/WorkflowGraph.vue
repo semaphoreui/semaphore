@@ -9,6 +9,8 @@
     <div
       ref="canvas"
       class="WorkflowGraph__canvas"
+      data-testid="workflowCanvas-canvas"
+      :data-state="!built ? 'loading' : (isEmpty ? 'empty' : 'ready')"
       @drop="onDrop"
       @dragover.prevent
     ></div>
@@ -18,7 +20,7 @@
       start() (and again after every clear()), so the condition pills pan and
       zoom together with the nodes. Coordinates are canvas-space.
     -->
-    <div ref="overlay" class="WorkflowGraph__overlay">
+    <div ref="overlay" class="WorkflowGraph__overlay" data-testid="workflowCanvas-edges">
       <svg class="WorkflowGraph__defs" width="0" height="0" aria-hidden="true">
         <defs>
           <marker
@@ -62,17 +64,30 @@
       depressed
       color="primary"
       class="WorkflowGraph__fab"
+      data-testid="workflowCanvas-quickAdd"
       :title="$t('workflowQuickAdd')"
       @click="openQuickAddAtCenter()"
     >
       <v-icon>mdi-plus</v-icon>
     </v-btn>
 
-    <div v-if="editable && isEmpty" class="WorkflowGraph__empty">
+    <div v-if="editable && isEmpty" class="WorkflowGraph__empty" data-testid="workflowCanvas-empty">
       <v-icon size="40" class="WorkflowGraph__emptyIcon">mdi-sitemap-outline</v-icon>
-      <div class="text-subtitle-1">{{ $t('workflowEmptyTitle') }}</div>
-      <div class="text-body-2 text--secondary mb-3">{{ $t('workflowEmptyHint') }}</div>
-      <v-btn color="primary" depressed small @click="openQuickAddAtCenter()">
+      <div
+        class="text-subtitle-1"
+        data-testid="workflowCanvas-emptyTitle"
+      >{{ $t('workflowEmptyTitle') }}</div>
+      <div
+        class="text-body-2 text--secondary mb-3"
+        data-testid="workflowCanvas-emptyHint"
+      >{{ $t('workflowEmptyHint') }}</div>
+      <v-btn
+        color="primary"
+        depressed
+        small
+        data-testid="workflowCanvas-emptyAdd"
+        @click="openQuickAddAtCenter()"
+      >
         <v-icon left small>mdi-plus</v-icon>
         {{ $t('workflowQuickAdd') }}
       </v-btn>

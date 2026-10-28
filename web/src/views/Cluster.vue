@@ -1,38 +1,74 @@
 <template>
-  <div>
+  <div data-testid="cluster-page" :data-state="status == null ? 'loading' : 'ready'">
     <v-dialog v-model="clearDialog" max-width="450" persistent>
-      <v-card>
-        <v-card-title>{{ $t('clearTasksTitle') }}</v-card-title>
+      <v-card
+        data-testid="clusterClearDialog"
+        :data-state="clearing ? 'loading' : 'ready'"
+      >
+        <v-card-title
+          data-testid="clusterClearDialog-title"
+        >{{ $t('clearTasksTitle') }}</v-card-title>
         <v-card-text>
-          <v-alert type="warning" dense text>
+          <v-alert type="warning" dense text data-testid="clusterClearDialog-warning">
             {{ $t('clearTasksWarning') }}
           </v-alert>
           <div class="mb-2">{{ $t('clearTasksGroups') }}</div>
-          <v-checkbox v-model="clearScope.queue" :label="$t('queue')" hide-details dense />
-          <v-checkbox v-model="clearScope.running" :label="$t('running')" hide-details dense />
+          <v-checkbox
+            v-model="clearScope.queue"
+            :label="$t('queue')"
+            hide-details
+            dense
+            data-testid="clusterClearDialog-queue"
+          />
+          <v-checkbox
+            v-model="clearScope.running"
+            :label="$t('running')"
+            hide-details
+            dense
+            data-testid="clusterClearDialog-running"
+          />
           <v-checkbox
             v-model="clearScope.active"
             :label="$t('activeByProject')"
             hide-details
             dense
+            data-testid="clusterClearDialog-active"
           />
-          <v-checkbox v-model="clearScope.aliases" :label="$t('aliases')" hide-details dense />
-          <v-checkbox v-model="clearScope.claims" :label="$t('claims')" hide-details dense />
+          <v-checkbox
+            v-model="clearScope.aliases"
+            :label="$t('aliases')"
+            hide-details
+            dense
+            data-testid="clusterClearDialog-aliases"
+          />
+          <v-checkbox
+            v-model="clearScope.claims"
+            :label="$t('claims')"
+            hide-details
+            dense
+            data-testid="clusterClearDialog-claims"
+          />
           <v-checkbox
             v-model="clearScope.runtime_fields"
             :label="$t('runtimeFields')"
             hide-details
             dense
+            data-testid="clusterClearDialog-runtimeFields"
           />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn text @click="clearDialog = false">{{ $t('cancel') }}</v-btn>
+          <v-btn
+            text
+            @click="clearDialog = false"
+            data-testid="clusterClearDialog-cancel"
+          >{{ $t('cancel') }}</v-btn>
           <v-btn
             color="error"
             :disabled="!isAnyGroupSelected || clearing"
             :loading="clearing"
             @click="clearTasks()"
+            data-testid="clusterClearDialog-clear"
           >
             {{ $t('clearTasksFromRedis') }}
           </v-btn>
@@ -41,15 +77,16 @@
     </v-dialog>
 
     <v-toolbar flat>
-      <v-btn icon class="mr-4" @click="returnToProjects()">
+      <v-btn icon class="mr-4" @click="returnToProjects()" data-testid="cluster-back">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('clusterDashboard') }}</v-toolbar-title>
+      <v-toolbar-title data-testid="cluster-title">{{ $t('clusterDashboard') }}</v-toolbar-title>
       <v-spacer />
       <v-btn
         color="error"
         @click="openClearDialog()"
         :disabled="!features.high_availability || !status.ha_enabled"
+        data-testid="cluster-clear"
       >
         <v-icon left>mdi-delete-sweep</v-icon>
         {{ $t('clearTasksFromRedis') }}
@@ -58,7 +95,13 @@
 
     <v-divider />
 
-    <v-alert v-if="!features.high_availability" text color="amber darken-3" class="PageAlert">
+    <v-alert
+      v-if="!features.high_availability"
+      text
+      color="amber darken-3"
+      class="PageAlert"
+      data-testid="cluster-licenseAlert"
+    >
       <span class="mr-1" v-html="$t('ha_only_enterprise')"></span>
 
       <v-btn
@@ -68,30 +111,54 @@
         color="amber darken-3"
         href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_cluster"
         target="_blank"
+        data-testid="cluster-upgrade"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
 
-      <span v-else style="font-weight: bold">
+      <span v-else style="font-weight: bold" data-testid="cluster-contactAdmin">
         {{ $t('contact_admin_to_upgrade_enterprise') }}
       </span>
     </v-alert>
 
-    <v-alert v-if="status && !status.ha_enabled" type="info" dense text>
+    <v-alert
+      v-if="status && !status.ha_enabled"
+      type="info"
+      dense
+      text
+      data-testid="cluster-haDisabled"
+    >
       {{ $t('haDisabledBanner') }}
     </v-alert>
 
     <div class="pa-4">
       <!-- Nodes -->
-      <v-card v-if="status && status.nodes" class="mb-4" outlined>
+      <v-card v-if="status && status.nodes" class="mb-4" outlined data-testid="cluster-nodes">
         <v-card-title class="subtitle-1">{{ $t('nodes') }}</v-card-title>
-        <v-data-table :headers="nodeHeaders" :items="status.nodes" :items-per-page="20" dense>
+        <v-data-table
+          :headers="nodeHeaders"
+          :items="status.nodes"
+          :items-per-page="20"
+          dense
+          data-testid="cluster-nodesTable"
+          :data-state="status.nodes.length === 0 ? 'empty' : 'ready'"
+        >
           <template v-slot:item.node_id="{ item }">
-            <code>{{ item.node_id }}</code>
-            <v-chip v-if="item.is_self" x-small class="ml-2">{{ $t('thisNode') }}</v-chip>
+            <code data-testid="cluster-rowNodeId">{{ item.node_id }}</code>
+            <v-chip
+              v-if="item.is_self"
+              x-small
+              class="ml-2"
+              data-testid="cluster-rowThisNode"
+            >{{ $t('thisNode') }}</v-chip>
           </template>
           <template v-slot:item.alive="{ item }">
-            <v-chip x-small :color="item.alive ? 'success' : 'error'" dark>
+            <v-chip
+              x-small
+              :color="item.alive ? 'success' : 'error'"
+              dark
+              :data-testid="`cluster-rowStatus-${item.alive ? 'alive' : 'dead'}`"
+            >
               {{ item.alive ? $t('alive') : $t('dead') }}
             </v-chip>
           </template>
@@ -105,7 +172,7 @@
       </v-card>
 
       <!-- Redis -->
-      <v-card v-if="status && status.redis" class="mb-4" outlined>
+      <v-card v-if="status && status.redis" class="mb-4" outlined data-testid="cluster-redis">
         <v-card-title class="subtitle-1">{{ $t('redisStatus') }}</v-card-title>
         <v-card-text>
           <v-row dense>
@@ -113,23 +180,28 @@
               <v-row dense>
                 <v-col>
                   <div class="text-caption grey--text">Addr</div>
-                  <code>{{ status.redis.addr }}</code>
+                  <code data-testid="cluster-redisAddr">{{ status.redis.addr }}</code>
                 </v-col>
                 <v-col>
                   <div class="text-caption grey--text">{{ $t('connected') }}</div>
-                  <v-chip x-small :color="status.redis.connected ? 'success' : 'error'" dark>
+                  <v-chip
+                    x-small
+                    :color="status.redis.connected ? 'success' : 'error'"
+                    dark
+                    data-testid="cluster-redisConnected"
+                  >
                     {{ status.redis.connected ? 'YES' : 'NO' }}
                   </v-chip>
                 </v-col>
-                <v-col>
+                <v-col data-testid="cluster-redisVersion">
                   <div class="text-caption grey--text">{{ $t('version') }}</div>
                   {{ status.redis.version || '—' }}
                 </v-col>
-                <v-col>
+                <v-col data-testid="cluster-redisUsedMemory">
                   <div class="text-caption grey--text">{{ $t('usedMemory') }}</div>
                   {{ status.redis.used_memory || '—' }}
                 </v-col>
-                <v-col>
+                <v-col data-testid="cluster-redisTotalKeys">
                   <div class="text-caption grey--text">{{ $t('totalKeys') }}</div>
                   {{ status.redis.total_keys }}
                 </v-col>
@@ -140,6 +212,7 @@
                 :key="group"
                 small
                 class="mr-2 mt-1"
+                :data-testid="`cluster-redisKeyGroup-${group}`"
               >
                 {{ group }}: {{ count }}
               </v-chip>
@@ -147,6 +220,7 @@
             <v-col cols="12" md="6">
               <div class="text-caption grey--text">{{ $t('redisMemoryChart') }}</div>
               <RedisMemoryChart
+                data-testid="cluster-redisChart"
                 :history="memoryHistory"
                 :window-ms="memoryWindowMs"
                 :now-ts="memoryNow"
@@ -157,30 +231,73 @@
       </v-card>
 
       <!-- Task records -->
-      <v-card outlined>
+      <v-card outlined data-testid="cluster-taskRecords">
         <v-card-title class="subtitle-1">{{ $t('taskRecords') }}</v-card-title>
-        <v-tabs v-model="tab">
-          <v-tab>{{ $t('queue') }} ({{ queueRows.length }})</v-tab>
-          <v-tab>{{ $t('running') }} ({{ runningRows.length }})</v-tab>
-          <v-tab>{{ $t('activeByProject') }} ({{ activeRows.length }})</v-tab>
-          <v-tab>{{ $t('aliases') }} ({{ aliasRows.length }})</v-tab>
-          <v-tab>{{ $t('claims') }} ({{ claimRows.length }})</v-tab>
+        <v-tabs v-model="tab" data-testid="cluster-tabs">
+          <v-tab data-testid="cluster-tab-queue">{{ $t('queue') }} ({{ queueRows.length }})</v-tab>
+          <v-tab
+            data-testid="cluster-tab-running"
+          >{{ $t('running') }} ({{ runningRows.length }})</v-tab>
+          <v-tab
+            data-testid="cluster-tab-activeByProject"
+          >{{ $t('activeByProject') }} ({{ activeRows.length }})</v-tab>
+          <v-tab
+            data-testid="cluster-tab-aliases"
+          >{{ $t('aliases') }} ({{ aliasRows.length }})</v-tab>
+          <v-tab
+            data-testid="cluster-tab-claims"
+          >{{ $t('claims') }} ({{ claimRows.length }})</v-tab>
         </v-tabs>
         <v-tabs-items v-model="tab">
           <v-tab-item>
-            <v-data-table :headers="taskHeaders" :items="queueRows" dense />
+            <v-data-table
+              :headers="taskHeaders"
+              :items="queueRows"
+              dense
+              data-testid="cluster-queueTable"
+              :data-state="tasks == null
+                ? 'loading' : (queueRows.length === 0 ? 'empty' : 'ready')"
+            />
           </v-tab-item>
           <v-tab-item>
-            <v-data-table :headers="taskHeaders" :items="runningRows" dense />
+            <v-data-table
+              :headers="taskHeaders"
+              :items="runningRows"
+              dense
+              data-testid="cluster-runningTable"
+              :data-state="tasks == null
+                ? 'loading' : (runningRows.length === 0 ? 'empty' : 'ready')"
+            />
           </v-tab-item>
           <v-tab-item>
-            <v-data-table :headers="taskHeaders" :items="activeRows" dense />
+            <v-data-table
+              :headers="taskHeaders"
+              :items="activeRows"
+              dense
+              data-testid="cluster-activeByProjectTable"
+              :data-state="tasks == null
+                ? 'loading' : (activeRows.length === 0 ? 'empty' : 'ready')"
+            />
           </v-tab-item>
           <v-tab-item>
-            <v-data-table :headers="aliasHeaders" :items="aliasRows" dense />
+            <v-data-table
+              :headers="aliasHeaders"
+              :items="aliasRows"
+              dense
+              data-testid="cluster-aliasesTable"
+              :data-state="tasks == null
+                ? 'loading' : (aliasRows.length === 0 ? 'empty' : 'ready')"
+            />
           </v-tab-item>
           <v-tab-item>
-            <v-data-table :headers="claimHeaders" :items="claimRows" dense />
+            <v-data-table
+              :headers="claimHeaders"
+              :items="claimRows"
+              dense
+              data-testid="cluster-claimsTable"
+              :data-state="tasks == null
+                ? 'loading' : (claimRows.length === 0 ? 'empty' : 'ready')"
+            />
           </v-tab-item>
         </v-tabs-items>
       </v-card>

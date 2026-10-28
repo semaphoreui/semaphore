@@ -1,14 +1,30 @@
 <template>
-  <div class="WorkflowNodeProperties">
+  <div class="WorkflowNodeProperties" data-testid="workflowNodeProps-panel">
     <div class="WorkflowNodeProperties__header">
-      <span class="WorkflowNodeProperties__tile" :class="`WorkflowNodeProperties__tile--${kind}`">
+      <span
+        class="WorkflowNodeProperties__tile"
+        :class="`WorkflowNodeProperties__tile--${kind}`"
+        :data-testid="`workflowNodeProps-tile-${kind}`"
+      >
         <v-icon :color="tileColor">{{ icon }}</v-icon>
       </span>
       <div class="WorkflowNodeProperties__heading">
-        <div class="text-subtitle-2 text-truncate">{{ heading }}</div>
-        <div class="text-caption text--secondary">{{ $t('workflowNodeId') }} #{{ node.id }}</div>
+        <div
+          class="text-subtitle-2 text-truncate"
+          data-testid="workflowNodeProps-heading"
+        >{{ heading }}</div>
+        <div
+          class="text-caption text--secondary"
+          data-testid="workflowNodeProps-nodeId"
+        >{{ $t('workflowNodeId') }} #{{ node.id }}</div>
       </div>
-      <v-btn icon small :title="$t('close')" @click="$emit('close')">
+      <v-btn
+        icon
+        small
+        :title="$t('close')"
+        @click="$emit('close')"
+        data-testid="workflowNodeProps-close"
+      >
         <v-icon small>mdi-close</v-icon>
       </v-btn>
     </div>
@@ -28,6 +44,7 @@
         rows="4"
         hide-details="auto"
         @input="emitChange"
+        data-testid="workflowNodeProps-note"
       />
 
       <template v-else>
@@ -43,6 +60,7 @@
           hide-details="auto"
           class="mb-5"
           @change="onKindChanged"
+          data-testid="workflowNodeProps-kind"
         />
 
         <v-autocomplete
@@ -58,6 +76,7 @@
           hide-details="auto"
           class="mb-5"
           @change="onTemplateChanged"
+          data-testid="workflowNodeProps-templateId"
         />
 
         <v-card
@@ -76,6 +95,7 @@
               @input="emitChange"
               @bind="setBinding"
               @unbind="setBinding($event, null)"
+              data-testid="workflowNodeProps-taskParams"
             />
           </v-card-text>
         </v-card>
@@ -92,6 +112,7 @@
             hide-details="auto"
             class="mb-5"
             @input="emitChange"
+            data-testid="workflowNodeProps-approvalTimeout"
           />
           <v-text-field
             v-model="node.approval_message"
@@ -102,6 +123,7 @@
             hide-details="auto"
             class="mb-5"
             @input="emitChange"
+            data-testid="workflowNodeProps-approvalMessage"
           />
         </template>
 
@@ -119,6 +141,7 @@
           hide-details="auto"
           class="mb-5"
           @input="emitChange"
+          data-testid="workflowNodeProps-delaySeconds"
         />
 
         <v-select
@@ -132,6 +155,7 @@
           dense
           hide-details="auto"
           @change="emitChange"
+          data-testid="workflowNodeProps-convergenceMode"
         />
       </template>
     </div>
@@ -146,6 +170,7 @@
         color="error"
         :disabled="!canManage"
         @click="$emit('delete')"
+        data-testid="workflowNodeProps-delete"
       >
         <v-icon left small>mdi-delete-outline</v-icon>
         {{ $t('workflowToolbarDelete') }}

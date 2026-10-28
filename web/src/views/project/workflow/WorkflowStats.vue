@@ -1,5 +1,9 @@
 <template>
-  <div class="pa-8 text-center text--secondary">
+  <div
+    class="pa-8 text-center text--secondary"
+    data-testid="workflowStats-page"
+    data-state="empty"
+  >
     {{ $t('workflowStatsComingSoon') }}
   </div>
 </template>

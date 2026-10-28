@@ -1,11 +1,16 @@
 <template>
-  <div class="auth">
+  <div
+    class="auth"
+    data-testid="auth-page"
+    :data-state="loginWithPassword === null || signInProcess
+      ? 'loading' : (signInError != null ? 'error' : 'ready')"
+  >
     <v-dialog v-model="loginHelpDialog" max-width="600">
-      <v-card>
+      <v-card data-testid="authHelpDialog">
         <v-card-title>
           {{ $t('howToFixSigninIssues') }}
           <v-spacer></v-spacer>
-          <v-btn icon @click="loginHelpDialog = false">
+          <v-btn icon @click="loginHelpDialog = false" data-testid="authHelpDialog-closeIcon">
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </v-card-title>
@@ -16,13 +21,25 @@
           <p class="text-body-1">
             {{ $t('executeTheFollowingCommandOnTheServerToSeeExisting') }}
           </p>
-          <v-alert dense text color="info" style="font-family: monospace">
+          <v-alert
+            dense
+            text
+            color="info"
+            style="font-family: monospace"
+            data-testid="authHelpDialog-userListCmd"
+          >
             {{ $t('semaphoreUserList') }}
           </v-alert>
           <p class="text-body-1">
             {{ $t('youCanChangePasswordOfExistingUser') }}
           </p>
-          <v-alert dense text color="info" style="font-family: monospace">
+          <v-alert
+            dense
+            text
+            color="info"
+            style="font-family: monospace"
+            data-testid="authHelpDialog-changePasswordCmd"
+          >
             {{
               $t('semaphoreUserChangebyloginLoginUser123Password', {
                 makePasswordExample: makePasswordExample(),
@@ -32,14 +49,25 @@
           <p class="text-body-1">
             {{ $t('orCreateNewAdminUser') }}
           </p>
-          <v-alert dense text color="info" style="font-family: monospace">
+          <v-alert
+            dense
+            text
+            color="info"
+            style="font-family: monospace"
+            data-testid="authHelpDialog-addAdminCmd"
+          >
             semaphore user add --admin --login user123 --name User123 --email user123@example.com
             --password {{ makePasswordExample() }}
           </v-alert>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn color="blue darken-1" text @click="loginHelpDialog = false">
+          <v-btn
+            color="blue darken-1"
+            text
+            @click="loginHelpDialog = false"
+            data-testid="authHelpDialog-close"
+          >
             {{ $t('close2') }}
           </v-btn>
         </v-card-actions>
@@ -47,7 +75,7 @@
     </v-dialog>
 
     <v-container fluid fill-height align-center justify-center class="pa-0">
-      <v-card class="px-5 py-5" style="border-radius: 15px">
+      <v-card class="px-5 py-5" style="border-radius: 15px" data-testid="auth-card">
         <v-card-text>
           <v-form
             @submit.prevent
@@ -55,6 +83,7 @@
             lazy-validation
             v-model="signInFormValid"
             style="width: 350px; max-width: 100%;"
+            data-testid="auth-form"
           >
             <v-img
               width="80"
@@ -63,38 +92,72 @@
               src="favicon.png"
               style="margin: auto"
               class="mb-4"
+              data-testid="auth-logo"
             />
 
-            <h2 v-if="screen === 'verification'" class="text-center pt-4 pb-6">
+            <h2
+              v-if="screen === 'verification'"
+              class="text-center pt-4 pb-6"
+              data-testid="auth-title-verification"
+            >
               Two-step verification
             </h2>
 
-            <h2 v-else-if="screen === 'recovery'" class="text-center pt-4 pb-6">
+            <h2
+              v-else-if="screen === 'recovery'"
+              class="text-center pt-4 pb-6"
+              data-testid="auth-title-recovery"
+            >
               Account recovery
             </h2>
 
-            <h2 v-else class="text-center pt-4 pb-6">Enter to your account</h2>
+            <h2
+              v-else
+              class="text-center pt-4 pb-6"
+              data-testid="auth-title-login"
+            >Enter to your account</h2>
 
-            <v-alert :value="signInError != null" color="error" style="margin-bottom: 20px"
+            <v-alert
+              :value="signInError != null"
+              color="error"
+              style="margin-bottom: 20px"
+              data-testid="auth-error"
               >{{ signInError }}
             </v-alert>
 
-            <div v-if="screen === 'verification'">
-              <div v-if="verificationMethod === 'totp'" class="text-center mb-4">
+            <div v-if="screen === 'verification'" data-testid="auth-verification">
+              <div
+                v-if="verificationMethod === 'totp'"
+                class="text-center mb-4"
+                data-testid="auth-verificationHint-totp"
+              >
                 Open the two-step verification app on your mobile device to get your verification
                 code.
               </div>
 
-              <div v-else-if="isPortal && verificationMethod === 'email'" class="text-center mb-4">
+              <div
+                v-else-if="isPortal && verificationMethod === 'email'"
+                class="text-center mb-4"
+                data-testid="auth-verificationHint-email"
+              >
                 Check your email for the verification code we just sent you.
               </div>
 
-              <v-otp-input v-model="verificationCode" length="6" @finish="verify()"></v-otp-input>
+              <v-otp-input
+                v-model="verificationCode"
+                length="6"
+                @finish="verify()"
+                data-testid="auth-otp"
+              ></v-otp-input>
 
               <v-divider class="my-6" />
 
               <div class="text-center">
-                <a @click="signOut()" class="mr-6">{{ $t('Return to login') }}</a>
+                <a
+                  @click="signOut()"
+                  class="mr-6"
+                  data-testid="auth-returnToLogin"
+                >{{ $t('Return to login') }}</a>
                 <a
                   v-if="
                     verificationMethod === 'totp' &&
@@ -102,6 +165,7 @@
                     authMethods.totp.allow_recovery
                   "
                   @click="screen = 'recovery'"
+                  data-testid="auth-useRecoveryCode"
                 >
                   {{ $t('Use recovery code') }}
                 </a>
@@ -113,6 +177,7 @@
                   color="primary"
                   v-if="isPortal && verificationMethod === 'email'"
                   @click="resendEmailVerification()"
+                  data-testid="auth-resendEmail"
                 >
                   {{
                     verificationEmailSending ? $t('Email sending...') : $t('Resend code to email')
@@ -121,7 +186,7 @@
               </div>
             </div>
 
-            <div v-else-if="screen === 'recovery'">
+            <div v-else-if="screen === 'recovery'" data-testid="auth-recovery">
               <div class="text-center mb-2">
                 Use your recovery code to regain access to your account.
               </div>
@@ -134,18 +199,27 @@
                 :label="$t('Recovery code')"
                 :rules="[(v) => !!v || $t('recoveryCode_required')]"
                 required
+                data-testid="auth-recoveryCode"
               />
 
               <div>
-                <v-btn style="width: 100%" color="primary" @click="recovery()"> Send </v-btn>
+                <v-btn
+                  style="width: 100%"
+                  color="primary"
+                  @click="recovery()"
+                  data-testid="auth-recoverySend"
+                > Send </v-btn>
               </div>
 
               <div class="text-center pt-6">
-                <a @click="screen = 'verification'">{{ $t('Return to verification') }}</a>
+                <a
+                  @click="screen = 'verification'"
+                  data-testid="auth-returnToVerification"
+                >{{ $t('Return to verification') }}</a>
               </div>
             </div>
 
-            <div v-else>
+            <div v-else data-testid="auth-login">
               <v-btn-toggle
                 v-if="loginTabs.length > 1"
                 v-model="loginTab"
@@ -153,13 +227,23 @@
                 borderless
                 class="mb-7 d-flex"
                 :background-color="$vuetify.theme.dark ? '#212121' : 'grey lighten-3'"
+                data-testid="auth-loginTabs"
               >
-                <v-btn v-for="tab in loginTabs" :key="tab.id || 'local'" small class="flex-grow-1">
+                <v-btn
+                  v-for="tab in loginTabs"
+                  :key="tab.id || 'local'"
+                  small
+                  class="flex-grow-1"
+                  :data-testid="`auth-loginTab-${tab.id || 'local'}`"
+                >
                   {{ tab.name }}
                 </v-btn>
               </v-btn-toggle>
 
-              <div v-if="(activeLoginTab && activeLoginTab.ldap) || loginWithPassword">
+              <div
+                v-if="(activeLoginTab && activeLoginTab.ldap) || loginWithPassword"
+                data-testid="auth-passwordLogin"
+              >
                 <v-text-field
                   v-model="username"
                   v-bind:label="$t('username')"
@@ -199,7 +283,7 @@
                 </v-btn>
               </div>
 
-              <div v-else-if="isPortal">
+              <div v-else-if="isPortal" data-testid="auth-emailLogin">
                 <v-text-field
                   v-model="email"
                   :label="$t('Email')"
@@ -231,6 +315,7 @@
 
               <div
                 class="auth__divider"
+                data-testid="auth-divider"
                 v-if="
                   (loginWithPassword || ldapProviders.length > 0 || isPortal) &&
                   oidcProviders.length > 0
@@ -249,6 +334,7 @@
                 block
                 :key="provider.id"
                 rounded
+                :data-testid="`auth-oidc-${provider.id}`"
               >
                 <v-icon left dark v-if="provider.icon"> mdi-{{ provider.icon }} </v-icon>
 
@@ -256,7 +342,10 @@
               </v-btn>
 
               <div class="text-center mt-6" v-if="loginWithPassword && false">
-                <a @click="loginHelpDialog = true">{{ $t('dontHaveAccountOrCantSignIn') }}</a>
+                <a
+                  @click="loginHelpDialog = true"
+                  data-testid="auth-help"
+                >{{ $t('dontHaveAccountOrCantSignIn') }}</a>
               </div>
             </div>
           </v-form>

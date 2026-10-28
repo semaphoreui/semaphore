@@ -5,7 +5,7 @@
       hide-overlay
       v-model="sheet"
     >
-      <v-sheet class="pa-4">
+      <v-sheet class="pa-4" data-testid="tableSettings-sheet">
         <slot></slot>
       </v-sheet>
     </v-bottom-sheet>

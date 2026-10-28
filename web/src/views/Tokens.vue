@@ -1,10 +1,23 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="tokens-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <v-dialog v-model="newTokenDialog" max-width="480" persistent>
-      <v-card>
-        <v-card-title>{{ $t('New Token') }}</v-card-title>
+      <v-card
+        data-testid="tokensNewDialog"
+        :data-state="creatingToken ? 'loading' : 'ready'"
+      >
+        <v-card-title data-testid="tokensNewDialog-title">{{ $t('New Token') }}</v-card-title>
         <v-card-text class="pb-0 pt-4">
-          <v-text-field v-model="newTokenName" :label="$t('tokenName')" outlined dense />
+          <v-text-field
+            v-model="newTokenName"
+            :label="$t('tokenName')"
+            outlined
+            dense
+            data-testid="token-name"
+          />
 
           <v-select
             v-model="expiresInDays"
@@ -12,6 +25,7 @@
             :label="$t('Expires')"
             outlined
             dense
+            data-testid="token-expires"
           />
           <v-text-field
             v-if="expiresInDays === 'custom'"
@@ -20,14 +34,27 @@
             :label="$t('Expiration date')"
             outlined
             dense
+            data-testid="token-expiresAt"
           />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn text color="primary" @click="newTokenDialog = false" :disabled="creatingToken">
+          <v-btn
+            text
+            color="primary"
+            @click="newTokenDialog = false"
+            :disabled="creatingToken"
+            data-testid="tokensNewDialog-cancel"
+          >
             {{ $t('Cancel') }}
           </v-btn>
-          <v-btn text color="primary" @click="createToken()" :loading="creatingToken">
+          <v-btn
+            text
+            color="primary"
+            @click="createToken()"
+            :loading="creatingToken"
+            data-testid="tokensNewDialog-create"
+          >
             {{ $t('Create') }}
           </v-btn>
         </v-card-actions>
@@ -35,21 +62,26 @@
     </v-dialog>
 
     <v-toolbar flat>
-      <v-btn icon class="mr-4" @click="returnToProjects()">
+      <v-btn icon class="mr-4" @click="returnToProjects()" data-testid="tokens-back">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('api_tokens') }}</v-toolbar-title>
+      <v-toolbar-title data-testid="tokens-title">{{ $t('api_tokens') }}</v-toolbar-title>
       <v-spacer></v-spacer>
 
       <a
         :href="`${this.systemInfo?.web_host || ''}/swagger/index.html`"
         class="mr-6"
         target="_blank"
+        data-testid="tokens-apiReference"
       >
         {{ $t('API Reference') }}
       </a>
 
-      <v-btn color="primary" @click="newToken()">{{ $t('New Token') }}</v-btn>
+      <v-btn
+        color="primary"
+        @click="newToken()"
+        data-testid="tokens-new"
+      >{{ $t('New Token') }}</v-btn>
     </v-toolbar>
 
     <v-divider />
@@ -59,12 +91,23 @@
       :items="items"
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
+      data-testid="tokens-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.id="{ item }">
-        <code v-if="item.token_id && item.show_token_id" class="mr-2">{{ item.token_id }}</code>
-        <code v-else class="mr-2">{{ item.id }}***</code>
+        <code
+          v-if="item.token_id && item.show_token_id"
+          class="mr-2"
+          data-testid="tokens-rowToken"
+        >{{ item.token_id }}</code>
+        <code v-else class="mr-2" data-testid="tokens-rowId">{{ item.id }}***</code>
 
-        <v-btn icon v-if="item.token_id && !item.show_token_id" @click="showToken(item.id)">
+        <v-btn
+          icon
+          v-if="item.token_id && !item.show_token_id"
+          @click="showToken(item.id)"
+          data-testid="tokens-rowShow"
+        >
           <v-icon>mdi-eye</v-icon>
         </v-btn>
 
@@ -72,6 +115,7 @@
           v-if="item.token_id"
           :text="item.token_id"
           success-message="The token has been copied to the clipboard."
+          test-id="tokens-rowCopy"
         />
       </template>
 
@@ -84,27 +128,49 @@
       </template>
 
       <template v-slot:item.expires_at="{ item }">
-        <span v-if="item.expires_at">{{ item.expires_at | formatDate }}</span>
-        <span v-else class="text--disabled">{{ $t('Never') }}</span>
+        <span
+          v-if="item.expires_at"
+          data-testid="tokens-rowExpiresAt"
+        >{{ item.expires_at | formatDate }}</span>
+        <span
+          v-else
+          class="text--disabled"
+          data-testid="tokens-rowExpiresNever"
+        >{{ $t('Never') }}</span>
       </template>
 
       <template v-slot:item.expired="{ item }">
         <div class="pr-4">
-          <v-chip v-if="item.expired" style="font-weight: bold" color="error">
+          <v-chip
+            v-if="item.expired"
+            style="font-weight: bold"
+            color="error"
+            data-testid="tokens-rowStatus-revoked"
+          >
             {{ $t('Revoked') }}
           </v-chip>
-          <v-chip v-else-if="isExpiredByTime(item)" style="font-weight: bold" color="warning">
+          <v-chip
+            v-else-if="isExpiredByTime(item)"
+            style="font-weight: bold"
+            color="warning"
+            data-testid="tokens-rowStatus-expired"
+          >
             {{ $t('Expired') }}
           </v-chip>
-          <v-chip v-else style="font-weight: bold" color="success">
+          <v-chip
+            v-else
+            style="font-weight: bold"
+            color="success"
+            data-testid="tokens-rowStatus-active"
+          >
             {{ $t('Active') }}
           </v-chip>
         </div>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap">
-          <v-btn icon class="mr-1" @click="deleteItem(item.id)">
+        <div style="white-space: nowrap" data-testid="tokens-rowActions">
+          <v-btn icon class="mr-1" @click="deleteItem(item.id)" data-testid="tokens-rowDelete">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </div>

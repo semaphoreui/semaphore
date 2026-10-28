@@ -4,9 +4,10 @@
     <textarea
       style="position: absolute; left: -9999px; top: -9999px"
       ref="copy_to_clipboard_textarea"
+      :data-testid="`${testId}-buffer`"
     ></textarea>
 
-    <v-btn icon @click="copy()" :large="large">
+    <v-btn icon @click="copy()" :large="large" :data-testid="testId">
       <v-icon :color="color">mdi-content-copy</v-icon>
     </v-btn>
   </span>
@@ -24,6 +25,10 @@ export default {
     },
     large: Boolean,
     color: String,
+    testId: {
+      type: String,
+      default: 'copyButton',
+    },
   },
   methods: {
     copy() {

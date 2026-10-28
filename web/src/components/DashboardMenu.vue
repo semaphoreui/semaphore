@@ -1,6 +1,6 @@
 <template>
-  <div>
-    <v-tabs class="pl-4">
+  <div data-testid="dashboard-menu">
+    <v-tabs class="pl-4" data-testid="dashboard-tabs">
       <v-tab
         v-if="projectType === ''"
         key="history"
@@ -16,7 +16,11 @@
         data-testid="dashboard-stats"
       >{{ $t('project_stats') }}</v-tab>
 
-      <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
+      <v-tab
+        key="activity"
+        :to="`/project/${projectId}/activity`"
+        data-testid="dashboard-activity"
+      >{{ $t('activity') }}</v-tab>
 
       <v-tab
         v-if="canUpdateProject"

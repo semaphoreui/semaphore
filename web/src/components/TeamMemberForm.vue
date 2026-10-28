@@ -4,11 +4,14 @@
     lazy-validation
     v-model="formValid"
     v-if="teamMembers != null && users != null"
+    data-testid="teamMember-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="teamMember-error"
     >{{ formError }}
     </v-alert>
 
@@ -17,11 +20,24 @@
         v-model="selectedInviteType"
         tile
         group
+        data-testid="teamMember-inviteType"
       >
-        <v-btn value="email" small class="mr-0" style="border-radius: 4px;">
+        <v-btn
+          value="email"
+          small
+          class="mr-0"
+          style="border-radius: 4px;"
+          data-testid="teamMember-inviteType-email"
+        >
           Email
         </v-btn>
-        <v-btn value="username" small class="mr-0" style="border-radius: 4px;">
+        <v-btn
+          value="username"
+          small
+          class="mr-0"
+          style="border-radius: 4px;"
+          data-testid="teamMember-inviteType-username"
+        >
           Username
         </v-btn>
       </v-btn-toggle>
@@ -32,6 +48,7 @@
       type="email"
       :label="$t('email')"
       v-model="item.email"
+      data-testid="teamMember-email"
       outlined
       dense
     />
@@ -39,6 +56,7 @@
     <v-autocomplete
       v-else
       v-model="item.user_id"
+      data-testid="teamMember-userId"
       :label="$t('user')"
       :items="users"
       item-value="id"
@@ -52,6 +70,7 @@
 
     <v-select
       v-model="item.role"
+      data-testid="teamMember-role"
       :label="$t('role')"
       :items="groupedRoles"
       item-value="slug"
@@ -63,7 +82,7 @@
       dense
     >
       <template v-slot:item="{ item: role }">
-        <v-list-item-content>
+        <v-list-item-content :data-testid="`teamMember-roleOption-${role.slug}`">
           <v-list-item-title>{{ role.name }}</v-list-item-title>
           <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
         </v-list-item-content>

@@ -1,6 +1,7 @@
 <template>
   <div
     class="WorkflowEdgeLabel"
+    data-testid="workflowCanvas-edge"
     :class="[
       `WorkflowEdgeLabel--${label.condition}`,
       label.state ? `WorkflowEdgeLabel--${label.state}` : '',
@@ -13,20 +14,26 @@
       <template v-slot:activator="{ on, attrs }">
         <span
           class="WorkflowEdgeLabel__pill WorkflowEdgeLabel__pill--clickable"
+          data-testid="workflowCanvas-edgePill"
           v-bind="attrs"
           v-on="on"
         >
           <v-icon x-small :color="current.color">{{ current.icon }}</v-icon>
-          <span class="WorkflowEdgeLabel__text">{{ current.text }}</span>
+          <span
+            class="WorkflowEdgeLabel__text"
+            :data-testid="`workflowCanvas-edgeCondition-${current.value}`"
+          >{{ current.text }}</span>
           <v-icon
             v-if="label.explicit"
             x-small
             class="WorkflowEdgeLabel__inputs"
+            data-testid="workflowCanvas-edgeInputs"
             :title="$t('workflowEdgeInputsExplicit')"
           >mdi-swap-horizontal-bold</v-icon>
           <button
             type="button"
             class="WorkflowEdgeLabel__del"
+            data-testid="workflowCanvas-edgeDelete"
             :title="$t('workflowEdgeDelete')"
             @mousedown.stop
             @click.stop="$emit('remove')"
@@ -35,10 +42,11 @@
           </button>
         </span>
       </template>
-      <v-list dense>
+      <v-list dense data-testid="workflowCanvas-edgeMenu">
         <v-list-item
           v-for="opt in options"
           :key="opt.value"
+          :data-testid="`workflowCanvas-edgeMenu-${opt.value}`"
           :input-value="opt.value === label.condition"
           @click="$emit('change', opt.value)"
         >
@@ -50,13 +58,17 @@
       </v-list>
     </v-menu>
 
-    <span v-else class="WorkflowEdgeLabel__pill">
+    <span v-else class="WorkflowEdgeLabel__pill" data-testid="workflowCanvas-edgePill">
       <v-icon x-small :color="current.color">{{ current.icon }}</v-icon>
-      <span class="WorkflowEdgeLabel__text">{{ current.text }}</span>
+      <span
+        class="WorkflowEdgeLabel__text"
+        :data-testid="`workflowCanvas-edgeCondition-${current.value}`"
+      >{{ current.text }}</span>
       <v-icon
         v-if="label.explicit"
         x-small
         class="WorkflowEdgeLabel__inputs"
+        data-testid="workflowCanvas-edgeInputs"
         :title="$t('workflowEdgeInputsExplicit')"
       >mdi-swap-horizontal-bold</v-icon>
     </span>

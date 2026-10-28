@@ -2,15 +2,24 @@
   <div class="AuditEventCard pa-4" data-testid="audit-card">
     <div class="d-flex align-start">
       <div class="flex-grow-1">
-        <div class="text-h6">{{ title }}</div>
-        <div class="text-caption text--secondary AuditEventCard__kind">{{ kind }}</div>
+        <div class="text-h6" data-testid="audit-cardTitle">{{ title }}</div>
+        <div
+          class="text-caption text--secondary AuditEventCard__kind"
+          data-testid="audit-cardKind"
+        >{{ kind }}</div>
       </div>
       <CopyClipboardButton
         :text="json"
         :success-message="$t('audit_json_copied')"
         data-testid="audit-copy-json"
+        test-id="audit-cardCopyJson"
       />
-      <v-btn icon :aria-label="$t('close')" @click="$emit('close')">
+      <v-btn
+        icon
+        :aria-label="$t('close')"
+        data-testid="audit-cardClose"
+        @click="$emit('close')"
+      >
         <v-icon>mdi-close</v-icon>
       </v-btn>
     </div>
@@ -21,24 +30,34 @@
       text
       :type="event.outcome === 'failure' ? 'error' : 'warning'"
       class="mt-3 mb-0"
+      data-testid="audit-cardOutcome"
     >
       {{ event.outcome === 'failure' ? $t('audit_result_failure') : $t('audit_result_success') }}
-      <span v-if="event.reason">— {{ reason }}</span>
+      <span v-if="event.reason" data-testid="audit-cardReason">— {{ reason }}</span>
     </v-alert>
 
-    <div v-for="section in sections" :key="section.key" class="mt-4">
-      <div class="text-overline">{{ $t(section.key) }}</div>
+    <div
+      v-for="section in sections"
+      :key="section.key"
+      class="mt-4"
+      :data-testid="`audit-cardSection-${section.key.replace('audit_card_', '')}`"
+    >
+      <div class="text-overline" data-testid="audit-cardSectionTitle">{{ $t(section.key) }}</div>
       <table class="AuditEventCard__fields">
-        <tr v-for="row in section.rows" :key="row.label">
-          <th>{{ row.label }}</th>
-          <td>
+        <tr v-for="row in section.rows" :key="row.label" data-testid="audit-cardRow">
+          <th data-testid="audit-cardRowLabel">{{ row.label }}</th>
+          <td data-testid="audit-cardRowValue">
             <a
               v-if="row.pivot && pivots"
               href="#"
               :data-testid="`audit-pivot-${row.pivot.name}`"
               @click.prevent="$emit('pivot', row.pivot.filter)"
             >{{ row.value }}</a>
-            <span v-else-if="row.pivot" :title="$t('audit_only_pro_short')">
+            <span
+              v-else-if="row.pivot"
+              :title="$t('audit_only_pro_short')"
+              :data-testid="`audit-pivotLocked-${row.pivot.name}`"
+            >
               {{ row.value }}
             </span>
             <span v-else>{{ row.value }}</span>

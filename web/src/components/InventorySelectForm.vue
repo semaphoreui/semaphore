@@ -4,11 +4,14 @@
     lazy-validation
     v-model="formValid"
     v-if="items != null"
+    data-testid="workspaceSelect-form"
+    :data-state="formError ? 'error' : 'ready'"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="workspaceSelect-error"
     >{{ formError }}
     </v-alert>
 
@@ -19,6 +22,7 @@
       label="Workspace"
       item-value="id"
       item-text="name"
+      data-testid="workspaceSelect-inventoryId"
     />
   </v-form>
 </template>

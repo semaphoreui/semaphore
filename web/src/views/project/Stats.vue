@@ -1,8 +1,11 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div>
+  <div data-testid="stats-page">
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="stats-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="stats-title">{{ $t('dashboard') }}</v-toolbar-title>
     </v-toolbar>
 
     <DashboardMenu
@@ -11,7 +14,7 @@
       :can-update-project="can(USER_PERMISSIONS.updateProject)"
     />
 
-    <TaskStats class="mt-4" :project-id="projectId"  />
+    <TaskStats class="mt-4" :project-id="projectId" data-testid="stats-taskStats" />
 
   </div>
 </template>

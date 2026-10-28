@@ -1,8 +1,12 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="!isLoaded">
-    <v-progress-linear indeterminate color="primary darken-2"></v-progress-linear>
+  <div v-if="!isLoaded" data-testid="template-page" data-state="loading">
+    <v-progress-linear
+      indeterminate
+      color="primary darken-2"
+      data-testid="template-loading"
+    ></v-progress-linear>
   </div>
-  <div v-else>
+  <div v-else data-testid="template-page" data-state="ready">
     <NewTaskDialog
       v-model="newTaskDialog"
       :project-id="projectId"
@@ -17,6 +21,7 @@
       @save="loadData()"
       :features="features"
       :task-type="item.type"
+      test-id="templateDialog"
     ></EditTemplateDialog>
 
     <EditTemplateDialog
@@ -28,6 +33,7 @@
       @save="onTemplateCopied"
       :features="features"
       :task-type="item.type"
+      test-id="templateCopyDialog"
     ></EditTemplateDialog>
 
     <ObjectRefsDialog
@@ -35,6 +41,7 @@
       :object-refs="itemRefs"
       :project-id="projectId"
       v-model="itemRefsDialog"
+      test-id="templateRefsDialog"
     />
 
     <YesNoDialog
@@ -42,6 +49,7 @@
       :text="$t('askDeleteTemp')"
       v-model="deleteDialog"
       @yes="remove()"
+      test-id="templateDeleteDialog"
     />
 
     <YesNoDialog
@@ -49,6 +57,7 @@
       :text="$t('askStopAllTasks')"
       v-model="stopAllDialog"
       @yes="stopAllTasks(false)"
+      test-id="templateStopAllDialog"
     />
 
     <YesNoDialog
@@ -56,13 +65,18 @@
       :text="$t('askForceStopAllTasks')"
       v-model="forceStopAllDialog"
       @yes="stopAllTasks(true)"
+      test-id="templateForceStopAllDialog"
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title class="breadcrumbs">
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="template-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title class="breadcrumbs" data-testid="template-title">
         <router-link
           class="breadcrumbs__item breadcrumbs__item--link"
+          data-testid="template-breadcrumbTemplates"
           :to="
             viewId
               ? `/project/${projectId}/views/${viewId}/templates/`
@@ -72,7 +86,7 @@
           {{ $t('taskTemplates2') }}
         </router-link>
         <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">{{ item.name }}</span>
+        <span class="breadcrumbs__item" data-testid="template-name">{{ item.name }}</span>
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
@@ -85,19 +99,26 @@
             color="grey"
             class="mr-3 pr-2"
             :disabled="stopAllTasksProgress"
+            data-testid="template-stopAllMenu"
           >
             {{ $t('stopAll') }}
             <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
         <v-list>
-          <v-list-item @click="stopAllDialog = true">
+          <v-list-item
+            @click="stopAllDialog = true"
+            data-testid="template-stopAllMenu-stop"
+          >
             <v-list-item-icon>
               <v-icon>mdi-stop</v-icon>
             </v-list-item-icon>
             <v-list-item-title>{{ $t('stop') }}</v-list-item-title>
           </v-list-item>
-          <v-list-item @click="forceStopAllDialog = true">
+          <v-list-item
+            @click="forceStopAllDialog = true"
+            data-testid="template-stopAllMenu-forceStop"
+          >
             <v-list-item-icon>
               <v-icon>mdi-alert-octagon</v-icon>
             </v-list-item-icon>
@@ -117,15 +138,21 @@
         {{ $t(TEMPLATE_TYPE_ACTION_TITLES[item.type]) }}
       </v-btn>
 
-      <v-btn icon color="error" @click="askDelete()" v-if="canUpdate">
+      <v-btn
+        icon
+        color="error"
+        @click="askDelete()"
+        v-if="canUpdate"
+        data-testid="template-delete"
+      >
         <v-icon>mdi-delete</v-icon>
       </v-btn>
 
-      <v-btn icon @click="copyDialog = true" v-if="canUpdate">
+      <v-btn icon @click="copyDialog = true" v-if="canUpdate" data-testid="template-copy">
         <v-icon>mdi-content-copy</v-icon>
       </v-btn>
 
-      <v-btn icon @click="editDialog = true" v-if="canUpdate">
+      <v-btn icon @click="editDialog = true" v-if="canUpdate" data-testid="template-edit">
         <v-icon>mdi-pencil</v-icon>
       </v-btn>
     </v-toolbar>
@@ -136,27 +163,32 @@
       @save="updateDescription()"
       v-if="item.description || can(USER_PERMISSIONS.manageProjectResources)"
       :can-edit="can(USER_PERMISSIONS.manageProjectResources)"
+      data-testid="template-description"
     />
 
-    <v-tabs>
+    <v-tabs data-testid="template-tabs">
       <v-tab
+        data-testid="template-tab-tasks"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
         }/templates/${item.id}/tasks`">{{ $t('template_tasks') }}
       </v-tab>
       <v-tab
+        data-testid="template-tab-details"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
         }/templates/${item.id}/details`">{{ $t('template_details') }}
       </v-tab>
       <v-tab
         v-if="isPro && can(USER_PERMISSIONS.manageProjectResources)"
+        data-testid="template-tab-perms"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
         }/templates/${item.id}/perms`">{{ $t('Permissions') }}
       </v-tab>
       <v-tab
         v-if="['terraform', 'tofu'].includes(item.app)"
+        data-testid="template-tab-state"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
         }/templates/${item.id}/state`"

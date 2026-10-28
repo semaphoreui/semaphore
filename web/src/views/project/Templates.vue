@@ -1,22 +1,31 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="!isLoaded">
+  <div v-if="!isLoaded" data-testid="templates-page" data-state="loading">
     <v-progress-linear
       indeterminate
       color="primary darken-2"
+      data-testid="templates-loading"
     ></v-progress-linear>
   </div>
-  <div v-else>
+  <div
+    v-else
+    data-testid="templates-page"
+    :data-state="viewItemsLoading ? 'loading' : (items.length === 0 ? 'empty' : 'ready')"
+  >
     <v-dialog
       v-model="editViewsDialog"
       :max-width="400"
       persistent
       :transition="false"
     >
-      <v-card>
-        <v-card-title>
+      <v-card data-testid="templatesViewsDialog">
+        <v-card-title data-testid="templatesViewsDialog-title">
           {{ $t('editViews') }}
           <v-spacer></v-spacer>
-          <v-btn icon @click="closeEditViewDialog()">
+          <v-btn
+            icon
+            @click="closeEditViewDialog()"
+            data-testid="templatesViewsDialog-close"
+          >
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </v-card-title>
@@ -33,6 +42,7 @@
       item-id="new"
       @save="loadItems()"
       :features="features"
+      test-id="templateDialog"
     ></EditTemplateDialog>
 
     <NewTaskDialog
@@ -42,11 +52,15 @@
       :project-id="projectId"
       :template="template"
       :template-id="itemId"
+      test-id="newTaskDialog"
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="templates-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="templates-title">
         {{ $t('taskTemplates2') }}
       </v-toolbar-title>
       <v-spacer></v-spacer>
@@ -62,17 +76,19 @@
             class="mr-1 pr-2"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
             :disabled="!isAdmin && appsMixin.activeAppIds.length === 0"
+            data-testid="templates-new"
           >
             {{ $t('newTemplate') }}
             <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
-        <v-list>
+        <v-list data-testid="templates-newMenu">
           <v-list-item
             v-for="appID in appsMixin.activeAppIds"
             :key="appID"
             link
             @click="editItem('new'); itemApp = appID;"
+            :data-testid="`templates-new-${appID}`"
           >
             <v-list-item-icon>
               <v-icon
@@ -91,6 +107,7 @@
             key="other"
             link
             to="/apps"
+            data-testid="templates-appsLink"
           >
             <v-list-item-icon>
               <v-icon>mdi-cogs</v-icon>
@@ -100,12 +117,21 @@
         </v-list>
       </v-menu>
 
-      <v-btn icon @click="settingsSheet = true">
+      <v-btn
+        icon
+        @click="settingsSheet = true"
+        data-testid="templates-tableSettings"
+      >
         <v-icon>mdi-cog</v-icon>
       </v-btn>
     </v-toolbar>
 
-    <v-tabs show-arrows class="pl-4" v-model="viewTab">
+    <v-tabs
+      show-arrows
+      class="pl-4"
+      v-model="viewTab"
+      data-testid="templates-viewTabs"
+    >
 
       <v-tab
         v-for="(view) in views"
@@ -115,6 +141,7 @@
         :style="{
           'text-decoration': view.hidden ? 'line-through' : 'none',
         }"
+        data-testid="templates-viewTab"
       >{{ view.title }}
       </v-tab>
 
@@ -123,6 +150,7 @@
         class="mt-2 ml-4"
         @click="editViewsDialog = true"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        data-testid="templates-editViews"
       >
         <v-icon>mdi-pencil</v-icon>
       </v-btn>
@@ -142,11 +170,14 @@
       :style="{
         opacity: viewItemsLoading ? 0.3 : 1,
       }"
+      data-testid="templates-table"
+      :data-state="viewItemsLoading ? 'loading' : (items.length === 0 ? 'empty' : 'ready')"
     >
       <template v-slot:item.name="{ item }">
         <v-icon
           class="mr-3"
           small
+          data-testid="templates-rowApp"
         >
           {{ getAppIcon(item.app) }}
         </v-icon>
@@ -159,6 +190,7 @@
           :to="viewId
               ? `/project/${projectId}/views/${viewId}/templates/${item.id}`
               : `/project/${projectId}/templates/${item.id}`"
+          data-testid="templates-rowName"
         >{{ item.name }}
         </router-link>
       </template>
@@ -180,15 +212,21 @@
           :tooltip="item.last_task.tpl_type === 'build'
               ? item.last_task.message
               : (item.last_task.build_task || {}).message"
+          data-testid="templates-rowVersion"
         />
-        <div v-else>&mdash;</div>
+        <div v-else data-testid="templates-rowVersionEmpty">&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
         <div class="mt-2 mb-2 d-flex" v-if="item.last_task != null">
-          <TaskStatus :status="item.last_task.status"/>
+          <TaskStatus :status="item.last_task.status" data-testid="templates-rowStatus"/>
         </div>
-        <div v-else class="mt-3 mb-2 d-flex" style="color: gray;">{{ $t('notLaunched') }}</div>
+        <div
+          v-else
+          class="mt-3 mb-2 d-flex"
+          style="color: gray;"
+          data-testid="templates-rowNotLaunched"
+        >{{ $t('notLaunched') }}</div>
       </template>
 
       <template v-slot:item.last_task="{ item }">
@@ -197,8 +235,9 @@
             :task-id="item.last_task.id"
             :label="'#' + item.last_task.id"
             :tooltip="item.last_task.message"
+            data-testid="templates-rowLastTask"
           />
-          <div style="color: gray; font-size: 14px;">
+          <div style="color: gray; font-size: 14px;" data-testid="templates-rowLastTaskUser">
             {{ $t('by', {user_name: item.last_task.user_name}) }}
           </div>
         </div>
@@ -217,10 +256,15 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
+        <v-btn-toggle
+          dense
+          :value-comparator="() => false"
+          data-testid="templates-rowActions"
+        >
           <v-btn
             v-if="canRun(item)"
             @click="createTask(item.id)"
+            data-testid="templates-rowRun"
           >
             <v-icon>mdi-play</v-icon>
           </v-btn>
@@ -231,6 +275,7 @@
         <td
           :colspan="headers.length"
           v-if="openedItems.some((template) => template.id === item.id)"
+          data-testid="templates-rowHistory"
         >
           <TaskList
             style="border: 1px solid lightgray; border-radius: 6px; margin: 10px 0;"
@@ -247,6 +292,7 @@
       table-name="project__template"
       :headers="headers"
       @change="onTableSettingsChange"
+      data-testid="templates-tableSettingsSheet"
     />
   </div>
 </template>

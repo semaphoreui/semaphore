@@ -4,11 +4,14 @@
     lazy-validation
     v-model="formValid"
     v-if="item != null"
+    data-testid="templatePerm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="templatePerm-error"
     >{{ formError }}
     </v-alert>
 
@@ -23,16 +26,22 @@
       outlined
       dense
       :disabled="formSaving"
+      data-testid="templatePerm-roleSlug"
     >
       <template v-slot:item="{ item: role }">
-        <v-list-item-content>
+        <v-list-item-content
+          :data-testid="`templatePerm-roleSlug-${role.slug}`"
+        >
           <v-list-item-title>{{ role.name }}</v-list-item-title>
           <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
         </v-list-item-content>
       </template>
     </v-select>
 
-    <v-subheader class="pl-0">{{ $t('permissions') }}</v-subheader>
+    <v-subheader
+      class="pl-0"
+      data-testid="templatePerm-permissionsTitle"
+    >{{ $t('permissions') }}</v-subheader>
 
     <v-checkbox
       v-for="p in ROLE_PERMISSIONS[scope]"
@@ -41,6 +50,7 @@
       v-model="permissions[p.permission]"
       :label="$t(p.label)"
       :disabled="formSaving"
+      :data-testid="`templatePerm-permission-${p.permission}`"
     ></v-checkbox>
 
   </v-form>

@@ -5,6 +5,8 @@
     v-model="formValid"
     v-if="item != null && (!supportStorages || secretStorages != null)"
     class="pb-3"
+    data-testid="varGroup-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert :value="formError" color="error" data-testid="varGroup-error"
       >{{ formError }}
@@ -18,9 +20,10 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="varGroup-name"
     ></v-text-field>
 
-    <v-row v-if="supportStorages && isNew">
+    <v-row v-if="supportStorages && isNew" data-testid="varGroup-storageRow">
       <v-col>
         <v-autocomplete
           v-model="item.secret_storage_id"
@@ -32,6 +35,7 @@
           outlined
           dense
           clearable
+          data-testid="varGroup-secretStorageId"
         />
       </v-col>
       <v-col>
@@ -41,25 +45,27 @@
           :disabled="formSaving || !item.secret_storage_id || !isNew"
           outlined
           dense
+          data-testid="varGroup-secretStorageKeyPrefix"
         />
       </v-col>
     </v-row>
 
-    <v-tabs grow v-model="tab">
-      <v-tab key="variables">Variables</v-tab>
-      <v-tab key="secrets">Secrets</v-tab>
+    <v-tabs grow v-model="tab" data-testid="varGroup-tabs">
+      <v-tab key="variables" data-testid="varGroup-tab-variables">Variables</v-tab>
+      <v-tab key="secrets" data-testid="varGroup-tab-secrets">Secrets</v-tab>
     </v-tabs>
 
     <v-divider style="margin-top: -1px" class="mb-7" />
 
     <v-tabs-items v-model="tab">
-      <v-tab-item key="variables">
+      <v-tab-item key="variables" data-testid="varGroup-tabPanel-variables">
         <v-subheader class="px-0">
           {{ $t('extraVariables') }}
 
           <v-tooltip v-if="needHelp" bottom color="black" open-delay="300" max-width="400">
             <template v-slot:activator="{ on, attrs }">
-              <v-icon class="ml-1" v-bind="attrs" v-on="on">mdi-help-box </v-icon>
+              <v-icon class="ml-1" v-bind="attrs" v-on="on" data-testid="varGroup-varsHelp"
+                >mdi-help-box </v-icon>
             </template>
             <div>
               <div><code>--extra-vars</code> for Ansible</div>
@@ -69,10 +75,33 @@
 
           <v-spacer />
 
-          <v-btn-toggle v-model="extraVarsEditMode" tile group>
-            <v-btn value="table" small class="mr-0" style="border-radius: 4px"> Table </v-btn>
-            <v-btn value="json" small class="mr-0" style="border-radius: 4px"> JSON </v-btn>
-            <v-btn value="yaml" small class="mr-0" style="border-radius: 4px"> YAML </v-btn>
+          <v-btn-toggle
+            v-model="extraVarsEditMode"
+            tile
+            group
+            data-testid="varGroup-extraVarsMode"
+          >
+            <v-btn
+              value="table"
+              small
+              class="mr-0"
+              style="border-radius: 4px"
+              data-testid="varGroup-extraVarsMode-table"
+            > Table </v-btn>
+            <v-btn
+              value="json"
+              small
+              class="mr-0"
+              style="border-radius: 4px"
+              data-testid="varGroup-extraVarsMode-json"
+            > JSON </v-btn>
+            <v-btn
+              value="yaml"
+              small
+              class="mr-0"
+              style="border-radius: 4px"
+              data-testid="varGroup-extraVarsMode-yaml"
+            > YAML </v-btn>
           </v-btn-toggle>
 
           <v-btn icon @click="addExtraVar()" data-testid="varGroup-addVar">
@@ -89,6 +118,7 @@
             v-model="json"
             :options="cmOptions"
             :placeholder="$t('enterExtraVariablesJson')"
+            data-testid="varGroup-extraVarsJson"
           />
 
           <RichEditor
@@ -96,6 +126,7 @@
             type="json"
             v-if="extraVarsEditMode === 'json'"
             style="position: absolute; right: 10px; top: 0; margin: 10px"
+            test-id="varGroup-extraVarsJsonEditor"
           />
         </div>
         <div v-else-if="extraVarsEditMode === 'yaml'" style="position: relative">
@@ -107,6 +138,7 @@
             v-model="yaml"
             :options="cmYamlOptions"
             :placeholder="$t('enterExtraVariablesYaml')"
+            data-testid="varGroup-extraVarsYaml"
           />
 
           <RichEditor
@@ -114,6 +146,7 @@
             type="yaml"
             v-if="extraVarsEditMode === 'yaml'"
             style="position: absolute; right: 10px; top: 0; margin: 10px"
+            test-id="varGroup-extraVarsYamlEditor"
           />
         </div>
         <div v-else-if="extraVarsEditMode === 'table'">
@@ -125,9 +158,11 @@
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
+            data-testid="varGroup-varTable"
+            :data-state="extraVars.length === 0 ? 'empty' : 'ready'"
           >
             <template v-slot:item="props">
-              <tr>
+              <tr data-testid="varGroup-varRow">
                 <td class="pa-1">
                   <v-text-field
                     solo-inverted
@@ -136,6 +171,7 @@
                     v-model="props.item.name"
                     class="v-text-field--solo--no-min-height"
                     :placeholder="$t('name')"
+                    data-testid="varGroup-varName"
                   ></v-text-field>
                 </td>
                 <td class="pa-1" style="width: 130px">
@@ -158,17 +194,24 @@
                       v-model="props.item.value"
                       class="v-text-field--solo--no-min-height"
                       :placeholder="extraVarValuePlaceholder(props.item.type)"
+                      data-testid="varGroup-varValue"
                     ></v-text-field>
                     <RichEditor
                       v-if="props.item.type === 'list' || props.item.type === 'dict'"
                       v-model="props.item.value"
                       :type="props.item.type === 'list' ? 'json_array' : 'json'"
                       class="ml-1 EnvVarExpandBtn"
+                      test-id="varGroup-varValueEditor"
                     />
                   </div>
                 </td>
                 <td style="width: 38px">
-                  <v-icon small class="pa-1" @click="removeExtraVar(props.item)">
+                  <v-icon
+                    small
+                    class="pa-1"
+                    @click="removeExtraVar(props.item)"
+                    data-testid="varGroup-varRemove"
+                  >
                     mdi-delete
                   </v-icon>
                 </td>
@@ -176,7 +219,7 @@
             </template>
           </v-data-table>
 
-          <v-alert color="warning" v-else>
+          <v-alert color="warning" v-else data-testid="varGroup-extraVarsTooComplex">
             Oops! This JSON structure is a little too complex to display as a table.
           </v-alert>
         </div>
@@ -198,9 +241,11 @@
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
+            data-testid="varGroup-envTable"
+            :data-state="env.length === 0 ? 'empty' : 'ready'"
           >
             <template v-slot:item="props">
-              <tr>
+              <tr data-testid="varGroup-envRow">
                 <td class="pa-1">
                   <v-text-field
                     solo-inverted
@@ -209,6 +254,7 @@
                     v-model="props.item.name"
                     class="v-text-field--solo--no-min-height"
                     :placeholder="$t('name')"
+                    data-testid="varGroup-envName"
                   ></v-text-field>
                 </td>
                 <td class="pa-1">
@@ -219,10 +265,16 @@
                     v-model="props.item.value"
                     class="v-text-field--solo--no-min-height"
                     :placeholder="$t('Value')"
+                    data-testid="varGroup-envValue"
                   ></v-text-field>
                 </td>
                 <td style="width: 38px">
-                  <v-icon small class="pa-1" @click="removeEnvVar(props.item)"> mdi-delete </v-icon>
+                  <v-icon
+                    small
+                    class="pa-1"
+                    @click="removeEnvVar(props.item)"
+                    data-testid="varGroup-envRemove"
+                  > mdi-delete </v-icon>
                 </td>
               </tr>
             </template>
@@ -230,21 +282,24 @@
         </div>
       </v-tab-item>
 
-      <v-tab-item key="secrets">
+      <v-tab-item key="secrets" data-testid="varGroup-tabPanel-secrets">
         <div
           v-if="!isNew && secretStorage"
           class="px-4 py-3"
+          data-testid="varGroup-secretStorage"
           style="
             background: rgba(133, 133, 133, 0.06);
             border-color: rgb(33, 33, 33);
             border-radius: 6px;
           "
         >
-          <div style="font-weight: bold; font-size: 20px">
+          <div style="font-weight: bold; font-size: 20px" data-testid="varGroup-secretStorageName">
             <v-icon small class="mr-1">{{ getIcon(secretStorage.type) }}</v-icon>
             {{ secretStorage.name }}
           </div>
-          <pre>Source path pattern: <b>{{ item.secret_storage_key_prefix }}*</b></pre>
+          <pre
+            data-testid="varGroup-secretStoragePattern"
+          >Source path pattern: <b>{{ item.secret_storage_key_prefix }}*</b></pre>
 
           <div class="d-flex items-center justify-space-between mt-2">
             <v-checkbox
@@ -253,6 +308,7 @@
               :label="$t('Sync keys enabled')"
               :disabled="formSaving"
               hide-details
+              data-testid="varGroup-syncEnabled"
             />
 
             <div class="d-flex align-center">
@@ -263,6 +319,7 @@
                 @click="syncSettingsDialog = true"
                 :disabled="formSaving"
                 v-if="item.sync_enabled"
+                data-testid="varGroup-syncPaths"
               >
                 <v-icon left>mdi-cog-sync</v-icon>
                 Sync paths
@@ -272,6 +329,7 @@
                   style="transform: translateY(-1px)"
                   color="primary"
                   small
+                  data-testid="varGroup-syncPathsCount"
                 >
                   {{ (item.sync_paths || []).length }}
                 </v-chip>
@@ -281,8 +339,8 @@
         </div>
 
         <v-dialog v-model="syncSettingsDialog" max-width="500" persistent>
-          <v-card>
-            <v-card-title>Sync paths</v-card-title>
+          <v-card data-testid="varGroupSyncDialog">
+            <v-card-title data-testid="varGroupSyncDialog-title">Sync paths</v-card-title>
             <v-card-text class="pt-4 pb-0">
               <v-text-field
                 style="width: 140px"
@@ -294,13 +352,22 @@
                 suffix="minutes"
                 outlined
                 dense
+                data-testid="varGroupSync-syncInterval"
               ></v-text-field>
 
-              <SecretStorageSyncOptionsForm v-model="item.sync_paths" />
+              <SecretStorageSyncOptionsForm
+                v-model="item.sync_paths"
+                data-testid="varGroupSync-paths"
+              />
             </v-card-text>
             <v-card-actions>
               <v-spacer />
-              <v-btn text color="blue darken-1" @click="syncSettingsDialog = false">
+              <v-btn
+                text
+                color="blue darken-1"
+                @click="syncSettingsDialog = false"
+                data-testid="varGroupSyncDialog-close"
+              >
                 {{ $t('close') }}
               </v-btn>
             </v-card-actions>
@@ -312,7 +379,8 @@
             {{ $t('extraVariables') }}
             <v-tooltip v-if="needHelp" bottom color="black" open-delay="300" max-width="400">
               <template v-slot:activator="{ on, attrs }">
-                <v-icon class="ml-1" v-bind="attrs" v-on="on">mdi-help-box </v-icon>
+                <v-icon class="ml-1" v-bind="attrs" v-on="on" data-testid="varGroup-secretVarsHelp"
+                  >mdi-help-box </v-icon>
               </template>
               <div>
                 <div><code>--extra-vars</code> for Ansible</div>
@@ -330,6 +398,7 @@
             color="warning"
             text
             v-if="secrets.filter((s) => !s.remove && s.type === 'var').length > 0"
+            data-testid="varGroup-secretVarsWarning"
           >
             Secrets passed this way may appear in plain text in Ansible logs.
           </v-alert>
@@ -341,9 +410,12 @@
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
+            data-testid="varGroup-secretVarTable"
+            :data-state="secrets.filter((s) => !s.remove && s.type === 'var').length === 0
+              ? 'empty' : 'ready'"
           >
             <template v-slot:item="props">
-              <tr>
+              <tr data-testid="varGroup-secretVarRow">
                 <td class="pa-1">
                   <v-text-field
                     solo-inverted
@@ -352,6 +424,7 @@
                     v-model="props.item.name"
                     class="v-text-field--solo--no-min-height"
                     :placeholder="$t('name')"
+                    data-testid="varGroup-secretVarName"
                   ></v-text-field>
                 </td>
 
@@ -363,11 +436,17 @@
                     v-model="props.item.value"
                     placeholder="*******"
                     class="v-text-field--solo--no-min-height"
+                    data-testid="varGroup-secretVarValue"
                   ></v-text-field>
                 </td>
 
                 <td style="width: 38px">
-                  <v-icon small class="pa-1" @click="removeSecret(props.item)"> mdi-delete </v-icon>
+                  <v-icon
+                    small
+                    class="pa-1"
+                    @click="removeSecret(props.item)"
+                    data-testid="varGroup-secretVarRemove"
+                  > mdi-delete </v-icon>
                 </td>
               </tr>
             </template>
@@ -392,9 +471,12 @@
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
+            data-testid="varGroup-secretEnvTable"
+            :data-state="secrets.filter((s) => !s.remove && s.type === 'env').length === 0
+              ? 'empty' : 'ready'"
           >
             <template v-slot:item="props">
-              <tr>
+              <tr data-testid="varGroup-secretEnvRow">
                 <td class="pa-1">
                   <v-text-field
                     solo-inverted
@@ -403,6 +485,7 @@
                     v-model="props.item.name"
                     class="v-text-field--solo--no-min-height"
                     :placeholder="$t('name')"
+                    data-testid="varGroup-secretEnvName"
                   ></v-text-field>
                 </td>
 
@@ -414,11 +497,17 @@
                     v-model="props.item.value"
                     placeholder="*******"
                     class="v-text-field--solo--no-min-height"
+                    data-testid="varGroup-secretEnvValue"
                   ></v-text-field>
                 </td>
 
                 <td style="width: 38px">
-                  <v-icon small class="pa-1" @click="removeSecret(props.item)"> mdi-delete </v-icon>
+                  <v-icon
+                    small
+                    class="pa-1"
+                    @click="removeSecret(props.item)"
+                    data-testid="varGroup-secretEnvRemove"
+                  > mdi-delete </v-icon>
                 </td>
               </tr>
             </template>

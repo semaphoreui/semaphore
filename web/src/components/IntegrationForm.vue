@@ -1,6 +1,18 @@
 <template>
-  <v-form ref="form" lazy-validation v-model="formValid" v-if="isLoaded">
-    <v-alert :value="formError" color="error" class="pb-2">{{ formError }} </v-alert>
+  <v-form
+    ref="form"
+    lazy-validation
+    v-model="formValid"
+    v-if="isLoaded"
+    data-testid="integrationForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
+  >
+    <v-alert
+      :value="formError"
+      color="error"
+      class="pb-2"
+      data-testid="integrationForm-error"
+    >{{ formError }} </v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -10,11 +22,13 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="integrationForm-name"
     ></v-text-field>
 
     <div
       v-if="workflowsEnabled"
       class="d-flex justify-space-between align-center mb-2 IntegrationForm__target"
+      data-testid="integrationForm-target"
     >
       <b style="font-size: 13px; margin-left: 5px">{{ $t('integrationRunTarget') }}</b>
       <v-btn-toggle
@@ -24,11 +38,24 @@
         group
         mandatory
         :disabled="formSaving"
+        data-testid="integrationForm-targetToggle"
       >
-        <v-btn value="template" small class="ma-0" style="border-radius: 4px">
+        <v-btn
+          value="template"
+          small
+          class="ma-0"
+          style="border-radius: 4px"
+          data-testid="integrationForm-target-template"
+        >
           {{ $t('integrationTargetTemplate') }}
         </v-btn>
-        <v-btn value="workflow" small class="ma-0" style="border-radius: 4px">
+        <v-btn
+          value="workflow"
+          small
+          class="ma-0"
+          style="border-radius: 4px"
+          data-testid="integrationForm-target-workflow"
+        >
           {{ $t('integrationTargetWorkflow') }}
         </v-btn>
       </v-btn-toggle>
@@ -40,6 +67,7 @@
       text
       dense
       class="IntegrationForm__workflowUnavailable"
+      data-testid="integrationForm-workflowUnavailable"
     >
       {{ $t('integrationWorkflowTargetUnavailable', { id: item.workflow_id }) }}
     </v-alert>
@@ -57,6 +85,7 @@
         outlined
         dense
         class="IntegrationForm__workflow"
+        data-testid="integrationForm-workflowId"
       ></v-autocomplete>
 
       <v-chip
@@ -68,6 +97,7 @@
         class="IntegrationForm__upgrade"
         style="position: absolute; top: 8px; right: 8px"
         @click="upgradeToPro('workflow_integrations_management')"
+        data-testid="integrationForm-upgrade"
       >
         Upgrade to PRO
       </v-chip>
@@ -85,12 +115,14 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="integrationForm-templateId"
     ></v-autocomplete>
 
     <v-card
       v-if="target === 'template' && item.template_id"
       style="background: var(--highlighted-card-bg-color)"
       class="mb-6 pt-3"
+      data-testid="integrationForm-taskParamsCard"
     >
       <div
         style="
@@ -107,6 +139,7 @@
 
       <v-card-text>
         <TaskParamsForm
+          data-testid="integrationForm-taskParams"
           :template="templates.find((t) => t.id === item.template_id)"
           v-model="item.task_params"
         />
@@ -122,9 +155,10 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="integrationForm-authMethod"
     ></v-select>
 
-    <HighlightedCard v-if="item.auth_method">
+    <HighlightedCard v-if="item.auth_method" data-testid="integrationForm-auth">
       <template>
         <v-text-field
             v-if="['token', 'hmac', 'hmac-sha512'].includes(item.auth_method)"
@@ -133,6 +167,7 @@
             :disabled="formSaving"
             outlined
             dense
+            data-testid="integrationForm-authHeader"
         ></v-text-field>
 
         <v-select
@@ -145,6 +180,7 @@
             :disabled="formSaving"
             outlined
             dense
+            data-testid="integrationForm-authSecretId"
         ></v-select>
       </template>
     </HighlightedCard>

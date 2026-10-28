@@ -1,11 +1,17 @@
 <template>
-  <div v-if="inventories != null && states != null" class="mt-8">
+  <div
+    v-if="inventories != null && states != null"
+    class="mt-8"
+    data-testid="templateState-page"
+    :data-state="inventories.length === 0 ? 'empty' : 'ready'"
+  >
 
     <EditDialog
       v-model="editDialog"
       :save-button-text="aliasId === 'new' ? $t('create') : $t('save')"
       :title="`${aliasId === 'new' ? $t('nnew') : $t('edit')} Key`"
       :max-width="450"
+      test-id="tfAliasDialog"
       @save="loadAliases()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -25,6 +31,7 @@
       :title="$t('deleteInventory')"
       :text="$t('askDeleteInv')"
       v-model="deleteInventoryDialog"
+      test-id="tfWorkspaceDeleteDialog"
       @yes="deleteInventory()"
     />
 
@@ -35,6 +42,7 @@
       :icon-color="getAppColor(template.app)"
       :title="`${$t('nnew')} ${APP_INVENTORY_TITLE[template.app]}`"
       :max-width="450"
+      test-id="tfWorkspaceDialog"
       @save="onNewInventory"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -59,6 +67,7 @@
       :icon-color="getAppColor(template.app)"
       :max-width="450"
       title="Choose workspace to attach"
+      test-id="tfWorkspaceAttachDialog"
       @save="attachInventory($event.itemId)"
     >
       <template v-slot:form="{ onSave, needSave, needReset }">
@@ -84,12 +93,14 @@
           mandatory
           style="overflow: auto"
           class="mb-2"
+          data-testid="templateState-workspaces"
         >
           <v-btn
             v-for="inv in inventories"
             :key="inv.id"
             :value="inv.id"
             style="border-radius: 0"
+            data-testid="templateState-workspace"
           >
             {{ inv.inventory }}
             <v-icon
@@ -97,12 +108,13 @@
               v-if="inv.id === template.inventory_id"
               class="ml-1"
               color="success"
+              data-testid="templateState-workspaceDefault"
             >mdi-check
             </v-icon>
           </v-btn>
         </v-btn-toggle>
 
-        <span v-else>No workspaces.</span>
+        <span v-else data-testid="templateState-empty">No workspaces.</span>
 
         <v-menu offset-y>
           <template v-slot:activator="{ on, attrs }">
@@ -114,18 +126,25 @@
               class="ml-3"
               v-bind="attrs"
               v-on="on"
+              data-testid="templateState-new"
             >
               <v-icon dark>mdi-plus</v-icon>
             </v-btn>
           </template>
           <v-list>
-            <v-list-item @click="itemId = 'new'; inventoryDialog = true">
+            <v-list-item
+              @click="itemId = 'new'; inventoryDialog = true"
+              data-testid="templateState-new-workspace"
+            >
               <v-list-item-icon>
                 <v-icon>mdi-pencil</v-icon>
               </v-list-item-icon>
               <v-list-item-title>New workspace</v-list-item-title>
             </v-list-item>
-            <v-list-item @click="attachInventoryDialog = true">
+            <v-list-item
+              @click="attachInventoryDialog = true"
+              data-testid="templateState-new-attach"
+            >
               <v-list-item-icon>
                 <v-icon>mdi-connection</v-icon>
               </v-list-item-icon>
@@ -138,6 +157,7 @@
       <v-card
         style="background-color: var(--highlighted-card-bg-color);"
         v-if="inventories.length > 0"
+        data-testid="templateState-workspaceCard"
       >
 
         <v-card-title
@@ -145,7 +165,9 @@
           style="font-weight: normal;"
         >
 
-          <span>Workspace: <strong>{{ inventory.inventory }}</strong></span>
+          <span data-testid="templateState-workspaceTitle">Workspace: <strong
+            data-testid="templateState-workspaceName"
+          >{{ inventory.inventory }}</strong></span>
 
           <div>
 
@@ -154,6 +176,7 @@
               :disabled="inventoryId === template.inventory_id"
               color="success"
               @click="setDefaultInventory()"
+              data-testid="templateState-makeDefault"
             >
               Make default
             </v-btn>
@@ -163,6 +186,7 @@
               color="primary"
               :disabled="inventoryId === template.inventory_id"
               @click="detachInventory()"
+              data-testid="templateState-detach"
             >
               Detach
             </v-btn>
@@ -173,6 +197,7 @@
               color="error"
               :disabled="inventoryId === template.inventory_id"
               @click="deleteInventoryDialog = true;"
+              data-testid="templateState-delete"
             >
               <v-icon>mdi-delete</v-icon>
             </v-btn>
@@ -180,6 +205,7 @@
             <v-btn
               icon
               @click="itemId = inventoryId; inventoryDialog = true;"
+              data-testid="templateState-edit"
             >
               <v-icon>mdi-pencil</v-icon>
             </v-btn>
@@ -195,6 +221,7 @@
           color="hsl(348deg, 86%, 61%)"
           style="border-radius: 0;"
           v-if="!features.terraform_backend"
+          data-testid="templateState-proAlert"
         >
             <span class="mr-2">
               Terraform/OpenTofu HTTP backend available only in <b>PRO</b> version.
@@ -202,6 +229,7 @@
           <v-btn
             color="hsl(348deg, 86%, 61%)"
             href="https://semaphoreui.com/pro#runners"
+            data-testid="templateState-learnMore"
           >
             Learn more
             <v-icon>mdi-chevron-right</v-icon>
@@ -209,19 +237,27 @@
         </v-alert>
         <v-card-text>
 
-          <h3>Aliases</h3>
-          <div class="mb-6">Unique endpoints (aliases) to access your Terraform HTTP backend.</div>
+          <h3 data-testid="templateState-aliasesTitle">Aliases</h3>
+          <div
+            class="mb-6"
+            data-testid="templateState-aliasesHint"
+          >Unique endpoints (aliases) to access your Terraform HTTP backend.</div>
 
-          <div v-for="alias of (aliases || [])" :key="alias.id">
-            <code class="mr-2">{{ alias.url }}</code>
+          <div
+            v-for="alias of (aliases || [])"
+            :key="alias.id"
+            data-testid="templateState-alias"
+          >
+            <code class="mr-2" data-testid="templateState-aliasUrl">{{ alias.url }}</code>
             <CopyClipboardButton
               :text="alias.url"
               :success-message="$t('aliasUrlCopied')"
+              test-id="templateState-aliasCopy"
             />
-            <v-btn icon @click="editAlias(alias.id)">
+            <v-btn icon @click="editAlias(alias.id)" data-testid="templateState-aliasEdit">
               <v-icon>mdi-pencil</v-icon>
             </v-btn>
-            <v-btn icon @click="deleteAlias(alias.id)">
+            <v-btn icon @click="deleteAlias(alias.id)" data-testid="templateState-aliasDelete">
               <v-icon>mdi-delete</v-icon>
             </v-btn>
           </div>
@@ -231,14 +267,19 @@
             @click="addAlias()"
             :disabled="!features.terraform_backend"
             class="mb-8"
+            data-testid="templateState-addAlias"
+            :data-state="aliases == null ? 'error' : (aliases.length === 0 ? 'empty' : 'ready')"
           >
             {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
           </v-btn>
 
           <v-divider class="mb-4" />
 
-          <h3>State history</h3>
-          <div class="mb-6">Chronological history of the workspace state changes.</div>
+          <h3 data-testid="templateState-historyTitle">State history</h3>
+          <div
+            class="mb-6"
+            data-testid="templateState-historyHint"
+          >Chronological history of the workspace state changes.</div>
 
           <v-data-table
             style="
@@ -251,6 +292,8 @@
             single-expand
             show-expand
             class="mt-4 TaskListTable TaskListTable TerraformStateTable"
+            data-testid="templateState-table"
+            :data-state="states.length === 0 ? 'empty' : 'ready'"
           >
             <template v-slot:item.id="{ item }">
               #{{ item.id }}
@@ -261,8 +304,9 @@
                 v-if="item.task_id"
                 :task-id="item.task_id"
                 :label="'#' + item.task_id"
+                data-testid="templateState-rowTask"
               />
-              <div v-else>&mdash;</div>
+              <div v-else data-testid="templateState-rowNoTask">&mdash;</div>
             </template>
 
             <template v-slot:item.status="{ item }">
@@ -277,6 +321,7 @@
               <td
                 :colspan="headers.length"
                 style="max-width: 400px"
+                data-testid="templateState-rowState"
               >
                 <TerraformStateView
                   class="mb-1"
@@ -288,7 +333,7 @@
             </template>
           </v-data-table>
 
-          <v-container v-else>
+          <v-container v-else data-testid="templateState-noBackend">
             <div style="text-align: center; color: grey;">No state available.</div>
           </v-container>
 

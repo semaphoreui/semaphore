@@ -6,6 +6,7 @@
       :project-id="template.project_id"
       :template="template"
       :source-task="sourceTask"
+      test-id="taskListRerunDialog"
     />
 
     <v-data-table
@@ -15,17 +16,20 @@
       :loading="loading"
       hide-default-footer
       class="mt-0 TaskListTable"
+      data-testid="taskList-table"
+      :data-state="loading ? 'loading' : (tasks.length === 0 ? 'empty' : 'ready')"
     >
       <template v-slot:item.id="{ item }">
         <TaskLink
           :task-id="item.id"
           :label="'#' + item.id"
+          data-testid="taskList-rowTask"
         />
         <div style="font-size: 14px;">
-          <span v-if="item.message">
+          <span v-if="item.message" data-testid="taskList-rowMessage">
             <v-icon x-small>mdi-message-outline</v-icon> {{ item.message }}
           </span>
-          <span v-else-if="item.commit_hash">
+          <span v-else-if="item.commit_hash" data-testid="taskList-rowCommit">
             <v-icon x-small>mdi-source-fork</v-icon> {{ item.commit_message }}
           </span>
         </div>
@@ -39,9 +43,10 @@
             :tooltip="item.tpl_type === 'build' ? item.message : (item.build_task || {}).message"
             :label="item.tpl_type === 'build' ? item.version : (item.build_task || {}).version"
             :status="item.status"
+            data-testid="taskList-rowVersion"
           />
         </div>
-        <div v-else>&mdash;</div>
+        <div v-else data-testid="taskList-rowVersionEmpty">&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
@@ -58,7 +63,7 @@
 
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="createTask(item)">
+          <v-btn @click="createTask(item)" data-testid="taskList-rowRerun">
             <v-icon>mdi-replay</v-icon>
           </v-btn>
         </v-btn-toggle>
@@ -68,8 +73,12 @@
     <div
       v-if="!hideFooter"
       class="d-flex align-center justify-end mt-2 mr-2 mb-4 TaskListPagination"
+      data-testid="taskList-pagination"
     >
-      <span class="text--secondary mr-2">{{ $t('rowsPerPage') }}</span>
+      <span
+        class="text--secondary mr-2"
+        data-testid="taskList-perPageLabel"
+      >{{ $t('rowsPerPage') }}</span>
 
       <v-select
         v-model="perPage"
@@ -79,15 +88,29 @@
         dense
         hide-details
         style="max-width: 72px;"
+        data-testid="taskList-perPage"
       ></v-select>
 
-      <v-btn :disabled="loading || pageIndex === 0" icon @click="goPrev()">
+      <v-btn
+        :disabled="loading || pageIndex === 0"
+        icon
+        @click="goPrev()"
+        data-testid="taskList-prevPage"
+      >
         <v-icon>mdi-chevron-left</v-icon>
       </v-btn>
 
-      <span class="mx-2 text--secondary">{{ rangeStart }} - {{ rangeEnd }}</span>
+      <span
+        class="mx-2 text--secondary"
+        data-testid="taskList-range"
+      >{{ rangeStart }} - {{ rangeEnd }}</span>
 
-      <v-btn :disabled="loading || !hasNext" icon @click="goNext()">
+      <v-btn
+        :disabled="loading || !hasNext"
+        icon
+        @click="goNext()"
+        data-testid="taskList-nextPage"
+      >
         <v-icon>mdi-chevron-right</v-icon>
       </v-btn>
     </div>

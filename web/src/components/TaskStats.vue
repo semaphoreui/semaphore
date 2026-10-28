@@ -1,6 +1,14 @@
 <template>
-  <v-card style="background: rgba(133, 133, 133, 0.06)" class="mx-4">
-    <v-card-title>
+  <v-card
+    style="background: rgba(133, 133, 133, 0.06)"
+    class="mx-4"
+    :data-state="stats == null
+      ? 'loading'
+      : (stats.every((p) => !Object.values(p.count_by_status || {}).some((n) => n > 0))
+        ? 'empty'
+        : 'ready')"
+  >
+    <v-card-title data-testid="taskStats-title">
       Task Status
       <v-spacer />
       <v-select
@@ -10,6 +18,7 @@
         class="mr-6"
         style="max-width: 200px"
         v-model="dateRange"
+        data-testid="taskStats-period"
       />
 
       <v-select
@@ -18,10 +27,11 @@
         :items="users"
         style="max-width: 200px"
         v-model="user"
+        data-testid="taskStats-user"
       />
     </v-card-title>
     <v-card-text>
-      <LineChart :source-data="stats"/>
+      <LineChart :source-data="stats" data-testid="taskStats-chart"/>
     </v-card-text>
   </v-card>
 </template>

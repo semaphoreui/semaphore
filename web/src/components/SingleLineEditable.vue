@@ -6,6 +6,7 @@
       key="placeholder"
       v-if="!editable"
       class="SingleLineEditable__content"
+      data-testid="singleLineEditable-text"
       :class="{
         'SingleLineEditable__content--placeholder': !value,
       }"
@@ -17,6 +18,7 @@
       ref="editableDiv"
       :contenteditable="true"
       class="SingleLineEditable__editable"
+      data-testid="singleLineEditable-input"
       @paste="handlePaste"
       @keypress="handleKeypress"
     >{{ value }}</span>
@@ -26,6 +28,7 @@
       small
       v-if="canEdit && !editable"
       class="ml-1 SingleLineEditable__button"
+      data-testid="singleLineEditable-edit"
     >
       <v-icon>mdi-pencil</v-icon>
     </v-btn>
@@ -36,6 +39,7 @@
       v-if="editable"
       class="ml-2 SingleLineEditable__button"
       small
+      data-testid="singleLineEditable-save"
     >
       <v-icon color="green">mdi-check</v-icon>
     </v-btn>
@@ -46,6 +50,7 @@
       v-if="editable"
       class="SingleLineEditable__button"
       small
+      data-testid="singleLineEditable-cancel"
     >
       <v-icon color="red">mdi-close</v-icon>
     </v-btn>

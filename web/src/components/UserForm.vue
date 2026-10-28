@@ -1,7 +1,11 @@
 <template>
-  <div>
+  <div
+    data-testid="user-root"
+    :data-state="formError ? 'error' : ((item == null || formSaving) ? 'loading' : 'ready')"
+  >
     <EditDialog
       v-model="passwordDialog"
+      test-id="changePasswordDialog"
       save-button-text="Save"
       :title="$t('changePassword')"
       v-if="item"
@@ -19,12 +23,22 @@
       </template>
     </EditDialog>
 
-    <v-tabs v-model="tab">
-      <v-tab key="settings" href="#settings">Settings</v-tab>
-      <v-tab key="2fa" href="#security" v-if="canChangePassword || authMethods.totp || !isNew">
+    <v-tabs v-model="tab" data-testid="user-tabs">
+      <v-tab key="settings" href="#settings" data-testid="user-tab-settings">Settings</v-tab>
+      <v-tab
+        key="2fa"
+        href="#security"
+        v-if="canChangePassword || authMethods.totp || !isNew"
+        data-testid="user-tab-security"
+      >
         Security
       </v-tab>
-      <v-tab key="global-roles" href="#global-roles" v-if="canManageGlobalRoles && !isNew">
+      <v-tab
+        key="global-roles"
+        href="#global-roles"
+        v-if="canManageGlobalRoles && !isNew"
+        data-testid="user-tab-globalRoles"
+      >
         {{ $t('globalRolesTab') }}
       </v-tab>
     </v-tabs>
@@ -32,12 +46,24 @@
     <v-divider class="mb-6" style="margin-top: -1px" />
 
     <v-tabs-items v-model="tab" style="overflow: unset">
-      <v-tab-item key="settings" value="settings">
-        <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
-          <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
+      <v-tab-item key="settings" value="settings" data-testid="user-panel-settings">
+        <v-form
+          ref="form"
+          lazy-validation
+          v-model="formValid"
+          v-if="item != null"
+          data-testid="user-form"
+        >
+          <v-alert
+            :value="formError"
+            color="error"
+            class="pb-2"
+            data-testid="user-error"
+          >{{ formError }}</v-alert>
 
           <v-text-field
             v-model="item.name"
+            data-testid="user-name"
             :label="$t('name')"
             :rules="[(v) => !!v || $t('name_required')]"
             required
@@ -48,6 +74,7 @@
 
           <v-text-field
             v-model="item.username"
+            data-testid="user-username"
             :label="$t('username')"
             :rules="[(v) => !!v || $t('user_name_required')]"
             required
@@ -58,6 +85,7 @@
 
           <v-text-field
             v-model="item.email"
+            data-testid="user-email"
             :label="$t('email')"
             :rules="[(v) => !!v || $t('email_required')]"
             required
@@ -66,13 +94,21 @@
             dense
           >
             <template v-slot:append>
-              <v-chip outlined color="green" disabled small style="opacity: 1">private</v-chip>
+              <v-chip
+                outlined
+                color="green"
+                disabled
+                small
+                style="opacity: 1"
+                data-testid="user-emailPrivate"
+              >private</v-chip>
             </template>
           </v-text-field>
 
           <v-text-field
             v-if="isNew"
             v-model="item.password"
+            data-testid="user-password"
             :label="$t('password')"
             class="masked-secret-input"
             :required="isNew && !item.external"
@@ -88,6 +124,7 @@
                 dense
                 hide-details
                 v-model="item.alert"
+                data-testid="user-alert"
                 :label="$t('sendAlerts')"
               ></v-checkbox>
             </v-col>
@@ -96,6 +133,7 @@
                 dense
                 hide-details
                 v-model="item.admin"
+                data-testid="user-admin"
                 :label="$t('adminUser')"
               ></v-checkbox>
             </v-col>
@@ -105,6 +143,7 @@
                 dense
                 hide-details
                 v-model="item.pro"
+                data-testid="user-pro"
                 :label="$t('Pro user')"
               ></v-checkbox>
             </v-col>
@@ -114,6 +153,7 @@
                 dense
                 hide-details
                 v-model="item.external"
+                data-testid="user-external"
                 :label="$t('external')"
               ></v-checkbox>
             </v-col>
@@ -125,25 +165,32 @@
         key="2fa"
         value="security"
         v-if="item != null && (canChangePassword || authMethods.totp || !isNew)"
+        data-testid="user-panel-security"
       >
         <div v-if="canChangePassword">
-          <div class="title mb-3">Password</div>
-          <v-btn color="primary" @click="passwordDialog = true">Change password</v-btn>
+          <div class="title mb-3" data-testid="user-passwordTitle">Password</div>
+          <v-btn
+            color="primary"
+            @click="passwordDialog = true"
+            data-testid="user-changePassword"
+          >Change password</v-btn>
         </div>
 
         <div :class="{ 'pt-10': canChangePassword }" v-if="authMethods.totp">
-          <div class="title mb-2">Two-factor authentication</div>
+          <div class="title mb-2" data-testid="user-totpTitle">Two-factor authentication</div>
 
           <v-switch
             class="mt-0"
             v-model="totpEnabled"
             label="Time-based one-time password"
+            data-testid="user-totp"
           ></v-switch>
 
           <v-card
             class="pt-2 mt-1"
             style="background: var(--highlighted-card-bg-color)"
             v-if="totpQrUrl"
+            data-testid="user-totpCard"
           >
             <div
               style="
@@ -171,15 +218,20 @@
                   background-color: white;
                 "
                 alt="QR code"
+                data-testid="user-totpQr"
               />
 
               <div
                 v-if="authMethods.totp.allow_recovery && item.totp && item.totp.recovery_code"
                 class="mt-5 pb-3"
+                data-testid="user-recovery"
               >
-                <div class="subtitle-1 mb-2">Recovery code</div>
+                <div class="subtitle-1 mb-2" data-testid="user-recoveryTitle">Recovery code</div>
                 <div style="position: relative">
-                  <code style="font-size: 18px; background-color: #e03755">
+                  <code
+                    style="font-size: 18px; background-color: #e03755"
+                    data-testid="user-recoveryCode"
+                  >
                     {{ item.totp.recovery_code }}
                   </code>
 
@@ -188,6 +240,7 @@
                     :text="item.totp.recovery_code"
                     large
                     color="white"
+                    test-id="user-recoveryCodeCopy"
                   />
                 </div>
               </div>
@@ -197,13 +250,14 @@
 
         <div
           v-if="!isNew"
+          data-testid="user-identities"
           :class="{
             'pt-10': canChangePassword || authMethods.totp,
           }"
           :style="{ marginTop: (!authMethods.totp || totpEnabled) ? 0 : '-30px' }"
         >
           <template v-if="identities.length > 0">
-            <div class="title mb-2">Linked accounts</div>
+            <div class="title mb-2" data-testid="user-identitiesTitle">Linked accounts</div>
 
             <div style="margin-bottom: -8px;">
               <v-chip
@@ -214,6 +268,7 @@
                 class="mr-2 mb-2"
                 close
                 @click:close="unlinkIdentity(identity)"
+                :data-testid="`user-identity-${identity.type}-${identity.provider}`"
               >
                 <v-icon left v-if="identityProvider(identity).icon">
                   mdi-{{ identityProvider(identity).icon }}
@@ -226,13 +281,24 @@
           <div
             v-if="isSelf && (unlinkedLdapProviders.length > 0 || unlinkedOidcProviders.length > 0)"
             :class="{ 'pt-10': identities.length > 0 }"
+            data-testid="user-link"
           >
-            <div class="title mb-2">Link account</div>
+            <div class="title mb-2" data-testid="user-linkTitle">Link account</div>
 
-            <v-card class="mt-4" style="background: var(--highlighted-card-bg-color)">
+            <v-card
+              class="mt-4"
+              style="background: var(--highlighted-card-bg-color)"
+              data-testid="user-linkCard"
+            >
               <v-card-text>
                 <div>
-                  <v-alert :value="!!linkError" color="error" dense text>{{ linkError }}</v-alert>
+                  <v-alert
+                    :value="!!linkError"
+                    color="error"
+                    dense
+                    text
+                    data-testid="user-linkError"
+                  >{{ linkError }}</v-alert>
 
                   <v-btn-toggle
                     v-model="ldapLinkProvider"
@@ -240,6 +306,7 @@
                     borderless
                     class="mb-7 d-flex"
                     :background-color="$vuetify.theme.dark ? '#212121' : 'grey lighten-3'"
+                    data-testid="user-ldapProvider"
                   >
                     <v-btn
                       v-for="provider in unlinkedLdapProviders"
@@ -247,6 +314,7 @@
                       :value="provider.id"
                       small
                       class="flex-grow-1"
+                      :data-testid="`user-ldapProvider-${provider.id}`"
                     >
                       {{ provider.name }}
                     </v-btn>
@@ -255,6 +323,7 @@
                   <v-text-field
                     v-model="ldapUsername"
                     label="LDAP username"
+                    data-testid="user-ldapUsername"
                     outlined
                     dense
                   ></v-text-field>
@@ -262,6 +331,7 @@
                   <v-text-field
                     v-model="ldapPassword"
                     label="LDAP password"
+                    data-testid="user-ldapPassword"
                     type="password"
                     autocomplete="new-password"
                     outlined
@@ -273,6 +343,7 @@
                     :disabled="!ldapUsername || !ldapPassword || linkingLdap"
                     :loading="linkingLdap"
                     @click="linkLdapIdentity()"
+                    data-testid="user-ldapLink"
                   >
                     Link
                   </v-btn>
@@ -291,6 +362,7 @@
                 style="width: 100%"
                 width="100%"
                 @click="linkOidcIdentity(provider.id)"
+                :data-testid="`user-oidcLink-${provider.id}`"
               >
                 <v-icon left dark v-if="provider.icon">mdi-{{ provider.icon }}</v-icon>
                 Link {{ provider.name || provider.id }}
@@ -304,6 +376,7 @@
         key="global-roles"
         value="global-roles"
         v-if="item != null && canManageGlobalRoles && !isNew"
+        data-testid="user-panel-globalRoles"
       >
         <GlobalRoleAssignments :user-id="itemId" />
       </v-tab-item>

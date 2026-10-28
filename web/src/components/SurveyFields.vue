@@ -13,6 +13,7 @@
         outlined
         dense
         class="SurveyFields__bound"
+        :data-testid="`surveyFields-bound-${v.name}`"
       >
         <template v-slot:append-outer>
           <v-btn
@@ -20,6 +21,7 @@
             small
             :title="$t('workflowNodeSurveyInputsUnbind')"
             class="SurveyFields__unbind"
+            :data-testid="`surveyFields-unbind-${v.name}`"
             @click="$emit('unbind', v.name)"
           >
             <v-icon small>mdi-close</v-icon>
@@ -34,6 +36,7 @@
         v-model="secret[v.name]"
         :required="v.required"
         class="masked-secret-input"
+        :data-testid="`surveyFields-var-${v.name}`"
         :rules="[(val) => !v.required || !!val || v.title + $t('isRequired')]"
         outlined
         dense
@@ -55,18 +58,24 @@
         :chips="v.type === 'select'"
         outlined
         dense
+        :data-testid="`surveyFields-var-${v.name}`"
       >
         <template v-if="v.type === 'select'" v-slot:selection="{ item, index }">
           <v-chip
             small
             close
             @click:close="removeSelectedItem(v.name, index)"
+            :data-testid="`surveyFields-chip-${v.name}`"
           >
             {{ item && item.name ? item.name : String(item) }}
           </v-chip>
         </template>
         <template v-if="canBind(v)" v-slot:append-outer>
-          <WorkflowVarAssign :vars="workflowVars" @select="$emit('bind', v.name, $event)" />
+          <WorkflowVarAssign
+            :vars="workflowVars"
+            :test-id="`surveyFields-assign-${v.name}`"
+            @select="$emit('bind', v.name, $event)"
+          />
         </template>
       </v-select>
 
@@ -81,9 +90,14 @@
         auto-grow
         outlined
         dense
+        :data-testid="`surveyFields-var-${v.name}`"
       >
         <template v-if="canBind(v)" v-slot:append-outer>
-          <WorkflowVarAssign :vars="workflowVars" @select="$emit('bind', v.name, $event)" />
+          <WorkflowVarAssign
+            :vars="workflowVars"
+            :test-id="`surveyFields-assign-${v.name}`"
+            @select="$emit('bind', v.name, $event)"
+          />
         </template>
       </v-textarea>
 
@@ -100,9 +114,14 @@
         ]"
         outlined
         dense
+        :data-testid="`surveyFields-var-${v.name}`"
       >
         <template v-if="canBind(v)" v-slot:append-outer>
-          <WorkflowVarAssign :vars="workflowVars" @select="$emit('bind', v.name, $event)" />
+          <WorkflowVarAssign
+            :vars="workflowVars"
+            :test-id="`surveyFields-assign-${v.name}`"
+            @select="$emit('bind', v.name, $event)"
+          />
         </template>
       </v-text-field>
     </div>

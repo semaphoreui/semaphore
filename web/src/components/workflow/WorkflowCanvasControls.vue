@@ -1,10 +1,16 @@
 <template>
-  <div class="WorkflowCanvasControls" @mousedown.stop @wheel.stop>
+  <div
+    class="WorkflowCanvasControls"
+    data-testid="workflowCanvas-controls"
+    @mousedown.stop
+    @wheel.stop
+  >
     <v-tooltip right v-for="item in items" :key="item.event">
       <template v-slot:activator="{ on, attrs }">
         <button
           type="button"
           class="WorkflowCanvasControls__btn"
+          :data-testid="`workflowCanvas-control-${item.event}`"
           :aria-label="item.title"
           v-bind="attrs"
           v-on="on"
@@ -13,9 +19,12 @@
           <v-icon small>{{ item.icon }}</v-icon>
         </button>
       </template>
-      <span>{{ item.title }}</span>
+      <span :data-testid="`workflowCanvas-controlTooltip-${item.event}`">{{ item.title }}</span>
     </v-tooltip>
-    <div class="WorkflowCanvasControls__zoom">{{ zoomLabel }}</div>
+    <div
+      class="WorkflowCanvasControls__zoom"
+      data-testid="workflowCanvas-zoomLabel"
+    >{{ zoomLabel }}</div>
   </div>
 </template>
 

@@ -1,5 +1,8 @@
 <template>
-  <div>
+  <div
+    data-testid="workflowRuns-page"
+    :data-state="runs == null ? 'loading' : (runs.length === 0 ? 'empty' : 'ready')"
+  >
     <v-data-table
       class="mt-4"
       hide-default-footer
@@ -8,14 +11,21 @@
       :loading="runs == null"
       :items-per-page="Number.MAX_VALUE"
       :no-data-text="$t('notLaunched')"
+      data-testid="workflowRuns-table"
+      :data-state="runs == null ? 'loading' : (runs.length === 0 ? 'empty' : 'ready')"
     >
       <template v-slot:item.id="{ item: run }">
         <router-link
           :to="`/project/${projectId}/workflows/${workflow.id}/runs/${run.id}`"
+          data-testid="workflowRuns-rowId"
         >#{{ run.id }}</router-link>
       </template>
       <template v-slot:item.status="{ item: run }">
-        <v-chip :color="statusColor(run.status)" small>{{ run.status }}</v-chip>
+        <v-chip
+          :color="statusColor(run.status)"
+          small
+          :data-testid="`workflowRuns-rowStatus-${run.status}`"
+        >{{ run.status }}</v-chip>
       </template>
       <template v-slot:item.version="{ item: run }">
         {{ run.version || '—' }}

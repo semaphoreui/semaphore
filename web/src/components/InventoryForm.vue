@@ -1,6 +1,8 @@
 <template>
   <v-skeleton-loader
     v-if="!isLoaded"
+    data-testid="inventoryForm-loading"
+    :data-state="formError ? 'error' : 'loading'"
     type="
             table-heading,
             image,
@@ -18,11 +20,14 @@
     ref="form"
     lazy-validation
     v-model="formValid"
+    data-testid="inventoryForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="inventoryForm-error"
     >{{ formError }}
     </v-alert>
 
@@ -34,6 +39,7 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="inventoryForm-name"
     ></v-text-field>
 
     <v-autocomplete
@@ -48,6 +54,7 @@
       clearable
       :disabled="formSaving"
       :placeholder="$t('runner_tag')"
+      data-testid="inventoryForm-runnerTag"
     ></v-autocomplete>
 
     <v-autocomplete
@@ -61,6 +68,7 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="inventoryForm-sshKeyId"
     ></v-autocomplete>
 
     <v-autocomplete
@@ -73,6 +81,7 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="inventoryForm-becomeKeyId"
     ></v-autocomplete>
 
     <v-select
@@ -86,6 +95,7 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="inventoryForm-type"
     ></v-select>
 
     <v-text-field
@@ -97,6 +107,7 @@
       v-if="item.type === 'file'"
       outlined
       dense
+      data-testid="inventoryForm-inventoryPath"
     ></v-text-field>
 
     <v-select
@@ -110,6 +121,7 @@
       v-if="item.type === 'file'"
       outlined
       dense
+      data-testid="inventoryForm-repositoryId"
     ></v-select>
 
     <div
@@ -126,11 +138,13 @@
         v-model.trim="item.inventory"
         :options="cmOptions"
         :placeholder="$t('enterInventory')"
+        data-testid="inventoryForm-inventoryCode"
       />
 
       <RichEditor
         v-model.trim="item.inventory"
         type="ini"
+        test-id="inventoryForm-inventoryEditor"
         style="
               position: absolute;
               right: 0;

@@ -1,7 +1,12 @@
 <template>
-  <div v-if="items != null && keys != null">
+  <div
+    v-if="items != null && keys != null"
+    data-testid="hostConfig-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="hostConfigDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="itemId === 'new' ? $t('addMapping') : $t('editMapping')"
       @save="loadItems()"
@@ -20,6 +25,7 @@
     </EditDialog>
 
     <YesNoDialog
+      test-id="hostConfigDeleteDialog"
       :title="$t('deleteMapping')"
       :text="$t('askDeleteMapping')"
       v-model="deleteItemDialog"
@@ -27,13 +33,17 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('hostConfig') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="hostConfig-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="hostConfig-title">{{ $t('hostConfig') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        data-testid="hostConfig-new"
       >{{ $t('addMapping') }}</v-btn>
     </v-toolbar>
 
@@ -45,6 +55,7 @@
       text
       class="mt-4"
       style="max-width: 800px; margin: auto;"
+      data-testid="hostConfig-empty"
     >{{ $t('hostConfigEmpty') }}</v-alert>
 
     <v-data-table
@@ -54,10 +65,11 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
+      data-testid="hostConfig-table"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px); margin: auto;"
     >
       <template v-slot:item.type="{ item }">
-        <v-chip small>{{
+        <v-chip small :data-testid="`hostConfig-rowType-${item.type === 'url' ? 'url' : 'host'}`">{{
           item.type === 'url' ? $t('hostConfigTypeUrl') : $t('hostConfigTypeHost')
         }}</v-chip>
       </template>
@@ -67,11 +79,21 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)">
+        <v-btn-toggle
+          dense
+          :value-comparator="() => false"
+          data-testid="hostConfig-rowActions"
+        >
+          <v-btn
+            @click="askDeleteItem(item.id)"
+            data-testid="hostConfig-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-          <v-btn @click="editItem(item.id)">
+          <v-btn
+            @click="editItem(item.id)"
+            data-testid="hostConfig-rowEdit"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </v-btn-toggle>

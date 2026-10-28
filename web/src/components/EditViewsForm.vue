@@ -1,16 +1,31 @@
 <template>
-  <div v-if="views != null">
+  <div
+    v-if="views != null"
+    data-testid="viewsForm-form"
+    :data-state="views.length === 0 ? 'empty' : 'ready'"
+  >
     <draggable
         v-if="views.length > 0"
         :list="views"
         handle=".handle6785"
         class="mb-5"
         @end="onDragEnd"
+        data-testid="viewsForm-list"
     >
-      <div v-for="(view) in views" :key="view.id" class="mb-2">
+      <div
+        v-for="(view) in views"
+        :key="view.id"
+        class="mb-2"
+        data-testid="viewsForm-view"
+        :data-state="view.disabled ? 'loading' : 'ready'"
+      >
         <div class="d-flex">
 
-          <v-icon class="handle6785" style="cursor: move;">mdi-menu</v-icon>
+          <v-icon
+            class="handle6785"
+            style="cursor: move;"
+            data-testid="viewsForm-viewHandle"
+          >mdi-menu</v-icon>
 
           <v-text-field
             class="ml-2 mr-1"
@@ -21,6 +36,7 @@
             v-model="view.title"
             @focus="editView(view.id)"
             :disabled="view.disabled"
+            data-testid="viewsForm-title"
           />
 
           <v-btn
@@ -30,6 +46,7 @@
             @click="saveView(view.id)"
             v-if="view.active"
             :disabled="view.disabled"
+            data-testid="viewsForm-viewSave"
           >
             <v-icon small color="green">mdi-check</v-icon>
           </v-btn>
@@ -40,6 +57,7 @@
             @click="resetView(view.id)"
             v-if="view.active && view.id > 0"
             :disabled="view.disabled"
+            data-testid="viewsForm-viewReset"
           >
             <v-icon small color="red">mdi-close</v-icon>
           </v-btn>
@@ -48,11 +66,17 @@
             class="ml-4"
             icon
             @click="activeViewId = (activeViewId === view.id ? null : view.id)"
+            data-testid="viewsForm-viewSettings"
           >
             <v-icon>mdi-cog</v-icon>
           </v-btn>
 
-          <v-btn class="ml-1" icon @click="removeView(view.id)">
+          <v-btn
+            class="ml-1"
+            icon
+            @click="removeView(view.id)"
+            data-testid="viewsForm-viewDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </div>
@@ -61,6 +85,7 @@
           v-if="view.id === activeViewId"
           style="background: var(--highlighted-card-bg-color);"
           class="mb-6 pt-3 mt-5"
+          data-testid="viewsForm-viewSettingsCard"
         >
 
           <div style="
@@ -84,6 +109,7 @@
               outlined
               dense
               @change="saveView(view.id)"
+              data-testid="viewsForm-type"
             />
 
             <div
@@ -101,6 +127,7 @@
                 dense
                 hide-details
                 @change="saveView(view.id)"
+                data-testid="viewsForm-sortColumn"
               />
 
               <v-checkbox
@@ -109,6 +136,7 @@
                 v-model="view.sort_reverse"
                 class="mt-0 pt-0"
                 @change="saveView(view.id)"
+                data-testid="viewsForm-sortReverse"
               />
 
             </div>
@@ -118,6 +146,7 @@
               label="Hidden"
               v-model="view.hidden"
               @change="saveView(view.id)"
+              data-testid="viewsForm-hidden"
             />
           </v-card-text>
 
@@ -129,8 +158,13 @@
     <v-alert
         v-else
         type="info"
+        data-testid="viewsForm-empty"
     >{{ $t('noViews') }}</v-alert>
-    <v-btn @click="addView()" color="primary">{{ $t('addView') }}</v-btn>
+    <v-btn
+      @click="addView()"
+      color="primary"
+      data-testid="viewsForm-add"
+    >{{ $t('addView') }}</v-btn>
   </div>
 </template>
 

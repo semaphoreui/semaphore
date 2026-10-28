@@ -4,11 +4,14 @@
     lazy-validation
     v-model="formValid"
     v-if="item != null"
+    data-testid="restoreProject-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="restoreProject-error"
     >{{ formError }}</v-alert>
 
     <v-text-field
@@ -17,6 +20,7 @@
       :rules="[v => !!v || $t('project_name_required')]"
       required
       :disabled="formSaving"
+      data-testid="restoreProject-name"
     ></v-text-field>
 
     <v-file-input
@@ -24,6 +28,7 @@
       truncate-length="15"
       :placeholder="$t('Backup file')"
       @change="setFile"
+      data-testid="restoreProject-file"
     ></v-file-input>
   </v-form>
 </template>

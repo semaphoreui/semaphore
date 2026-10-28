@@ -4,11 +4,14 @@
     lazy-validation
     v-model="formValid"
     v-if="item != null && keys != null"
+    data-testid="tfWorkspace-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="tfWorkspace-error"
     >{{ formError }}</v-alert>
 
     <v-text-field
@@ -17,6 +20,7 @@
       :rules="[v => !!v || $t('path_required')]"
       required
       :disabled="formSaving"
+      data-testid="tfWorkspace-inventory"
     ></v-text-field>
 
     <v-select
@@ -29,6 +33,7 @@
       item-value="id"
       item-text="name"
       :disabled="formSaving"
+      data-testid="tfWorkspace-sshKeyId"
     ></v-select>
 
   </v-form>

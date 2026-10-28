@@ -1,7 +1,12 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null && isAppsLoaded">
+  <div
+    v-if="items != null && isAppsLoaded"
+    data-testid="apps-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
         v-model="editDialog"
+        test-id="appsEditDialog"
         save-button-text="Save"
         :title="$t('Edit App')"
         @save="loadItems()"
@@ -19,6 +24,7 @@
     </EditDialog>
 
     <YesNoDialog
+        test-id="appsDeleteDialog"
         :title="$t('Delete App')"
         :text="$t('Do you really want to delete this app?')"
         v-model="deleteItemDialog"
@@ -30,15 +36,17 @@
           icon
           class="mr-4"
           @click="returnToProjects()"
+          data-testid="apps-back"
       >
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('Applications') }}</v-toolbar-title>
+      <v-toolbar-title data-testid="apps-title">{{ $t('Applications') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
           :disabled="!canManageSystem"
           color="primary"
           @click="editItem('')"
+          data-testid="apps-new"
       >{{ $t('New App') }}</v-btn>
     </v-toolbar>
 
@@ -47,6 +55,8 @@
         :items="items"
         class="mt-4"
         :footer-props="{ itemsPerPageOptions: [20] }"
+        data-testid="apps-table"
+        :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.active="{ item }">
         <v-switch
@@ -54,6 +64,7 @@
             v-model="item.active"
             inset
             @change="setActive(item.id, item.active)"
+            data-testid="apps-rowActive"
         ></v-switch>
       </template>
 
@@ -61,6 +72,7 @@
         <v-icon
             class="mr-2"
             small
+            data-testid="apps-rowIcon"
         >
           {{ getAppIcon(item.id) }}
         </v-icon>
@@ -69,17 +81,18 @@
       </template>
 
       <template v-slot:item.id="{ item }">
-        <code>{{ item.id }}</code>
+        <code data-testid="apps-rowId">{{ item.id }}</code>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap">
+        <div style="white-space: nowrap" data-testid="apps-rowActions">
           <v-btn
               v-if="!isDefaultApp(item.id)"
               icon
               class="mr-1"
               @click="askDeleteItem(item.id)"
               :disabled="item.id === userId"
+              data-testid="apps-rowDelete"
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
@@ -88,6 +101,7 @@
               icon
               class="mr-1"
               @click="editItem(item.id)"
+              data-testid="apps-rowEdit"
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>

@@ -1,5 +1,9 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="invites-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditTeamMemberDialog
       v-model="editDialog"
       :project-id="projectId"
@@ -11,6 +15,7 @@
     />
 
     <YesNoDialog
+      test-id="invitesDeleteDialog"
       :title="$t('deleteTeamMember')"
       :text="$t('askDeleteTMem')"
       v-model="deleteItemDialog"
@@ -18,8 +23,11 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('Invites') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="invites-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="invites-title">{{ $t('Invites') }}</v-toolbar-title>
 
       <v-spacer></v-spacer>
 
@@ -27,6 +35,7 @@
         color="primary"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+        data-testid="invites-new"
       >{{ $t('newTeamMember') }}
       </v-btn>
     </v-toolbar>
@@ -36,6 +45,8 @@
     <v-divider style="margin-top: -1px;"/>
 
     <v-data-table
+      data-testid="invites-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
       :headers="headers"
       :items="items"
       hide-default-footer
@@ -52,8 +63,12 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)" v-if="can(USER_PERMISSIONS.manageProjectUsers)">
+        <v-btn-toggle dense :value-comparator="() => false" data-testid="invites-rowActions">
+          <v-btn
+            @click="askDeleteItem(item.id)"
+            v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+            data-testid="invites-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </v-btn-toggle>

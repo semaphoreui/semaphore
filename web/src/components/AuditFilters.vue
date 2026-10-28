@@ -10,6 +10,7 @@
           outlined
           dense
           hide-details
+          data-testid="auditFilter-from"
           @change="update({ from: $event })"
         />
       </v-col>
@@ -22,6 +23,7 @@
           outlined
           dense
           hide-details
+          data-testid="auditFilter-to"
           @change="update({ to: $event })"
         />
       </v-col>
@@ -35,6 +37,7 @@
           outlined
           dense
           hide-details
+          data-testid="auditFilter-user"
           @change="update({ user: $event })"
         />
       </v-col>
@@ -48,6 +51,7 @@
           outlined
           dense
           hide-details
+          data-testid="auditFilter-project"
           @change="update({ project: $event })"
         />
       </v-col>
@@ -64,6 +68,7 @@
           outlined
           dense
           hide-details
+          data-testid="auditFilter-kind"
           @change="update({ kind: $event })"
         />
       </v-col>
@@ -77,6 +82,7 @@
           outlined
           dense
           hide-details
+          data-testid="auditFilter-outcome"
           @change="update({ outcome: $event })"
         />
       </v-col>
@@ -89,6 +95,7 @@
           outlined
           dense
           hide-details
+          data-testid="auditFilter-ip"
           @change="update({ ip: $event })"
           @click:clear="update({ ip: null })"
         />

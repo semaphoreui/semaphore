@@ -1,9 +1,16 @@
 <template>
-  <div>
-    <v-text-field v-model="item.message" :label="$t('messageOptional')" outlined dense />
+  <div :data-state="needInventory && inventory == null ? 'loading' : 'ready'">
+    <v-text-field
+      v-model="item.message"
+      :label="$t('messageOptional')"
+      outlined
+      dense
+      data-testid="taskParams-message"
+    />
 
     <SurveyFields
       v-if="editedEnvironment"
+      data-testid="taskParams-survey"
       :vars="template.survey_vars || []"
       :value="editedEnvironment"
       :secret-value="editedSecretEnvironment"
@@ -15,6 +22,7 @@
 
     <v-text-field
       v-model="git_branch"
+      data-testid="taskParams-gitBranch"
       :label="fieldLabel('branch')"
       outlined
       dense
@@ -24,6 +32,7 @@
 
     <v-autocomplete
       v-model="inventory_id"
+      data-testid="taskParams-inventoryId"
       :label="fieldLabel('inventory')"
       :items="inventory"
       item-value="id"
@@ -36,6 +45,7 @@
 
     <v-skeleton-loader
       v-else-if="needInventory"
+      data-testid="taskParams-loading"
       type="card"
       height="46"
       style="margin-bottom: 16px; margin-top: 4px"
@@ -43,6 +53,7 @@
 
     <TaskParamsAnsibleForm
       v-if="template.app === 'ansible'"
+      data-testid="taskParams-ansible"
       v-model="item.params"
       :app="template.app"
       :template-params="template.task_params || {}"
@@ -50,6 +61,7 @@
 
     <TaskParamsTerraformForm
       v-else-if="['terraform', 'tofu', 'terragrunt'].includes(template.app)"
+      data-testid="taskParams-terraform"
       v-model="item.params"
       :app="template.app"
       :template-params="template.task_params || {}"
@@ -57,6 +69,7 @@
 
     <ArgsPicker
       v-if="template.allow_override_args_in_task"
+      test-id="taskParams-args"
       :vars="args"
       title="CLI args"
       @change="setArgs"

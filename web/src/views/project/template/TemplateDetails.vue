@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="pb-0 mt-8">
+  <v-container fluid class="pb-0 mt-8" data-testid="template-details">
     <v-row class="mb-2">
       <v-col>
         <v-list subheader>
@@ -10,7 +10,9 @@
 
             <v-list-item-content>
               <v-list-item-title>{{ $t('playbook') }}</v-list-item-title>
-              <v-list-item-subtitle>{{ template.playbook }}</v-list-item-subtitle>
+              <v-list-item-subtitle
+                data-testid="template-detailsPlaybook"
+              >{{ template.playbook }}</v-list-item-subtitle>
             </v-list-item-content>
           </v-list-item>
         </v-list>
@@ -24,7 +26,9 @@
 
             <v-list-item-content>
               <v-list-item-title>{{ $t('type') }}</v-list-item-title>
-              <v-list-item-subtitle>{{ $t(TEMPLATE_TYPE_TITLES[template.type]) }}
+              <v-list-item-subtitle
+                data-testid="template-detailsType"
+              >{{ $t(TEMPLATE_TYPE_TITLES[template.type]) }}
               </v-list-item-subtitle>
             </v-list-item-content>
           </v-list-item>
@@ -39,7 +43,7 @@
 
             <v-list-item-content>
               <v-list-item-title>{{ $t('inventory') }}</v-list-item-title>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle data-testid="template-detailsInventory">
                 {{ (inventory.find((x) => x.id === template.inventory_id) || {name: '—'}).name }}
               </v-list-item-subtitle>
             </v-list-item-content>
@@ -54,7 +58,7 @@
             </v-list-item-icon>
             <v-list-item-content>
               <v-list-item-title>{{ $t('environment') }}</v-list-item-title>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle data-testid="template-detailsEnvironment">
                 {{ environmentNames }}
               </v-list-item-subtitle>
             </v-list-item-content>
@@ -69,7 +73,7 @@
             </v-list-item-icon>
             <v-list-item-content>
               <v-list-item-title>{{ $t('repository2') }}</v-list-item-title>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle data-testid="template-detailsRepository">
                 {{ repositories.find((x) => x.id === template.repository_id).name }}
               </v-list-item-subtitle>
             </v-list-item-content>
@@ -78,7 +82,11 @@
       </v-col>
     </v-row>
 
-    <TaskStats :project-id="template.project_id" :template-id="template.id" />
+    <TaskStats
+      :project-id="template.project_id"
+      :template-id="template.id"
+      data-testid="template-stats"
+    />
 
   </v-container>
 

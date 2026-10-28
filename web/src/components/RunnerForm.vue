@@ -1,12 +1,25 @@
 <template>
-  <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
-    <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
+  <v-form
+    ref="form"
+    lazy-validation
+    v-model="formValid"
+    v-if="item != null"
+    data-testid="runner-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
+  >
+    <v-alert
+      :value="formError"
+      color="error"
+      class="pb-2"
+      data-testid="runner-error"
+    >{{ formError }}</v-alert>
 
     <v-text-field
       v-model="item.name"
       :label="$t('name')"
       :rules="[(v) => !!v || $t('name_required')]"
       required
+      data-testid="runner-name"
       :disabled="formSaving"
       outlined
       dense
@@ -23,6 +36,7 @@
             : []
         "
         :required="!!projectId"
+        data-testid="runner-tags"
         :disabled="formSaving || !isTagsAvailable"
         :loading="tagSuggestions == null"
         multiple
@@ -42,6 +56,7 @@
         label
         style="position: absolute; top: -10px; right: 15px"
         @click="upgradeToPro('runners')"
+        data-testid="runner-tagsUpgrade"
       >
         Upgrade to PRO
       </v-chip>
@@ -49,7 +64,7 @@
 
     <v-row>
       <v-col>
-        <v-checkbox v-model="item.is_default">
+        <v-checkbox v-model="item.is_default" data-testid="runner-isDefault">
           <template v-slot:label>
             Is default
             <v-chip class="ml-2" color="error" small>New</v-chip>
@@ -57,7 +72,12 @@
         </v-checkbox>
       </v-col>
       <v-col>
-        <v-checkbox v-if="isNew" v-model="item.registered" :disabled="formSaving">
+        <v-checkbox
+          v-if="isNew"
+          v-model="item.registered"
+          :disabled="formSaving"
+          data-testid="runner-registered"
+        >
           <template v-slot:label>
             {{ $t('register') }}
             <v-chip class="ml-2" color="error" small>New</v-chip>
@@ -66,7 +86,14 @@
       </v-col>
     </v-row>
 
-    <v-alert v-if="isNew && !item.registered" class="mb-4" color="info" dense text>
+    <v-alert
+      v-if="isNew && !item.registered"
+      class="mb-4"
+      color="info"
+      dense
+      text
+      data-testid="runner-unregisteredHint"
+    >
       {{ $t('unregisteredRunnerHint') }}
     </v-alert>
 
@@ -74,6 +101,7 @@
       v-model="item.webhook"
       :label="$t('Webhook')"
       required
+      data-testid="runner-webhook"
       :disabled="formSaving"
       outlined
       dense
@@ -84,6 +112,7 @@
       v-model.number="item.max_parallel_tasks"
       :label="$t('maxNumberOfParallelTasksOptional')"
       required
+      data-testid="runner-maxParallelTasks"
       :disabled="formSaving"
       outlined
       dense
@@ -94,6 +123,7 @@
       class="mt-0"
       v-model="item.active"
       :label="$t('enabled')"
+      data-testid="runner-active"
       :disabled="formSaving"
       hide-details
     ></v-checkbox>

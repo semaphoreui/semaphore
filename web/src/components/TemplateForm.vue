@@ -1,5 +1,11 @@
 <template>
-  <div v-if="!isLoaded" :style="{ height: `${loaderHeight}px` }" class="mt-1">
+  <div
+    v-if="!isLoaded"
+    :style="{ height: `${loaderHeight}px` }"
+    class="mt-1"
+    data-testid="templateForm-loading"
+    :data-state="formError ? 'error' : 'loading'"
+  >
     <v-row>
       <v-col>
         <v-skeleton-loader
@@ -33,10 +39,25 @@
       </v-col>
     </v-row>
   </div>
-  <v-form class="mt-1" v-else ref="form" lazy-validation v-model="formValid">
+  <v-form
+    class="mt-1"
+    v-else
+    ref="form"
+    lazy-validation
+    v-model="formValid"
+    data-testid="templateForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
+  >
     <v-dialog v-model="helpDialog" hide-overlay content-class="NestedDialog" width="300">
-      <v-alert border="top" colored-border type="info" elevation="2" class="mb-0 pb-0">
-        <div v-if="helpKey === 'build_version'">
+      <v-alert
+        border="top"
+        colored-border
+        type="info"
+        elevation="2"
+        class="mb-0 pb-0"
+        data-testid="templateHelpDialog"
+      >
+        <div v-if="helpKey === 'build_version'" data-testid="templateHelpDialog-buildVersion">
           <p>
             {{ $t('definesStartVersionOfYourArtifactEachRunIncrements') }}
           </p>
@@ -45,11 +66,12 @@
             <a
               href="https://docs.semaphoreui.com/user-guide/task-templates#build"
               target="_blank"
+              data-testid="templateHelpDialog-buildVersionLink"
             >{{ $t('taskTemplateReference') }}</a
             >.
           </p>
         </div>
-        <div v-else-if="helpKey === 'build'">
+        <div v-else-if="helpKey === 'build'" data-testid="templateHelpDialog-build">
           <p>
             {{ $t('definesWhatArtifactShouldBeDeployedWhenTheTaskRun') }}
           </p>
@@ -58,17 +80,19 @@
             <a
               href="https://docs.semaphoreui.com/user-guide/task-templates#build"
               target="_blank"
+              data-testid="templateHelpDialog-buildLink"
             >{{ $t('taskTemplateReference2') }}</a
             >.
           </p>
         </div>
-        <div v-if="helpKey === 'cron'">
+        <div v-if="helpKey === 'cron'" data-testid="templateHelpDialog-cron">
           <p>{{ $t('definesAutorunSchedule') }}</p>
           <p>
             {{ $t('forMoreInformationAboutCronSeeThe') }}
             <a
               href="https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format"
               target="_blank"
+              data-testid="templateHelpDialog-cronLink"
             >{{ $t('cronExpressionFormatReference') }}</a
             >.
           </p>
@@ -76,19 +100,32 @@
       </v-alert>
     </v-dialog>
 
-    <v-alert :value="formError" color="error">{{ formError }}</v-alert>
+    <v-alert
+      :value="formError"
+      color="error"
+      data-testid="templateForm-error"
+    >{{ formError }}</v-alert>
 
     <v-row class="mb-0">
       <v-col>
-        <h2 class="mb-4">{{ $t('template_common_options') }}</h2>
+        <h2
+          class="mb-4"
+          data-testid="templateForm-commonTitle"
+        >{{ $t('template_common_options') }}</h2>
 
         <v-card
           class="mb-6"
           :color="$vuetify.theme.dark ? '#212121' : 'white'"
           style="background: #8585850f"
+          data-testid="templateForm-typeCard"
         >
-          <v-tabs fixed-tabs v-model="itemTypeIndex">
-            <v-tab style="padding: 0" v-for="key in Object.keys(TEMPLATE_TYPE_ICONS)" :key="key">
+          <v-tabs fixed-tabs v-model="itemTypeIndex" data-testid="templateForm-typeTabs">
+            <v-tab
+              style="padding: 0"
+              v-for="key in Object.keys(TEMPLATE_TYPE_ICONS)"
+              :key="key"
+              :data-testid="`templateForm-tab-${key || 'task'}`"
+            >
               <v-icon small class="mr-2">{{ TEMPLATE_TYPE_ICONS[key] }}</v-icon>
               {{ $t(TEMPLATE_TYPE_TITLES[key]) }}
             </v-tab>
@@ -103,6 +140,7 @@
               required
               :disabled="formSaving"
               :placeholder="$t('example000')"
+              data-testid="templateForm-startVersion"
               append-outer-icon="mdi-help-circle"
               @click:append-outer="showHelpDialog('build_version')"
             ></v-text-field>
@@ -117,6 +155,7 @@
               :rules="[(v) => !!v || $t('build_template_required')]"
               required
               :disabled="formSaving"
+              data-testid="templateForm-buildTemplateId"
               append-outer-icon="mdi-help-circle"
               @click:append-outer="showHelpDialog('build')"
             ></v-autocomplete>
@@ -126,6 +165,7 @@
               class="mt-0"
               :label="$t('autorun')"
               v-model="item.autorun"
+              data-testid="templateForm-autorun"
             />
           </div>
         </v-card>
@@ -138,6 +178,7 @@
           dense
           required
           :disabled="formSaving"
+          data-testid="templateForm-name"
         ></v-text-field>
 
         <div style="position: relative">
@@ -153,6 +194,7 @@
             :required="isFieldRequired('repository')"
             :disabled="formSaving"
             v-if="needField('repository')"
+            data-testid="templateForm-repositoryId"
           >
           </v-autocomplete>
           <v-tooltip
@@ -177,6 +219,7 @@
                   small
                   label
                   :class="{ 'text--disabled': isMonorepo }"
+                  data-testid="templateForm-branchChip"
                   v-on="isMonorepo ? {} : { click: () => { setBranch = !setBranch; } }"
                 >
                   {{ gitBranch }}
@@ -191,6 +234,7 @@
           v-if="setBranch"
           style="background: var(--highlighted-card-bg-color)"
           class="mb-6 pt-3"
+          data-testid="templateForm-branchCard"
         >
           <div
             style="
@@ -210,6 +254,7 @@
               <v-autocomplete
                 clearable
                 :items="branches"
+                data-testid="templateForm-gitBranch"
                 v-model="item.git_branch"
                 :label="fieldLabel('branch')"
                 outlined
@@ -223,6 +268,7 @@
             <div v-else>
               <v-text-field
                 clearable
+                data-testid="templateForm-gitBranch"
                 v-model="item.git_branch"
                 :label="fieldLabel('branch')"
                 outlined
@@ -255,11 +301,14 @@
             :placeholder="$t('exampleSiteyml')"
             :loading="playbooksLoading"
             @update:search-input="onPlaybookSearch"
+            data-testid="templateForm-playbook"
+            :data-state="playbooksLoading ? 'loading' : 'ready'"
           >
             <template v-slot:append-outer>
               <v-btn
                 depressed
                 @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
+                data-testid="templateForm-playbookReload"
               >
                 <v-icon>{{ playbooksLoading ? 'mdi-close' : 'mdi-refresh' }}</v-icon>
               </v-btn>
@@ -272,6 +321,7 @@
               v-model="showWorkingDirectoryField"
               :label="$t('workingDirectoryToggleLabel')"
               :disabled="formSaving"
+              data-testid="templateForm-workingDirectoryToggle"
             ></v-checkbox>
 
             <v-text-field
@@ -283,6 +333,7 @@
               dense
               required
               :disabled="formSaving"
+              data-testid="templateForm-workingDirectory"
             ></v-text-field>
           </div>
         </div>
@@ -298,6 +349,7 @@
           required
           :disabled="formSaving"
           v-if="needField('inventory')"
+          data-testid="templateForm-inventoryId"
         ></v-autocomplete>
 
         <v-autocomplete
@@ -320,6 +372,7 @@
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
           v-if="needField('environment')"
+          data-testid="templateForm-environmentIds"
         ></v-autocomplete>
 
         <v-autocomplete
@@ -334,11 +387,12 @@
           :disabled="formSaving"
           outlined
           dense
+          data-testid="templateForm-viewId"
         ></v-autocomplete>
       </v-col>
 
       <v-col>
-        <h2 class="mb-4">{{ $t('template_advanced') }}</h2>
+        <h2 class="mb-4" data-testid="templateForm-advancedTitle">{{ $t('template_advanced') }}</h2>
 
         <div class="mb-4">
           <v-autocomplete
@@ -353,6 +407,7 @@
             :disabled="formSaving"
             :placeholder="$t('runner_tag')"
             clearable
+            data-testid="templateForm-runnerTag"
           ></v-autocomplete>
 
           <div style="position: relative">
@@ -366,6 +421,7 @@
               clearable
               class="mb-4"
               :disabled="formSaving || !isExecutorImageAvailable"
+              data-testid="templateForm-executorImage"
             ></v-text-field>
 
             <v-chip
@@ -376,6 +432,7 @@
               label
               style="position: absolute; top: -10px; right: 15px"
               @click="upgradeToPro('docker_executor')"
+              data-testid="templateForm-executorImageUpgrade"
             >
               Upgrade to PRO
             </v-chip>
@@ -383,21 +440,38 @@
 
           <SurveyVars :vars="surveyVars" @change="setSurveyVars" />
 
-          <v-checkbox class="mt-0" v-model="item.allow_parallel_tasks">
+          <v-checkbox
+            class="mt-0"
+            v-model="item.allow_parallel_tasks"
+            data-testid="templateForm-allowParallelTasks"
+          >
             <template v-slot:label>
               {{ $t('allow_parallel_tasks') }}
             </template>
           </v-checkbox>
 
           <template v-if="systemInfo && systemInfo.jwt && systemInfo.jwt.enabled">
-            <v-checkbox class="mt-0" v-model="item.jwt_params.enabled">
+            <v-checkbox
+              class="mt-0"
+              v-model="item.jwt_params.enabled"
+              data-testid="templateForm-jwtEnabled"
+            >
               <template v-slot:label>
                 {{ $t('jwt_enabled') }}
-                <v-chip class="ml-2" small color="error">New</v-chip>
+                <v-chip
+                  class="ml-2"
+                  small
+                  color="error"
+                  data-testid="templateForm-jwtNew"
+                >New</v-chip>
               </template>
             </v-checkbox>
 
-            <DropdownCard v-if="item.jwt_params.enabled" no-bottom-padding>
+            <DropdownCard
+              v-if="item.jwt_params.enabled"
+              no-bottom-padding
+              data-testid="templateForm-jwtCard"
+            >
               <v-combobox
                 v-model="item.jwt_params.audience"
                 :label="$t('jwt_audience')"
@@ -410,6 +484,7 @@
                 outlined
                 dense
                 :disabled="formSaving"
+                data-testid="templateForm-jwtAudience"
               ></v-combobox>
 
               <v-text-field
@@ -422,6 +497,7 @@
                 outlined
                 dense
                 :disabled="formSaving"
+                data-testid="templateForm-jwtTtl"
               ></v-text-field>
             </DropdownCard>
           </template>
@@ -430,9 +506,10 @@
             class="mt-0"
             :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
             v-model="cronVisible"
+            data-testid="templateForm-cronVisible"
           />
 
-          <DropdownCard v-if="cronVisible">
+          <DropdownCard v-if="cronVisible" data-testid="templateForm-cronCard">
             <v-select
               v-model="cronRepositoryId"
               :label="$t('repository2')"
@@ -445,6 +522,7 @@
               :disabled="formSaving"
               outlined
               dense
+              data-testid="templateForm-cronRepositoryId"
             ></v-select>
 
             <v-select
@@ -458,6 +536,7 @@
               outlined
               hide-details
               dense
+              data-testid="templateForm-cronFormat"
             />
           </DropdownCard>
 
@@ -465,31 +544,40 @@
             class="mt-0"
             :label="$t('suppressSuccessAlerts')"
             v-model="item.suppress_success_alerts"
+            data-testid="templateForm-suppressSuccessAlerts"
           />
 
           <v-checkbox
             class="mt-0"
             :label="$t('suppressErrorAlerts')"
             v-model="item.suppress_error_alerts"
+            data-testid="templateForm-suppressErrorAlerts"
           />
 
           <div style="position: relative">
-            <ArgsPicker :vars="args" @change="setArgs" title="CLI args" />
+            <ArgsPicker
+              :vars="args"
+              @change="setArgs"
+              title="CLI args"
+              test-id="templateForm-args"
+            />
 
             <RichEditor
               v-model="argsJson"
               type="json_array"
               style="position: absolute; right: -23px; top: -18px; margin: 10px"
+              test-id="templateForm-argsJson"
             />
           </div>
         </div>
 
-        <h2 class="mb-4">{{ $t('task_prompts') }}</h2>
+        <h2 class="mb-4" data-testid="templateForm-promptsTitle">{{ $t('task_prompts') }}</h2>
         <div class="d-flex" style="column-gap: 20px; flex-wrap: wrap">
           <v-checkbox
             class="mt-0"
             :label="$t('allowCliArgsInTask')"
             v-model="item.allow_override_args_in_task"
+            data-testid="templateForm-allowOverrideArgsInTask"
           />
 
           <v-tooltip
@@ -508,6 +596,7 @@
                   :label="$t('allow_override_branch')"
                   v-model="item.allow_override_branch_in_task"
                   :disabled="isMonorepo"
+                  data-testid="templateForm-allowOverrideBranchInTask"
                 />
               </div>
             </template>
@@ -519,13 +608,14 @@
             :label="$t('allowInventoryInTask')"
             v-model="allow_override_inventory"
             v-if="needField('allow_override_inventory')"
+            data-testid="templateForm-allowOverrideInventory"
           />
         </div>
       </v-col>
 
       <v-col v-if="needAppBlock">
         <div class="mb-3">
-          <h2 class="mb-4">
+          <h2 class="mb-4" data-testid="templateForm-appTitle">
             {{ $t('template_app_options', { app: getAppTitle(app, true) }) }}
           </h2>
 
@@ -536,6 +626,7 @@
             :title="$t('limit')"
             :arg-title="$t('limit')"
             :add-arg-title="$t('addLimit')"
+            test-id="templateForm-limit"
           />
 
           <ArgsPicker
@@ -545,6 +636,7 @@
             :title="$t('tags')"
             :arg-title="$t('tag')"
             :add-arg-title="$t('addTag')"
+            test-id="templateForm-tags"
           />
 
           <ArgsPicker
@@ -554,6 +646,7 @@
             :title="$t('skipTags')"
             :arg-title="$t('tag')"
             :add-arg-title="$t('addSkippedTag')"
+            test-id="templateForm-skipTags"
           />
 
           <TemplateVaults
@@ -568,6 +661,7 @@
             :label="$t('auto_approve')"
             v-model="item.task_params.auto_approve"
             v-if="needField('auto_approve')"
+            data-testid="templateForm-autoApprove"
           />
 
           <v-checkbox
@@ -577,6 +671,7 @@
             :true-value="true"
             :false-value="false"
             v-if="needField('override_backend') && features.terraform_backend"
+            data-testid="templateForm-overrideBackend"
           />
 
           <v-text-field
@@ -588,10 +683,11 @@
             placeholder="backend.tf"
             :rules="[(v) => validateBackendFilename(v) || $t('terraform_invalid_backend_filename')]"
             v-if="needField('backend_filename') && features.terraform_backend"
+            data-testid="templateForm-backendFilename"
           ></v-text-field>
         </div>
 
-        <h2 class="mb-4">
+        <h2 class="mb-4" data-testid="templateForm-appPromptsTitle">
           {{ $t('template_app_prompts', { app: getAppTitle(app, true) }) }}
         </h2>
         <div class="d-flex" style="column-gap: 20px; flex-wrap: wrap">
@@ -600,6 +696,7 @@
             :label="$t('allowLimitInTask')"
             v-model="item.task_params.allow_override_limit"
             v-if="needField('allow_override_limit')"
+            data-testid="templateForm-allowOverrideLimit"
           />
 
           <v-checkbox
@@ -607,6 +704,7 @@
             :label="$t('tags')"
             v-model="item.task_params.allow_override_tags"
             v-if="needField('allow_override_tags')"
+            data-testid="templateForm-allowOverrideTags"
           />
 
           <v-checkbox
@@ -614,6 +712,7 @@
             :label="$t('skipTags')"
             v-model="item.task_params.allow_override_skip_tags"
             v-if="needField('allow_override_skip_tags')"
+            data-testid="templateForm-allowOverrideSkipTags"
           />
 
           <v-checkbox
@@ -621,6 +720,7 @@
             :label="$t('allowDebug')"
             v-model="item.task_params.allow_debug"
             v-if="needField('allow_debug')"
+            data-testid="templateForm-allowDebug"
           />
 
           <v-checkbox
@@ -628,6 +728,7 @@
             :label="$t('dryRun')"
             v-model="show_dry_run"
             v-if="needField('hide_dry_run')"
+            data-testid="templateForm-showDryRun"
           />
 
           <v-checkbox
@@ -635,6 +736,7 @@
             :label="$t('diff')"
             v-model="show_diff"
             v-if="needField('hide_diff')"
+            data-testid="templateForm-showDiff"
           />
 
           <v-checkbox
@@ -642,6 +744,7 @@
             :label="$t('auto_approve')"
             v-model="item.task_params.allow_auto_approve"
             v-if="needField('allow_auto_approve')"
+            data-testid="templateForm-allowAutoApprove"
           />
         </div>
 
@@ -651,12 +754,14 @@
           class="mt-2"
           :title="$t('galaxyInstallOptions')"
           :badge="galaxyBadge"
+          data-testid="templateForm-galaxy"
         >
           <v-checkbox
             class="mt-0 mb-4"
             hide-details
             v-model="item.task_params.skip_galaxy_install"
             :label="$t('skipGalaxyInstall')"
+            data-testid="templateForm-skipGalaxyInstall"
           />
 
           <ArgsPicker
@@ -665,6 +770,7 @@
             @change="setGalaxyRoleArgs"
             :title="$t('galaxyRoleArgs')"
             :arg-title="$t('arg')"
+            test-id="templateForm-galaxyRoleArgs"
           />
 
           <ArgsPicker
@@ -673,16 +779,21 @@
             @change="setGalaxyCollectionArgs"
             :title="$t('galaxyCollectionArgs')"
             :arg-title="$t('arg')"
+            test-id="templateForm-galaxyCollectionArgs"
           />
 
           <template v-if="needField('allow_override_skip_galaxy_install')">
-            <div class="text-subtitle-2 mb-2">{{ $t('prompts') }}</div>
+            <div
+              class="text-subtitle-2 mb-2"
+              data-testid="templateForm-galaxyPromptsTitle"
+            >{{ $t('prompts') }}</div>
 
             <v-checkbox
               class="mt-0"
               hide-details
               v-model="item.task_params.allow_override_skip_galaxy_install"
               :label="$t('skipGalaxyInstall')"
+              data-testid="templateForm-allowOverrideSkipGalaxyInstall"
             />
           </template>
         </CollapsibleSection>

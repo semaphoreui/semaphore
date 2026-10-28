@@ -1,7 +1,8 @@
 <template>
-  <div class="d-flex justify-space-between align-center mb-2">
-    <b style="font-size: 13px; margin-left: 5px">{{ label }}</b>
+  <div class="d-flex justify-space-between align-center mb-2" data-testid="secretSource-toggle">
+    <b style="font-size: 13px; margin-left: 5px" data-testid="secretSource-label">{{ label }}</b>
     <v-btn-toggle
+        data-testid="secretSource-options"
         :value="value"
         @change="$emit('input', $event)"
         tile
@@ -15,6 +16,7 @@
         small
         class="ma-0"
         style="border-radius: 4px"
+        :data-testid="`secretSource-${source.value}`"
       >
         {{ source.text }}
       </v-btn>

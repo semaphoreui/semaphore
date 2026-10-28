@@ -1,5 +1,9 @@
 <template>
-  <div class="WorkflowEditor">
+  <div
+    class="WorkflowEditor"
+    data-testid="workflowEditor-page"
+    :data-state="item == null || templates == null ? 'loading' : 'ready'"
+  >
     <YesNoDialog
       v-model="leaveDialog"
       :title="$t('workflowUnsavedChanges')"
@@ -7,12 +11,22 @@
       :yes-button-title="$t('workflowLeaveWithoutSaving')"
       @yes="confirmLeave()"
       @no="cancelLeave()"
+      test-id="workflowEditorLeaveDialog"
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title class="WorkflowEditor__title d-flex align-center">
-        <router-link :to="`/project/${projectId}/workflows`">
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="workflowEditor-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title
+        class="WorkflowEditor__title d-flex align-center"
+        data-testid="workflowEditor-title"
+      >
+        <router-link
+          :to="`/project/${projectId}/workflows`"
+          data-testid="workflowEditor-backToList"
+        >
           {{ $t('workflows') }}
         </router-link>
         <span class="mx-2">/</span>
@@ -30,6 +44,7 @@
               :aria-label="$t('name')"
               size="1"
               class="WorkflowEditor__nameField"
+              data-testid="workflowEditor-name"
             />
           </span>
         </span>
@@ -39,39 +54,72 @@
           outlined
           class="ml-3"
           :title="$t('workflowRevisionHint')"
+          data-testid="workflowEditor-revision"
         >{{ $t('workflowRevisionLabel', { number: item.revision }) }}</v-chip>
         <v-tooltip v-if="activeRuns > 0" bottom>
           <template v-slot:activator="{ on, attrs }">
-            <v-chip x-small outlined color="warning" class="ml-2" v-bind="attrs" v-on="on">
+            <v-chip
+              x-small
+              outlined
+              color="warning"
+              class="ml-2"
+              v-bind="attrs"
+              v-on="on"
+              data-testid="workflowEditor-activeRuns"
+            >
               <v-icon x-small left>mdi-play-circle-outline</v-icon>
               {{ $tc('workflowActiveRunsCount', activeRuns, { count: activeRuns }) }}
             </v-chip>
           </template>
-          <span>{{ $t('workflowActiveRunsHint') }}</span>
+          <span
+            data-testid="workflowEditor-activeRunsHint"
+          >{{ $t('workflowActiveRunsHint') }}</span>
         </v-tooltip>
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
 
-      <v-btn icon :disabled="!canUndo" :title="$t('workflowUndo')" @click="undo()">
+      <v-btn
+        icon
+        :disabled="!canUndo"
+        :title="$t('workflowUndo')"
+        @click="undo()"
+        data-testid="workflowEditor-undo"
+      >
         <v-icon>mdi-undo</v-icon>
       </v-btn>
-      <v-btn icon :disabled="!canRedo" :title="$t('workflowRedo')" class="mr-2" @click="redo()">
+      <v-btn
+        icon
+        :disabled="!canRedo"
+        :title="$t('workflowRedo')"
+        class="mr-2"
+        @click="redo()"
+        data-testid="workflowEditor-redo"
+      >
         <v-icon>mdi-redo</v-icon>
       </v-btn>
 
       <v-menu v-if="problems.length > 0" offset-y :close-on-content-click="true">
         <template v-slot:activator="{ on, attrs }">
-          <v-chip small outlined color="warning" class="mr-4" v-bind="attrs" v-on="on">
+          <v-chip
+            small
+            outlined
+            color="warning"
+            class="mr-4"
+            v-bind="attrs"
+            v-on="on"
+            data-testid="workflowEditor-problemsMenu"
+          >
             <v-icon left small>mdi-alert</v-icon>
             {{ $tc('workflowProblemsCount', problems.length, { count: problems.length }) }}
           </v-chip>
         </template>
-        <v-list dense>
+        <v-list dense data-testid="workflowEditor-problemsMenu-list">
           <v-list-item
             v-for="(p, i) in problems"
             :key="`problem-${i}`"
             @click="focusProblem(p)"
+            data-testid="workflowEditor-problemsMenu-item"
           >
             <v-list-item-icon class="mr-2">
               <v-icon small color="warning">mdi-alert</v-icon>
@@ -80,35 +128,57 @@
           </v-list-item>
         </v-list>
       </v-menu>
-      <v-chip v-else small outlined color="success" class="mr-4">
+      <v-chip
+        v-else
+        small
+        outlined
+        color="success"
+        class="mr-4"
+        data-testid="workflowEditor-validationPassed"
+      >
         <v-icon left small>mdi-check</v-icon>
         {{ $t('workflowValidationPassed') }}
       </v-chip>
 
-      <v-badge :value="dirty" dot color="warning" overlap offset-x="8" offset-y="8">
+      <v-badge
+        :value="dirty"
+        dot
+        color="warning"
+        overlap
+        offset-x="8"
+        offset-y="8"
+        data-testid="workflowEditor-unsavedBadge"
+      >
         <v-btn
           color="primary"
           depressed
           :disabled="!canManage || saving || problems.length > 0"
           :loading="saving"
           @click="save()"
+          data-testid="workflowEditor-save"
         >{{ $t('save') }}</v-btn>
       </v-badge>
     </v-toolbar>
 
     <v-divider />
 
-    <div class="WorkflowEditor__body" v-if="item != null && templates != null">
+    <div
+      class="WorkflowEditor__body"
+      v-if="item != null && templates != null"
+      data-testid="workflowEditor-body"
+    >
       <!-- Palette + meta -->
       <div
         class="WorkflowEditor__side WorkflowEditor__side--left"
         :class="{ 'WorkflowEditor__side--collapsed': sideCollapsed }"
+        data-testid="workflowEditor-side"
       >
         <button
           type="button"
           class="WorkflowEditor__sideToggle"
           :title="$t(sideCollapsed ? 'workflowSidebarExpand' : 'workflowSidebarCollapse')"
           @click="toggleSide()"
+          data-testid="workflowEditor-sideToggle"
         >
           <v-icon small>
             {{ sideCollapsed ? 'mdi-chevron-right' : 'mdi-chevron-left' }}
@@ -125,6 +195,7 @@
                 :disabled="!canManage"
                 outlined
                 dense
+                data-testid="workflowEditor-startVersion"
               />
 
               <SurveyVars
@@ -140,8 +211,14 @@
 
           <div class="pa-3">
             <template v-if="!sideCollapsed">
-              <div class="text-subtitle-2 mb-1">{{ $t('workflowEditorPalette') }}</div>
-              <div class="text-caption text--secondary mb-3">
+              <div
+                class="text-subtitle-2 mb-1"
+                data-testid="workflowEditor-paletteTitle"
+              >{{ $t('workflowEditorPalette') }}</div>
+              <div
+                class="text-caption text--secondary mb-3"
+                data-testid="workflowEditor-paletteHint"
+              >
                 {{ $t('workflowPaletteClickHint') }}
               </div>
             </template>
@@ -154,6 +231,7 @@
               :title="sideCollapsed ? p.text : null"
               @dragstart="onDragStart($event, p.kind)"
               @click="addFromPalette(p.kind)"
+              :data-testid="`workflowEditor-palette-${p.kind}`"
             >
               <span
                 class="WorkflowEditor__paletteTile"
@@ -177,6 +255,7 @@
           :templates="templates"
           :node-problems="problemsByNode"
           editable
+          data-testid="workflowEditor-graph"
           @change="onGraphChange"
           @node-selected="onNodeSelected"
           @connection-selected="onConnectionSelected"
@@ -188,6 +267,7 @@
       <div
         v-if="editingNode || editingEdge"
         class="WorkflowEditor__side WorkflowEditor__side--right"
+        data-testid="workflowEditor-props"
       >
         <WorkflowNodeProperties
           v-if="editingNode"
@@ -215,7 +295,7 @@
       </div>
     </div>
 
-    <div v-else class="pa-4 text-center">
+    <div v-else class="pa-4 text-center" data-testid="workflowEditor-loading">
       <v-progress-circular indeterminate color="primary" />
     </div>
   </div>

@@ -1,16 +1,25 @@
 <template>
-  <div class="WorkflowEdgeProperties">
+  <div class="WorkflowEdgeProperties" data-testid="workflowEdgeProps-panel">
     <div class="WorkflowEdgeProperties__header">
       <span class="WorkflowEdgeProperties__tile">
         <v-icon>mdi-ray-start-arrow</v-icon>
       </span>
       <div class="WorkflowEdgeProperties__heading">
-        <div class="text-subtitle-2">{{ $t('workflowEdgeCondition') }}</div>
-        <div class="text-caption text--secondary">
+        <div
+          class="text-subtitle-2"
+          data-testid="workflowEdgeProps-heading"
+        >{{ $t('workflowEdgeCondition') }}</div>
+        <div class="text-caption text--secondary" data-testid="workflowEdgeProps-nodes">
           #{{ edge.source_node_id }} → #{{ edge.destination_node_id }}
         </div>
       </div>
-      <v-btn icon small :title="$t('close')" @click="$emit('close')">
+      <v-btn
+        icon
+        small
+        :title="$t('close')"
+        @click="$emit('close')"
+        data-testid="workflowEdgeProps-close"
+      >
         <v-icon small>mdi-close</v-icon>
       </v-btn>
     </div>
@@ -28,13 +37,24 @@
         dense
         hide-details="auto"
         @change="emitChange"
+        data-testid="workflowEdgeProps-condition"
       >
         <template v-slot:item="{ item }">
-          <v-icon small left :color="item.color">{{ item.icon }}</v-icon>
+          <v-icon
+            small
+            left
+            :color="item.color"
+            :data-testid="`workflowEdgeProps-conditionOption-${item.value}`"
+          >{{ item.icon }}</v-icon>
           {{ item.text }}
         </template>
         <template v-slot:selection="{ item }">
-          <v-icon small left :color="item.color">{{ item.icon }}</v-icon>
+          <v-icon
+            small
+            left
+            :color="item.color"
+            :data-testid="`workflowEdgeProps-conditionSelected-${item.value}`"
+          >{{ item.icon }}</v-icon>
           {{ item.text }}
         </template>
       </v-select>
@@ -43,8 +63,11 @@
     <template v-if="destinationTemplate">
       <v-divider />
 
-      <div class="pa-4 WorkflowEdgeProperties__inputs">
-        <div class="text-subtitle-2 mb-1">{{ $t('workflowEdgeInputs') }}</div>
+      <div class="pa-4 WorkflowEdgeProperties__inputs" data-testid="workflowEdgeProps-inputs">
+        <div
+          class="text-subtitle-2 mb-1"
+          data-testid="workflowEdgeProps-inputsTitle"
+        >{{ $t('workflowEdgeInputs') }}</div>
 
         <v-checkbox
           v-model="explicit"
@@ -54,17 +77,25 @@
           hide-details
           class="mt-0 mb-2"
           @change="onModeChanged"
+          data-testid="workflowEdgeProps-explicit"
         />
 
         <template v-if="!explicit">
-          <div v-if="surveyVars.length === 0" class="text-caption text--secondary">
+          <div
+            v-if="surveyVars.length === 0"
+            class="text-caption text--secondary"
+            data-testid="workflowEdgeProps-inputsNone"
+          >
             {{ $t('workflowEdgeInputsByNameNone', { template: destinationTemplate.name }) }}
           </div>
           <template v-else>
-            <div class="text-caption text--secondary mb-2">
+            <div
+              class="text-caption text--secondary mb-2"
+              data-testid="workflowEdgeProps-byNameHint"
+            >
               {{ $t('workflowEdgeInputsByNameHint', { template: destinationTemplate.name }) }}
             </div>
-            <div class="WorkflowEdgeProperties__chips">
+            <div class="WorkflowEdgeProperties__chips" data-testid="workflowEdgeProps-varChips">
               <v-chip
                 v-for="v in surveyVars"
                 :key="v.name"
@@ -74,6 +105,7 @@
                 :color="hintHas(v.name) ? 'success' : null"
                 :title="hintHas(v.name)
                   ? $t('workflowEdgeInputsMatched', { run: hints.runId }) : null"
+                :data-testid="`workflowEdgeProps-varChip-${v.name}`"
               >
                 <v-icon v-if="hintHas(v.name)" x-small left>mdi-check</v-icon>
                 {{ v.name }}
@@ -83,21 +115,35 @@
         </template>
 
         <template v-else>
-          <div v-if="surveyVars.length === 0" class="text-caption text--secondary">
+          <div
+            v-if="surveyVars.length === 0"
+            class="text-caption text--secondary"
+            data-testid="workflowEdgeProps-inputsNone"
+          >
             {{ $t('workflowEdgeInputsByNameNone', { template: destinationTemplate.name }) }}
           </div>
           <template v-else>
-            <div class="text-caption text--secondary mb-3">
+            <div
+              class="text-caption text--secondary mb-3"
+              data-testid="workflowEdgeProps-explicitHint"
+            >
               {{ $t('workflowEdgeInputsExplicitHint') }}
             </div>
             <div
               v-for="v in surveyVars"
               :key="v.name"
               class="WorkflowEdgeProperties__row"
+              :data-testid="`workflowEdgeProps-row-${v.name}`"
             >
               <div class="WorkflowEdgeProperties__var" :title="v.title || v.name">
-                <span class="WorkflowEdgeProperties__varName">{{ v.name }}</span>
-                <span class="text-caption text--secondary">{{ typeLabel(v) }}</span>
+                <span
+                  class="WorkflowEdgeProperties__varName"
+                  data-testid="workflowEdgeProps-varName"
+                >{{ v.name }}</span>
+                <span
+                  class="text-caption text--secondary"
+                  data-testid="workflowEdgeProps-varType"
+                >{{ typeLabel(v) }}</span>
               </div>
               <v-combobox
                 :value="mappingKey(v.name)"
@@ -113,12 +159,16 @@
                 hide-details="auto"
                 class="WorkflowEdgeProperties__key"
                 @input="setMapping(v.name, $event)"
+                :data-testid="`workflowEdgeProps-key-${v.name}`"
               />
             </div>
           </template>
         </template>
 
-        <div class="text-caption text--secondary mt-2">{{ hintsCaption }}</div>
+        <div
+          class="text-caption text--secondary mt-2"
+          data-testid="workflowEdgeProps-hintsCaption"
+        >{{ hintsCaption }}</div>
       </div>
     </template>
 
@@ -132,6 +182,7 @@
         color="error"
         :disabled="!canManage"
         @click="$emit('delete')"
+        data-testid="workflowEdgeProps-delete"
       >
         <v-icon left small>mdi-delete-outline</v-icon>
         {{ $t('workflowEdgeDelete') }}

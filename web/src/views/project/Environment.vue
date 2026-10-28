@@ -1,5 +1,9 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="varGroup-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
       :save-button-text="$t('save')"
@@ -26,6 +30,7 @@
     </EditDialog>
 
     <ObjectRefsDialog
+      test-id="varGroupRefsDialog"
       object-title="environment"
       :object-refs="itemRefs"
       :project-id="projectId"
@@ -33,6 +38,7 @@
     />
 
     <YesNoDialog
+      test-id="varGroupDeleteDialog"
       :title="$t('deleteEnvironment')"
       :text="$t('askDeleteEnv')"
       v-model="deleteItemDialog"
@@ -40,13 +46,17 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('environment') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="varGroup-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="varGroup-title">{{ $t('environment') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        data-testid="varGroup-new"
         >{{ $t('newEnvironment') }}
       </v-btn>
     </v-toolbar>
@@ -59,24 +69,31 @@
       hide-default-footer
       class="mt-4 CenterToScreen"
       :items-per-page="Number.MAX_VALUE"
+      data-testid="varGroup-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.name="{ item }">
-        <a @click="editItem(item.id)">{{ item.name }}</a>
+        <a @click="editItem(item.id)" data-testid="varGroup-rowName">{{ item.name }}</a>
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
+        <v-btn-toggle
+          dense
+          :value-comparator="() => false"
+          data-testid="varGroup-rowActions"
+        >
           <v-btn
             v-if="item.sync_enabled"
             @click="syncItem(item.id)"
             :disabled="!(item.sync_paths && item.sync_paths.length > 0)"
+            data-testid="varGroup-rowSync"
           >
             <v-icon>mdi-sync</v-icon>
           </v-btn>
-          <v-btn @click="askDeleteItem(item.id)">
+          <v-btn @click="askDeleteItem(item.id)" data-testid="varGroup-rowDelete">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-          <v-btn @click="editItem(item.id)">
+          <v-btn @click="editItem(item.id)" data-testid="varGroup-rowEdit">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </v-btn-toggle>

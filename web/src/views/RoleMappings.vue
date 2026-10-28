@@ -1,7 +1,12 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="roleMappings-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="roleMappingDialog"
       save-button-text="Save"
       :title="$t('newRoleMapping')"
       @save="loadItems()"
@@ -22,27 +27,39 @@
       :title="$t('deleteRoleMapping')"
       :text="$t('askDeleteRoleMapping')"
       v-model="deleteItemDialog"
+      test-id="roleMappingsDeleteDialog"
       @yes="deleteItem(itemId)"
     />
 
     <v-toolbar flat>
-      <v-btn icon class="mr-4" @click="returnToProjects()">
+      <v-btn icon class="mr-4" @click="returnToProjects()" data-testid="roleMappings-back">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('roleMappings') }}</v-toolbar-title>
+      <v-toolbar-title data-testid="roleMappings-title">{{ $t('roleMappings') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         :disabled="!features.custom_roles_management"
         color="primary"
         @click="editItem('new')"
+        data-testid="roleMappings-new"
         >{{ $t('newRoleMapping') }}</v-btn
       >
     </v-toolbar>
 
     <v-divider />
 
-    <v-alert v-if="!features.custom_roles_management" text color="amber darken-3" class="PageAlert">
-      <span class="mr-1" v-html="$t('roles_only_enterprise')"></span>
+    <v-alert
+      v-if="!features.custom_roles_management"
+      text
+      color="amber darken-3"
+      class="PageAlert"
+      data-testid="roleMappings-licenseAlert"
+    >
+      <span
+        class="mr-1"
+        v-html="$t('roles_only_enterprise')"
+        data-testid="roleMappings-licenseAlertText"
+      ></span>
 
       <v-btn
         dark
@@ -50,6 +67,7 @@
         color="amber darken-3"
         href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_roles"
         target="_blank"
+        data-testid="roleMappings-upgrade"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
@@ -60,6 +78,8 @@
       :items="items"
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
+      data-testid="roleMappings-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.provider="{ item }">
         {{ (providers.find((p) => p.id === item.provider) || { name: item.provider }).name }}
@@ -70,14 +90,18 @@
           dark
           color="amber darken-3"
           class="ml-1"
+          data-testid="roleMappings-rowProviderNotConfigured"
         >{{ $t('providerNotConfigured') }}</v-chip>
       </template>
       <template v-slot:item.role="{ item }">
-        <div>{{ item.role_name }}</div>
-        <div class="text--secondary caption">{{ item.role }}</div>
+        <div data-testid="roleMappings-rowRoleName">{{ item.role_name }}</div>
+        <div
+          class="text--secondary caption"
+          data-testid="roleMappings-rowRoleSlug"
+        >{{ item.role }}</div>
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn icon @click="askDeleteItem(item.id)">
+        <v-btn icon @click="askDeleteItem(item.id)" data-testid="roleMappings-rowDelete">
           <v-icon>mdi-delete</v-icon>
         </v-btn>
       </template>

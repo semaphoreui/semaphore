@@ -1,5 +1,9 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null && roles != null">
+  <div
+    v-if="items != null && roles != null"
+    data-testid="team-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditTeamMemberDialog
       v-model="editDialog"
       :project-id="projectId"
@@ -11,6 +15,7 @@
     />
 
     <YesNoDialog
+      test-id="teamDeleteDialog"
       :title="$t('deleteTeamMember')"
       :text="$t('askDeleteTMem')"
       v-model="deleteItemDialog"
@@ -18,20 +23,25 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('team2') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="team-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="team-title">{{ $t('team2') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         v-if="systemInfo.teams.members_can_leave"
         color="error"
         @click="leftProject()"
         class="mr-2"
+        data-testid="team-leave"
         >{{ $t('LeaveProject') }}
       </v-btn>
       <v-btn
         color="primary"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+        data-testid="team-new"
         >{{ $t('newTeamMember') }}
       </v-btn>
     </v-toolbar>
@@ -41,6 +51,8 @@
     <v-divider style="margin-top: -1px" />
 
     <v-data-table
+      data-testid="team-table"
+      :data-state="pendingSaves > 0 ? 'loading' : (items.length === 0 ? 'empty' : 'ready')"
       :headers="headers"
       :items="items"
       hide-default-footer
@@ -49,11 +61,18 @@
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.roles="{ item }">
-        <div class="d-flex align-center">
+        <div class="d-flex align-center" data-testid="team-rowRoles">
           <v-tooltip v-for="mapped in item.mapped_roles || []"
                      :key="`${mapped.provider}/${mapped.group}/${mapped.role}`" bottom>
             <template v-slot:activator="{ on, attrs }">
-              <v-chip small outlined class="mr-1" v-bind="attrs" v-on="on">
+              <v-chip
+                small
+                outlined
+                class="mr-1"
+                v-bind="attrs"
+                v-on="on"
+                :data-testid="`team-rowMappedRole-${mapped.role}`"
+              >
                 <v-icon x-small left>mdi-lock</v-icon>
                 {{ (roles.find((r) => r.slug === mapped.role) || { name: mapped.role }).name }}
               </v-chip>
@@ -73,24 +92,30 @@
             dense
             class="pt-0 mt-0"
             @change="updateProjectUser(item)"
+            data-testid="team-rowRolesSelect"
           >
             <template v-slot:item="{ item: role }">
-              <v-list-item-content>
+              <v-list-item-content :data-testid="`team-roleOption-${role.slug}`">
                 <v-list-item-title>{{ role.name }}</v-list-item-title>
                 <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
               </v-list-item-content>
             </template>
           </v-autocomplete>
-          <div v-else>
+          <div v-else data-testid="team-rowRoleChips">
             <v-chip v-for="role in roleItems(item).filter((r) => item.roles.includes(r.slug))"
-                    :key="role.slug" small class="mr-1">{{ role.name }}</v-chip>
+                    :key="role.slug" small class="mr-1"
+                    :data-testid="`team-rowRole-${role.slug}`">{{ role.name }}</v-chip>
           </div>
         </div>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)" v-if="can(USER_PERMISSIONS.manageProjectUsers)">
+        <v-btn-toggle dense :value-comparator="() => false" data-testid="team-rowActions">
+          <v-btn
+            @click="askDeleteItem(item.id)"
+            v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+            data-testid="team-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </v-btn-toggle>

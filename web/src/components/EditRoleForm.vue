@@ -4,11 +4,14 @@
     lazy-validation
     v-model="formValid"
     v-if="item != null"
+    data-testid="role-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="role-error"
     >{{ formError }}
     </v-alert>
 
@@ -20,6 +23,7 @@
       dense
       required
       :disabled="formSaving"
+      data-testid="role-name"
     ></v-text-field>
 
     <v-text-field
@@ -32,17 +36,22 @@
       required
       :disabled="formSaving || !isNew"
       :hint="$t('slugHint')"
+      data-testid="role-slug"
     ></v-text-field>
 
 <!--    <v-divider class="my-4"></v-divider>-->
 
-    <v-subheader class="pl-0">{{ $t('permissions') }}</v-subheader>
+    <v-subheader
+      class="pl-0"
+      data-testid="role-permissionsTitle"
+    >{{ $t('permissions') }}</v-subheader>
 
     <v-checkbox
       class="mt-0"
       v-model="permissions.canRunProjectTasks"
       :label="$t('canRunProjectTasks')"
       :disabled="formSaving"
+      data-testid="role-canRunProjectTasks"
     ></v-checkbox>
 
     <v-checkbox
@@ -50,6 +59,7 @@
       v-model="permissions.canUpdateProject"
       :label="$t('canUpdateProject')"
       :disabled="formSaving"
+      data-testid="role-canUpdateProject"
     ></v-checkbox>
 
     <v-checkbox
@@ -57,6 +67,7 @@
       v-model="permissions.canManageProjectResources"
       :label="$t('canManageProjectResources')"
       :disabled="formSaving"
+      data-testid="role-canManageProjectResources"
     ></v-checkbox>
 
     <v-checkbox
@@ -64,6 +75,7 @@
       v-model="permissions.canManageProjectUsers"
       :label="$t('canManageProjectUsers')"
       :disabled="formSaving"
+      data-testid="role-canManageProjectUsers"
     ></v-checkbox>
 
   </v-form>

@@ -5,8 +5,11 @@
     align-center
     justify-center
     class="pa-0"
+    data-testid="acceptInvite-page"
+    :data-state="state === 'processing' ? 'loading' : (state === 'success' ? 'ready' : 'error')"
   >
     <v-card
+      data-testid="acceptInvite-card"
       class="pa-6"
       style="
         max-width: 520px;
@@ -14,21 +17,30 @@
         background-color: var(--highlighted-card-bg-color);
       "
     >
-      <v-card-title>
+      <v-card-title data-testid="acceptInvite-title">
         Accept Invitation
         <v-spacer />
       </v-card-title>
       <v-card-text class="pb-0">
-        <div v-if="state === 'processing'" class="text-center pt-6 pb-0">
+        <div
+          v-if="state === 'processing'"
+          class="text-center pt-6 pb-0"
+          data-testid="acceptInvite-loading"
+        >
           <v-progress-circular indeterminate color="primary" />
           <div class="mt-6">Accepting invitation...</div>
         </div>
 
-        <v-alert v-else-if="state === 'success'" type="success" text>
+        <v-alert
+          v-else-if="state === 'success'"
+          type="success"
+          text
+          data-testid="acceptInvite-success"
+        >
           Invitation accepted. You now have access to the project.
         </v-alert>
 
-        <v-alert v-else type="error" text>
+        <v-alert v-else type="error" text data-testid="acceptInvite-error">
           {{ errorMessage }}
         </v-alert>
       </v-card-text>
@@ -36,15 +48,32 @@
       <v-card-actions>
         <v-spacer />
 
-        <v-btn v-if="state === 'success'" color="primary" @click="goToProject">
+        <v-btn
+          v-if="state === 'success'"
+          color="primary"
+          @click="goToProject"
+          data-testid="acceptInvite-goToProject"
+        >
           Go to project
         </v-btn>
 
         <div v-else-if="state === 'error'" >
-          <v-btn text color="primary" @click="goToDashboard" :disabled="!token">
+          <v-btn
+            text
+            color="primary"
+            @click="goToDashboard"
+            :disabled="!token"
+            data-testid="acceptInvite-goToDashboard"
+          >
             Go to dashboard
           </v-btn>
-          <v-btn text color="primary" @click="retry" :disabled="!token">
+          <v-btn
+            text
+            color="primary"
+            @click="retry"
+            :disabled="!token"
+            data-testid="acceptInvite-retry"
+          >
             Try again
           </v-btn>
         </div>

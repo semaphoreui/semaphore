@@ -1,8 +1,15 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="history-page"
+    :data-state="loading ? 'loading' : (items.length === 0 ? 'empty' : 'ready')"
+  >
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="history-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="history-title">
         {{ $t('dashboard2') }}
       </v-toolbar-title>
     </v-toolbar>
@@ -20,10 +27,12 @@
       :loading="loading"
       hide-default-footer
       class="mt-4 HistoryTable"
+      data-testid="history-table"
+      :data-state="loading ? 'loading' : (items.length === 0 ? 'empty' : 'ready')"
     >
       <template v-slot:item.tpl_alias="{ item }">
         <div class="d-flex align-center">
-          <v-icon class="mr-3" small>
+          <v-icon class="mr-3" small data-testid="history-rowApp">
             {{ getAppIcon(item.tpl_app) }}
           </v-icon>
 
@@ -31,20 +40,26 @@
           <!--            {{ TEMPLATE_TYPE_ICONS[item.tpl_type] }}-->
           <!--          </v-icon>-->
 
-          <TaskLink :label="'#' + item.id" :task-id="item.id"/>
+          <TaskLink
+            :label="'#' + item.id"
+            :task-id="item.id"
+            data-testid="history-rowTask"
+          />
 
           <v-icon small class="ml-1 mr-1">mdi-arrow-left</v-icon>
 
-          <router-link :to="'/project/' + item.project_id + '/templates/' + item.template_id"
+          <router-link
+            :to="'/project/' + item.project_id + '/templates/' + item.template_id"
+            data-testid="history-rowTemplate"
           >{{ item.tpl_alias }}
           </router-link>
         </div>
 
         <div class="ml-7" style="font-size: 14px">
-          <span v-if="item.message">
+          <span v-if="item.message" data-testid="history-rowMessage">
             <v-icon x-small>mdi-message-outline</v-icon> {{ item.message }}
           </span>
-          <span v-else-if="item.commit_hash">
+          <span v-else-if="item.commit_hash" data-testid="history-rowCommit">
             <v-icon x-small>mdi-source-fork</v-icon> {{ item.commit_message }}
           </span>
         </div>
@@ -59,12 +74,13 @@
           :label="item.tpl_type === 'build' ? item.version : (item.build_task || {}).version"
           :task-id="item.tpl_type === 'build' ? item.id : (item.build_task || {}).id"
           :tooltip="item.tpl_type === 'build' ? item.message : (item.build_task || {}).message"
+          data-testid="history-rowVersion"
         />
-        <div class="ml-2" v-else>&mdash;</div>
+        <div class="ml-2" v-else data-testid="history-rowVersionEmpty">&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
-        <TaskStatus :status="item.status"/>
+        <TaskStatus :status="item.status" data-testid="history-rowStatus"/>
       </template>
 
       <template v-slot:item.start="{ item }">
@@ -76,8 +92,14 @@
       </template>
     </v-data-table>
 
-    <div class="d-flex align-center justify-end mt-2 mr-2 mb-4 HistoryPagination">
-      <span class="text--secondary mr-2">{{ $t('rowsPerPage') }}</span>
+    <div
+      class="d-flex align-center justify-end mt-2 mr-2 mb-4 HistoryPagination"
+      data-testid="history-pagination"
+    >
+      <span
+        class="text--secondary mr-2"
+        data-testid="history-perPageLabel"
+      >{{ $t('rowsPerPage') }}</span>
 
       <v-select
         v-model="perPage"
@@ -87,15 +109,29 @@
         dense
         hide-details
         style="max-width: 72px"
+        data-testid="history-perPage"
       ></v-select>
 
-      <v-btn :disabled="loading || pageIndex === 0" icon @click="goPrev()">
+      <v-btn
+        :disabled="loading || pageIndex === 0"
+        icon
+        @click="goPrev()"
+        data-testid="history-prevPage"
+      >
         <v-icon>mdi-chevron-left</v-icon>
       </v-btn>
 
-      <span class="mx-2 text--secondary">{{ rangeStart }} - {{ rangeEnd }}</span>
+      <span
+        class="mx-2 text--secondary"
+        data-testid="history-range"
+      >{{ rangeStart }} - {{ rangeEnd }}</span>
 
-      <v-btn :disabled="loading || !hasNext" icon @click="goNext()">
+      <v-btn
+        :disabled="loading || !hasNext"
+        icon
+        @click="goNext()"
+        data-testid="history-nextPage"
+      >
         <v-icon>mdi-chevron-right</v-icon>
       </v-btn>
     </div>

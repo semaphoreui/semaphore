@@ -1,6 +1,19 @@
 <template>
-  <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
-    <v-alert :value="formError" type="error" class="mb-6" dismissible>{{ formError }} </v-alert>
+  <v-form
+    ref="form"
+    lazy-validation
+    v-model="formValid"
+    v-if="item != null"
+    data-testid="secretStorage-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
+  >
+    <v-alert
+      :value="formError"
+      type="error"
+      class="mb-6"
+      dismissible
+      data-testid="secretStorage-error"
+    >{{ formError }} </v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -8,6 +21,7 @@
       :rules="[(v) => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
+      data-testid="secretStorage-name"
       outlined
       dense
     ></v-text-field>
@@ -24,7 +38,10 @@
       dense
     ></v-text-field>
 
-    <div v-if="item.type === 'vault' || item.type === 'openbao'">
+    <div
+      v-if="item.type === 'vault' || item.type === 'openbao'"
+      data-testid="secretStorage-vaultFields"
+    >
       <v-text-field
         v-model="item.params.mount"
         :label="$t('Mount')"
@@ -76,13 +93,14 @@
       ></v-text-field>
     </div>
 
-    <div v-else-if="item.type === 'dvls'">
+    <div v-else-if="item.type === 'dvls'" data-testid="secretStorage-dvlsFields">
       <v-checkbox
         class="pt-0 mb-2"
         style="margin-top: -5px"
         v-model="item.params.insecure_tls"
         label="Skip TLS certificate verification (insecure)"
         :disabled="formSaving"
+        data-testid="secretStorage-dvlsInsecureTls"
       />
 
       <v-text-field
@@ -137,7 +155,7 @@
       ></v-text-field>
     </div>
 
-    <div v-else-if="item.type === 'aws_sm'">
+    <div v-else-if="item.type === 'aws_sm'" data-testid="secretStorage-awsFields">
       <v-text-field
         v-model="item.params.region"
         label="Region"
@@ -169,7 +187,10 @@
         data-testid="secretStorage-awsUseIamRole"
       />
 
-      <div :class="{ 'aws-credentials--inactive': useIamRole }">
+      <div
+        :class="{ 'aws-credentials--inactive': useIamRole }"
+        data-testid="secretStorage-awsCredentials"
+      >
         <v-text-field
           v-model="item.params.access_key_id"
           label="Access Key ID"
@@ -216,7 +237,7 @@
       </div>
     </div>
 
-    <div v-else-if="item.type === 'azure_kv'">
+    <div v-else-if="item.type === 'azure_kv'" data-testid="secretStorage-azureFields">
       <v-text-field
         v-model="item.params.vault_url"
         label="Vault URL"
@@ -287,6 +308,7 @@
       :disabled="formSaving"
       hide-details
       style="position: absolute; bottom: 15px; margin: 0; left: 25px"
+      data-testid="secretStorage-readonly"
     />
 
     <div class="d-flex items-center justify-space-between">
@@ -295,6 +317,7 @@
         v-model="item.sync_enabled"
         :label="$t('Sync keys enabled')"
         :disabled="formSaving"
+        data-testid="secretStorage-syncEnabled"
       />
 
       <v-btn
@@ -304,18 +327,26 @@
         @click="syncSettingsDialog = true"
         :disabled="formSaving"
         v-if="item.sync_enabled"
+        data-testid="secretStorage-syncPaths"
       >
         <v-icon left>mdi-cog-sync</v-icon>
         Sync paths
-        <v-chip class="ml-2" outlined style="transform: translateY(-1px)" color="primary" small>
+        <v-chip
+          class="ml-2"
+          outlined
+          style="transform: translateY(-1px)"
+          color="primary"
+          small
+          data-testid="secretStorage-syncPathsCount"
+        >
           {{ item.sync_paths.length }}</v-chip
         >
       </v-btn>
     </div>
 
     <v-dialog v-model="syncSettingsDialog" max-width="500" persistent>
-      <v-card>
-        <v-card-title>Sync paths</v-card-title>
+      <v-card data-testid="secretStorageSyncDialog">
+        <v-card-title data-testid="secretStorageSyncDialog-title">Sync paths</v-card-title>
         <v-card-text class="pt-4 pb-0">
           <v-text-field
             style="width: 140px"
@@ -326,15 +357,24 @@
             persistent-hint
             :disabled="formSaving"
             suffix="minutes"
+            data-testid="secretStorageSync-syncInterval"
             outlined
             dense
           ></v-text-field>
 
-          <SecretStorageSyncOptionsForm v-model="item.sync_paths" />
+          <SecretStorageSyncOptionsForm
+            v-model="item.sync_paths"
+            data-testid="secretStorageSync-paths"
+          />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn text color="blue darken-1" @click="syncSettingsDialog = false">
+          <v-btn
+            text
+            color="blue darken-1"
+            @click="syncSettingsDialog = false"
+            data-testid="secretStorageSyncDialog-close"
+          >
             {{ $t('close') }}
           </v-btn>
         </v-card-actions>

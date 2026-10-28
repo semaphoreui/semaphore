@@ -4,11 +4,14 @@
     lazy-validation
     v-model="formValid"
     v-if="item != null && projects != null"
+    data-testid="roleMapping-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="roleMapping-error"
     >{{ formError }}
     </v-alert>
 
@@ -20,6 +23,7 @@
       item-text="name"
       :rules="[v => !!v || $t('provider_required')]"
       required
+      data-testid="roleMapping-provider"
       :disabled="formSaving"
       outlined
       dense
@@ -30,6 +34,7 @@
       :label="$t('roleMappingGroup')"
       :rules="[v => !!v || $t('group_required')]"
       required
+      data-testid="roleMapping-group"
       :disabled="formSaving"
       outlined
       dense
@@ -43,6 +48,7 @@
       item-text="name"
       :rules="[v => !!v || $t('project_required')]"
       required
+      data-testid="roleMapping-projectId"
       :disabled="formSaving"
       outlined
       dense
@@ -56,12 +62,13 @@
       item-text="name"
       :rules="[v => !!v || $t('role_required')]"
       required
+      data-testid="roleMapping-role"
       :disabled="formSaving || item.project_id == null"
       outlined
       dense
     >
       <template v-slot:item="{ item: role }">
-        <v-list-item-content>
+        <v-list-item-content :data-testid="`roleMapping-roleOption-${role.slug}`">
           <v-list-item-title>{{ role.name }}</v-list-item-title>
           <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
         </v-list-item-content>

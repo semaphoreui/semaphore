@@ -1,22 +1,24 @@
 <template>
-  <div class="pb-6" style="margin-top: -10px;">
+  <div class="pb-6" style="margin-top: -10px;" data-testid="templateVaults">
     <v-dialog
       v-model="editDialog"
       hide-overlay
       content-class="NestedDialog"
       width="300"
     >
-      <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">
-        <v-card-title></v-card-title>
+      <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'" data-testid="templateVaultDialog">
+        <v-card-title data-testid="templateVaultDialog-heading"></v-card-title>
         <v-card-text class="pb-0">
           <v-form
             ref="form"
             lazy-validation
             v-if="editedVault != null"
+            data-testid="templateVaultDialog-form"
           >
             <v-alert
               :value="formError"
               color="error"
+              data-testid="templateVaultDialog-error"
             >{{ formError }}
             </v-alert>
 
@@ -25,6 +27,7 @@
               placeholder="default"
               v-model.trim="editedVault.name"
               :rules="[v => this.vaultNameRules(v)]"
+              data-testid="templateVaultDialog-name"
             />
 
             <v-select
@@ -36,6 +39,7 @@
               required
               :rules="[v => !!v  || $t('type_required')]"
               @change="updateType"
+              data-testid="templateVaultDialog-type"
             />
 
             <v-select
@@ -47,6 +51,8 @@
               item-text="name"
               required
               :rules="[(v) => !!v || $t('vaultRequired')]"
+              data-testid="templateVaultDialog-vaultKeyId"
+              :data-state="keys == null ? 'loading' : 'ready'"
             ></v-select>
 
             <v-text-field
@@ -54,6 +60,7 @@
               v-if="editedVault.type === 'script'"
               :label="$t('vaultScript')"
               :rules="[v => this.vaultScriptRules(v)]"
+              data-testid="templateVaultDialog-script"
             />
 
           </v-form>
@@ -64,6 +71,7 @@
             color="blue darken-1"
             text
             @click="editDialog = false"
+            data-testid="templateVaultDialog-cancel"
           >
             {{ $t('cancel') }}
           </v-btn>
@@ -71,6 +79,7 @@
             color="blue darken-1"
             text
             @click="saveVault()"
+            data-testid="templateVaultDialog-save"
           >
             {{ editedVaultIndex == null ? $t('add') : $t('save') }}
           </v-btn>
@@ -84,7 +93,7 @@
                      border-radius: 8px;
                      font-size: 12px;"
     >
-      <legend style="padding: 0 3px;">{{ $t('vaults') }}</legend>
+      <legend style="padding: 0 3px;" data-testid="templateVaults-title">{{ $t('vaults') }}</legend>
       <v-chip-group column style="margin-top: -4px;">
         <v-chip
           v-for="(v, i) in modifiedVaults"
@@ -93,10 +102,11 @@
           :key="v.name"
           @click="editVault(i)"
           color="gray"
+          :data-testid="`templateVaults-chip-${v.name || 'default'}`"
         >
           {{ v.name || 'default' }}
         </v-chip>
-        <v-chip @click="editVault(null)">
+        <v-chip @click="editVault(null)" data-testid="templateVaults-add">
           + <span class="ml-1" v-if="modifiedVaults.length === 0">{{ $t('vaultAdd') }}</span>
         </v-chip>
       </v-chip-group>

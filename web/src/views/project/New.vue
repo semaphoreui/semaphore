@@ -1,9 +1,12 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
   <NoProjects v-if="user && !user.can_create_project" :user="user"/>
-  <div v-else>
+  <div v-else data-testid="newProject-page">
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('newProject') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="newProject-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="newProject-title">{{ $t('newProject') }}</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
 

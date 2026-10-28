@@ -1,13 +1,21 @@
 <template>
-  <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
+  <v-form
+    ref="form"
+    lazy-validation
+    v-model="formValid"
+    v-if="item != null"
+    data-testid="subscription-form"
+    :data-state="formSaving ? 'loading' : formError ? 'error' : 'ready'"
+  >
     <v-alert
       :value="formError"
       :type="(formError || '').includes('already activated') ? 'warning' : 'error'"
+      data-testid="subscription-error"
       >{{ formError }}
     </v-alert>
 
-    <div v-if="showProUser" style="margin-bottom: 30px">
-      <v-alert class="mb-3" type="success">
+    <div v-if="showProUser" style="margin-bottom: 30px" data-testid="subscription-proUser">
+      <v-alert class="mb-3" type="success" data-testid="subscription-proUserCongrats">
         <span> Congrats! You are now using a Pro subscription. </span>
       </v-alert>
 
@@ -18,6 +26,7 @@
       <div>
         <v-btn
           @click="showProUser = false"
+          data-testid="subscription-proUserNo"
           color="primary"
           :disabled="formSaving"
           style="width: calc(50% - 5px); margin-right: 10px"
@@ -26,6 +35,7 @@
         </v-btn>
         <v-btn
           @click="makeProUser"
+          data-testid="subscription-proUserYes"
           color="primary"
           :disabled="formSaving"
           style="width: calc(50% - 5px)"
@@ -40,6 +50,7 @@
         v-if="item.state === 'active'"
         style="line-height: 1.3; font-weight: bold; color: rgb(0, 188, 0)"
         class="mb-5"
+        data-testid="subscription-status-active"
       >
         You {{ item.plan.startsWith('enterprise_') ? 'Enterprise' : 'PRO' }} subscription is active.
       </div>
@@ -48,12 +59,13 @@
         v-else-if="item.state === 'expired'"
         style="line-height: 1.3; font-weight: bold; color: rgb(188, 0, 0)"
         class="mb-5"
+        data-testid="subscription-status-expired"
       >
         You {{ item.plan.startsWith('enterprise_') ? 'Enterprise' : 'PRO' }}
         subscription has expired.
       </div>
 
-      <div v-else style="line-height: 1.3">
+      <div v-else style="line-height: 1.3" data-testid="subscription-status-none">
         Enter your subscription key to unlock advanced features, or get a new one instantly.
       </div>
 
@@ -68,6 +80,7 @@
         :disabled="formSaving || item.managed_by_config"
         outlined
         dense
+        data-testid="subscription-key"
       ></v-textarea>
 
       <v-menu offset-y v-if="item.state === 'active' || item.state === 'expired'">
@@ -77,6 +90,7 @@
             v-bind="attrs"
             v-on="on"
             fab
+            data-testid="subscription-actionsMenu"
             small
             style="position: absolute; top: 15px; right: -15px"
           >
@@ -85,19 +99,19 @@
         </template>
 
         <v-list>
-          <v-list-item link @click="reloadToken">
+          <v-list-item link @click="reloadToken" data-testid="subscription-actionsMenu-reload">
             <v-list-item-icon>
               <v-icon>mdi-refresh</v-icon>
             </v-list-item-icon>
             <v-list-item-title>Reload</v-list-item-title>
           </v-list-item>
-          <v-list-item link @click="uploadKeyFile">
+          <v-list-item link @click="uploadKeyFile" data-testid="subscription-actionsMenu-upload">
             <v-list-item-icon>
               <v-icon>mdi-upload</v-icon>
             </v-list-item-icon>
             <v-list-item-title>Upload</v-list-item-title>
           </v-list-item>
-          <v-list-item link @click="resetToken">
+          <v-list-item link @click="resetToken" data-testid="subscription-actionsMenu-reset">
             <v-list-item-icon>
               <v-icon>mdi-delete</v-icon>
             </v-list-item-icon>
@@ -113,6 +127,7 @@
         small
         style="position: absolute; top: 30px; right: -15px"
         @click="uploadKeyFile()"
+        data-testid="subscription-upload"
       >
         <v-icon>mdi-upload</v-icon>
       </v-btn>
@@ -124,12 +139,14 @@
             style="width: 100%"
             color="success"
             :disabled="formSaving || item.managed_by_config"
+            data-testid="subscription-activate"
           >
             <v-progress-circular
               v-if="formSaving"
               indeterminate
               color="white"
               :size="24"
+              data-testid="subscription-activateSaving"
             ></v-progress-circular>
             <span v-else>Activate New Key</span>
           </v-btn>
@@ -140,6 +157,7 @@
             color="primary"
             :disabled="formSaving"
             target="_blank"
+            data-testid="subscription-buy"
             :href="`https://portal.semaphoreui.com/buy_pro?utm_source=app&utm_content=feature_${feature}`"
             >Buy Pro</v-btn
           >
@@ -154,20 +172,28 @@
         :disabled="formSaving"
         target="_blank"
         outlined
+        data-testid="subscription-trial"
         :href="`https://portal.semaphoreui.com/start_trial?utm_source=app&utm_content=feature_${feature}`"
       >
         Get 30-day free trial
       </v-btn>
     </div>
 
-    <v-card v-if="item.plan" class="mb-3" style="background: var(--highlighted-card-bg-color)">
+    <v-card
+      v-if="item.plan"
+      class="mb-3"
+      style="background: var(--highlighted-card-bg-color)"
+      data-testid="subscription-plan"
+    >
       <v-card-title>Plan &amp; status</v-card-title>
       <v-card-text class="pb-2">
         <v-list class="py-0 pb-5" style="background: unset" v-if="item.company">
           <v-list-item class="pa-0">
             <v-list-item-content class="py-0">
               <v-list-item-title>Subscription holder</v-list-item-title>
-              <v-list-item-subtitle>{{ item.company }}</v-list-item-subtitle>
+              <v-list-item-subtitle
+                data-testid="subscription-planHolder"
+              >{{ item.company }}</v-list-item-subtitle>
             </v-list-item-content>
           </v-list-item>
         </v-list>
@@ -178,19 +204,23 @@
               <v-list-item class="pa-0">
                 <v-list-item-content>
                   <v-list-item-title>Plan</v-list-item-title>
-                  <v-list-item-subtitle>{{ item.plan }}</v-list-item-subtitle>
+                  <v-list-item-subtitle
+                    data-testid="subscription-planName"
+                  >{{ item.plan }}</v-list-item-subtitle>
                 </v-list-item-content>
               </v-list-item>
               <v-list-item class="pa-0">
                 <v-list-item-content>
                   <v-list-item-title>Expires at</v-list-item-title>
-                  <v-list-item-subtitle>{{ item.expiresAt }}</v-list-item-subtitle>
+                  <v-list-item-subtitle
+                    data-testid="subscription-planExpiresAt"
+                  >{{ item.expiresAt }}</v-list-item-subtitle>
                 </v-list-item-content>
               </v-list-item>
               <v-list-item class="pa-0" v-if="item.nodes">
                 <v-list-item-content>
                   <v-list-item-title>Nodes</v-list-item-title>
-                  <v-list-item-subtitle>
+                  <v-list-item-subtitle data-testid="subscription-planNodes">
                     {{ item.nodes_used }} / {{ item.nodes }}
                   </v-list-item-subtitle>
                 </v-list-item-content>
@@ -198,7 +228,7 @@
               <v-list-item class="pa-0" v-if="item.runners < 100000">
                 <v-list-item-content>
                   <v-list-item-title>Project runners</v-list-item-title>
-                  <v-list-item-subtitle>
+                  <v-list-item-subtitle data-testid="subscription-planRunners">
                     {{ item.runners_used }} / {{ item.runners }}
                   </v-list-item-subtitle>
                 </v-list-item-content>
@@ -210,7 +240,10 @@
               <v-list-item class="pa-0">
                 <v-list-item-content>
                   <v-list-item-title>Status</v-list-item-title>
-                  <v-list-item-subtitle style="display: flex; align-items: center">
+                  <v-list-item-subtitle
+                    style="display: flex; align-items: center"
+                    data-testid="subscription-planStatus"
+                  >
                     <div
                       style="
                         border-radius: 100px;
@@ -230,13 +263,15 @@
               <v-list-item class="pa-0" v-if="item.users < 100000">
                 <v-list-item-content>
                   <v-list-item-title>Pro users</v-list-item-title>
-                  <v-list-item-subtitle>{{ item.used }} / {{ item.users }}</v-list-item-subtitle>
+                  <v-list-item-subtitle
+                    data-testid="subscription-planUsers"
+                  >{{ item.used }} / {{ item.users }}</v-list-item-subtitle>
                 </v-list-item-content>
               </v-list-item>
               <v-list-item class="pa-0" v-if="item.terraform_states < 100000">
                 <v-list-item-content>
                   <v-list-item-title>Terraform backends</v-list-item-title>
-                  <v-list-item-subtitle>
+                  <v-list-item-subtitle data-testid="subscription-planTerraformStates">
                     {{ item.terraform_states_used }} / {{ item.terraform_states }}
                   </v-list-item-subtitle>
                 </v-list-item-content>
@@ -244,7 +279,7 @@
               <v-list-item class="pa-0" v-if="item.uis">
                 <v-list-item-content>
                   <v-list-item-title>UIs</v-list-item-title>
-                  <v-list-item-subtitle>
+                  <v-list-item-subtitle data-testid="subscription-planUis">
                     {{ item.uis_used }} / {{ item.uis }}
                   </v-list-item-subtitle>
                 </v-list-item-content>
@@ -256,6 +291,7 @@
         <div
           v-if="subscriptionTimeRemainingMs > 0"
           style="margin-top: 20px; font-weight: bold; color: #00bc00"
+          data-testid="subscription-renews"
         >
           Renews in {{ subscriptionTimeRemainingMs | formatMilliseconds }}
           <span>(if auto-renew is activated)</span>
@@ -263,13 +299,14 @@
       </v-card-text>
     </v-card>
 
-    <div v-else class="mb-4 mt-2">
+    <div v-else class="mb-4 mt-2" data-testid="subscription-help">
       <div>
         Need help?
         <a
           target="_blank"
           class="LinkHoverable"
           href="https://semaphoreui.com/contact/"
+          data-testid="subscription-contactSupport"
         >
           Contact support
           <v-icon small color="primary" style="transform: translateY(-1px)">mdi-open-in-new</v-icon>

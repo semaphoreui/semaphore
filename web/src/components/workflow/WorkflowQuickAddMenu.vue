@@ -12,9 +12,10 @@
     content-class="WorkflowQuickAddMenu"
     @input="$emit('input', $event)"
   >
-    <v-card>
+    <v-card data-testid="workflowCanvas-quickAddMenu">
       <v-text-field
         ref="search"
+        data-testid="workflowCanvas-quickAddSearch"
         v-model="search"
         dense
         outlined
@@ -27,14 +28,22 @@
         @keydown.enter="pickFirst"
       />
 
-      <v-list dense class="WorkflowQuickAddMenu__list py-0">
+      <v-list
+        dense
+        class="WorkflowQuickAddMenu__list py-0"
+        data-testid="workflowCanvas-quickAddList"
+      >
         <template v-if="filteredKinds.length">
-          <v-subheader class="WorkflowQuickAddMenu__subheader">
+          <v-subheader
+            class="WorkflowQuickAddMenu__subheader"
+            data-testid="workflowCanvas-quickAddMenu-stepsHeader"
+          >
             {{ $t('workflowQuickAddSteps') }}
           </v-subheader>
           <v-list-item
             v-for="k in filteredKinds"
             :key="k.kind"
+            :data-testid="`workflowCanvas-quickAddMenu-${k.kind}`"
             @click="pick({ kind: k.kind })"
           >
             <span
@@ -48,12 +57,16 @@
           <v-divider />
         </template>
 
-        <v-subheader class="WorkflowQuickAddMenu__subheader">
+        <v-subheader
+          class="WorkflowQuickAddMenu__subheader"
+          data-testid="workflowCanvas-quickAddMenu-templatesHeader"
+        >
           {{ $t('workflowQuickAddTemplates') }}
         </v-subheader>
         <v-list-item
           v-for="t in filteredTemplates"
           :key="`tpl-${t.id}`"
+          data-testid="workflowCanvas-quickAddMenu-template"
           @click="pick({ kind: 'task', template_id: t.id })"
         >
           <span class="WorkflowQuickAddMenu__tile">
@@ -61,14 +74,22 @@
           </span>
           <v-list-item-title>{{ t.name }}</v-list-item-title>
         </v-list-item>
-        <v-list-item v-if="filteredTemplates.length === 0" disabled>
+        <v-list-item
+          v-if="filteredTemplates.length === 0"
+          disabled
+          data-testid="workflowCanvas-quickAddMenu-noTemplates"
+        >
           <v-list-item-title class="text--secondary">
             {{ $t('workflowQuickAddNoTemplates') }}
           </v-list-item-title>
         </v-list-item>
       </v-list>
 
-      <div v-if="hint" class="WorkflowQuickAddMenu__hint">{{ hint }}</div>
+      <div
+        v-if="hint"
+        class="WorkflowQuickAddMenu__hint"
+        data-testid="workflowCanvas-quickAddHint"
+      >{{ hint }}</div>
     </v-card>
   </v-menu>
 </template>

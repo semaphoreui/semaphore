@@ -6,6 +6,7 @@
         small
         class="px-1 text-none"
         @click="$emit('input', !value)"
+        data-testid="collapsibleSection-toggle"
       >
         <v-icon
           left
@@ -14,11 +15,20 @@
           :class="{ 'CollapsibleSection__chevron--open': value }"
         >mdi-chevron-right</v-icon>
         {{ title }}
-        <v-chip v-if="badge" x-small class="ml-2">{{ badge }}</v-chip>
+        <v-chip
+          v-if="badge"
+          x-small
+          class="ml-2"
+          data-testid="collapsibleSection-badge"
+        >{{ badge }}</v-chip>
       </v-btn>
     </div>
 
-    <DropdownCard v-if="value" class="mt-4">
+    <DropdownCard
+      v-if="value"
+      class="mt-4"
+      data-testid="collapsibleSection-body"
+    >
       <slot />
     </DropdownCard>
   </div>

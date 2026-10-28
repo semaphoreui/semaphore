@@ -1,9 +1,14 @@
 <template>
   <div>
-    <v-alert text v-if="!paths || paths.length === 0">
+    <v-alert text v-if="!paths || paths.length === 0" data-testid="secretStorageSync-empty">
       {{ $t('No sync paths are defined.') }}
     </v-alert>
-    <div v-for="(p, i) in paths" :key="i" class="d-flex align-start mb-4">
+    <div
+      v-for="(p, i) in paths"
+      :key="i"
+      class="d-flex align-start mb-4"
+      data-testid="secretStorageSync-row"
+    >
       <div style="flex: 1; min-width: 0" class="mb-2">
         <v-text-field
           class="mb-2"
@@ -13,6 +18,7 @@
           dense
           @input="emitPaths"
           hide-details
+          data-testid="secretStorageSync-path"
         />
 
         <div class="d-flex" style="gap: 8px">
@@ -24,6 +30,7 @@
             style="flex: 1"
             @input="emitPaths"
             hide-details
+            data-testid="secretStorageSync-separator"
           />
           <v-text-field
             v-model="p.prefix"
@@ -33,11 +40,17 @@
             style="flex: 1"
             @input="emitPaths"
             hide-details
+            data-testid="secretStorageSync-prefix"
           />
         </div>
       </div>
 
-      <v-btn icon class="ml-1 mt-1" @click="removePath(i)">
+      <v-btn
+        icon
+        class="ml-1 mt-1"
+        @click="removePath(i)"
+        data-testid="secretStorageSync-removePath"
+      >
         <v-icon>mdi-delete</v-icon>
       </v-btn>
     </div>
@@ -47,6 +60,7 @@
       color="primary"
       @click="addPath"
       style="position: absolute; left: 12px; bottom: 12px"
+      data-testid="secretStorageSync-addPath"
     >
       <v-icon left>mdi-plus</v-icon>
       Add path

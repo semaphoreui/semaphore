@@ -1,25 +1,36 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div class="pb-3">
+  <div
+    class="pb-3"
+    data-testid="taskDetails-panel"
+    :data-state="template == null ? 'loading' : 'ready'"
+  >
     <v-row>
       <v-col cols="12" md="6">
         <v-card
           v-if="template"
           :color="$vuetify.theme.dark ? '#212121' : 'white'"
           style="background: #8585850f"
+          data-testid="taskDetails-templateCard"
         >
           <v-card-title>Template info</v-card-title>
           <v-card-text>
-            <v-simple-table class="TaskDetails__table">
+            <v-simple-table
+              class="TaskDetails__table"
+              data-testid="taskDetails-templateTable"
+            >
               <template v-slot:default>
                 <tbody>
                 <tr>
                   <td><b>App</b></td>
-                  <td>{{ getAppTitle(template.app) }}</td>
+                  <td data-testid="taskDetails-app">{{ getAppTitle(template.app) }}</td>
                 </tr>
                 <tr>
                   <td><b>Template</b></td>
                   <td>
-                    <RouterLink :to="`/project/${projectId}/templates/${template.id}`">
+                    <RouterLink
+                      :to="`/project/${projectId}/templates/${template.id}`"
+                      data-testid="taskDetails-templateLink"
+                    >
                       {{ template.name }}
                     </RouterLink>
                   </td>
@@ -36,20 +47,24 @@
           v-if="item.commit_hash"
           :color="$vuetify.theme.dark ? '#212121' : 'white'"
           style="background: #8585850f"
+          data-testid="taskDetails-commitCard"
         >
           <v-card-title>Commit info</v-card-title>
 
           <v-card-text>
-            <v-simple-table class="TaskDetails__table">
+            <v-simple-table
+              class="TaskDetails__table"
+              data-testid="taskDetails-commitTable"
+            >
               <template v-slot:default>
                 <tbody>
                 <tr>
                   <td><b>Message</b></td>
-                  <td>{{ item.commit_message }}</td>
+                  <td data-testid="taskDetails-commitMessage">{{ item.commit_message }}</td>
                 </tr>
                 <tr>
                   <td><b>Hash</b></td>
-                  <td>{{ item.commit_hash }}</td>
+                  <td data-testid="taskDetails-commitHash">{{ item.commit_hash }}</td>
                 </tr>
                 </tbody>
               </template>
@@ -65,19 +80,23 @@
           :color="$vuetify.theme.dark ? '#212121' : 'white'"
           style="background: #8585850f"
           class="mb-5"
+          data-testid="taskDetails-runningCard"
         >
           <v-card-title>Running info</v-card-title>
           <v-card-text>
-            <v-simple-table class="pa-0 TaskDetails__table">
+            <v-simple-table
+              class="pa-0 TaskDetails__table"
+              data-testid="taskDetails-runningTable"
+            >
               <template v-slot:default>
                 <tbody>
                 <tr>
                   <td><b>Message</b></td>
-                  <td>{{ item.message || '—' }}</td>
+                  <td data-testid="taskDetails-message">{{ item.message || '—' }}</td>
                 </tr>
                 <tr v-if="item.user_id != null">
                   <td><b>{{ $t('author') }}</b></td>
-                  <td>{{ user?.name || '—' }}</td>
+                  <td data-testid="taskDetails-author">{{ user?.name || '—' }}</td>
                 </tr>
                 <tr v-else-if="item.integration_id != null">
                   <td><b>{{ $t('integration') }}</b></td>
@@ -85,8 +104,12 @@
                     <router-link
                       v-if="isReady(integration)"
                       :to="`/project/${projectId}/integrations/${item.integration_id}`"
+                      data-testid="taskDetails-integrationLink"
                     >{{ integration.data.name }}</router-link>
-                    <span v-else>{{ originLabel(integration, item.integration_id) }}</span>
+                    <span
+                      v-else
+                      :data-testid="`taskDetails-integration-${integration?.status || 'none'}`"
+                    >{{ originLabel(integration, item.integration_id) }}</span>
                   </td>
                 </tr>
                 <tr v-else-if="item.schedule_id != null">
@@ -96,29 +119,35 @@
                     <router-link
                       v-if="isReady(schedule)"
                       :to="`/project/${projectId}/schedule`"
+                      data-testid="taskDetails-scheduleLink"
                     >{{ schedule.data.name || $t('unnamedSchedule') }}</router-link>
-                    <span v-else>{{ originLabel(schedule, item.schedule_id) }}</span>
+                    <span
+                      v-else
+                      :data-testid="`taskDetails-schedule-${schedule?.status || 'none'}`"
+                    >{{ originLabel(schedule, item.schedule_id) }}</span>
                   </td>
                 </tr>
                 <tr>
                   <td><b>{{ $t('created') }}</b></td>
-                  <td>{{ item.created | formatDate }}</td>
+                  <td data-testid="taskDetails-created">{{ item.created | formatDate }}</td>
                 </tr>
                 <tr>
                   <td><b>{{ $t('started') }}</b></td>
-                  <td>{{ item.start | formatDate }}</td>
+                  <td data-testid="taskDetails-started">{{ item.start | formatDate }}</td>
                 </tr>
                 <tr>
                   <td><b>{{ $t('end') }}</b></td>
-                  <td>{{ item.end | formatDate }}</td>
+                  <td data-testid="taskDetails-end">{{ item.end | formatDate }}</td>
                 </tr>
                 <tr>
                   <td><b>{{ $t('duration') }}</b></td>
-                  <td>{{ [item.start, item.end] | formatMilliseconds }}</td>
+                  <td
+                    data-testid="taskDetails-duration"
+                  >{{ [item.start, item.end] | formatMilliseconds }}</td>
                 </tr>
                 <tr v-if="item.used_runner_name">
                   <td><b>Runner</b></td>
-                  <td>{{ item.used_runner_name }}</td>
+                  <td data-testid="taskDetails-runner">{{ item.used_runner_name }}</td>
                 </tr>
                 </tbody>
               </template>
@@ -132,21 +161,25 @@
           :color="$vuetify.theme.dark ? '#212121' : 'white'"
           style="background: #8585850f"
           class="mb-5"
+          data-testid="taskDetails-paramsCard"
         >
           <v-card-title>Task parameters</v-card-title>
           <v-card-text>
-            <v-simple-table class="pa-0 TaskDetails__table">
+            <v-simple-table
+              class="pa-0 TaskDetails__table"
+              data-testid="taskDetails-paramsTable"
+            >
               <template v-slot:default>
                 <tbody>
                 <tr>
                   <td><b>Branch</b></td>
-                  <td>
+                  <td data-testid="taskDetails-branch">
                     {{ item.get_branch || '—' }}
                   </td>
                 </tr>
                 <tr>
                   <td><b>Limit</b></td>
-                  <td>
+                  <td data-testid="taskDetails-limit">
                     <span v-if="Array.isArray(item.params.limit) && item.params.limit.length > 0">
                       {{ item.params.limit.join(', ') }}</span>
                     <span v-else>'No'</span>
@@ -154,25 +187,25 @@
                 </tr>
                 <tr>
                   <td><b>Debug</b></td>
-                  <td>
+                  <td data-testid="taskDetails-debug">
                     {{ item.params.debug ? 'Yes' : 'No' }}
                   </td>
                 </tr>
                 <tr>
                   <td><b>Debug level</b></td>
-                  <td>{{ item.params.debug_level || '—' }}</td>
+                  <td data-testid="taskDetails-debugLevel">{{ item.params.debug_level || '—' }}</td>
                 </tr>
                 <tr>
                   <td><b>Diff</b> <code>--diff</code></td>
-                  <td>{{ item.params.diff ? 'Yes' : 'No' }}</td>
+                  <td data-testid="taskDetails-diff">{{ item.params.diff ? 'Yes' : 'No' }}</td>
                 </tr>
                 <tr>
                   <td><b>Dry run</b> <code>--check</code></td>
-                  <td>{{ item.params.dry_run ? 'Yes' : 'No' }}</td>
+                  <td data-testid="taskDetails-dryRun">{{ item.params.dry_run ? 'Yes' : 'No' }}</td>
                 </tr>
                 <tr>
                   <td><b>Environment</b></td>
-                  <td>
+                  <td data-testid="taskDetails-environment">
                     {{ !item.environment || item.environment === '{}' ? '—' : item.environment }}
                   </td>
                 </tr>
@@ -190,12 +223,19 @@
           :color="$vuetify.theme.dark ? '#212121' : 'white'"
           style="background: #8585850f"
           class="mb-5"
+          data-testid="taskDetails-outputsCard"
         >
           <v-card-title>
             {{ $t('workflowOutputs') }}
             <v-tooltip bottom max-width="360">
               <template v-slot:activator="{ on, attrs }">
-                <v-icon small class="ml-2" v-bind="attrs" v-on="on">
+                <v-icon
+                  small
+                  class="ml-2"
+                  v-bind="attrs"
+                  v-on="on"
+                  data-testid="taskDetails-outputsHint"
+                >
                   mdi-information-outline
                 </v-icon>
               </template>
@@ -203,15 +243,32 @@
             </v-tooltip>
           </v-card-title>
           <v-card-text>
-            <v-simple-table v-if="outputs.values.length" dense class="TaskDetails__table">
+            <v-simple-table
+              v-if="outputs.values.length"
+              dense
+              class="TaskDetails__table"
+              data-testid="taskDetails-outputsTable"
+            >
               <tbody>
                 <tr v-for="row in outputs.values" :key="row.name">
-                  <td class="TaskDetails__outputName">{{ row.name }}</td>
-                  <td><pre class="TaskDetails__artifacts">{{ row.value }}</pre></td>
+                  <td
+                    class="TaskDetails__outputName"
+                    data-testid="taskDetails-outputName"
+                  >{{ row.name }}</td>
+                  <td>
+                    <pre
+                      class="TaskDetails__artifacts"
+                      data-testid="taskDetails-outputValue"
+                    >{{ row.value }}</pre>
+                  </td>
                 </tr>
               </tbody>
             </v-simple-table>
-            <div v-if="outputs.skipped.length" class="mt-3">
+            <div
+              v-if="outputs.skipped.length"
+              class="mt-3"
+              data-testid="taskDetails-outputsSkipped"
+            >
               <div class="text-caption text--secondary mb-1">
                 {{ $t('workflowOutputsSkipped') }}
               </div>
@@ -223,6 +280,7 @@
                 outlined
                 class="mr-1 mb-1"
                 :title="row.reason"
+                data-testid="taskDetails-outputSkipped"
               >
                 <v-icon x-small left>mdi-eye-off-outline</v-icon>
                 {{ row.name }} — {{ row.reason }}

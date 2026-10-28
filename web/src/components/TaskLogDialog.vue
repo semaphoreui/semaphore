@@ -9,9 +9,15 @@
     test-id="taskLogDialog"
   >
     <template v-slot:title={}>
-      <div class="text-truncate" style="max-width: calc(100% - 36px);">
+      <div
+        class="text-truncate"
+        style="max-width: calc(100% - 36px);"
+        data-testid="taskLog-title"
+        :data-state="item == null || template == null ? 'loading' : 'ready'"
+      >
         <v-skeleton-loader
           v-if="template == null"
+          data-testid="taskLog-titleLoading"
           type="button"
           style="display: inline-block; margin-right: 10px;"
         ></v-skeleton-loader>
@@ -20,9 +26,13 @@
           class="breadcrumbs__item breadcrumbs__item--link"
           :to="`/project/${projectId}/templates/${template ? template.id : null}`"
           @click="close()"
+          data-testid="taskLog-templateLink"
         >{{ template ? template.name : null }}</router-link>
         <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">{{ $t('task', {expr: item ? item.id : null}) }}</span>
+        <span
+          class="breadcrumbs__item"
+          data-testid="taskLog-taskTitle"
+        >{{ $t('task', {expr: item ? item.id : null}) }}</span>
       </div>
     </template>
     <template v-slot:form="{}">
@@ -37,6 +47,7 @@
       <v-skeleton-loader
         class="task-log-view__placeholder"
         v-else
+        data-testid="taskLog-loading"
         type="
             table-heading,
             image,

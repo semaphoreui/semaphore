@@ -1,7 +1,12 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="integrationValue-section"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="integrationValueDialog"
       :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
       :title="`${itemId === 'new' ? 'New' : 'Edit'} Extract Value`"
       :max-width="450"
@@ -23,6 +28,7 @@
     </EditDialog>
 
     <ObjectRefsDialog
+      test-id="integrationValueRefsDialog"
       object-title="extractvalue"
       :object-refs="itemRefs"
       :integration-id="integrationId"
@@ -30,6 +36,7 @@
     />
 
     <YesNoDialog
+      test-id="integrationValueDeleteDialog"
       title="Delete Integration ExtractValue"
       text="Are you sure you want to delete this Integration ExtractValue?"
       v-model="deleteItemDialog"
@@ -37,40 +44,61 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>ExtractValue</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="integrationValue-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="integrationValue-title">ExtractValue</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
         color="primary"
         @click="editItem('new')"
+        data-testid="integrationValue-new"
         >New Extracted Value</v-btn
       >
     </v-toolbar>
-    <v-data-table :headers="headers" :items="items" class="mt-4" :items-per-page="Number.MAX_VALUE">
+    <v-data-table
+      :headers="headers"
+      :items="items"
+      class="mt-4"
+      :items-per-page="Number.MAX_VALUE"
+      data-testid="integrationValue-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
+    >
       <template v-slot:item.name="{ item }"> {{ item.name }} {{ item.extractorId }} </template>
       <template v-slot:item.value_source="{ item }">
-        <code>{{ item.value_source }}</code>
+        <code data-testid="integrationValue-rowValueSource">{{ item.value_source }}</code>
       </template>
       <template v-slot:item.body_data_type="{ item }">
-        <code>{{ item.body_data_type }}</code>
+        <code data-testid="integrationValue-rowBodyDataType">{{ item.body_data_type }}</code>
       </template>
       <template v-slot:item.key="{ item }">
-        <code>{{ item.key }}</code>
+        <code data-testid="integrationValue-rowKey">{{ item.key }}</code>
       </template>
       <template v-slot:item.variable="{ item }">
-        <code>{{ item.variable }}</code>
+        <code data-testid="integrationValue-rowVariable">{{ item.variable }}</code>
       </template>
       <template v-slot:item.variable_type="{ item }">
-        <code>{{ item.variable_type }}</code>
+        <code data-testid="integrationValue-rowVariableType">{{ item.variable_type }}</code>
       </template>
       <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap">
-          <v-btn icon class="mr-1" @click="askDeleteItem(item.id)">
+        <div style="white-space: nowrap" data-testid="integrationValue-rowActions">
+          <v-btn
+            icon
+            class="mr-1"
+            @click="askDeleteItem(item.id)"
+            data-testid="integrationValue-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn icon class="mr-1" @click="editItem(item.id)">
+          <v-btn
+            icon
+            class="mr-1"
+            @click="editItem(item.id)"
+            data-testid="integrationValue-rowEdit"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>

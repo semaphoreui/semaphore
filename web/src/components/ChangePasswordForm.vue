@@ -1,10 +1,22 @@
 <template>
-  <v-form ref="form" lazy-validation v-model="formValid">
-    <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
+  <v-form
+    ref="form"
+    lazy-validation
+    v-model="formValid"
+    data-testid="changePassword-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
+  >
+    <v-alert
+      :value="formError"
+      color="error"
+      class="pb-2"
+      data-testid="changePassword-error"
+    >{{ formError }}</v-alert>
 
     <v-text-field
       v-if="isSelf"
       v-model="item.current_password"
+      data-testid="changePassword-currentPassword"
       :label="$t('currentPassword')"
       :class="{ 'masked-secret-input': !showCurrentPassword }"
       :append-icon="showCurrentPassword ? 'mdi-eye' : 'mdi-eye-off'"
@@ -18,6 +30,7 @@
 
     <v-text-field
       v-model="item.password"
+      data-testid="changePassword-password"
       :label="$t('password2')"
       :class="{ 'masked-secret-input': !showPassword }"
       :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"

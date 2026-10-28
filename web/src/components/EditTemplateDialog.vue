@@ -4,6 +4,7 @@
     v-if="isAppsLoaded"
     :max-width="dialogWidth"
     v-model="dialog"
+    :test-id="testId"
     :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
     :icon="getAppIcon(itemApp)"
     :icon-color="getAppColor(itemApp)"
@@ -56,6 +57,8 @@ export default {
     sourceItemId: Number,
     features: Object,
     taskType: String,
+    // Builds data-testid of the dialog card only, no behaviour.
+    testId: { type: String, default: 'templateDialog' },
   },
 
   data() {

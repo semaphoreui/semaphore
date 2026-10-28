@@ -1,5 +1,5 @@
 <template>
-  <v-tabs class="pl-4">
+  <v-tabs class="pl-4" data-testid="team-menu">
     <v-tab
       key="team"
       :to="`/project/${projectId}/team`"

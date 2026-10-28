@@ -1,6 +1,11 @@
 <template>
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="secretStorages-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <ObjectRefsDialog
+      test-id="secretStoragesRefsDialog"
       object-title="storage"
       :object-refs="itemRefs"
       :project-id="projectId"
@@ -8,6 +13,7 @@
     />
 
     <YesNoDialog
+      test-id="secretStoragesDeleteDialog"
       :title="$t('deleteStorage')"
       :text="$t('askDeleteStorage')"
       v-model="deleteItemDialog"
@@ -16,6 +22,7 @@
 
     <EditDialog
       v-model="editDialog"
+      test-id="secretStoragesDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${itemType} Storage`"
       :max-width="450"
@@ -35,8 +42,11 @@
     </EditDialog>
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('keyStore') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="secretStorages-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="secretStorages-title">{{ $t('keyStore') }}</v-toolbar-title>
       <v-spacer></v-spacer>
 
       <v-menu offset-y>
@@ -47,12 +57,13 @@
             v-on="on"
             color="primary"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
+            data-testid="secretStorages-new"
           >
             New Storage
             <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
-        <v-list>
+        <v-list data-testid="secretStorages-newMenu">
           <v-list-item
             link
             @click="
@@ -60,6 +71,7 @@
               itemType = 'vault';
             "
             :disabled="!features.secret_storage_management"
+            data-testid="secretStorages-new-vault"
           >
             <v-list-item-icon>
               <v-icon>$vuetify.icons.hashicorp_vault</v-icon>
@@ -74,6 +86,7 @@
               itemType = 'openbao';
             "
             :disabled="!features.secret_storage_management"
+            data-testid="secretStorages-new-openbao"
           >
             <v-list-item-icon>
               <v-icon>$vuetify.icons.openbao</v-icon>
@@ -82,6 +95,7 @@
           </v-list-item>
 
           <div
+            data-testid="secretStorages-newEnterpriseGroup"
             :class="{
               SecretStoragesEnterpriseMenu:
                 features.secret_storage_management && !features.secret_storage_management_ex,
@@ -102,6 +116,7 @@
                 itemType = 'aws_sm';
               "
               :disabled="!features.secret_storage_management_ex"
+              data-testid="secretStorages-new-aws_sm"
             >
               <v-list-item-icon>
                 <v-icon>$vuetify.icons.aws_sm</v-icon>
@@ -116,6 +131,7 @@
                 itemType = 'azure_kv';
               "
               :disabled="!features.secret_storage_management_ex"
+              data-testid="secretStorages-new-azure_kv"
             >
               <v-list-item-icon>
                 <v-icon>$vuetify.icons.azure_kv</v-icon>
@@ -130,6 +146,7 @@
                 itemType = 'dvls';
               "
               :disabled="!features.secret_storage_management_ex"
+              data-testid="secretStorages-new-dvls"
             >
               <v-list-item-icon>
                 <v-icon>$vuetify.icons.dvls</v-icon>
@@ -142,6 +159,7 @@
               class="SecretStoragesEnterpriseMenu__overlay"
               href="https://semaphoreui.com/enterprise"
               target="_blank"
+              data-testid="secretStorages-enterpriseLink"
             >
               <div class="SecretStoragesEnterpriseMenu__button">
                 Enterprise
@@ -153,7 +171,7 @@
       </v-menu>
     </v-toolbar>
 
-    <v-tabs class="pl-4">
+    <v-tabs class="pl-4" data-testid="secretStorages-tabs">
       <v-tab key="keys" :to="`/project/${projectId}/keys`" data-testid="keystore-keys">
         Keys
       </v-tab>
@@ -174,6 +192,7 @@
       text
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
+      data-testid="secretStorages-proAlert"
     >
       <span class="mr-1" v-html="$t('secret_storage_only_pro')"></span>
 
@@ -182,11 +201,12 @@
         v-if="isAdmin"
         color="hsl(348deg, 86%, 61%)"
         @click="upgradeToPro('secret_storage_management')"
+        data-testid="secretStorages-upgrade"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
 
-      <span v-else style="font-weight: bold">
+      <span v-else style="font-weight: bold" data-testid="secretStorages-contactAdmin">
         {{ $t('contact_admin_to_upgrade') }}
       </span>
     </v-alert>
@@ -197,37 +217,51 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
+      data-testid="secretStorages-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.name="{ item }">
-        <v-icon class="mr-3" small>
+        <v-icon class="mr-3" small :data-testid="`secretStorages-rowIcon-${item.type}`">
           {{ getIcon(item.type) }}
         </v-icon>
 
-        <span class="mr-2">{{ item.name }}</span>
+        <span class="mr-2" data-testid="secretStorages-rowName">{{ item.name }}</span>
 
-        <v-chip v-if="item.readonly" style="transform: translateY(-1px)" color="info" small>
+        <v-chip
+          v-if="item.readonly"
+          style="transform: translateY(-1px)"
+          color="info"
+          small
+          data-testid="secretStorages-rowReadonly"
+        >
           Read only
         </v-chip>
       </template>
 
       <template v-slot:item.type="{ item }">
-        <code>{{ item.type }}</code>
+        <code data-testid="secretStorages-rowType">{{ item.type }}</code>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false" style="">
+        <v-btn-toggle
+          dense
+          :value-comparator="() => false"
+          style=""
+          data-testid="secretStorages-rowActions"
+        >
           <v-btn
             v-if="item.sync_enabled"
             @click="syncItem(item.id)"
             :disabled="!(item.sync_paths && item.sync_paths.length > 0)"
+            data-testid="secretStorages-rowSync"
           >
             <v-icon>mdi-sync</v-icon>
           </v-btn>
-          <v-btn @click="askDeleteItem(item.id)">
+          <v-btn @click="askDeleteItem(item.id)" data-testid="secretStorages-rowDelete">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-          <v-btn @click="editItem(item.id)">
+          <v-btn @click="editItem(item.id)" data-testid="secretStorages-rowEdit">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </v-btn-toggle>

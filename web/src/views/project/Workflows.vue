@@ -1,16 +1,22 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items == null">
+  <div v-if="items == null" data-testid="workflows-page" data-state="loading">
     <v-progress-linear
       indeterminate
       color="primary darken-2"
+      data-testid="workflows-loading"
     ></v-progress-linear>
   </div>
-  <div v-else>
+  <div
+    v-else
+    data-testid="workflows-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <YesNoDialog
       :title="$t('deleteWorkflow')"
       :text="$t('askDeleteWorkflow')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
+      test-id="workflowsDeleteDialog"
     />
 
     <WorkflowRunDialog
@@ -21,8 +27,11 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="workflows-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="workflows-title">
         {{ $t('workflows') }}
       </v-toolbar-title>
       <v-spacer></v-spacer>
@@ -32,11 +41,12 @@
         class="mr-1"
         @click="openEditor('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        data-testid="workflows-new"
       >
         {{ $t('newWorkflow') }}
       </v-btn>
 
-      <v-btn icon @click="settingsSheet = true">
+      <v-btn icon @click="settingsSheet = true" data-testid="workflows-tableSettings">
         <v-icon>mdi-cog</v-icon>
       </v-btn>
     </v-toolbar>
@@ -52,45 +62,68 @@
       :items="items"
       :items-per-page="Number.MAX_VALUE"
       :expanded.sync="openedItems"
+      data-testid="workflows-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.name="{ item }">
-        <router-link :to="`/project/${projectId}/workflows/${item.id}`">
+        <router-link
+          :to="`/project/${projectId}/workflows/${item.id}`"
+          data-testid="workflows-rowName"
+        >
           {{ item.name }}
         </router-link>
       </template>
 
       <template v-slot:item.version="{ item }">
-        <span v-if="item.last_run && item.last_run.version">{{ item.last_run.version }}</span>
-        <div v-else>&mdash;</div>
+        <span
+          v-if="item.last_run && item.last_run.version"
+          data-testid="workflows-rowVersion"
+        >{{ item.last_run.version }}</span>
+        <div v-else data-testid="workflows-rowVersionEmpty">&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
         <div class="mt-2 mb-2 d-flex" v-if="item.last_run != null">
-          <v-chip :color="statusColor(item.last_run.status)" small>
+          <v-chip
+            :color="statusColor(item.last_run.status)"
+            small
+            :data-testid="`workflows-rowStatus-${item.last_run.status}`"
+          >
             {{ item.last_run.status }}
           </v-chip>
         </div>
-        <div v-else class="mt-3 mb-2 d-flex" style="color: gray;">{{ $t('notLaunched') }}</div>
+        <div
+          v-else
+          class="mt-3 mb-2 d-flex"
+          style="color: gray;"
+          data-testid="workflows-rowNotLaunched"
+        >{{ $t('notLaunched') }}</div>
       </template>
 
       <template v-slot:item.last_run="{ item }">
         <div class="mt-2 mb-2" v-if="item.last_run != null" style="line-height: 1">
           <router-link
             :to="`/project/${projectId}/workflows/${item.id}/runs/${item.last_run.id}`"
+            data-testid="workflows-rowLastRun"
           >#{{ item.last_run.id }}</router-link>
-          <div style="color: gray; font-size: 14px;">
+          <div style="color: gray; font-size: 14px;" data-testid="workflows-rowLastRunStart">
             {{ item.last_run.start | formatDate }}
           </div>
         </div>
-        <div v-else>&mdash;</div>
+        <div v-else data-testid="workflows-rowLastRunEmpty">&mdash;</div>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
+        <v-btn-toggle
+          dense
+          :value-comparator="() => false"
+          data-testid="workflows-rowActions"
+        >
           <v-btn
             v-if="can(USER_PERMISSIONS.runProjectTasks)"
             @click="runWorkflow(item)"
             :title="$t('workflowRunNow')"
+            data-testid="workflows-rowRun"
           >
             <v-icon>mdi-play</v-icon>
           </v-btn>
@@ -110,14 +143,25 @@
             :loading="runsLoading[item.id]"
             :items-per-page="5"
             :no-data-text="$t('notLaunched')"
+            data-testid="workflows-runsTable"
+            :data-state="runsLoading[item.id]
+              ? 'loading'
+              : ((runs[item.id] || []).length === 0 ? 'empty' : 'ready')"
           >
             <template v-slot:item.id="{ item: run }">
-              <router-link :to="`/project/${projectId}/workflows/${item.id}/runs/${run.id}`">
+              <router-link
+                :to="`/project/${projectId}/workflows/${item.id}/runs/${run.id}`"
+                data-testid="workflows-runsRowId"
+              >
                 #{{ run.id }}
               </router-link>
             </template>
             <template v-slot:item.status="{ item: run }">
-              <v-chip :color="statusColor(run.status)" small>{{ run.status }}</v-chip>
+              <v-chip
+                :color="statusColor(run.status)"
+                small
+                :data-testid="`workflows-runsRowStatus-${run.status}`"
+              >{{ run.status }}</v-chip>
             </template>
             <template v-slot:item.version="{ item: run }">
               {{ run.version || '—' }}
@@ -138,6 +182,7 @@
       table-name="project__workflow"
       :headers="headers"
       @change="onTableSettingsChange"
+      data-testid="workflows-tableSettingsSheet"
     />
   </div>
 </template>

@@ -4,6 +4,7 @@
     :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
     :title="$t('templatePermission', { expr: itemId === 'new' ? $t('nnew') : $t('edit') })"
     @save="onSave"
+    test-id="templatePermDialog"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <EditTemplatePermissionForm

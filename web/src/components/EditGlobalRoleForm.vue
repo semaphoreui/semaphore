@@ -4,16 +4,20 @@
     lazy-validation
     v-model="formValid"
     v-if="item != null"
+    data-testid="globalRole-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="globalRole-error"
     >{{ formError }}
     </v-alert>
 
     <v-text-field
       v-model="item.name"
+      data-testid="globalRole-name"
       :label="$t('name')"
       :rules="[v => !!v || $t('name_required')]"
       outlined
@@ -24,6 +28,7 @@
 
     <v-text-field
       v-model="item.slug"
+      data-testid="globalRole-slug"
       :label="$t('slug')"
       @input="slugTouched = true"
       :rules="slugRules"
@@ -34,8 +39,14 @@
       :hint="$t('slugHint')"
     ></v-text-field>
 
-    <v-subheader class="pl-0">{{ $t('globalPermissions') }}</v-subheader>
-    <div class="text--secondary caption mb-3">{{ $t('globalPermissionsHint') }}</div>
+    <v-subheader
+      class="pl-0"
+      data-testid="globalRole-permissionsTitle"
+    >{{ $t('globalPermissions') }}</v-subheader>
+    <div
+      class="text--secondary caption mb-3"
+      data-testid="globalRole-permissionsHint"
+    >{{ $t('globalPermissionsHint') }}</div>
 
     <v-checkbox
       v-for="p in GLOBAL_ROLE_PERMISSIONS"
@@ -45,6 +56,7 @@
       :label="$t(p.label)"
       :disabled="formSaving"
       @change="setPermission(p.permission, $event)"
+      :data-testid="`globalRole-${p.label}`"
     ></v-checkbox>
   </v-form>
 </template>

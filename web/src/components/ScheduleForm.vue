@@ -4,6 +4,8 @@
     lazy-validation
     v-model="formValid"
     v-if="templates && item != null"
+    data-testid="scheduleForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       v-model="showInfo"
@@ -11,6 +13,7 @@
       text
       dismissible
       class="mb-6"
+      data-testid="scheduleForm-timezoneInfo"
     >
       Use environment variable <code>SEMAPHORE_SCHEDULE_TIMEZONE</code> or config param
       <code>schedule.timezone</code> to set timezone for Schedule.
@@ -20,6 +23,7 @@
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="scheduleForm-error"
     >{{ formError }}
     </v-alert>
 
@@ -31,6 +35,7 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="scheduleForm-name"
     ></v-text-field>
 
     <v-autocomplete
@@ -44,12 +49,14 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="scheduleForm-templateId"
     />
 
     <v-card
       style="background: var(--highlighted-card-bg-color)"
       v-if="item.template_id"
       class="mb-8 pt-3"
+      data-testid="scheduleForm-taskParamsCard"
     >
       <div style="
         position: absolute;
@@ -64,6 +71,7 @@
 
       <v-card-text>
         <TaskParamsForm
+          data-testid="scheduleForm-taskParams"
           :template="templates.find(t => t.id === item.template_id)"
           v-model="item.task_params"
         />
@@ -82,6 +90,7 @@
         :suffix="timezone + ' time'"
         outlined
         dense
+        data-testid="scheduleForm-runAt"
       ></v-text-field>
 
       <div class="d-flex justify-end">
@@ -89,6 +98,7 @@
         <v-checkbox
           v-model="item.delete_after_run"
           hide-details
+          data-testid="scheduleForm-deleteAfterRun"
           class="mt-0 pt-0"
         >
           <template v-slot:label>
@@ -103,6 +113,7 @@
         v-model="rawCron"
         label="Show cron format"
         :disabled="disableRawCron"
+        data-testid="scheduleForm-rawCron"
       />
 
       <v-text-field
@@ -118,6 +129,7 @@
         :error="cronFormatError != null"
         :error-messages="cronFormatError"
         dense
+        data-testid="scheduleForm-cronFormat"
       ></v-text-field>
 
       <div v-else>
@@ -134,9 +146,10 @@
           outlined
           hide-details
           dense
+          data-testid="scheduleForm-timing"
         />
 
-        <div v-if="['yearly'].includes(timing)">
+        <div v-if="['yearly'].includes(timing)" data-testid="scheduleForm-months">
           <div class="mt-4">Months</div>
           <div class="d-flex flex-wrap">
             <v-checkbox
@@ -146,6 +159,7 @@
               :value="m.id"
               :label="m.title"
               v-model="months"
+              :data-testid="`scheduleForm-month-${m.id}`"
               color="white"
               :class="{'ScheduleCheckbox--active': months.includes(m.id)}"
               @change="refreshCron()"
@@ -153,7 +167,7 @@
           </div>
         </div>
 
-        <div v-if="['weekly'].includes(timing)">
+        <div v-if="['weekly'].includes(timing)" data-testid="scheduleForm-weekdays">
           <div class="mt-4">Weekdays</div>
           <div class="d-flex flex-wrap">
             <v-checkbox
@@ -162,6 +176,7 @@
               :value="d.id"
               :label="d.title"
               v-model="weekdays"
+              :data-testid="`scheduleForm-weekday-${d.id}`"
               color="white"
               :class="{'ScheduleCheckbox--active': weekdays.includes(d.id)}"
               @change="refreshCron()"
@@ -169,7 +184,7 @@
           </div>
         </div>
 
-        <div v-if="['yearly', 'monthly'].includes(timing)">
+        <div v-if="['yearly', 'monthly'].includes(timing)" data-testid="scheduleForm-days">
           <div class="mt-4">Days</div>
           <div class="d-flex flex-wrap">
             <v-checkbox
@@ -179,6 +194,7 @@
               :value="d"
               :label="`${d}`"
               v-model="days"
+              :data-testid="`scheduleForm-day-${d}`"
               color="white"
               :class="{'ScheduleCheckbox--active': days.includes(d)}"
               @change="refreshCron()"
@@ -186,10 +202,16 @@
           </div>
         </div>
 
-        <div v-if="['yearly', 'monthly', 'weekly', 'daily'].includes(timing)">
+        <div
+          v-if="['yearly', 'monthly', 'weekly', 'daily'].includes(timing)"
+          data-testid="scheduleForm-hours"
+        >
           <div class="mt-4 d-flex justify-space-between">
             <span>Hours</span>
-            <b style="color: red;">{{ timezone + ' time' }}</b>
+            <b
+              style="color: red;"
+              data-testid="scheduleForm-hoursTimezone"
+            >{{ timezone + ' time' }}</b>
           </div>
           <div class="d-flex flex-wrap">
             <v-checkbox
@@ -199,6 +221,7 @@
               :value="h - 1"
               :label="`${h - 1}`"
               v-model="hours"
+              :data-testid="`scheduleForm-hour-${h - 1}`"
               color="white"
               :class="{'ScheduleCheckbox--active': hours.includes(h - 1)}"
               @change="refreshCron()"
@@ -206,7 +229,7 @@
           </div>
         </div>
 
-        <div>
+        <div data-testid="scheduleForm-minutes">
           <div class="mt-4">Minutes</div>
           <div class="d-flex flex-wrap">
             <v-checkbox
@@ -216,6 +239,7 @@
               :value="m.id"
               :label="m.title"
               v-model="minutes"
+              :data-testid="`scheduleForm-minute-${m.id}`"
               color="white"
               :class="{'ScheduleCheckbox--active': minutes.includes(m.id)}"
               @change="refreshCron()"
@@ -229,11 +253,15 @@
       class="text-center text-subtitle-1 mb-3"
       :class="{'mt-8': !rawCron, 'mt-3': rawCron}"
       style="color: limegreen; font-weight: bold;"
+      data-testid="scheduleForm-nextRunTitle"
     >
       Next run time
     </div>
 
-    <v-simple-table class="TaskDetails__table text-sub mb-2">
+    <v-simple-table
+      class="TaskDetails__table text-sub mb-2"
+      data-testid="scheduleForm-nextRun"
+    >
       <template v-slot:default>
         <thead>
         <tr>
@@ -243,12 +271,12 @@
         </tr>
         </thead>
         <tbody>
-        <tr>
+        <tr data-testid="scheduleForm-nextRunServer">
           <td>{{ timezone }}</td>
           <td>{{ nextRunUtcDate }}</td>
           <td>{{ nextRunUtcTime }}</td>
         </tr>
-        <tr>
+        <tr data-testid="scheduleForm-nextRunLocal">
           <td>{{ localTimezone }}</td>
           <td>{{ nextRunLocalDate }}</td>
           <td>{{ nextRunLocalTime }}</td>
@@ -261,6 +289,7 @@
       style="position: absolute; bottom: 15px; left: 22px;"
       v-model="item.active"
       hide-details
+      data-testid="scheduleForm-active"
     >
       <template v-slot:label>
         {{ $t('enabled') }}

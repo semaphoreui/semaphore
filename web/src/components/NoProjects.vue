@@ -1,19 +1,27 @@
 <template>
-  <div>
+  <div data-testid="noProjects-page">
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('noProjectsTitle') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="noProjects-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="noProjects-title">{{ $t('noProjectsTitle') }}</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
 
     <v-divider/>
 
-    <div class="text-center" style="margin: auto; max-width: 600px; padding: 64px 16px;">
-      <v-icon size="64" color="grey">mdi-folder-outline</v-icon>
-      <div class="text-h6 mt-4">{{ $t('noProjectsTitle') }}</div>
-      <div class="mt-2">{{ $t('noProjectsText') }}</div>
+    <div
+      class="text-center"
+      style="margin: auto; max-width: 600px; padding: 64px 16px;"
+      data-testid="noProjects-empty"
+    >
+      <v-icon size="64" color="grey" data-testid="noProjects-icon">mdi-folder-outline</v-icon>
+      <div class="text-h6 mt-4" data-testid="noProjects-heading">{{ $t('noProjectsTitle') }}</div>
+      <div class="mt-2" data-testid="noProjects-text">{{ $t('noProjectsText') }}</div>
       <i18n
         v-if="user"
+        data-testid="noProjects-signedInAs"
         :path="user.email ? 'signedInAs' : 'signedInAsNoEmail'"
         tag="div"
         class="mt-6 grey--text"

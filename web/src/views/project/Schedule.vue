@@ -1,7 +1,12 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="schedule-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="scheduleDialog"
       :save-button-text="$t('save')"
       :title="$t('editSchedule')"
       :max-width="500"
@@ -22,6 +27,7 @@
     </EditDialog>
 
     <ObjectRefsDialog
+      test-id="scheduleRefsDialog"
       object-title="schedule"
       :object-refs="itemRefs"
       :project-id="projectId"
@@ -29,6 +35,7 @@
     />
 
     <YesNoDialog
+      test-id="scheduleDeleteDialog"
       :title="$t('deleteSchedule')"
       :text="$t('askDeleteSchedule')"
       v-model="deleteItemDialog"
@@ -36,8 +43,11 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('schedule') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="schedule-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="schedule-title">{{ $t('schedule') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-menu
         offset-y
@@ -49,15 +59,17 @@
             v-on="on"
             color="primary"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
+            data-testid="schedule-new"
           >{{ $t('newSchedule') }}
             <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
 
-        <v-list>
+        <v-list data-testid="schedule-newMenu">
           <v-list-item
             link
             @click="editSchedule('new', '');"
+            data-testid="schedule-new-cron"
           >
             <v-list-item-icon>
               <v-icon>mdi-calendar-sync</v-icon>
@@ -67,6 +79,7 @@
           <v-list-item
             link
             @click="editSchedule('new', 'run_at');"
+            data-testid="schedule-new-runAt"
           >
             <v-list-item-icon>
               <v-icon>mdi-clock-time-eight-outline</v-icon>
@@ -86,6 +99,8 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
+      data-testid="schedule-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="
           max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
           margin: auto;
@@ -97,35 +112,48 @@
           v-model="item.active"
           inset
           @change="setActive(item.id, item.active)"
+          data-testid="schedule-rowActive"
         ></v-switch>
       </template>
 
       <template v-slot:item.name="{ item }">
-        <div>{{ item.name || '&mdash;' }}</div>
+        <div data-testid="schedule-rowName">{{ item.name || '&mdash;' }}</div>
       </template>
 
       <template v-slot:item.tpl_name="{ item }">
         <div class="d-flex">
-          <router-link :to="
+          <router-link
+            :to="
             '/project/' + item.project_id +
             '/templates/' + item.template_id"
+            data-testid="schedule-rowTemplate"
           >{{ item.tpl_name }}
           </router-link>
         </div>
       </template>
       <template v-slot:item.cron_format="{ item }">
-        <div v-if="item.type === 'run_at'">
+        <div v-if="item.type === 'run_at'" data-testid="schedule-rowRunAt">
           {{ formatRunAt(item) }}
         </div>
-        <code v-else>{{ item.cron_format }}</code>
+        <code v-else data-testid="schedule-rowCron">{{ item.cron_format }}</code>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)">
+        <v-btn-toggle
+          dense
+          :value-comparator="() => false"
+          data-testid="schedule-rowActions"
+        >
+          <v-btn
+            @click="askDeleteItem(item.id)"
+            data-testid="schedule-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-          <v-btn @click="editSchedule(item.id, item.type)">
+          <v-btn
+            @click="editSchedule(item.id, item.type)"
+            data-testid="schedule-rowEdit"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </v-btn-toggle>

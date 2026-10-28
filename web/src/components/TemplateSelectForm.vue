@@ -4,11 +4,14 @@
     lazy-validation
     v-model="formValid"
     v-if="items != null"
+    data-testid="inventoryAttach-form"
+    :data-state="formError ? 'error' : 'ready'"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="inventoryAttach-error"
     >{{ formError }}
     </v-alert>
 
@@ -19,6 +22,7 @@
       label="Template"
       item-value="id"
       item-text="name"
+      data-testid="inventoryAttach-templateId"
     />
   </v-form>
 </template>

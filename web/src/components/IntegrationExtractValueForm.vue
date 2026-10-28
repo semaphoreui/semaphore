@@ -1,9 +1,22 @@
 <template>
-  <v-form ref="form" lazy-validation v-model="formValid" v-if="item">
-    <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
+  <v-form
+    ref="form"
+    lazy-validation
+    v-model="formValid"
+    v-if="item"
+    data-testid="integrationValueForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
+  >
+    <v-alert
+      :value="formError"
+      color="error"
+      class="pb-2"
+      data-testid="integrationValueForm-error"
+    >{{ formError }}</v-alert>
 
     <v-text-field
       v-model="item.name"
+      data-testid="integrationValueForm-name"
       label="Name"
       :rules="[(v) => !!v || 'Name is required']"
       required
@@ -14,6 +27,7 @@
         <div class="ml-4 mr-4 mt-6">
           <v-select
             v-model="item.value_source"
+            data-testid="integrationValueForm-valueSource"
             label="Source of the Value"
             :items="valueSources"
             item-value="id"
@@ -27,6 +41,7 @@
           </v-select>
           <v-select
             v-model="item.body_data_type"
+            data-testid="integrationValueForm-bodyDataType"
             label="Data Type of Body"
             v-if="item.value_source == 'body'"
             :items="bodyDataTypes"
@@ -41,6 +56,7 @@
           </v-select>
           <v-text-field
             v-model="item.key"
+            data-testid="integrationValueForm-key"
             label="Key *"
             :rules="[(v) => !!v || 'Key is required']"
             outlined
@@ -51,6 +67,7 @@
           </v-text-field>
           <v-select
             v-model="item.variable_type"
+            data-testid="integrationValueForm-variableType"
             label="Variable Usage *"
             :items="variableTypes"
             item-value="id"
@@ -64,6 +81,7 @@
           </v-select>
           <v-text-field
             v-model="item.variable"
+            data-testid="integrationValueForm-variable"
             label="Variable *"
             :rules="[(v) => !!v || 'Variable is required']"
             outlined

@@ -1,7 +1,12 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="globalRoles-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="globalRoleDialog"
       save-button-text="Save"
       :title="itemId === 'new' ? $t('newGlobalRole') : $t('editGlobalRole')"
       @save="loadItems()"
@@ -19,6 +24,7 @@
     </EditDialog>
 
     <YesNoDialog
+      test-id="globalRolesDeleteDialog"
       :title="$t('deleteGlobalRole')"
       :text="$t('askDeleteGlobalRole')"
       v-model="deleteItemDialog"
@@ -26,6 +32,7 @@
     />
 
     <YesNoDialog
+      test-id="globalRolesForceDeleteDialog"
       :title="$t('deleteGlobalRole')"
       :text="roleImpact ? $t('askDeleteAssignedGlobalRole', roleImpact) : ''"
       :yes-button-title="$t('deleteWithAssignments')"
@@ -39,8 +46,13 @@
       text
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
+      data-testid="globalRoles-licenseAlert"
     >
-      <span class="mr-1" v-html="$t('global_roles_only_pro')"></span>
+      <span
+        class="mr-1"
+        v-html="$t('global_roles_only_pro')"
+        data-testid="globalRoles-licenseAlertText"
+      ></span>
 
       <v-btn
         dark
@@ -48,16 +60,17 @@
         v-if="isAdmin"
         color="hsl(348deg, 86%, 61%)"
         @click="upgradeToPro('global_roles_management')"
+        data-testid="globalRoles-upgrade"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
 
-      <span v-else style="font-weight: bold">
+      <span v-else style="font-weight: bold" data-testid="globalRoles-contactAdmin">
         {{ $t('contact_admin_to_upgrade') }}
       </span>
     </v-alert>
 
-    <v-alert text dense type="info" class="mx-4 mt-4">
+    <v-alert text dense type="info" class="mx-4 mt-4" data-testid="globalRoles-hint">
       {{ $t('globalRolesHint') }}
     </v-alert>
 
@@ -67,25 +80,33 @@
       item-key="id"
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
+      data-testid="globalRoles-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.name="{ item }">
-        <div>{{ item.name }}</div>
-        <div class="text--secondary caption">{{ item.slug }}</div>
+        <div data-testid="globalRoles-rowName">{{ item.name }}</div>
+        <div class="text--secondary caption" data-testid="globalRoles-rowSlug">{{ item.slug }}</div>
       </template>
       <template v-slot:item.permissions="{ item }">
         <TemplatePermissionsChips
           class="py-1"
           scope="global"
           :permissions="item.permissions || 0"
+          data-testid="globalRoles-rowPermissions"
         />
       </template>
       <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap">
-          <v-btn icon class="mr-1" @click="askDeleteItem(item.id)">
+        <div style="white-space: nowrap" data-testid="globalRoles-rowActions">
+          <v-btn
+            icon
+            class="mr-1"
+            @click="askDeleteItem(item.id)"
+            data-testid="globalRoles-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn icon class="mr-1" @click="editItem(item.id)">
+          <v-btn icon class="mr-1" @click="editItem(item.id)" data-testid="globalRoles-rowEdit">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>

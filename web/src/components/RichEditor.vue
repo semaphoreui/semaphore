@@ -6,7 +6,7 @@
         :fullscreen="true"
         :transition="false"
     >
-      <div style="position: relative; height: 100%;">
+      <div style="position: relative; height: 100%;" :data-testid="`${testId}Dialog`">
         <codemirror
             v-if="envEditorDialog"
             class="EnvironmentMaximizedEditor"
@@ -14,6 +14,7 @@
             v-model="text"
             :options="cmOptions"
             :placeholder="placeholderText"
+            :data-testid="`${testId}-code`"
         />
 
         <v-btn
@@ -29,6 +30,7 @@
             margin: 10px;
           "
             @click="spellcheck()"
+            :data-testid="`${testId}-validate`"
         >
           <v-icon>mdi-spellcheck</v-icon>
         </v-btn>
@@ -45,6 +47,7 @@
             margin: 10px;
           "
             @click="save()"
+            :data-testid="`${testId}-collapse`"
         >
           <v-icon>mdi-arrow-collapse</v-icon>
         </v-btn>
@@ -53,6 +56,8 @@
             v-model="showAlert"
             :color="errorMessage ? 'error' : 'success'"
             dismissible
+            :data-testid="`${testId}-result`"
+            :data-state="errorMessage ? 'error' : 'ready'"
             style="
             position: absolute;
             bottom: 0;
@@ -70,6 +75,7 @@
         small
         color="blue-grey"
         @click="envEditorDialog = true"
+        :data-testid="`${testId}-expand`"
     >
       <v-icon>mdi-arrow-expand</v-icon>
     </v-btn>
@@ -92,6 +98,10 @@ export default {
   props: {
     value: String,
     type: String,
+    testId: {
+      type: String,
+      default: 'richEditor',
+    },
   },
 
   components: {

@@ -1,6 +1,18 @@
 <template>
-  <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
-    <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
+  <v-form
+    ref="form"
+    lazy-validation
+    v-model="formValid"
+    v-if="item != null"
+    data-testid="newProject-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
+  >
+    <v-alert
+      :value="formError"
+      color="error"
+      class="pb-2"
+      data-testid="newProject-error"
+    >{{ formError }}</v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -24,6 +36,7 @@
       hint="Should be 0 or greater, 0 - unlimited."
       type="number"
       :step="1"
+      data-testid="newProject-maxParallelTasks"
       outlined
       dense
     ></v-text-field>

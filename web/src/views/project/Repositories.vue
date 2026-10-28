@@ -1,7 +1,12 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null && keys != null">
+  <div
+    v-if="items != null && keys != null"
+    data-testid="repositories-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="repositoriesDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Repository`"
       @save="loadItems()"
@@ -20,6 +25,7 @@
     </EditDialog>
 
     <ObjectRefsDialog
+      test-id="repositoriesRefsDialog"
       object-title="repository"
       :object-refs="itemRefs"
       :project-id="projectId"
@@ -27,6 +33,7 @@
     />
 
     <YesNoDialog
+      test-id="repositoriesDeleteDialog"
       :title="$t('deleteRepository')"
       :text="$t('askDeleteRepo')"
       v-model="deleteItemDialog"
@@ -34,13 +41,17 @@
     />
 
     <v-toolbar flat >
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('repositories') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="repositories-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="repositories-title">{{ $t('repositories') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        data-testid="repositories-new"
       >{{ $t('newRepository') }}</v-btn>
     </v-toolbar>
 
@@ -52,11 +63,16 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
+      data-testid="repositories-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px); margin: auto;"
     >
       <template v-slot:item.git_url="{ item }">
         {{ item.git_url }}
-        <code v-if="!isLocalRepositoryPath(item.git_url)">{{ item.git_branch }}</code>
+        <code
+          v-if="!isLocalRepositoryPath(item.git_url)"
+          data-testid="repositories-rowBranch"
+        >{{ item.git_branch }}</code>
       </template>
 
       <template v-slot:item.ssh_key_id="{ item }">
@@ -64,11 +80,21 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)">
+        <v-btn-toggle
+          dense
+          :value-comparator="() => false"
+          data-testid="repositories-rowActions"
+        >
+          <v-btn
+            @click="askDeleteItem(item.id)"
+            data-testid="repositories-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-          <v-btn @click="editItem(item.id)">
+          <v-btn
+            @click="editItem(item.id)"
+            data-testid="repositories-rowEdit"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </v-btn-toggle>

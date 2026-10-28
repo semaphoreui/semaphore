@@ -1,6 +1,7 @@
 <template>
-  <v-app v-if="state === 'success'" class="app">
+  <v-app v-if="state === 'success'" class="app" data-testid="app-page" data-state="ready">
     <YesNoDialog
+      test-id="appRestoreResultDialog"
       :title="$t('projectRestoreResult')"
       v-model="restoreProjectResultDialog"
       hide-no-button
@@ -8,11 +9,17 @@
       :max-width="400"
     >
       <div class="pt-3" v-if="restoreProjectResult">
-        <v-alert dense outlined type="success">
+        <v-alert dense outlined type="success" data-testid="appRestoreResultDialog-success">
           {{ $t('projectWithNameRestored', { projectName: restoreProjectResult.projectName }) }}
         </v-alert>
 
-        <v-alert dense outlined type="error" class="mb-0">
+        <v-alert
+          dense
+          outlined
+          type="error"
+          class="mb-0"
+          data-testid="appRestoreResultDialog-emptyKeys"
+        >
           <b>{{ $t('emptyKeysRestored', { emptyKeys: restoreProjectResult.emptyKeys }) }}</b>
           {{ $t('pleaseUpdateAccessKeys') }}
         </v-alert>
@@ -21,6 +28,7 @@
 
     <EditDialog
       v-model="userDialog"
+      test-id="appEditAccountDialog"
       save-button-text="Save"
       :title="$t('editUser')"
       v-if="user"
@@ -55,6 +63,7 @@
 
     <EditDialog
       v-model="newProjectDialog"
+      test-id="appNewProjectDialog"
       save-button-text="Create"
       :title="$t('newProject')"
       event-name="i-project"
@@ -74,6 +83,7 @@
 
     <EditDialog
       v-model="subscriptionDialog"
+      test-id="appSubscriptionDialog"
       hide-buttons
       v-if="user"
       event-name="i-user"
@@ -102,6 +112,7 @@
 
     <EditDialog
       v-model="restoreProjectDialog"
+      test-id="appRestoreProjectDialog"
       save-button-text="Restore"
       :title="$t('restoreProject')"
       event-name="i-project"
@@ -119,9 +130,16 @@
 
     <SystemInfoDialog v-model="systemInfoDialog" v-if="user && canManageSystem" />
 
-    <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" top>
+    <v-snackbar
+      v-model="snackbar"
+      :color="snackbarColor"
+      :timeout="3000"
+      top
+      data-testid="app-snackbar"
+      :data-state="snackbarColor === 'error' ? 'error' : 'ready'"
+    >
       {{ snackbarText }}
-      <v-btn text @click="snackbar = false">
+      <v-btn text @click="snackbar = false" data-testid="app-snackbarClose">
         {{ $t('close') }}
       </v-btn>
     </v-snackbar>
@@ -138,6 +156,7 @@
       mini-variant-width="60"
       v-if="$route.path.startsWith('/project/')"
       class="NavDrawer"
+      data-testid="sidebar"
     >
       <v-menu bottom max-width="235" max-height="100%" v-if="project">
         <template v-slot:activator="{ on, attrs }">
@@ -160,10 +179,15 @@
               </v-list-item-icon>
 
               <v-list-item-content>
-                <v-list-item-title class="app__project-selector-title">
+                <v-list-item-title
+                  class="app__project-selector-title"
+                  data-testid="sidebar-currentProjectName"
+                >
                   {{ project.name }}
                 </v-list-item-title>
-                <v-list-item-subtitle>{{ (userRole.roles || []).join(', ') }}</v-list-item-subtitle>
+                <v-list-item-subtitle data-testid="sidebar-currentProjectRoles">
+                  {{ (userRole.roles || []).join(', ') }}
+                </v-list-item-subtitle>
               </v-list-item-content>
 
               <v-list-item-icon>
@@ -178,6 +202,7 @@
             :key="i"
             :to="`/project/${item.id}`"
             @click="selectProject(item.id)"
+            data-testid="sidebar-projectMenu-item"
           >
             <v-list-item-icon>
               <v-avatar
@@ -224,7 +249,12 @@
       </v-menu>
 
       <v-list class="pt-0" v-if="!project">
-        <v-list-item v-if="user.can_create_project" key="new_project" :to="`/project/new`">
+        <v-list-item
+          v-if="user.can_create_project"
+          key="new_project"
+          :to="`/project/new`"
+          data-testid="sidebar-newProjectLink"
+        >
           <v-list-item-icon>
             <v-icon>mdi-plus</v-icon>
           </v-list-item-icon>
@@ -234,7 +264,12 @@
           </v-list-item-content>
         </v-list-item>
 
-        <v-list-item v-if="user.can_create_project" key="restore_project" :to="`/project/restore`">
+        <v-list-item
+          v-if="user.can_create_project"
+          key="restore_project"
+          :to="`/project/restore`"
+          data-testid="sidebar-restoreProjectLink"
+        >
           <v-list-item-icon>
             <v-icon>mdi-restore</v-icon>
           </v-list-item-icon>
@@ -276,14 +311,23 @@
           </v-list-item-content>
 
           <div class="nav-pin-wrap" v-if="navEditMode && navItems.length > 1">
-            <v-btn icon @click.stop.prevent="togglePin(item.key)" :title="$t('unpin')">
+            <v-btn
+              icon
+              @click.stop.prevent="togglePin(item.key)"
+              :title="$t('unpin')"
+              data-testid="sidebar-unpin"
+            >
               <v-icon small>mdi-pin-off-outline</v-icon>
             </v-btn>
           </div>
         </v-list-item>
 
         <template v-if="unpinnedNavItems.length > 0">
-          <v-list-item @click="showMoreToggle = !showMoreToggle" class="nav-more-toggle">
+          <v-list-item
+            @click="showMoreToggle = !showMoreToggle"
+            class="nav-more-toggle"
+            data-testid="sidebar-more"
+          >
             <v-list-item-icon>
               <v-icon>{{ showMoreToggle ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
             </v-list-item-icon>
@@ -312,7 +356,12 @@
               </v-list-item-content>
 
               <div class="nav-pin-wrap" v-if="navEditMode">
-                <v-btn icon @click.stop.prevent="togglePin(item.key)" :title="$t('pin')">
+                <v-btn
+                  icon
+                  @click.stop.prevent="togglePin(item.key)"
+                  :title="$t('pin')"
+                  data-testid="sidebar-pin"
+                >
                   <v-icon small>mdi-pin-outline</v-icon>
                 </v-btn>
               </div>
@@ -332,6 +381,7 @@
                 flat
                 hide-details
                 dense
+                data-testid="sidebar-darkMode"
               ></v-switch>
               <v-icon class="DarkModeSwitchWrap__icon" small>
                 {{ darkMode ? 'mdi-weather-night' : 'mdi-white-balance-sunny' }}
@@ -347,6 +397,7 @@
               :color="navEditMode ? 'primary' : undefined"
               :title="navEditMode ? $t('finishEditingMenu') : $t('editMenu')"
               @click="navEditMode = !navEditMode"
+              data-testid="sidebar-editMenu"
             >
               <v-icon style="transform: scale(1.3)">
                 {{ navEditMode ? 'mdi-check' : 'mdi-playlist-edit' }}
@@ -357,7 +408,7 @@
 
             <v-menu top min-width="150" max-width="235" nudge-top="12" :position-x="50" absolute>
               <template v-slot:activator="{ on, attrs }">
-                <v-btn icon v-bind="attrs" v-on="on">
+                <v-btn icon v-bind="attrs" v-on="on" data-testid="sidebar-langMenu">
                   <img
                     style="border-radius: 30px; max-width: 100%"
                     :src="`flags/${lang.flag}.svg`"
@@ -371,6 +422,7 @@
                   v-for="lang in languages"
                   :key="lang.id"
                   @click="selectLanguage(lang.id)"
+                  :data-testid="`sidebar-langMenu-${lang.id || 'system'}`"
                 >
                   <v-list-item-icon>
                     <v-img
@@ -390,20 +442,26 @@
 
           <v-menu top max-width="235" nudge-top="12">
             <template v-slot:activator="{ on, attrs }">
-              <v-list-item key="project" v-bind="attrs" v-on="on">
+              <v-list-item key="project" v-bind="attrs" v-on="on" data-testid="sidebar-userMenu">
                 <v-list-item-icon>
-                  <v-icon color="#f14668" v-if="user.pro"> mdi-professional-hexagon</v-icon>
+                  <v-icon
+                    color="#f14668"
+                    v-if="user.pro"
+                    data-testid="sidebar-userPro"
+                  > mdi-professional-hexagon</v-icon>
                   <v-icon v-else>mdi-account</v-icon>
                 </v-list-item-icon>
 
                 <v-list-item-content>
-                  <v-list-item-title>
+                  <v-list-item-title data-testid="sidebar-userName">
                     {{ user.name }}
                   </v-list-item-title>
                 </v-list-item-content>
 
                 <v-list-item-action>
-                  <v-chip color="red" v-if="user.admin" small>{{ $i18n.t('admin') }}</v-chip>
+                  <v-chip color="red" v-if="user.admin" small data-testid="sidebar-userAdmin">{{
+                    $i18n.t('admin')
+                  }}</v-chip>
                 </v-list-item-action>
               </v-list-item>
             </template>
@@ -413,6 +471,7 @@
                 key="system-info"
                 v-if="canManageSystem"
                 @click="systemInfoDialog = true"
+                data-testid="sidebar-userMenu-systemInfo"
               >
                 <v-list-item-icon>
                   <v-icon>mdi-server</v-icon>
@@ -423,7 +482,7 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item v-else key="version">
+              <v-list-item v-else key="version" data-testid="sidebar-userMenu-version">
                 <v-list-item-icon>
                   <v-icon>mdi-information-variant</v-icon>
                 </v-list-item-icon>
@@ -437,6 +496,7 @@
                 key="subscription"
                 v-if="isPro && user.admin"
                 @click="subscriptionDialog = true"
+                data-testid="sidebar-userMenu-subscription"
               >
                 <v-list-item-icon>
                   <v-icon color="#f14668" style="transform: scale(1.4)">
@@ -455,7 +515,12 @@
 
               <v-divider />
 
-              <v-list-item key="runners" to="/runners" v-if="canManageSystem">
+              <v-list-item
+                key="runners"
+                to="/runners"
+                v-if="canManageSystem"
+                data-testid="sidebar-userMenu-runners"
+              >
                 <v-list-item-icon>
                   <v-icon>mdi-cogs</v-icon>
                 </v-list-item-icon>
@@ -465,7 +530,12 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="cluster" to="/cluster" v-if="canManageSystem">
+              <v-list-item
+                key="cluster"
+                to="/cluster"
+                v-if="canManageSystem"
+                data-testid="sidebar-userMenu-cluster"
+              >
                 <v-list-item-icon>
                   <v-icon>mdi-server-network</v-icon>
                 </v-list-item-icon>
@@ -475,7 +545,12 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="tasks" to="/tasks" v-if="canManageSystem">
+              <v-list-item
+                key="tasks"
+                to="/tasks"
+                v-if="canManageSystem"
+                data-testid="sidebar-userMenu-tasks"
+              >
                 <v-list-item-icon>
                   <v-icon>mdi-check-all</v-icon>
                 </v-list-item-icon>
@@ -485,7 +560,12 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="users" to="/users" v-if="canManageUsers || canManageRoles">
+              <v-list-item
+                key="users"
+                to="/users"
+                v-if="canManageUsers || canManageRoles"
+                data-testid="sidebar-userMenu-users"
+              >
                 <v-list-item-icon>
                   <v-icon>mdi-account-multiple</v-icon>
                 </v-list-item-icon>
@@ -495,7 +575,12 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="audit-log" to="/audit-log" v-if="user.can_read_audit_log">
+              <v-list-item
+                key="audit-log"
+                to="/audit-log"
+                v-if="user.can_read_audit_log"
+                data-testid="sidebar-userMenu-auditLog"
+              >
                 <v-list-item-icon>
                   <v-icon>mdi-shield-search</v-icon>
                 </v-list-item-icon>
@@ -505,7 +590,12 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="roles" to="/roles" v-if="isPro && canManageRoles">
+              <v-list-item
+                key="roles"
+                to="/roles"
+                v-if="isPro && canManageRoles"
+                data-testid="sidebar-userMenu-roles"
+              >
                 <v-list-item-icon>
                   <v-icon>mdi-account-cog</v-icon>
                 </v-list-item-icon>
@@ -515,7 +605,12 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="role-mappings" to="/role-mappings" v-if="isPro && user.admin">
+              <v-list-item
+                key="role-mappings"
+                to="/role-mappings"
+                v-if="isPro && user.admin"
+                data-testid="sidebar-userMenu-roleMappings"
+              >
                 <v-list-item-icon>
                   <v-icon>mdi-account-group</v-icon>
                 </v-list-item-icon>
@@ -537,7 +632,11 @@
                 </v-list-item-content>
               </v-list-item>
 
-              <v-list-item key="edit" @click="userDialog = true">
+              <v-list-item
+                key="edit"
+                @click="userDialog = true"
+                data-testid="sidebar-userMenu-editAccount"
+              >
                 <v-list-item-icon>
                   <v-icon>mdi-pencil</v-icon>
                 </v-list-item-icon>
@@ -564,7 +663,7 @@
       </template>
     </v-navigation-drawer>
 
-    <v-main>
+    <v-main data-testid="app-main">
       <router-view
         :projectId="projectId"
         :projectType="(project || {}).type || ''"
@@ -578,14 +677,19 @@
       ></router-view>
     </v-main>
   </v-app>
-  <v-app v-else-if="state === 'loading'">
+  <v-app v-else-if="state === 'loading'" data-testid="app-page" data-state="loading">
     <v-main>
       <v-container fluid fill-height align-center justify-center class="pa-0">
-        <v-progress-circular :size="70" color="primary" indeterminate></v-progress-circular>
+        <v-progress-circular
+          :size="70"
+          color="primary"
+          indeterminate
+          data-testid="app-loading"
+        ></v-progress-circular>
       </v-container>
     </v-main>
   </v-app>
-  <v-app v-else-if="state === 'error'">
+  <v-app v-else-if="state === 'error'" data-testid="app-page" data-state="error">
     <v-main>
       <v-container
         fluid
@@ -595,18 +699,18 @@
         justify-center
         class="pa-0 text-center"
       >
-        <v-alert text color="error" class="d-inline-block">
+        <v-alert text color="error" class="d-inline-block" data-testid="app-error">
           <h3 class="headline">
             {{ $t('error') }}
           </h3>
           {{ snackbarText }}
         </v-alert>
         <div class="mb-6">
-          <v-btn text color="blue darken-1" @click="refreshPage()">
+          <v-btn text color="blue darken-1" @click="refreshPage()" data-testid="app-refresh">
             <v-icon left>mdi-refresh</v-icon>
             {{ $t('refreshPage') }}
           </v-btn>
-          <v-btn text color="blue darken-1" @click="signOut()">
+          <v-btn text color="blue darken-1" @click="signOut()" data-testid="app-relogin">
             <v-icon left>mdi-exit-to-app</v-icon>
             {{ $t('relogin') }}
           </v-btn>
@@ -1261,12 +1365,14 @@ export default {
             icon: 'mdi-git',
             title: this.$t('repositories'),
             to: `${base}/repositories`,
+            testId: 'sidebar-repositories',
           },
           {
             key: 'host_config',
             icon: 'mdi-server-network',
             title: this.$t('hostConfig'),
             to: `${base}/host_config`,
+            testId: 'sidebar-hostConfig',
           },
           {
             key: 'integrations',

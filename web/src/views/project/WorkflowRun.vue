@@ -1,20 +1,31 @@
 <template>
-  <div>
+  <div data-testid="workflowRun-page" :data-state="details == null ? 'loading' : 'ready'">
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>
-        <router-link :to="`/project/${projectId}/workflows`">
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="workflowRun-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="workflowRun-title">
+        <router-link
+          :to="`/project/${projectId}/workflows`"
+          data-testid="workflowRun-backToList"
+        >
           {{ $t('workflows') }}
         </router-link>
-        <span class="ml-2">
+        <span class="ml-2" data-testid="workflowRun-name">
           / {{ workflow ? workflow.name : $t('workflowRun') }} #{{ runId }}
-          <span v-if="details && details.run.version" class="text--secondary">
+          <span
+            v-if="details && details.run.version"
+            class="text--secondary"
+            data-testid="workflowRun-version"
+          >
             · {{ details.run.version }}
           </span>
           <span
             v-if="details && details.revision"
             class="text--secondary"
             :title="$t('workflowRunRevisionHint')"
+            data-testid="workflowRun-revision"
           >
             · {{ $t('workflowRevisionLabel', { number: details.revision }) }}
           </span>
@@ -28,6 +39,7 @@
         :color="statusColor(details.run.status)"
         small
         class="mr-3"
+        :data-testid="`workflowRun-status-${details.run.status}`"
       >{{ details.run.status }}</v-chip>
 
       <v-btn
@@ -38,20 +50,33 @@
         class="mr-3"
         :loading="stopping"
         @click="stopRun()"
+        data-testid="workflowRun-stop"
       >
         <v-icon left small>mdi-stop</v-icon>
         {{ $t('stop') }}
       </v-btn>
 
-      <v-btn icon @click="loadData()" :title="$t('refresh')">
+      <v-btn
+        icon
+        @click="loadData()"
+        :title="$t('refresh')"
+        data-testid="workflowRun-refresh"
+      >
         <v-icon>mdi-refresh</v-icon>
       </v-btn>
     </v-toolbar>
 
     <v-divider />
 
-    <div v-if="runVariables.length > 0" class="WorkflowRun__vars px-4 py-2">
-      <span class="text-caption text--secondary mr-2">{{ $t('workflowRunVariables') }}</span>
+    <div
+      v-if="runVariables.length > 0"
+      class="WorkflowRun__vars px-4 py-2"
+      data-testid="workflowRun-vars"
+    >
+      <span
+        class="text-caption text--secondary mr-2"
+        data-testid="workflowRun-varsTitle"
+      >{{ $t('workflowRunVariables') }}</span>
       <v-chip
         v-for="v in runVariables"
         :key="v.name"
@@ -60,10 +85,11 @@
         outlined
         class="WorkflowRun__var mr-1 mb-1"
         :title="`${v.name} = ${v.value}`"
+        :data-testid="`workflowRun-var-${v.name}`"
       >
-        <span class="WorkflowRun__varName">{{ v.name }}</span>
+        <span class="WorkflowRun__varName" data-testid="workflowRun-varName">{{ v.name }}</span>
         <span class="mx-1">=</span>
-        <span class="WorkflowRun__varValue">{{ v.value }}</span>
+        <span class="WorkflowRun__varValue" data-testid="workflowRun-varValue">{{ v.value }}</span>
       </v-chip>
     </div>
 
@@ -72,6 +98,7 @@
         <div class="WorkflowRun__graph">
           <WorkflowGraph
             v-if="workflow"
+            data-testid="workflowRun-graph"
             ref="graph"
             :nodes="workflow.nodes || []"
             :edges="workflow.edges || []"
@@ -87,14 +114,16 @@
           <div
             v-if="canResolveApprovals && pendingApprovals.length && $vuetify.breakpoint.smAndDown"
             class="WorkflowRun__approvals"
+            data-testid="workflowRun-approvals"
           >
             <v-card
               v-for="a in pendingApprovals"
               :key="`approval-${a.nodeId}`"
               class="WorkflowRun__approval px-3 py-2"
               outlined
+              data-testid="workflowRun-approval"
             >
-              <div class="WorkflowRun__approvalText">
+              <div class="WorkflowRun__approvalText" data-testid="workflowRun-approvalText">
                 <strong>#{{ a.nodeId }}</strong>
                 <span class="ml-2">{{ a.message || $t('workflowApprovalPending') }}</span>
               </div>
@@ -104,19 +133,21 @@
                 color="success"
                 class="ml-3"
                 @click="resolveApproval(a.nodeId, 'approved')"
+                data-testid="workflowRun-approvalApprove"
               >{{ $t('workflowApprove') }}</v-btn>
               <v-btn
                 small
                 color="error"
                 class="ml-2"
                 @click="resolveApproval(a.nodeId, 'rejected')"
+                data-testid="workflowRun-approvalReject"
               >{{ $t('workflowReject') }}</v-btn>
             </v-card>
           </div>
         </div>
       </template>
 
-      <div v-else class="pa-4 text-center">
+      <div v-else class="pa-4 text-center" data-testid="workflowRun-loading">
         <v-progress-circular indeterminate color="primary" />
       </div>
     </div>

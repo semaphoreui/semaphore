@@ -2,11 +2,13 @@
   <div
     class="task-log-view"
     :class="{'task-log-view--with-message': item.message || item.commit_message}"
+    data-testid="taskLog-page"
   >
-    <div class="px-5 task-log-view__message">
+    <div class="px-5 task-log-view__message" data-testid="taskLog-messageBar">
       <span
         v-if="item.message"
         class="mr-3"
+        data-testid="taskLog-message"
       >
         <v-icon small>mdi-message-outline</v-icon>
         {{ item.message }}
@@ -15,6 +17,7 @@
       <span
         class="d-inline-block"
         v-if="item.commit_message"
+        data-testid="taskLog-commitMessage"
       >
         <v-icon small>mdi-source-fork</v-icon>
         {{ item.commit_message }}
@@ -23,37 +26,43 @@
 
     <div
       class="overflow-auto text-no-wrap px-5 task-log-view__status"
+      data-testid="taskLog-statusBar"
     >
       <TaskStatus :status="item.status" data-testid="task-status" />
 
-      <span class="ml-3 hidden-xs-only task-log-view__status_part">
+      <span class="ml-3 hidden-xs-only task-log-view__status_part" data-testid="taskLog-started">
 
-        Started <span v-if="user">by <b>{{ user.name }}</b></span>
+        Started <span v-if="user" data-testid="taskLog-author">by <b>{{ user.name }}</b></span>
 
         at <b>{{ item.start | formatDate }}</b>
       </span>
 
-      <span class="ml-3 hidden-sm-and-down task-log-view__status_part">
+      <span
+        class="ml-3 hidden-sm-and-down task-log-view__status_part"
+        data-testid="taskLog-duration"
+      >
         <v-icon
           small style="transform: translateY(-1px)">mdi-clock-outline</v-icon>
         {{ [item.start, item.end] | formatMilliseconds }}
       </span>
     </div>
 
-    <v-tabs class="task-log-view__tabs" right v-model="tab">
-      <v-tab>Log</v-tab>
-      <v-tab>Details</v-tab>
+    <v-tabs class="task-log-view__tabs" right v-model="tab" data-testid="taskLog-tabs">
+      <v-tab data-testid="taskLog-tab-log">Log</v-tab>
+      <v-tab data-testid="taskLog-tab-details">Details</v-tab>
       <v-tab
         v-if="isPro"
         :disabled="!isTaskStopped"
+        data-testid="taskLog-tab-summary"
       >
         Summary
       </v-tab>
     </v-tabs>
 
-    <div v-if="tab === 0">
+    <div v-if="tab === 0" data-testid="taskLog-logPanel">
       <VirtualList
         class="task-log-records"
+        data-testid="taskLog-output"
         :data-key="'id'"
         :data-sources="output"
         :data-component="itemComponent"
@@ -76,6 +85,7 @@
         style="right: 260px; width: 70px;"
         v-if="item.status === 'waiting_confirmation'"
         @click="confirmTask()"
+        data-testid="taskLog-confirm"
       >
         <v-icon>mdi-check</v-icon>
       </v-btn>
@@ -86,6 +96,7 @@
         style="right: 180px; width: 70px;"
         v-if="item.status === 'waiting_confirmation'"
         @click="rejectTask()"
+        data-testid="taskLog-reject"
       >
         <v-icon>mdi-close</v-icon>
       </v-btn>
@@ -96,6 +107,7 @@
         style="right: 20px; width: 150px;"
         v-if="canStop"
         @click="stopTask(item.status === 'stopping')"
+        :data-testid="item.status === 'stopping' ? 'taskLog-forceStop' : 'taskLog-stop'"
       >
         {{ item.status === 'stopping' ? $t('forceStop') : $t('stop') }}
       </v-btn>
@@ -112,7 +124,7 @@
       </v-btn>
     </div>
 
-    <div v-else-if="tab === 1">
+    <div v-else-if="tab === 1" data-testid="taskLog-detailsPanel">
       <v-divider style="margin-top: -1px;" />
 
       <v-container fluid class="py-0 px-5 overflow-auto pt-4">
@@ -126,7 +138,7 @@
       </v-container>
     </div>
 
-    <div v-else-if="tab === 2">
+    <div v-else-if="tab === 2" data-testid="taskLog-summaryPanel">
       <v-divider style="margin-top: -1px;" />
 
       <AnsibleStageView

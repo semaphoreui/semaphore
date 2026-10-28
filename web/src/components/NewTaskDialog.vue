@@ -5,13 +5,17 @@
     :title="$t('newTask')"
     @save="closeDialog"
     @close="closeDialog"
-    test-id="newTaskDialog"
+    :test-id="testId"
   >
     <template v-slot:title={}>
-      <v-icon small class="mr-4">{{ TEMPLATE_TYPE_ICONS[template?.type || ''] }}</v-icon>
-      <span class="breadcrumbs__item">{{ templateTitle }}</span>
+      <v-icon
+        small
+        class="mr-4"
+        data-testid="newTask-templateTypeIcon"
+      >{{ TEMPLATE_TYPE_ICONS[template?.type || ''] }}</v-icon>
+      <span class="breadcrumbs__item" data-testid="newTask-templateName">{{ templateTitle }}</span>
       <v-icon>mdi-chevron-right</v-icon>
-      <span class="breadcrumbs__item">{{ $t('newTask') }}</span>
+      <span class="breadcrumbs__item" data-testid="newTask-title">{{ $t('newTask') }}</span>
     </template>
 
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -45,6 +49,10 @@ export default {
     projectId: Number,
     template: Object,
     sourceTask: Object,
+    testId: {
+      type: String,
+      default: 'newTaskDialog',
+    },
   },
   data() {
     return {

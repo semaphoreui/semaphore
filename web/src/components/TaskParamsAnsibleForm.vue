@@ -3,6 +3,7 @@
 
     <ArgsPicker
       v-if="templateParams.allow_override_limit"
+      test-id="taskParams-limit"
       :vars="params.limit"
       @change="setLimit"
       :title="$t('limit')"
@@ -12,6 +13,7 @@
 
     <ArgsPicker
       v-if="templateParams.allow_override_tags"
+      test-id="taskParams-tags"
       :vars="params.tags"
       @change="setTags"
       :title="$t('tags')"
@@ -21,6 +23,7 @@
 
     <ArgsPicker
       v-if="templateParams.allow_override_skip_tags"
+      test-id="taskParams-skipTags"
       :vars="params.skip_tags"
       @change="setSkipTags"
       :title="$t('skipTags')"
@@ -36,6 +39,7 @@
           v-model="params.debug"
           @change="updateValue('debug', $event)"
           hide-details
+          data-testid="taskParams-debug"
         >
           <template v-slot:label>
             <div class="text-no-wrap">
@@ -49,6 +53,7 @@
           style="max-width: 100px;"
           v-model="params.debug_level"
           @change="updateValue('debug_level', $event)"
+          data-testid="taskParams-debugLevel"
           step="1"
           min="1"
           max="6"
@@ -60,6 +65,7 @@
           class="mt-0"
           :input-value="params.dry_run"
           @change="updateValue('dry_run', $event)"
+          data-testid="taskParams-dryRun"
         >
           <template v-slot:label>
             <div class="text-no-wrap">{{ $t('dryRun') }} <code>--check</code></div>
@@ -71,6 +77,7 @@
           class="mt-0"
           :input-value="params.diff"
           @change="updateValue('diff', $event)"
+          data-testid="taskParams-diff"
         >
           <template v-slot:label>
             <div class="text-no-wrap">{{ $t('diff') }} <code>--diff</code></div>
@@ -82,6 +89,7 @@
           :input-value="params.skip_galaxy_install"
           class="mt-0"
           @change="updateValue('skip_galaxy_install', $event)"
+          data-testid="taskParams-skipGalaxyInstall"
         >
           <template v-slot:label>
             <div class="text-no-wrap">{{ $t('skipGalaxyInstall') }}</div>

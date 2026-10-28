@@ -1,5 +1,5 @@
 <template>
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg data-testid="icon-tofu" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path fill-rule="evenodd" clip-rule="evenodd"
           d="M25.461 2.7578C24.5513 2.25782 23.4491 2.25782 22.5395 2.7578L7.56956 10.9858C7.5571
           10.9927 7.54472 10.9996 7.5324 11.0066L5.5614 12.0899C4.59191 12.6228 3.9895 13.6413

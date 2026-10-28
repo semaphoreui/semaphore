@@ -1,7 +1,15 @@
 <template>
   <v-chip v-if="status" style="font-weight: bold;" :color="getStatusColor(status)">
-    <v-icon v-if="status !== 'running'" left>{{ getStatusIcon(status) }}</v-icon>
-    <IndeterminateProgressCircular v-else style="margin-left: -5px;" />
+    <v-icon
+      v-if="status !== 'running'"
+      left
+      :data-testid="`taskStatus-${status}`"
+    >{{ getStatusIcon(status) }}</v-icon>
+    <IndeterminateProgressCircular
+      v-else
+      style="margin-left: -5px;"
+      :data-testid="`taskStatus-${status}`"
+    />
     {{ humanizeStatus(status) }}
   </v-chip>
 </template>

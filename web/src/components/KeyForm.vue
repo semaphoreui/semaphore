@@ -4,8 +4,15 @@
     lazy-validation
     v-model="formValid"
     v-if="item != null && secretStorages != null"
+    data-testid="key-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
-    <v-alert :value="formError" color="error" class="mb-6">{{ formError }}</v-alert>
+    <v-alert
+      :value="formError"
+      color="error"
+      class="mb-6"
+      data-testid="key-error"
+    >{{ formError }}</v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -15,41 +22,67 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="key-name"
     />
 
     <v-card
       class="mb-6"
       :color="$vuetify.theme.dark ? '#212121' : 'white'"
       style="background: #8585850f"
+      data-testid="key-source"
     >
-      <v-tabs fixed-tabs v-model="sourceStorageTypeIndex">
-        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0"
+      <v-tabs
+        fixed-tabs
+        v-model="sourceStorageTypeIndex"
+        data-testid="key-sourceTabs"
+      >
+        <v-tab
+          :disabled="formSaving || !canEditSecrets || isSynced"
+          style="padding: 0"
+          data-testid="key-tab-local"
           >Local</v-tab
         >
         <v-tab
           v-if="isPro"
           :disabled="formSaving || !canEditSecrets || isSynced"
           style="padding: 0"
+          data-testid="key-tab-storage"
           >
             Storage
           </v-tab
         >
-        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">Env</v-tab>
-        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">File</v-tab>
+        <v-tab
+          :disabled="formSaving || !canEditSecrets || isSynced"
+          style="padding: 0"
+          data-testid="key-tab-env"
+        >Env</v-tab>
+        <v-tab
+          :disabled="formSaving || !canEditSecrets || isSynced"
+          style="padding: 0"
+          data-testid="key-tab-file"
+        >File</v-tab>
       </v-tabs>
 
       <div
         :class="!supportStorages && sourceStorageType === 'vault' ? '' : 'ml-4 mr-4 mt-6'"
         v-if="sourceStorageType"
+        data-testid="key-sourceBody"
       >
         <v-alert
           text
           color="hsl(348deg, 86%, 61%)"
           class="PageAlert PageAlert--flat-top"
           v-if="!supportStorages && sourceStorageType === 'vault'"
+          data-testid="key-storageUpgradeAlert"
         >
           <span v-html="$t('project_runners_only_pro')"></span>
-          <v-btn dark class="ml-2" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro()">
+          <v-btn
+            dark
+            class="ml-2"
+            color="hsl(348deg, 86%, 61%)"
+            @click="upgradeToPro()"
+            data-testid="key-storageUpgrade"
+          >
             {{ $t('upgrade_to_pro') }}
           </v-btn>
         </v-alert>
@@ -65,6 +98,7 @@
           outlined
           dense
           clearable
+          data-testid="key-sourceStorageId"
         />
 
         <v-text-field
@@ -74,6 +108,7 @@
           :disabled="formSaving || !canEditSecrets || isSynced"
           outlined
           dense
+          data-testid="key-sourceStorageKey"
         />
 
         <v-text-field
@@ -86,6 +121,7 @@
           :disabled="formSaving || !canEditSecrets"
           outlined
           dense
+          :data-testid="`key-sourceStorageKey-${sourceStorageType}`"
         />
       </div>
     </v-card>
@@ -101,9 +137,15 @@
       :disabled="formSaving || !canEditSecrets"
       outlined
       dense
+      data-testid="key-type"
     />
 
-    <v-alert v-if="isReadOnly" type="info" text>Read-only secret storage chosen.</v-alert>
+    <v-alert
+      v-if="isReadOnly"
+      type="info"
+      text
+      data-testid="key-readOnlyAlert"
+    >Read-only secret storage chosen.</v-alert>
 
     <v-text-field
       v-model="item.login_password.login"
@@ -112,6 +154,7 @@
       :disabled="formSaving || !canEditSecrets"
       outlined
       dense
+      data-testid="key-loginPasswordLogin"
     />
 
     <v-text-field
@@ -127,6 +170,7 @@
       @click:append="showLoginPassword = !showLoginPassword"
       outlined
       dense
+      data-testid="key-loginPasswordPassword"
     />
 
     <v-text-field
@@ -136,6 +180,7 @@
       :disabled="formSaving || !canEditSecrets"
       outlined
       dense
+      data-testid="key-sshLogin"
     />
 
     <v-text-field
@@ -148,6 +193,7 @@
       @click:append="showSSHPassphrase = !showSSHPassphrase"
       outlined
       dense
+      data-testid="key-sshPassphrase"
     />
 
     <v-checkbox
@@ -157,6 +203,7 @@
       :disabled="formSaving || !canEditSecrets"
       class="mt-0 mb-3"
       hide-details
+      data-testid="key-generateSshKey"
     />
 
     <v-textarea
@@ -169,11 +216,13 @@
           (v) => !canEditSecrets || item.generate_ssh_key || !!v || $t('private_key_required')
         ]"
       v-if="!isReadOnly && item.type === 'ssh'"
+      data-testid="key-sshPrivateKey"
     />
 
     <div
       v-if="!item.override_secret && item.type === 'ssh' && !isNew && hasGeneratedPublicKey"
       class="mb-4"
+      data-testid="key-publicKey"
     >
       <div class="pb-1">Public key:</div>
       <div style="position: relative">
@@ -189,6 +238,7 @@
           "
           :style="{height: showPublicKey ? 'auto' : '35px' }"
           class="pa-2"
+          data-testid="key-publicKeyValue"
           >{{ publicKey }}</pre
         >
 
@@ -196,6 +246,7 @@
           style="position: absolute; right: 40px; top: 0; transform: scale(0.9);"
           text
           @click="showPublicKey = !showPublicKey"
+          data-testid="key-publicKeyToggle"
         >
           {{ showPublicKey ? 'Hide' : 'Show' }}
         </v-btn>
@@ -203,6 +254,7 @@
         <CopyClipboardButton
           style="position: absolute; right: 0; top: 0; transform: scale(0.9);"
           :text="publicKey"
+          test-id="key-publicKeyCopy"
         />
       </div>
     </div>
@@ -214,9 +266,16 @@
         v-if="!isNew"
         hide-details
         class="mt-0"
+        data-testid="key-overrideSecret"
     />
 
-    <v-alert dense text type="info" v-if="item.type === 'none'">
+    <v-alert
+      dense
+      text
+      type="info"
+      v-if="item.type === 'none'"
+      data-testid="key-noneInfo"
+    >
       {{ $t('useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook') }}
     </v-alert>
   </v-form>

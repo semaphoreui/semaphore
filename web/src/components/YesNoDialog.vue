@@ -3,10 +3,10 @@
     v-model="dialog"
     :max-width="maxWidth || 290"
   >
-    <v-card>
-      <v-card-title class="headline">{{ title }}</v-card-title>
+    <v-card :data-testid="testId">
+      <v-card-title class="headline" data-testid="yesNoDialog-title">{{ title }}</v-card-title>
 
-      <v-card-text>
+      <v-card-text data-testid="yesNoDialog-text">
         <slot>{{ text }}</slot>
       </v-card-text>
 
@@ -18,6 +18,7 @@
           color="blue darken-1"
           text
           @click="no()"
+          data-testid="yesNoDialog-no"
         >
           {{ noButtonTitle || $t('cancel') }}
         </v-btn>
@@ -26,6 +27,7 @@
           color="blue darken-1"
           text
           @click="yes()"
+          data-testid="yesNoDialog-yes"
         >
           {{ yesButtonTitle || $t('yes') }}
         </v-btn>
@@ -44,6 +46,10 @@ export default {
     noButtonTitle: String,
     hideNoButton: Boolean,
     maxWidth: Number,
+    testId: {
+      type: String,
+      default: 'yesNoDialog',
+    },
   },
 
   data() {

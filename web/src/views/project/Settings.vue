@@ -1,15 +1,19 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div>
+  <div data-testid="settings-page">
     <YesNoDialog
       v-model="deleteProjectDialog"
       :title="$t('deleteProject')"
       :text="$t('askDeleteProj')"
       @yes="deleteProject()"
+      test-id="settingsDeleteProjectDialog"
     />
 
     <v-toolbar flat >
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="settings-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="settings-title">{{ $t('dashboard') }}</v-toolbar-title>
     </v-toolbar>
 
     <DashboardMenu
@@ -22,7 +26,7 @@
       style="margin: auto; max-width: 600px; padding: 0 16px;"
       class="CenterToScreen"
     >
-      <h2 class="mt-8 mb-1">{{ $t('general_settings') }}</h2>
+      <h2 class="mt-8 mb-1" data-testid="settings-generalTitle">{{ $t('general_settings') }}</h2>
 
       <v-divider class="mb-8" />
 
@@ -45,7 +49,11 @@
             :disabled="testNotificationProgress"
             data-testid="settings-testAlerts"
           >Test Alerts</v-btn>
-          <v-btn color="primary" @click="saveProject()">{{ $t('save') }}</v-btn>
+          <v-btn
+            color="primary"
+            @click="saveProject()"
+            data-testid="settings-save"
+          >{{ $t('save') }}</v-btn>
         </div>
 
         <v-progress-linear
@@ -56,10 +64,14 @@
           width="170"
           height="36"
           style="margin-top: -36px; width: 170px;"
+          data-testid="settings-testAlertsProgress"
         ></v-progress-linear>
       </div>
 
-      <h2 class="mt-8 mb-1">{{ $t('danger_zone_settings') }}</h2>
+      <h2
+        class="mt-8 mb-1"
+        data-testid="settings-dangerZoneTitle"
+      >{{ $t('danger_zone_settings') }}</h2>
 
       <v-divider class="mb-8" />
 
@@ -83,11 +95,12 @@
               rounded
               height="36"
               style="margin-top: -36px"
+              data-testid="settings-exportProjectProgress"
             ></v-progress-linear>
 
           </v-col>
           <v-col class="grow">
-            <div style="font-size: 14px;">
+            <div style="font-size: 14px;" data-testid="settings-exportProjectText">
               {{ $t('downloadTheProjectBackupFile') }}
             </div>
           </v-col>
@@ -113,11 +126,12 @@
               rounded
               height="36"
               style="margin-top: -36px"
+              data-testid="settings-clearCacheProgress"
             ></v-progress-linear>
 
           </v-col>
           <v-col class="grow">
-            <div style="font-size: 14px">
+            <div style="font-size: 14px" data-testid="settings-clearCacheText">
               {{ $t('clear_cache_message') }}
             </div>
           </v-col>
@@ -136,7 +150,7 @@
             </v-btn>
           </v-col>
           <v-col class="grow">
-            <div style="font-size: 14px; color: #ff5252">
+            <div style="font-size: 14px; color: #ff5252" data-testid="settings-deleteProjectText">
               {{ $t('onceYouDeleteAProjectThereIsNoGoingBackPleaseBeCer') }}
             </div>
           </v-col>

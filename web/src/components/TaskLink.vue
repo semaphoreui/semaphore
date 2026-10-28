@@ -5,11 +5,12 @@
         small
         class="mr-1"
         :color="statusColor"
+        :data-testid="`taskLink-status-${status}`"
     >
       mdi-{{ statusIcon }}
     </v-icon>
 
-    <span v-if="disabled">{{ label }}</span>
+    <span v-if="disabled" data-testid="taskLink-label">{{ label }}</span>
 
     <v-tooltip
         v-else
@@ -24,12 +25,13 @@
             v-on="on"
             @click="showTaskLog()"
             :class="{'task-link-with-tooltip': tooltip}"
+            data-testid="taskLink-open"
         >
           {{ label }}
         </a>
       </template>
 
-      <span>{{ tooltip }}</span>
+      <span data-testid="taskLink-tooltip">{{ tooltip }}</span>
 
     </v-tooltip>
   </span>

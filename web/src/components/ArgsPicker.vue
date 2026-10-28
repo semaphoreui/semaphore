@@ -1,29 +1,35 @@
 <template>
-  <div class="pb-6" style="margin-top: -10px;">
+  <div class="pb-6" style="margin-top: -10px;" :data-testid="testId">
     <v-dialog
       v-model="editDialog"
       hide-overlay
       content-class="NestedDialog"
       width="400"
     >
-      <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">
-        <v-card-title></v-card-title>
+      <v-card
+        :color="$vuetify.theme.dark ? '#212121' : 'white'"
+        :data-testid="`${testId}Dialog`"
+      >
+        <v-card-title :data-testid="`${testId}Dialog-title`"></v-card-title>
         <v-card-text class="pb-0">
           <v-form
             ref="form"
             lazy-validation
             v-if="editedVar != null"
+            :data-testid="`${testId}Dialog-form`"
             @submit.prevent="saveVar()"
           >
             <v-alert
               :value="formError != null"
               color="error"
+              :data-testid="`${testId}Dialog-error`"
             >{{ formError }}
             </v-alert>
 
             <v-text-field
               :label="argTitle || $t('arg')"
               v-model.trim="editedVar.name"
+              :data-testid="`${testId}Dialog-name`"
               :rules="[(v) => !!v || $t('arg_required')]"
               required
               outlined
@@ -37,6 +43,7 @@
               <v-btn
                 color="primary"
                 v-if="editedVar.type === 'enum'"
+                :data-testid="`${testId}Dialog-addValue`"
                 @click="addEditedVarValue()"
               >Add Value</v-btn>
             </div>
@@ -48,6 +55,7 @@
             color="blue darken-1"
             text
             @click="editDialog = false"
+            :data-testid="`${testId}Dialog-cancel`"
           >
             {{ $t('cancel') }}
           </v-btn>
@@ -55,6 +63,7 @@
             color="blue darken-1"
             text
             @click="saveVar()"
+            :data-testid="`${testId}Dialog-save`"
           >
             {{ editedVarIndex == null ? $t('add') : $t('save') }}
           </v-btn>
@@ -68,7 +77,10 @@
                      border-radius: 8px;
                      font-size: 12px;"
     >
-      <legend style="padding: 0 3px;">{{ title || $t('Args') }}</legend>
+      <legend
+        style="padding: 0 3px;"
+        :data-testid="`${testId}-title`"
+      >{{ title || $t('Args') }}</legend>
       <v-chip-group column style="margin-top: -4px;">
         <draggable
           v-model="modifiedVars"
@@ -84,6 +96,7 @@
             :key="i"
             @click="editVar(i)"
             class="draggable-chip"
+            :data-testid="`${testId}-chip`"
           >
             <div
               style="
@@ -94,7 +107,7 @@
             >{{ v.name }}</div>
           </v-chip>
         </draggable>
-        <v-chip @click="editVar(null)">
+        <v-chip @click="editVar(null)" :data-testid="`${testId}-add`">
           + <span
                 class="ml-1"
                 v-if="modifiedVars.length === 0"
@@ -129,6 +142,8 @@ export default {
     title: String,
     addArgTitle: String,
     argTitle: String,
+    // Builds data-testid of the picker and its parts only, no behaviour.
+    testId: { type: String, default: 'argsPicker' },
   },
   watch: {
     vars(val) {

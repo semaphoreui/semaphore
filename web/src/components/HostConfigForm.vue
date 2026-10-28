@@ -4,17 +4,34 @@
     lazy-validation
     v-model="formValid"
     v-if="item != null && keys != null"
+    data-testid="hostConfigForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="hostConfigForm-error"
     >{{ formError }}
     </v-alert>
 
-    <v-radio-group v-model="item.type" row class="mt-0" :disabled="formSaving">
-      <v-radio :label="$t('hostConfigTypeHost')" value="host"></v-radio>
-      <v-radio :label="$t('hostConfigTypeUrl')" value="url"></v-radio>
+    <v-radio-group
+      v-model="item.type"
+      row
+      class="mt-0"
+      :disabled="formSaving"
+      data-testid="hostConfigForm-type"
+    >
+      <v-radio
+        :label="$t('hostConfigTypeHost')"
+        value="host"
+        data-testid="hostConfigForm-type-host"
+      ></v-radio>
+      <v-radio
+        :label="$t('hostConfigTypeUrl')"
+        value="url"
+        data-testid="hostConfigForm-type-url"
+      ></v-radio>
     </v-radio-group>
 
     <v-text-field
@@ -28,6 +45,7 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="hostConfigForm-host"
     ></v-text-field>
 
     <v-autocomplete
@@ -44,6 +62,7 @@
       outlined
       dense
       class="mt-4"
+      data-testid="hostConfigForm-sshKeyId"
     ></v-autocomplete>
   </v-form>
 </template>

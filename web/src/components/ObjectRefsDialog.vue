@@ -3,12 +3,16 @@
     v-model="dialog"
     max-width="400"
   >
-    <v-card>
-      <v-card-title class="headline">{{ $t('cantDeleteThe', {objectTitle: objectTitle}) }}
+    <v-card :data-testid="testId">
+      <v-card-title
+        class="headline"
+        data-testid="objectRefsDialog-title"
+      >{{ $t('cantDeleteThe', {objectTitle: objectTitle}) }}
       </v-card-title>
 
       <v-card-text class="pb-0">
         <ObjectRefsView
+          data-testid="objectRefs-view"
           :object-title="objectTitle"
           :object-refs="objectRefs"
           :project-id="projectId"
@@ -21,6 +25,7 @@
           color="blue darken-1"
           text
           @click="dialog = false"
+          data-testid="objectRefsDialog-close"
         >{{ $t('close2') }}</v-btn>
       </v-card-actions>
     </v-card>
@@ -38,6 +43,10 @@ export default {
     objectRefs: Object,
     projectId: Number,
     objectTitle: String,
+    testId: {
+      type: String,
+      default: 'objectRefsDialog',
+    },
   },
   data() {
     return {

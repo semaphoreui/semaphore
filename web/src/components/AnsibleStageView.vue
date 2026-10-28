@@ -1,30 +1,62 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div style="overflow: hidden" class="pb-5">
-    <v-alert text color="hsl(348deg, 86%, 61%)" class="PageAlert" v-if="!features.task_summary">
+  <div
+    style="overflow: hidden"
+    class="pb-5"
+    data-testid="taskSummary-panel"
+    :data-state="hosts == null ? 'loading' : (hosts.length === 0 ? 'empty' : 'ready')"
+  >
+    <v-alert
+      text
+      color="hsl(348deg, 86%, 61%)"
+      class="PageAlert"
+      v-if="!features.task_summary"
+      data-testid="taskSummary-demoAlert"
+    >
       <span class="mr-2">
         This is <b>DEMO</b> data. Task summary available only in <b>PRO</b> version.
       </span>
 
-      <v-btn dark class="ml-2" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro('task_summary')">
+      <v-btn
+        dark
+        class="ml-2"
+        color="hsl(348deg, 86%, 61%)"
+        @click="upgradeToPro('task_summary')"
+        data-testid="taskSummary-upgrade"
+      >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
     </v-alert>
 
     <div class="pl-5 pt-5 d-flex" style="column-gap: 10px">
       <div class="AnsibleServerStatus AnsibleServerStatus--ok">
-        <div class="AnsibleServerStatus__count">{{ okServers }}</div>
+        <div
+          class="AnsibleServerStatus__count"
+          data-testid="taskSummary-okServers"
+        >{{ okServers }}</div>
         <div class="AnsibleServerStatus__title">OK SERVERS</div>
       </div>
 
       <div class="AnsibleServerStatus AnsibleServerStatus--bad">
-        <div class="AnsibleServerStatus__count">{{ notOkServers }}</div>
+        <div
+          class="AnsibleServerStatus__count"
+          data-testid="taskSummary-notOkServers"
+        >{{ notOkServers }}</div>
         <div class="AnsibleServerStatus__title">NOT OK SERVERS</div>
       </div>
     </div>
 
-    <v-btn-toggle class="pl-5 mt-8 mb-3" dense v-model="tab" mandatory>
-      <v-btn value="notOkServers"> Not ok servers </v-btn>
-      <v-btn value="allServers"> All servers </v-btn>
+    <v-btn-toggle
+      class="pl-5 mt-8 mb-3"
+      dense
+      v-model="tab"
+      mandatory
+      data-testid="taskSummary-filter"
+    >
+      <v-btn
+        value="notOkServers"
+        data-testid="taskSummary-filter-notOkServers"
+      > Not ok servers </v-btn>
+      <v-btn value="allServers" data-testid="taskSummary-filter-allServers"> All servers </v-btn>
     </v-btn-toggle>
 
     <v-data-table
@@ -36,9 +68,14 @@
       :items="failedTasks"
       :items-per-page="Number.MAX_VALUE"
       class="w-100"
+      data-testid="taskSummary-errorsTable"
+      :data-state="hosts == null ? 'loading' : (failedTasks.length === 0 ? 'empty' : 'ready')"
     >
       <template v-slot:item.error="{ item }">
-        <div style="overflow: hidden; color: #ff5252; max-width: 400px; text-overflow: ellipsis">
+        <div
+          style="overflow: hidden; color: #ff5252; max-width: 400px; text-overflow: ellipsis"
+          data-testid="taskSummary-errorText"
+        >
           {{ item.error }}
         </div>
       </template>
@@ -56,13 +93,18 @@
               margin-bottom: 5px;
             "
             class="pa-2"
+            data-testid="taskSummary-errorDetails"
             >{{ item.error.trim() }}</pre
           >
         </td>
       </template>
     </v-data-table>
 
-    <v-simple-table v-else-if="tab === 'allServers'">
+    <v-simple-table
+      v-else-if="tab === 'allServers'"
+      data-testid="taskSummary-hostsTable"
+      :data-state="hosts == null ? 'loading' : (hosts.length === 0 ? 'empty' : 'ready')"
+    >
       <template v-slot:default>
         <thead>
           <tr>
@@ -78,13 +120,14 @@
         </thead>
         <tbody>
           <tr v-for="(host, index) in hosts" :key="index">
-            <td>{{ host.host }}</td>
+            <td data-testid="taskSummary-hostName">{{ host.host }}</td>
 
             <td
               :style="{
                 color: host.changed > 0 ? 'rgb(170,85,0)' : undefined,
                 'font-weight': host.changed > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostChanged"
             >
               {{ host.changed }}
             </td>
@@ -94,6 +137,7 @@
                 color: host.failed > 0 ? 'red' : undefined,
                 'font-weight': host.failed > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostFailed"
             >
               {{ host.failed }}
             </td>
@@ -103,6 +147,7 @@
                 color: host.ignored > 0 ? 'red' : undefined,
                 'font-weight': host.ignored > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostIgnored"
             >
               {{ host.ignored }}
             </td>
@@ -112,6 +157,7 @@
                 color: host.ok > 0 ? 'green' : undefined,
                 'font-weight': host.ok > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostOk"
             >
               {{ host.ok }}
             </td>
@@ -120,6 +166,7 @@
               :style="{
                 'font-weight': host.rescued > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostRescued"
             >
               {{ host.rescued }}
             </td>
@@ -129,6 +176,7 @@
                 color: host.skipped > 0 ? 'rgb(0,170,170)' : undefined,
                 'font-weight': host.skipped > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostSkipped"
             >
               {{ host.skipped }}
             </td>
@@ -138,6 +186,7 @@
                 color: host.unreachable > 0 ? 'red' : undefined,
                 'font-weight': host.unreachable > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostUnreachable"
             >
               {{ host.unreachable }}
             </td>

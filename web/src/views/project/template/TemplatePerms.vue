@@ -1,5 +1,9 @@
 <template>
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="templatePerms-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditTemplatePermissionDialog
       v-model="editDialog"
       :project-id="projectId"
@@ -13,10 +17,21 @@
       :text="$t('askDeleteTemplatePermission')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
+      test-id="templatePermsDeleteDialog"
     />
 
-    <v-alert v-if="!features.custom_roles_management" text color="amber darken-3" class="PageAlert">
-      <span class="mr-1" v-html="$t('roles_only_enterprise')"></span>
+    <v-alert
+      v-if="!features.custom_roles_management"
+      text
+      color="amber darken-3"
+      class="PageAlert"
+      data-testid="templatePerms-licenseAlert"
+    >
+      <span
+        class="mr-1"
+        v-html="$t('roles_only_enterprise')"
+        data-testid="templatePerms-licenseText"
+      ></span>
 
       <v-btn
         dark
@@ -25,11 +40,12 @@
         color="amber darken-3"
         href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_roles"
         target="_blank"
+        data-testid="templatePerms-upgrade"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
 
-      <span v-else style="font-weight: bold">
+      <span v-else style="font-weight: bold" data-testid="templatePerms-contactAdmin">
         {{ $t('contact_admin_to_upgrade_enterprise') }}
       </span>
     </v-alert>
@@ -39,6 +55,7 @@
       color="primary"
       @click="editItem('new')"
       style="position: absolute; right: 16px"
+      data-testid="templatePerms-new"
       >{{ $t('Add Role') }}
     </v-btn>
 
@@ -49,18 +66,24 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
+      data-testid="templatePerms-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.role_slug="{ item }">
         <div class="d-flex align-center">
           <div>
-            <div>{{ getRoleName(item.role_slug) }}</div>
-            <div class="text--secondary caption">{{ item.role_slug }}</div>
+            <div data-testid="templatePerms-rowName">{{ getRoleName(item.role_slug) }}</div>
+            <div
+              class="text--secondary caption"
+              data-testid="templatePerms-rowSlug"
+            >{{ item.role_slug }}</div>
           </div>
           <v-chip
             v-if="getRole(item.role_slug)"
             x-small
             label
             class="ml-2"
+            data-testid="templatePerms-rowScope"
           >
             {{ $t(roleScope(getRole(item.role_slug))) }}
           </v-chip>
@@ -68,15 +91,23 @@
       </template>
 
       <template v-slot:item.permissions="{ item }">
-        <TemplatePermissionsChips :permissions="item.permissions" scope="template" />
+        <TemplatePermissionsChips
+          :permissions="item.permissions"
+          scope="template"
+          data-testid="templatePerms-rowPermissions"
+        />
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="editItem(item.id)">
+        <v-btn-toggle
+          dense
+          :value-comparator="() => false"
+          data-testid="templatePerms-rowActions"
+        >
+          <v-btn @click="editItem(item.id)" data-testid="templatePerms-rowEdit">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-          <v-btn @click="askDeleteItem(item.id)">
+          <v-btn @click="askDeleteItem(item.id)" data-testid="templatePerms-rowDelete">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </v-btn-toggle>

@@ -5,11 +5,17 @@
     v-model="formValid"
     v-if="isLoaded()"
     @submit.prevent="save()"
+    data-testid="newTask-form"
+    :data-state="formSaving ? 'loading' : (formError
+      ? 'error'
+      : ((template.type === 'deploy' && buildTasks == null)
+        || (needInventory && inventory == null) ? 'loading' : 'ready'))"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="newTask-error"
     >{{ formError }}
     </v-alert>
 
@@ -21,14 +27,19 @@
       @input="item.commit_hash=null"
       v-model="hasCommit"
       class="overflow-hidden mt-2"
+      data-testid="newTask-commit"
     >
       <div
         style="font-weight: bold;"
+        data-testid="newTask-commitHash"
       >
         <v-icon small>mdi-source-fork</v-icon>
         {{ (item.commit_hash || '').substr(0, 10) }}
       </div>
-      <div v-if="sourceTask && sourceTask.commit_message">
+      <div
+        v-if="sourceTask && sourceTask.commit_message"
+        data-testid="newTask-commitMessage"
+      >
         {{ sourceTask.commit_message.substring(0, 50) }}
       </div>
     </v-alert>
@@ -45,12 +56,14 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="newTask-buildTaskId"
     />
 
     <v-skeleton-loader
       v-else-if="template.type === 'deploy'"
       type="card"
       height="54"
+      data-testid="newTask-buildTaskLoading"
       style="margin-bottom: 16px; margin-top: 4px;"
     ></v-skeleton-loader>
 
@@ -60,6 +73,7 @@
       :disabled="formSaving"
       outlined
       dense
+      data-testid="newTask-message"
     />
 
     <div v-for="(v) in template.survey_vars || []" :key="v.name">
@@ -71,6 +85,7 @@
         v-model="editedSecretEnvironment[v.name]"
         :required="v.required"
         class="masked-secret-input"
+        :data-testid="`newTask-survey-${v.name}`"
         :rules="[
             val => !v.required || !!val || v.title + $t('isRequired'),
           ]"
@@ -96,12 +111,14 @@
         dense
         :multiple="v.type === 'select'"
         :chips="v.type === 'select'"
+        :data-testid="`newTask-survey-${v.name}`"
       >
       <template v-if="v.type === 'select'" v-slot:selection="{ item, index }">
         <v-chip
           small
           close
           @click:close="deleteItem(v.name, index)"
+          :data-testid="`newTask-surveyChip-${v.name}`"
         >
           {{ item && item.name ? item.name : String(item) }}
         </v-chip>
@@ -121,6 +138,7 @@
         auto-grow
         outlined
         dense
+        :data-testid="`newTask-survey-${v.name}`"
       />
 
       <v-text-field
@@ -136,6 +154,7 @@
         ]"
         outlined
         dense
+        :data-testid="`newTask-survey-${v.name}`"
       />
     </div>
 
@@ -147,6 +166,7 @@
       required
       :disabled="formSaving"
       v-if="canOverrideBranch"
+      data-testid="newTask-gitBranch"
     />
 
     <v-autocomplete
@@ -160,17 +180,20 @@
       required
       :disabled="formSaving"
       v-if="inventory != null && needInventory"
+      data-testid="newTask-inventoryId"
     ></v-autocomplete>
 
     <v-skeleton-loader
       v-else-if="needInventory"
       type="card"
       height="46"
+      data-testid="newTask-inventoryLoading"
       style="margin-bottom: 16px; margin-top: 4px;"
     ></v-skeleton-loader>
 
     <TaskParamsAnsibleForm
       v-if="template.app === 'ansible'"
+      data-testid="newTask-ansible"
       v-model="item.params"
       :app="template.app"
       :template-params="template.task_params || {}"
@@ -178,6 +201,7 @@
 
     <TaskParamsTerraformForm
       v-else-if="['terraform', 'tofu', 'terragrunt'].includes(template.app)"
+      data-testid="newTask-terraform"
       v-model="item.params"
       :app="template.app"
       :template-params="template.task_params || {}"
@@ -187,6 +211,7 @@
       v-if="template.allow_override_args_in_task"
       :vars="args"
       title="CLI args"
+      test-id="newTask-args"
       @change="setArgs"
     />
 

@@ -4,11 +4,14 @@
       lazy-validation
       v-model="formValid"
       v-if="item != null && keys != null"
+      data-testid="repository-form"
+      :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
         :value="formError"
         color="error"
         class="pb-2"
+        data-testid="repository-error"
     >{{ formError }}
     </v-alert>
 
@@ -20,6 +23,7 @@
         :disabled="formSaving"
         outlined
         dense
+        data-testid="repository-name"
     ></v-text-field>
 
     <v-text-field
@@ -34,9 +38,10 @@
         :hide-details="true"
         outlined
         dense
+        data-testid="repository-gitUrl"
     ></v-text-field>
 
-    <div class="mt-1 mb-5">
+    <div class="mt-1 mb-5" data-testid="repository-urlTypes">
       <span class="caption">git:</span>
       <v-chip
         v-for="x in ['ssh', 'http', 'https', 'file', 'git']"
@@ -46,6 +51,7 @@
         @click="setType(x)"
         style="font-weight: bold;"
         :key="x"
+        :data-testid="`repository-urlType-${x}`"
       >{{ x }}</v-chip>
       <span class="caption ml-3">local:</span>
       <v-chip
@@ -54,6 +60,7 @@
         :color="type ==='local' ? 'primary' : ''"
         @click="setType('local')"
         style="font-weight: bold;"
+        data-testid="repository-urlType-local"
       >
         {{ $t('absPath') }}
       </v-chip>
@@ -67,6 +74,7 @@
       :disabled="formSaving || type === 'local'"
       outlined
       dense
+      data-testid="repository-gitBranch"
     ></v-text-field>
 
     <v-checkbox
@@ -76,6 +84,7 @@
       persistent-hint
       :disabled="formSaving || type === 'local'"
       class="mt-0 mb-4"
+      data-testid="repository-monorepo"
     ></v-checkbox>
 
     <v-autocomplete
@@ -89,6 +98,7 @@
         :disabled="formSaving"
         outlined
         dense
+        data-testid="repository-sshKeyId"
     >
       <template v-slot:append-outer>
         <v-tooltip left color="black" content-class="opacity1">
@@ -96,11 +106,12 @@
             <v-icon
               v-bind="attrs"
               v-on="on"
+              data-testid="repository-sshKeyHelp"
             >
               mdi-help-circle
             </v-icon>
           </template>
-          <div class="py-4">
+          <div class="py-4" data-testid="repository-sshKeyHelpText">
             <p>{{ $t('credentialsToAccessToTheGitRepositoryItShouldBe') }}</p>
             <ul>
               <li><code>{{ $t('ssh') }}</code> {{ $t('ifYouUseGitOrSshUrl') }}</li>

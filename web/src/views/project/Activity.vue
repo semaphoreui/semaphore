@@ -1,8 +1,15 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items">
+  <div
+    v-if="items"
+    data-testid="activity-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="activity-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="activity-title">{{ $t('dashboard') }}</v-toolbar-title>
     </v-toolbar>
 
     <DashboardMenu
@@ -17,6 +24,8 @@
       class="mt-4 CenterToScreen"
       :footer-props="{ itemsPerPageOptions: [20] }"
       style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width)); margin: auto;"
+      data-testid="activity-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.created="{ item }">
         {{ item.created | formatDate }}

@@ -1,12 +1,23 @@
 <template>
-  <div>
-    <v-alert :value="!!error" color="error" class="pb-2">{{ error }}</v-alert>
+  <div
+    data-testid="globalRoleAssign-root"
+    :data-state="error
+      ? 'error'
+      : (!loaded || loading ? 'loading' : (assignments.length === 0 ? 'empty' : 'ready'))"
+  >
+    <v-alert
+      :value="!!error"
+      color="error"
+      class="pb-2"
+      data-testid="globalRoleAssign-error"
+    >{{ error }}</v-alert>
 
     <v-alert
       v-if="loaded && availableRoles.length === 0 && assignments.length === 0"
       text
       dense
       type="info"
+      data-testid="globalRoleAssign-noRoles"
     >
       {{ $t('noGlobalRolesAvailable') }}
     </v-alert>
@@ -33,20 +44,29 @@
           :disabled="!newRoleId || loading"
           :loading="loading"
           @click="assign()"
+          data-testid="globalRoleAssign-assign"
         >
           {{ $t('assignGlobalRole') }}
         </v-btn>
       </v-col>
     </v-row>
 
-    <v-list v-if="assignments.length > 0" class="px-0">
-      <v-list-item v-for="assignment in assignments" :key="assignment.id" class="px-0">
+    <v-list v-if="assignments.length > 0" class="px-0" data-testid="globalRoleAssign-list">
+      <v-list-item
+        v-for="assignment in assignments"
+        :key="assignment.id"
+        class="px-0"
+        data-testid="globalRoleAssign-item"
+      >
         <v-list-item-content>
-          <v-list-item-title>{{ assignment.role_name }}</v-list-item-title>
+          <v-list-item-title
+            data-testid="globalRoleAssign-itemName"
+          >{{ assignment.role_name }}</v-list-item-title>
           <TemplatePermissionsChips
             class="pt-1"
             scope="global"
             :permissions="assignment.global_permissions || 0"
+            data-testid="globalRoleAssign-itemPermissions"
           />
         </v-list-item-content>
         <v-list-item-action>
@@ -55,31 +75,52 @@
             :disabled="loading"
             :aria-label="$t('removeGlobalRole', { role: assignment.role_name })"
             @click="remove(assignment)"
+            data-testid="globalRoleAssign-itemRemove"
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </v-list-item-action>
       </v-list-item>
     </v-list>
-    <v-alert v-else-if="availableRoles.length > 0" text dense type="info" class="mt-4">
+    <v-alert
+      v-else-if="availableRoles.length > 0"
+      text
+      dense
+      type="info"
+      class="mt-4"
+      data-testid="globalRoleAssign-noAssignments"
+    >
       {{ $t('noGlobalRolesAssigned') }}
     </v-alert>
 
-    <v-subheader class="px-0 mt-4">{{ $t('effectiveGlobalPermissions') }}</v-subheader>
-    <v-list dense class="px-0">
+    <v-subheader
+      class="px-0 mt-4"
+      data-testid="globalRoleAssign-effectiveTitle"
+    >{{ $t('effectiveGlobalPermissions') }}</v-subheader>
+    <v-list dense class="px-0" data-testid="globalRoleAssign-effective">
       <v-list-item
         v-for="decision in effective.decisions || []"
         :key="decision.permission"
         class="px-0"
+        :data-testid="`globalRoleAssign-effective-${decision.permission}`"
       >
         <v-list-item-icon class="mr-3">
-          <v-icon :color="decision.allowed ? 'success' : 'grey'">
+          <v-icon
+            :color="decision.allowed ? 'success' : 'grey'"
+            :data-testid="decision.allowed
+              ? 'globalRoleAssign-effectiveIcon-allowed'
+              : 'globalRoleAssign-effectiveIcon-denied'"
+          >
             {{ decision.allowed ? 'mdi-check-circle' : 'mdi-minus-circle-outline' }}
           </v-icon>
         </v-list-item-icon>
         <v-list-item-content>
-          <v-list-item-title>{{ permissionTitle(decision.permission) }}</v-list-item-title>
-          <v-list-item-subtitle>{{ provenance(decision) }}</v-list-item-subtitle>
+          <v-list-item-title
+            data-testid="globalRoleAssign-effectiveName"
+          >{{ permissionTitle(decision.permission) }}</v-list-item-title>
+          <v-list-item-subtitle
+            data-testid="globalRoleAssign-effectiveSource"
+          >{{ provenance(decision) }}</v-list-item-subtitle>
         </v-list-item-content>
       </v-list-item>
     </v-list>

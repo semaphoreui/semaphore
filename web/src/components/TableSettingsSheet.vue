@@ -1,12 +1,13 @@
 <template>
   <PageBottomSheet v-model="sheet" v-if="settings">
-    <h4>{{ $t('columns') }}</h4>
+    <h4 data-testid="tableSettings-title">{{ $t('columns') }}</h4>
     <div class="d-flex flex-row flex-wrap">
       <v-checkbox
         class="mr-6"
         v-for="(header) in headers.filter((header) => header.value !== 'actions')"
         :key="header.value"
         :label="header.text"
+        :data-testid="`tableSettings-column-${header.value}`"
         v-model="settings.columns[header.value].visible"
         @change="saveSettings()"
       />

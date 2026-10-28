@@ -16,8 +16,11 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
       item-dialog--${position} ${contentClass || ''}`
     "
   >
-    <v-card :data-testid="testId">
-      <v-card-title>
+    <v-card
+      :data-testid="testId"
+      :data-state="needSave ? 'loading' : 'ready'"
+    >
+      <v-card-title data-testid="editDialog-title">
         <slot name="title">
           <v-icon v-if="icon" :color="iconColor" class="mr-3">{{ icon }}</v-icon>
           {{ title }}
@@ -32,11 +35,18 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
             class="mr-3"
             :style="{opacity: needHelp ? 1 : 0.3}"
             v-if="helpButton"
+            data-testid="editDialog-help"
           >
             <v-icon>mdi-help-box</v-icon>
           </v-btn>
 
-          <v-btn icon @click="toggleFullscreen()" class="mr-3" v-if="expandable">
+          <v-btn
+            icon
+            @click="toggleFullscreen()"
+            class="mr-3"
+            v-if="expandable"
+            data-testid="editDialog-fullscreen"
+          >
             <v-icon>mdi-arrow-{{ fullscreen ? 'collapse' : 'expand' }}</v-icon>
           </v-btn>
 
@@ -48,6 +58,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
       </v-card-title>
 
       <v-card-text
+        data-testid="editDialog-body"
         :class="{
           'pb-0': !hideButtons,
           'pa-0': noBodyPaddings,
@@ -66,13 +77,14 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         ></slot>
       </v-card-text>
 
-      <v-card-actions v-if="!hideButtons">
+      <v-card-actions v-if="!hideButtons" data-testid="editDialog-actions">
         <v-spacer></v-spacer>
 
         <v-btn
           color="blue darken-1"
           text
           @click="close()"
+          data-testid="editDialog-cancel"
         >
           {{ cancelButtonText || $t('cancel') }}
         </v-btn>

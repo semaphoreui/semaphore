@@ -1,7 +1,12 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="users-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="userDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="itemId === 'new' ? $t('newUser') : $t('editUser')"
       :dont-close-on-save="itemId === 'new'"
@@ -27,6 +32,7 @@
     </EditDialog>
 
     <YesNoDialog
+      test-id="usersDeleteDialog"
       :title="$t('deleteUser')"
       :text="$t('askDeleteUser')"
       v-model="deleteItemDialog"
@@ -34,15 +40,16 @@
     />
 
     <v-toolbar flat>
-      <v-btn icon class="mr-4" @click="returnToProjects()">
+      <v-btn icon class="mr-4" @click="returnToProjects()" data-testid="users-back">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('users') }}</v-toolbar-title>
+      <v-toolbar-title data-testid="users-title">{{ $t('users') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         v-if="tab === 'users' && canManageUsers"
         color="primary"
         @click="editItem('new')"
+        data-testid="users-new"
       >
         {{ $t('newUser') }}
       </v-btn>
@@ -52,12 +59,13 @@
         :disabled="!(features || {}).global_roles_management"
         color="primary"
         @click="$refs.globalRoles.editItem('new')"
+        data-testid="globalRoles-new"
       >
         {{ $t('newGlobalRole') }}
       </v-btn>
     </v-toolbar>
 
-    <v-tabs v-if="canManageGlobalRoles" v-model="tab" class="px-4">
+    <v-tabs v-if="canManageGlobalRoles" v-model="tab" class="px-4" data-testid="users-tabs">
       <v-tab key="users" href="#users" data-testid="users-tab-users">{{ $t('users') }}</v-tab>
       <v-tab key="global-roles" href="#global-roles" data-testid="users-tab-global-roles">
         {{ $t('globalRoles') }}
@@ -80,29 +88,34 @@
       :items="items"
       class="mt-4"
       :footer-props="{ itemsPerPageOptions: [20] }"
+      data-testid="users-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.external="{ item }">
-        <v-icon v-if="item.external">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
+        <v-icon
+          v-if="item.external"
+          data-testid="users-rowExternal-true"
+        >mdi-checkbox-marked</v-icon>
+        <v-icon v-else data-testid="users-rowExternal-false">mdi-checkbox-blank-outline</v-icon>
       </template>
 
       <template v-slot:item.alert="{ item }">
-        <v-icon v-if="item.alert">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
+        <v-icon v-if="item.alert" data-testid="users-rowAlert-true">mdi-checkbox-marked</v-icon>
+        <v-icon v-else data-testid="users-rowAlert-false">mdi-checkbox-blank-outline</v-icon>
       </template>
 
       <template v-slot:item.admin="{ item }">
-        <v-icon v-if="item.admin">mdi-checkbox-marked</v-icon>
-        <v-icon v-else>mdi-checkbox-blank-outline</v-icon>
+        <v-icon v-if="item.admin" data-testid="users-rowAdmin-true">mdi-checkbox-marked</v-icon>
+        <v-icon v-else data-testid="users-rowAdmin-false">mdi-checkbox-blank-outline</v-icon>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap">
-          <v-btn icon class="mr-1" @click="askDeleteItem(item.id)">
+        <div style="white-space: nowrap" data-testid="users-rowActions">
+          <v-btn icon class="mr-1" @click="askDeleteItem(item.id)" data-testid="users-rowDelete">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn icon class="mr-1" @click="editItem(item.id)">
+          <v-btn icon class="mr-1" @click="editItem(item.id)" data-testid="users-rowEdit">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>

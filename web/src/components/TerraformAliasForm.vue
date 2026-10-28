@@ -4,11 +4,14 @@
     lazy-validation
     v-model="formValid"
     v-if="item != null"
+    data-testid="tfAlias-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       :value="formError"
       color="error"
       class="pb-2"
+      data-testid="tfAlias-error"
     >{{ formError }}</v-alert>
 
     <v-select
@@ -21,6 +24,7 @@
       dense
       required
       :disabled="formSaving"
+      data-testid="tfAlias-authKeyId"
     ></v-select>
 
   </v-form>

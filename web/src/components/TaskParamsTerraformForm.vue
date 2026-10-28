@@ -5,6 +5,7 @@
         class="mt-0"
         :input-value="params.plan"
         @change="updateValue('plan', $event)"
+        data-testid="taskParams-plan"
       >
         <template v-slot:label>
           <div class="text-no-wrap">{{ $t('Plan') }}</div>
@@ -17,6 +18,7 @@
         class="mt-0"
         :input-value="params.destroy"
         @change="updateValue('destroy', $event)"
+        data-testid="taskParams-destroy"
       >
         <template v-slot:label>
           <div class="text-no-wrap">{{ $t('Destroy') }} <code>-destroy</code></div>
@@ -29,6 +31,7 @@
         class="mt-0"
         :input-value="params.auto_approve"
         @change="updateValue('auto_approve', $event)"
+        data-testid="taskParams-autoApprove"
       >
         <template v-slot:label>
           <div class="text-no-wrap">{{ $t('Auto Approve') }} <code>-auto-approve</code></div>
@@ -41,6 +44,7 @@
         class="mt-0"
         :input-value="params.upgrade"
         @change="updateValue('upgrade', $event)"
+        data-testid="taskParams-upgrade"
       >
         <template v-slot:label>
           <div class="text-no-wrap">{{ $t('Upgrade') }} <code>-upgrade</code></div>
@@ -53,6 +57,7 @@
         class="mt-0"
         :input-value="params.reconfigure"
         @change="updateValue('reconfigure', $event)"
+        data-testid="taskParams-reconfigure"
       >
         <template v-slot:label>
           <div class="text-no-wrap">{{ $t('Reconfigure') }} <code>-reconfigure</code></div>

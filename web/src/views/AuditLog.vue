@@ -1,10 +1,15 @@
 <template>
-  <div class="AuditLog" :class="{ 'AuditLog--fixed': !$vuetify.breakpoint.xs }">
+  <div
+    class="AuditLog"
+    :class="{ 'AuditLog--fixed': !$vuetify.breakpoint.xs }"
+    data-testid="audit-page"
+    :data-state="loading ? 'loading' : failed ? 'error' : events.length ? 'ready' : 'empty'"
+  >
     <v-toolbar flat class="flex-grow-0">
       <v-btn icon class="mr-4" data-testid="audit-back" @click="returnToProjects">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('audit_log') }}</v-toolbar-title>
+      <v-toolbar-title data-testid="audit-title">{{ $t('audit_log') }}</v-toolbar-title>
       <v-spacer />
       <v-menu offset-y>
         <template v-slot:activator="{ on, attrs }">
@@ -20,10 +25,14 @@
           </v-btn>
         </template>
         <v-list>
-          <v-list-item :href="exportUrl('csv')" download>
+          <v-list-item :href="exportUrl('csv')" download data-testid="audit-exportMenu-csv">
             {{ $t('audit_export_csv') }}
           </v-list-item>
-          <v-list-item :href="exportUrl('jsonl')" download>
+          <v-list-item
+            :href="exportUrl('jsonl')"
+            download
+            data-testid="audit-exportMenu-jsonl"
+          >
             {{ $t('audit_export_jsonl') }}
           </v-list-item>
         </v-list>
@@ -44,6 +53,7 @@
         dark
         class="ml-2"
         color="hsl(348deg, 86%, 61%)"
+        data-testid="audit-upgrade"
         @click="upgradeToPro('audit_log_filters')"
       >
         {{ $t('upgrade_to_pro') }}
@@ -104,12 +114,20 @@
       disable-pagination
       disable-sort
       class="mt-2 AuditLog__table"
+      data-testid="audit-table"
+      :data-state="loading ? 'loading' : failed ? 'error' : events.length ? 'ready' : 'empty'"
       @click:row="selected = $event"
     >
       <template v-slot:no-data>
-        <span v-if="!failed && direction === 'older'">{{ $t('audit_no_older') }}</span>
-        <span v-else-if="!failed && direction === 'newer'">{{ $t('audit_no_newer') }}</span>
-        <span v-else-if="!failed">{{ $t('audit_no_events') }}</span>
+        <span
+          v-if="!failed && direction === 'older'"
+          data-testid="audit-empty-older"
+        >{{ $t('audit_no_older') }}</span>
+        <span
+          v-else-if="!failed && direction === 'newer'"
+          data-testid="audit-empty-newer"
+        >{{ $t('audit_no_newer') }}</span>
+        <span v-else-if="!failed" data-testid="audit-empty">{{ $t('audit_no_events') }}</span>
         <span v-else data-testid="audit-load-failed">
           {{ $t('audit_load_failed') }}
           <v-btn
@@ -145,11 +163,13 @@
       </template>
 
       <template v-slot:item.timestamp="{ item }">
-        <span style="white-space: nowrap">{{ localTime(item.timestamp) }}</span>
+        <span style="white-space: nowrap" data-testid="audit-rowTime">{{
+          localTime(item.timestamp)
+        }}</span>
       </template>
 
       <template v-slot:item.actor="{ item }">
-        <span style="white-space: nowrap">
+        <span style="white-space: nowrap" data-testid="audit-rowActor">
           <v-icon small class="mr-1">{{ actorIcon(item.actor) }}</v-icon>
           {{ actorLabel(item.actor) }}
         </span>
@@ -158,8 +178,10 @@
       <template v-slot:item.action="{ item }">{{ title(item) }}</template>
 
       <template v-slot:item.target="{ item }">
-        <span v-if="item.target">
-          <span class="text--secondary">{{ targetType(item.target.type) }}</span>
+        <span v-if="item.target" data-testid="audit-rowTarget">
+          <span class="text--secondary" data-testid="audit-rowTargetType">{{
+            targetType(item.target.type)
+          }}</span>
           {{ item.target.name || item.target.id }}
         </span>
       </template>
@@ -167,11 +189,28 @@
       <template v-slot:item.project="{ item }">{{ projectName(item) }}</template>
 
       <template v-slot:item.outcome="{ item }">
-        <span style="white-space: nowrap">
-          <v-icon v-if="item.outcome === 'failure'" small color="error">mdi-close-circle</v-icon>
-          <v-icon v-else-if="item.reason" small color="warning">mdi-alert-circle</v-icon>
-          <v-icon v-else small color="success">mdi-check-circle</v-icon>
-          <span v-if="item.reason" class="ml-1">{{ reason(item.reason) }}</span>
+        <span style="white-space: nowrap" data-testid="audit-rowOutcome">
+          <v-icon
+            v-if="item.outcome === 'failure'"
+            small
+            color="error"
+            data-testid="audit-rowOutcome-failure"
+          >mdi-close-circle</v-icon>
+          <v-icon
+            v-else-if="item.reason"
+            small
+            color="warning"
+            data-testid="audit-rowOutcome-reason"
+          >mdi-alert-circle</v-icon>
+          <v-icon
+            v-else
+            small
+            color="success"
+            data-testid="audit-rowOutcome-success"
+          >mdi-check-circle</v-icon>
+          <span v-if="item.reason" class="ml-1" data-testid="audit-rowReason">{{
+            reason(item.reason)
+          }}</span>
         </span>
       </template>
 
@@ -225,6 +264,7 @@
       fixed
       temporary
       width="480"
+      data-testid="audit-drawer"
       @input="onDrawer"
     >
       <AuditEventCard

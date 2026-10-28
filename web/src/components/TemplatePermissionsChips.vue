@@ -6,9 +6,10 @@
       small
       :color="p.color"
       :text-color="p.textColor"
+      :data-testid="`permissionChips-${p.permission}`"
     >{{ $t(p.label) }}</v-chip>
 
-    <span v-if="permissions === 0" class="text--secondary">
+    <span v-if="permissions === 0" class="text--secondary" data-testid="permissionChips-none">
       &mdash;
     </span>
   </div>
