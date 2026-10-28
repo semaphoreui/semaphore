@@ -104,6 +104,17 @@ def new_task(page, project, template):
     return card
 
 
+def to_middle(block):
+    """Scroll <block> of the New Task dialog to the middle of the dialog window before its element shot.
+    The block sits below the window; the shot alone scrolls it only to the window's bottom edge, at a
+    fractional offset (the window is centred, top 42.2 px on mobile), so the rounded clip takes one pixel
+    row past the edge — the overlay over the page behind. Whether it does depends on a race: the auto-grow
+    textarea of the survey (B6_TEXT) sets its height in a setTimeout after mount (84 → 72 px, Vuetify 2
+    VTextarea), after data-state «ready»; a scroll before that leaves the block 12 px above the edge.
+    In the middle the block is inside the window both before and after the textarea settles."""
+    block.evaluate("el => el.scrollIntoView({block: 'center'})")
+
+
 def workflow_id(api, project, name):
     wf = api.find(f"/project/{project(DEMO)}/workflows", name)
     assert wf, f"no workflow {name} — ./vu.sh seed zone b6"
@@ -357,6 +368,7 @@ def test_ansible_newtask(ui, project):
     card = new_task(page, project, ANSIBLE)
     expect(tid(card, "newTask-ansible")).to_be_visible()
     expect(tid(card, "taskParams-limit-chip")).to_have_count(2)
+    to_middle(tid(card, "newTask-ansible"))
     snap(page, ZONE, "ansible", "newtask", element="newTask-ansible")
 
 
@@ -367,6 +379,7 @@ def test_ansible_newtask_runner(ui, project):
     card = new_task(page, project, ANSIBLE)
     expect(tid(card, "newTask-ansible")).to_be_visible()
     expect(tid(card, "taskParams-limit-chip")).to_have_count(2)
+    to_middle(tid(card, "newTask-ansible"))
     snap(page, ZONE, "ansible", "newtask-runner", element="newTask-ansible")
 
 
