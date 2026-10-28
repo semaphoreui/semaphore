@@ -31,7 +31,7 @@
         color="primary"
         class="mr-1"
         @click="openEditor('new')"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        v-if="can(USER_PERMISSIONS.editWorkflows)"
       >
         {{ $t('newWorkflow') }}
       </v-btn>
@@ -88,7 +88,7 @@
       <template v-slot:item.actions="{ item }">
         <v-btn-toggle dense :value-comparator="() => false">
           <v-btn
-            v-if="can(USER_PERMISSIONS.runProjectTasks)"
+            v-if="can(USER_PERMISSIONS.runWorkflows, item)"
             @click="runWorkflow(item)"
             :title="$t('workflowRunNow')"
           >
@@ -201,6 +201,11 @@ export default {
   },
 
   methods: {
+    // The row holds the play button, which has its own rule.
+    allowActions() {
+      return true;
+    },
+
     statusColor(status) {
       switch (status) {
         case 'success':

@@ -121,11 +121,11 @@ export default {
     },
 
     canRun() {
-      return this.can(USER_PERMISSIONS.runProjectTasks);
+      return this.can(USER_PERMISSIONS.runWorkflows);
     },
 
     canUpdate() {
-      return this.can(USER_PERMISSIONS.manageProjectResources);
+      return this.can(USER_PERMISSIONS.editWorkflows);
     },
 
     itemId() {

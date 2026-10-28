@@ -6,13 +6,14 @@ export default {
 
   methods: {
 
-    can(permission) {
+    // The object's permissions come from the server: the project verbs plus the grants on it.
+    can(permission, item = this.item) {
       if (this.isAdmin) {
         return true;
       }
 
-      if (this.item && this.item.permissions) {
-        return (this.item.permissions & permission) === permission;
+      if (item && item.permissions != null) {
+        return (item.permissions & permission) === permission;
       }
 
       // eslint-disable-next-line no-bitwise
