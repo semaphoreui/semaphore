@@ -956,6 +956,11 @@ func TestReceiveIntegration_RecordsRejectedCall(t *testing.T) {
 	assert.Equal(t, http.MethodPost, calls[0].Method)
 	assert.Equal(t, "192.0.2.1", calls[0].SourceIP)
 	assert.Nil(t, calls[0].TaskID)
+	assert.Equal(t, 2, calls[0].RequestSize)
+
+	call, err := store.GetIntegrationCall(calls[0].ProjectID, calls[0].ID)
+	require.NoError(t, err)
+	assert.Nil(t, call.RequestBody, "a caller that failed auth does not get its body stored")
 }
 
 // The template lookup is stubbed to fail, which is the last step before the

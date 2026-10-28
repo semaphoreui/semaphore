@@ -250,6 +250,8 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 
 		if reason := verifyIntegrationAuth(integration, r, payload); reason != "" {
 			logger.Error(reason)
+			// Anyone who knows the URL can fail auth, so such a body is not kept.
+			call.RequestBody = nil
 			c.recordCall(call, started, db.IntegrationCallUnauthorized, reason)
 			continue
 		}

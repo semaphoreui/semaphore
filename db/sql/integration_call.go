@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"errors"
 	"strings"
 	"unicode/utf8"
 
@@ -20,6 +21,9 @@ const (
 	// A webhook body can be megabytes, and it is stored once per integration
 	// the call reaches.
 	maxIntegrationCallBody = 64 * 1024
+	// Anyone who knows a webhook URL can send calls that fail auth, so only the
+	// newest of them are kept per integration.
+	maxUnauthorizedIntegrationCalls = 100
 )
 
 // integrationCallListColumns leaves request_body out: a page of the history
@@ -47,9 +51,11 @@ func (d *SqlDb) CreateIntegrationCall(call db.IntegrationCall) error {
 	call.Method = truncateUTF8(call.Method, maxIntegrationCallMethod)
 
 	if call.RequestBody != nil {
-		// A body need not be text at all, and a text column rejects invalid
-		// UTF-8; the replacement character keeps it visible that bytes were lost.
-		body := truncateUTF8(strings.ToValidUTF8(*call.RequestBody, "\uFFFD"), maxIntegrationCallBody)
+		// A body need not be text at all: a text column rejects invalid UTF-8, and
+		// PostgreSQL rejects NUL too. The replacement character keeps it visible
+		// that bytes were lost.
+		body := strings.ReplaceAll(*call.RequestBody, "\x00", "\uFFFD")
+		body = truncateUTF8(strings.ToValidUTF8(body, "\uFFFD"), maxIntegrationCallBody)
 		call.RequestBody = &body
 	}
 
@@ -73,6 +79,35 @@ func (d *SqlDb) CreateIntegrationCall(call db.IntegrationCall) error {
 		call.WorkflowID,
 		call.RequestSize,
 		call.RequestBody)
+
+	if err != nil || call.Outcome != db.IntegrationCallUnauthorized || call.IntegrationID == nil {
+		return err
+	}
+
+	return d.pruneUnauthorizedIntegrationCalls(call.ProjectID, *call.IntegrationID)
+}
+
+// pruneUnauthorizedIntegrationCalls deletes all but the newest
+// maxUnauthorizedIntegrationCalls rejected calls of an integration. HA nodes may
+// prune at once; a second delete finds nothing.
+func (d *SqlDb) pruneUnauthorizedIntegrationCalls(projectID int, integrationID int) error {
+	var oldest db.IntegrationCall
+	err := d.selectOne(&oldest,
+		"select id from project__integration_call where project_id=? and integration_id=? and outcome=? "+
+			"order by id desc limit 1 offset ?",
+		projectID, integrationID, db.IntegrationCallUnauthorized, maxUnauthorizedIntegrationCalls)
+
+	if errors.Is(err, db.ErrNotFound) {
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	_, err = d.exec(
+		"delete from project__integration_call where project_id=? and integration_id=? and outcome=? and id<=?",
+		projectID, integrationID, db.IntegrationCallUnauthorized, oldest.ID)
 
 	return err
 }

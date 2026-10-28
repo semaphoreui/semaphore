@@ -243,6 +243,13 @@ func TestIntegrationCall_BodyIsScrubbedAndCapped(t *testing.T) {
 			},
 		},
 		{
+			name: "NUL bytes are replaced, PostgreSQL rejects them",
+			body: "a\x00b",
+			checkFn: func(t *testing.T, stored string) {
+				assert.Equal(t, "a\uFFFDb", stored)
+			},
+		},
+		{
 			name: "a large body is cut at the cap",
 			body: strings.Repeat("é", maxIntegrationCallBody),
 			checkFn: func(t *testing.T, stored string) {
@@ -271,4 +278,29 @@ func TestIntegrationCall_BodyIsScrubbedAndCapped(t *testing.T) {
 			tt.checkFn(t, *calls[0].RequestBody)
 		})
 	}
+}
+
+func TestIntegrationCall_UnauthorizedCallsAreCapped(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, integration := createTestIntegration(t, store)
+
+	record := func(outcome db.IntegrationCallOutcome) {
+		createTestCall(t, store, db.IntegrationCall{
+			ProjectID: project.ID, IntegrationID: &integration.ID,
+			IntegrationName: integration.Name, Alias: "alias", Method: "POST", Outcome: outcome,
+		})
+	}
+
+	record(db.IntegrationCallOK)
+	for range maxUnauthorizedIntegrationCalls + 5 {
+		record(db.IntegrationCallUnauthorized)
+	}
+
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil, false)
+	require.NoError(t, err)
+	require.Len(t, calls, maxUnauthorizedIntegrationCalls+1, "only rejected calls are capped")
+
+	ok := calls[len(calls)-1]
+	assert.Equal(t, db.IntegrationCallOK, ok.Outcome)
+	assert.Equal(t, ok.ID+6, calls[len(calls)-2].ID, "the oldest rejected calls go first")
 }

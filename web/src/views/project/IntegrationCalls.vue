@@ -191,6 +191,9 @@ export default {
       // independently.
       requestSeq: 0,
       integrationsSeq: 0,
+      // What the request in flight asks for, so a filter changed before it
+      // answers builds on it instead of on the older applied state.
+      pending: null,
       // `cursors[i]` is the `before` call id of page i, null for the newest
       // page; `hasNext` comes from the X-Has-Next header.
       hasNext: false,
@@ -228,6 +231,7 @@ export default {
       this.selected = null;
       this.integrationId = null;
       this.alias = '';
+      this.pending = null;
       this.appliedIntegrationId = null;
       this.appliedAlias = '';
       this.cursors = [null];
@@ -320,6 +324,7 @@ export default {
         appliedPerPage: this.appliedPerPage,
         cursors: this.cursors,
         pageIndex: this.pageIndex,
+        ...this.pending,
         ...target,
       };
 
@@ -341,6 +346,7 @@ export default {
       this.requestSeq += 1;
       const seq = this.requestSeq;
 
+      this.pending = next;
       this.loading = true;
       try {
         const response = await axios({
@@ -358,6 +364,7 @@ export default {
         this.hasNext = response.headers['x-has-next'] === 'true';
       } finally {
         if (seq === this.requestSeq) {
+          this.pending = null;
           this.loading = false;
         }
       }
