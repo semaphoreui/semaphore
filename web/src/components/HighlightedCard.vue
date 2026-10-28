@@ -1,6 +1,6 @@
 <template>
   <v-card
-      style="background: var(--highlighted-card-bg-color)"
+      style="background: var(--highlighted-card-bg-color); overflow: visible"
       class="mb-6 pt-3"
   >
     <div

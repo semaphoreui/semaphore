@@ -18,14 +18,15 @@ import pytest
 from playwright.sync_api import Page, Route, expect
 
 from vu.ui import (button, dialog, fail_api, field_input, goto, open_dialog, row, settle, snap, tid,
-                   wait_state, wait_until)
+                   toggle, wait_state, wait_until)
 from vu.ui import CM_EDITOR, CM_CURSOR, ALERT_CLOSE  # noqa: E402 — step 2.4: shared selectors
 
 ZONE = "b4"
 DEMO = "Seed Demo"
 
-# Selectors of CodeMirror 5 and of the dismissible alert (CM_EDITOR, CM_CURSOR, ALERT_CLOSE) come from
-# vu/ui.py: they change with the CodeMirror 6 facade / Vuetify 3. No Vuetify class is used here.
+# Selectors of the code editor and of the dismissible alert (CM_EDITOR, CM_CURSOR, ALERT_CLOSE) come from
+# vu/ui.py: they hold the CodeMirror 5 / Vuetify 2 and the CodeMirror 6 / Vuetify 3 forms. No Vuetify class
+# is used here. Vuetify 3 puts the mark of a checkbox on its .v-input root: toggle / field_input.
 
 ALIAS_URL = "https://semaphore.example/api/integrations/vu-alias"
 ALIAS = [{"id": 1, "alias": "vu-alias", "url": ALIAS_URL}]
@@ -102,8 +103,16 @@ def shown(page: Page, test_id):
     return page.locator(f'[data-testid="{test_id}"]:visible')
 
 
+def queued_timers_run(page: Page):
+    """Wait until every timer the page has queued so far has fired. Vuetify 3 moves the top of its overlay
+    stack (globalTop, which EditDialog's Esc handler asks) in a setTimeout after a dialog opens; an Esc
+    pressed at once would still meet the group dialog as the top one and close it."""
+    page.evaluate("() => new Promise(r => setTimeout(r))")
+
+
 def type_in_editor(page: Page, test_id, text):
-    """Replace the text of the open RichEditor <test_id> (CodeMirror 5 does not close brackets)."""
+    """Replace the text of the open RichEditor <test_id> (neither CodeMirror 5 nor the minimal
+    CodeMirror 6 setup closes brackets)."""
     page.locator(CM_EDITOR.format(tid=f"{test_id}-code")).last.click()
     page.keyboard.press("Control+A")
     page.keyboard.type(text)
@@ -284,9 +293,9 @@ def test_table_settings_column_hidden(ui, project):
     page = ui("admin")
     open_templates(page, project)
     open_sheet(page)
-    tid(page, "tableSettings-column-playbook").uncheck(force=True)
-    tid(page, "tableSettings-column-inventory_id").uncheck(force=True)
-    expect(tid(page, "tableSettings-column-inventory_id")).not_to_be_checked()
+    toggle(page, "tableSettings-column-playbook", False)
+    toggle(page, "tableSettings-column-inventory_id", False)
+    expect(field_input(page, "tableSettings-column-inventory_id")).not_to_be_checked()
     cols = storage(page, "project__template__settings")["columns"]
     assert cols["playbook"]["visible"] is False and cols["inventory_id"]["visible"] is False
     expect(tid(page, "templates-table").get_by_role("columnheader", name="Playbook")).to_have_count(0)
@@ -314,8 +323,8 @@ def test_table_settings_preset_sheet(ui, project):
     open_templates(page, project)
     open_sheet(page)
     for key in ("version", "status", "playbook"):
-        expect(tid(page, f"tableSettings-column-{key}")).not_to_be_checked()
-    expect(tid(page, "tableSettings-column-name")).to_be_checked()
+        expect(field_input(page, f"tableSettings-column-{key}")).not_to_be_checked()
+    expect(field_input(page, "tableSettings-column-name")).to_be_checked()
     snap(page, ZONE, "table-settings", "preset-sheet", element="tableSettings-sheet")
 
 
@@ -342,7 +351,7 @@ def test_table_settings_workflows_open(ui, project):
     tid(page, "workflows-tableSettings").click()
     expect(tid(page, "tableSettings-sheet")).to_be_visible()
     for key in WORKFLOW_KEYS:
-        expect(tid(page, f"tableSettings-column-{key}")).to_be_checked()
+        expect(field_input(page, f"tableSettings-column-{key}")).to_be_checked()
     snap(page, ZONE, "table-settings", "workflows-open", element="tableSettings-sheet")
 
 
@@ -587,7 +596,7 @@ def test_highlighted_card_runner_advanced(ui):
     """Registration token intercepted (POST answered by the test, nothing changes)."""
     page = ui("admin")
     card = open_runner_token(page)
-    tid(card, "runnerToken-advancedOptions").check(force=True)
+    toggle(card, "runnerToken-advancedOptions", True)
     adv = tid(card, "runnerToken-advancedCard")
     expect(adv).to_be_visible()
     adv.scroll_into_view_if_needed()
@@ -674,21 +683,21 @@ def test_table_settings_columns_and_storage(ui, project):
     sheet = open_sheet(page)
     expect(tid(sheet, "tableSettings-title")).to_have_text("Columns")
     for key in TEMPLATE_KEYS:
-        expect(tid(sheet, f"tableSettings-column-{key}")).to_be_checked()
+        expect(field_input(sheet, f"tableSettings-column-{key}")).to_be_checked()
     expect(tid(sheet, "tableSettings-column-actions")).to_have_count(0)
     header = tid(page, "templates-table").get_by_role("columnheader", name="Version")
     expect(header).to_have_count(1)
 
-    tid(page, "tableSettings-column-version").uncheck(force=True)
+    toggle(page, "tableSettings-column-version", False)
     expect(header).to_have_count(0)
     assert storage(page, "project__template__settings")["columns"]["version"] == {"visible": False}
 
     tid(page, "templates-title").click()
     expect(tid(page, "tableSettings-sheet")).to_be_hidden()
     open_sheet(page)
-    expect(tid(page, "tableSettings-column-version")).not_to_be_checked()
+    expect(field_input(page, "tableSettings-column-version")).not_to_be_checked()
 
-    tid(page, "tableSettings-column-version").check(force=True)
+    toggle(page, "tableSettings-column-version", True)
     expect(header).to_have_count(1)
     assert storage(page, "project__template__settings")["columns"]["version"] == {"visible": True}
 
@@ -698,12 +707,12 @@ def test_table_settings_preset_survives_reload(ui, project):
     page = ui("admin")
     open_templates(page, project)
     open_sheet(page)
-    tid(page, "tableSettings-column-status").uncheck(force=True)
+    toggle(page, "tableSettings-column-status", False)
     page.reload()
     goto(page, f"/project/{project(DEMO)}/templates", "templates-page", "ready")
     expect(tid(page, "templates-table").get_by_role("columnheader", name="Status")).to_have_count(0)
     open_sheet(page)
-    expect(tid(page, "tableSettings-column-status")).not_to_be_checked()
+    expect(field_input(page, "tableSettings-column-status")).not_to_be_checked()
 
 
 @pytest.mark.functional
@@ -726,8 +735,8 @@ def test_table_settings_workflows_storage(ui, project):
     wait_loaded(page, "workflows-page")
     tid(page, "workflows-tableSettings").click()
     for key in WORKFLOW_KEYS:
-        expect(tid(page, f"tableSettings-column-{key}")).to_be_checked()
-    tid(page, "tableSettings-column-last_run").uncheck(force=True)
+        expect(field_input(page, f"tableSettings-column-{key}")).to_be_checked()
+    toggle(page, "tableSettings-column-last_run", False)
     assert storage(page, "project__workflow__settings")["columns"]["last_run"] == {"visible": False}
     assert storage(page, "project__template__settings") is None
 
@@ -739,7 +748,7 @@ def test_task_runner_rights(ui, project):
     page = ui("runner")
     open_templates(page, project)
     open_sheet(page)
-    tid(page, "tableSettings-column-playbook").uncheck(force=True)
+    toggle(page, "tableSettings-column-playbook", False)
     assert storage(page, "project__template__settings")["columns"]["playbook"] == {"visible": False}
     goto(page, f"/project/{project(DEMO)}/environment", "varGroup-page", "ready")
     expect(tid(page, "varGroup-new")).to_have_count(0)
@@ -751,7 +760,7 @@ def test_task_runner_rights(ui, project):
 @pytest.mark.functional
 def test_rich_editor_lifecycle(ui, project):
     """Only -expand before the first open; Esc does not close; collapse applies the text to the
-    carrier field and hides the dialog; the marks stay in the DOM hidden."""
+    carrier field and hides the dialog."""
     page = ui("admin")
     card = env_editor(page, project, "json")
     expect(tid(page, f"{JSON_ED}-expand")).to_be_visible()
@@ -759,13 +768,16 @@ def test_rich_editor_lifecycle(ui, project):
         expect(tid(page, f"{JSON_ED}{part}")).to_have_count(0)
 
     expand(page, JSON_ED, card)
+    queued_timers_run(page)  # the editor, not the group dialog, is the top of the overlay stack
     page.keyboard.press("Escape")
+    queued_timers_run(page)
     expect(shown(page, f"{JSON_ED}Dialog")).to_be_visible()
+    expect(card).to_be_visible()
 
     type_in_editor(page, JSON_ED, '{"vu_b4": 1}')
     shown(page, f"{JSON_ED}-collapse").click()
     expect(shown(page, f"{JSON_ED}Dialog")).to_have_count(0)
-    expect(tid(page, f"{JSON_ED}-collapse")).to_have_count(1)  # hidden, still in the DOM
+    expect(shown(page, f"{JSON_ED}-collapse")).to_have_count(0)  # closed: no visible copy (Vuetify 3 unmounts it)
     expect(tid(page, f"{JSON_ED}-code")).to_have_count(0)
     expect(tid(card, "varGroup-extraVarsJson")).to_contain_text('{"vu_b4": 1}')
 
@@ -842,7 +854,7 @@ def test_rich_editor_table_rows(ui, project):
     shown(page, f"{ROW_ED}-collapse").click()
     expand(page, ROW_ED, rows.nth(1))
     validate(page, ROW_ED, "ready", "Valid JSON format.")
-    expect(tid(page, f"{ROW_ED}-collapse")).to_have_count(2)
+    expect(shown(page, f"{ROW_ED}Dialog")).to_have_count(1)
     expect(shown(page, f"{ROW_ED}-collapse")).to_have_count(1)
 
 
@@ -928,9 +940,9 @@ def test_highlighted_card_runner_toggle(ui):
     page = ui("admin")
     card = open_runner_token(page)
     expect(tid(card, "runnerToken-advancedCard")).to_have_count(0)
-    tid(card, "runnerToken-advancedOptions").check(force=True)
+    toggle(card, "runnerToken-advancedOptions", True)
     expect(tid(card, "runnerToken-advancedCard")).to_be_visible()
-    tid(card, "runnerToken-advancedOptions").uncheck(force=True)
+    toggle(card, "runnerToken-advancedOptions", False)
     expect(tid(card, "runnerToken-advancedCard")).to_have_count(0)
 
 

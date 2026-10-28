@@ -7,7 +7,7 @@
       :data-testid="`${testId}-buffer`"
     ></textarea>
 
-    <v-btn icon @click="copy()" :large="large" :data-testid="testId">
+    <v-btn icon @click="copy()" :size="large ? 'large' : undefined" :data-testid="testId">
       <v-icon :color="color">mdi-content-copy</v-icon>
     </v-btn>
   </span>

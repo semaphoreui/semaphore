@@ -21,8 +21,7 @@
 
         <v-btn
             v-if="validatable"
-            dark
-            fab
+            icon
             size="small"
             color="success"
             style="
@@ -38,8 +37,7 @@
         </v-btn>
 
         <v-btn
-            dark
-            fab
+            icon
             size="small"
             color="blue-grey"
             style="
@@ -72,8 +70,7 @@
     </v-dialog>
 
     <v-btn
-        dark
-        fab
+        icon
         size="small"
         color="blue-grey"
         @click="envEditorDialog = true"
@@ -215,10 +212,14 @@ export default {
   height: 100% !important;
   border-radius: 0 !important;
 
+  // CodeMirror 6 has no colours of its own; CodeMirror 5 drew the editor white with black
+  // text, and it covers the page under the full-screen dialog.
   .cm-editor {
     height: 100% !important;
     font-size: 14px;
     border-radius: 0 !important;
+    background: white;
+    color: black;
   }
 }
 </style>

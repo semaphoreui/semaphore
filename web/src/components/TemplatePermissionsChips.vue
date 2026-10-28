@@ -4,8 +4,9 @@
       v-for="p in ROLE_PERMISSIONS[scope].filter(x => permissions & x.permission)"
       :key="p.permission"
       size="small"
+      variant="flat"
       :color="p.color"
-      :text-color="p.textColor"
+      :class="p.textColor && `text-${p.textColor}`"
       :data-testid="`permissionChips-${p.permission}`"
     >{{ $t(p.label) }}</v-chip>
 
