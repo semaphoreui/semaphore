@@ -15,7 +15,7 @@
         class="SurveyFields__bound"
         :data-testid="`surveyFields-bound-${v.name}`"
       >
-        <template v-slot:append-outer>
+        <template v-slot:append>
           <v-btn
             icon
             size="small"
@@ -67,10 +67,10 @@
             @click:close="removeSelectedItem(v.name, index)"
             :data-testid="`surveyFields-chip-${v.name}`"
           >
-            {{ item && item.name ? item.name : String(item) }}
+            {{ item.raw && item.raw.name ? item.raw.name : String(item.raw ?? item) }}
           </v-chip>
         </template>
-        <template v-if="canBind(v)" v-slot:append-outer>
+        <template v-if="canBind(v)" v-slot:append>
           <WorkflowVarAssign
             :vars="workflowVars"
             :test-id="`surveyFields-assign-${v.name}`"
@@ -92,7 +92,7 @@
         density="compact"
         :data-testid="`surveyFields-var-${v.name}`"
       >
-        <template v-if="canBind(v)" v-slot:append-outer>
+        <template v-if="canBind(v)" v-slot:append>
           <WorkflowVarAssign
             :vars="workflowVars"
             :test-id="`surveyFields-assign-${v.name}`"
@@ -116,7 +116,7 @@
         density="compact"
         :data-testid="`surveyFields-var-${v.name}`"
       >
-        <template v-if="canBind(v)" v-slot:append-outer>
+        <template v-if="canBind(v)" v-slot:append>
           <WorkflowVarAssign
             :vars="workflowVars"
             :test-id="`surveyFields-assign-${v.name}`"

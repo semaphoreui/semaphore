@@ -14,7 +14,6 @@
         <v-card-text class="pb-0">
           <v-form
             ref="form"
-            lazy-validation
             v-if="editedVar != null"
             :data-testid="`${testId}Dialog-form`"
             @submit.prevent="saveVar()"
@@ -89,9 +88,14 @@
           class="d-flex flex-wrap"
           ghost-class="chip-ghost"
         >
+          <!-- A closable v-chip of Vuetify 3 hides itself on close unless its model is controlled
+               (a value and an update handler): the chips are keyed by index, so the hidden one
+               would be reused for the next arg. The list (deleteVar) decides what is shown. -->
           <v-chip
             v-for="(v, i) in modifiedVars"
             closable
+            :model-value="true"
+            @update:model-value="() => {}"
             @click:close="deleteVar(i)"
             :key="i"
             @click="editVar(i)"

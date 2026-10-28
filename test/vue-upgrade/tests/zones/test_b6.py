@@ -15,8 +15,8 @@ import re
 import pytest
 from playwright.sync_api import expect
 
-from vu.ui import (button, dialog, fail_api, field_input, field_message, goto, row, settle, snap, tid, wait_state,
-                   wait_until)
+from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, row, settle, snap, tid,
+                   toggle, wait_state, wait_until)
 
 ZONE = "b6"
 DEMO = "Seed Demo"
@@ -214,7 +214,7 @@ def test_params_ansible_full(ui, project):
     page = ui("admin")
     card = new_schedule(page, project, ANSIBLE)
     expect(tid(card, "taskParams-gitBranch")).to_be_visible()
-    expect(field_input(card, "taskParams-inventoryId")).to_have_value("Localhost")
+    expect(field_selection(card, "taskParams-inventoryId")).to_have_text("Localhost")
     expect(tid(card, "taskParams-ansible")).to_be_visible()
     expect(tid(card, "taskParams-args-chip")).to_have_text("-v")
     snap(page, ZONE, "params", "ansible-full", element="scheduleForm-taskParams")
@@ -235,7 +235,7 @@ def test_params_inventory_menu(ui, project):
 def test_params_tofu(ui, project):
     page = ui("admin")
     card = new_schedule(page, project, TOFU)
-    expect(field_input(card, "taskParams-inventoryId")).to_have_value("B6 Tofu default")
+    expect(field_selection(card, "taskParams-inventoryId")).to_have_text("B6 Tofu default")
     expect(tid(card, "taskParams-terraform")).to_be_visible()
     expect(tid(card, "taskParams-args-add")).to_be_visible()
     snap(page, ZONE, "params", "tofu", element="scheduleForm-taskParams")
@@ -288,10 +288,10 @@ def test_params_schedule_edit(ui, project):
     page = ui("admin")
     card = edit_schedule(page, project)
     expect(field_input(card, "taskParams-gitBranch")).to_have_value("b6-branch")
-    expect(field_input(card, "taskParams-inventoryId")).to_have_value("Localhost YAML")
+    expect(field_selection(card, "taskParams-inventoryId")).to_have_text("Localhost YAML")
     expect(tid(card, "taskParams-args-chip")).to_have_text("--b6-arg")
-    expect(tid(card, "taskParams-debug")).to_be_checked()
-    expect(tid(card, "taskParams-dryRun")).to_be_checked()
+    expect(field_input(card, "taskParams-debug")).to_be_checked()
+    expect(field_input(card, "taskParams-dryRun")).to_be_checked()
     snap(page, ZONE, "params", "schedule-edit", element="scheduleForm-taskParams")
 
 
@@ -331,7 +331,7 @@ def test_ansible_full(ui, project):
     expect(tid(card, "taskParams-limit-chip")).to_have_count(2)
     expect(tid(card, "taskParams-tags-chip")).to_have_count(2)
     expect(tid(card, "taskParams-skipTags-add")).to_be_visible()
-    expect(tid(card, "taskParams-debug")).not_to_be_checked()
+    expect(field_input(card, "taskParams-debug")).not_to_be_checked()
     expect(slider(card)).to_have_attribute("tabindex", "-1")
     expect(tid(card, "taskParams-skipGalaxyInstall")).to_be_visible()
     snap(page, ZONE, "ansible", "full", element="taskParams-ansible")
@@ -341,7 +341,7 @@ def test_ansible_full(ui, project):
 def test_ansible_debug_on(ui, project):
     page = ui("admin")
     card = new_schedule(page, project, ANSIBLE)
-    tid(card, "taskParams-debug").check(force=True)
+    toggle(card, "taskParams-debug", True)
     expect(slider(card)).to_have_attribute("tabindex", "0")
     slider(card).focus()
     page.keyboard.press("End")
@@ -356,9 +356,9 @@ def test_ansible_checked(ui, project):
     page = ui("admin")
     card = new_schedule(page, project, ANSIBLE)
     for t in ("taskParams-dryRun", "taskParams-diff", "taskParams-skipGalaxyInstall"):
-        tid(card, t).check(force=True)
-        expect(tid(card, t)).to_be_checked()
-        tid(card, t).blur()
+        toggle(card, t, True)
+        expect(field_input(card, t)).to_be_checked()
+        field_input(card, t).blur()
     snap(page, ZONE, "ansible", "checked", element="taskParams-ansible")
 
 
@@ -394,7 +394,7 @@ def test_terraform_default(ui, project):
     page = ui("admin")
     card = new_schedule(page, project, "Tofu apply")
     for t in TERRAFORM_BOXES:
-        expect(tid(card, t)).not_to_be_checked()
+        expect(field_input(card, t)).not_to_be_checked()
     snap(page, ZONE, "terraform", "default", element="taskParams-terraform")
 
 
@@ -403,9 +403,9 @@ def test_terraform_checked(ui, project):
     page = ui("admin")
     card = new_schedule(page, project, "Tofu apply")
     for t in ("taskParams-plan", "taskParams-destroy", "taskParams-autoApprove"):
-        tid(card, t).check(force=True)
-        expect(tid(card, t)).to_be_checked()
-        tid(card, t).blur()
+        toggle(card, t, True)
+        expect(field_input(card, t)).to_be_checked()
+        field_input(card, t).blur()
     snap(page, ZONE, "terraform", "checked", element="taskParams-terraform")
 
 
@@ -528,8 +528,8 @@ def fill_survey(page, card):
     page.get_by_role("option", name="a", exact=True).click()
     page.get_by_role("option", name="c", exact=True).click()
     page.keyboard.press("Escape")
-    tid(card, "surveyFields-var-B6_TEXT").fill("line 1\nline 2")
-    tid(card, "surveyFields-var-B6_TEXT").blur()
+    field_input(card, "surveyFields-var-B6_TEXT").fill("line 1\nline 2")
+    field_input(card, "surveyFields-var-B6_TEXT").blur()
     expect(tid(card, "surveyFields-chip-B6_SELECT")).to_have_count(2)
 
 
@@ -722,8 +722,8 @@ def test_put_body_composition(ui, project, api):
     bodies = capture(page, "PUT", re.compile(rf"/api/project/\d+/schedules/{sched['id']}$"), 204)
     card = edit_schedule(page, project)
     field_input(card, "taskParams-message").fill("B6 changed")
-    tid(card, "taskParams-diff").check(force=True)
-    tid(card, "taskParams-dryRun").uncheck(force=True)
+    toggle(card, "taskParams-diff", True)
+    toggle(card, "taskParams-dryRun", False)
     fill_secret(card)
     button(card, "editDialog-save").click()
     wait_until(page, lambda: bodies, "the PUT of the schedule")
@@ -749,7 +749,7 @@ def test_inventory_choice(ui, project, api):
     card = edit_schedule(page, project)
     field_input(card, "taskParams-inventoryId").click()
     page.get_by_role("option", name="Localhost", exact=True).click()
-    expect(field_input(card, "taskParams-inventoryId")).to_have_value("Localhost")
+    expect(field_selection(card, "taskParams-inventoryId")).to_have_text("Localhost")
     fill_secret(card)
     button(card, "editDialog-save").click()
     wait_until(page, lambda: bodies, "the PUT of the schedule")
@@ -803,11 +803,14 @@ def test_no_extra_requests(ui, project):
 
 
 @pytest.mark.functional
-def test_template_switch_keeps_first_load(ui, project):
+def test_template_switch_keeps_first_load(ui, project, api):
     """Current behaviour, repeated on the upgrade (JOURNAL@0064D9B231): TaskParamsForm loads
     once — another template picked in the same schedule dialog gets no inventory list, no survey
-    defaults and no limit/tags of the template."""
+    defaults and no limit/tags of the template. The inventory field holds the template's inventory id
+    with an empty list: Vuetify 2 showed nothing, Vuetify 3 shows a value without an item as is —
+    the bare id, not the inventory name."""
     page = ui("admin")
+    localhost = api.find(f"/project/{project(DEMO)}/inventory", "Localhost")["id"]
     urls = []
     page.on("request", lambda r: urls.append(r.url) if INVENTORY_RE.search(r.url) else None)
     card = new_schedule(page, project, "OK script")
@@ -817,7 +820,7 @@ def test_template_switch_keeps_first_load(ui, project):
     settle(page)
     assert urls == []
     expect(field_input(card, "surveyFields-var-B6_INT")).to_have_value("")
-    expect(field_input(card, "taskParams-inventoryId")).to_have_value("")
+    expect(field_selection(card, "taskParams-inventoryId")).to_have_text(str(localhost))
     expect(tid(card, "taskParams-limit-chip")).to_have_count(0)
 
 
@@ -828,7 +831,7 @@ def test_ansible_debug_slider(ui, project):
     page = ui("admin")
     card = new_schedule(page, project, ANSIBLE)
     expect(slider(card)).to_have_attribute("tabindex", "-1")
-    tid(card, "taskParams-debug").check(force=True)
+    toggle(card, "taskParams-debug", True)
     expect(slider(card)).to_have_attribute("tabindex", "0")
     expect(tid(card, "taskParams-ansible")).to_contain_text("-vvvv")
     slider(card).focus()
@@ -836,7 +839,7 @@ def test_ansible_debug_slider(ui, project):
     page.keyboard.press("ArrowRight")
     expect(slider(card)).to_have_attribute("aria-valuenow", "2")
     expect(tid(card, "taskParams-ansible")).to_contain_text("Debug -vv ")
-    tid(card, "taskParams-debug").uncheck(force=True)
+    toggle(card, "taskParams-debug", False)
     expect(slider(card)).to_have_attribute("tabindex", "-1")
 
 
@@ -858,8 +861,8 @@ def test_terraform_params_in_integration(ui, project):
     bodies = capture(page, "POST", re.compile(r"/api/project/\d+/integrations$"), 201, {"id": 99601})
     card = new_integration(page, project, TOFU)
     field_input(card, "integrationForm-name").fill("vu-b6-integration")
-    tid(card, "taskParams-plan").check(force=True)
-    tid(card, "taskParams-destroy").check(force=True)
+    toggle(card, "taskParams-plan", True)
+    toggle(card, "taskParams-destroy", True)
     button(card, "editDialog-save").click()
     wait_until(page, lambda: bodies, "the POST of the integration")
     params = bodies[0]["task_params"]["params"]
@@ -1023,7 +1026,7 @@ def test_wfrun_post_body(ui, project, api):
     field_input(card, "surveyFields-var-wf_tag").fill("b6-tag")
     field_input(card, "surveyFields-var-wf_enum").click()
     page.get_by_role("option", name="y", exact=True).click()
-    tid(card, "surveyFields-var-wf_text2").fill("b6 text 2")
+    field_input(card, "surveyFields-var-wf_text2").fill("b6 text 2")
     tid(card, "workflow-run-dialog-run").click()
     wait_until(page, lambda: bodies, "the POST of the run")
     env = bodies[0]["environment"]

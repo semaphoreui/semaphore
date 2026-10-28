@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="TaskParamsAnsibleForm">
 
     <ArgsPicker
       v-if="templateParams.allow_override_limit"
@@ -35,7 +35,6 @@
       <v-col v-if="templateParams.allow_debug">
         <v-checkbox
           class="mt-0"
-          :model-value="params.debug"
           v-model="params.debug"
           @update:model-value="updateValue('debug', $event)"
           hide-details
@@ -52,7 +51,7 @@
           class="ml-7 mb-2"
           style="max-width: 100px;"
           v-model="params.debug_level"
-          @change="updateValue('debug_level', $event)"
+          @update:model-value="updateValue('debug_level', $event)"
           data-testid="taskParams-debugLevel"
           step="1"
           min="1"
@@ -101,7 +100,11 @@
 </template>
 
 <style lang="scss">
-
+// Vuetify 3 gives a .v-input min-width 0, so equal v-col columns squeezed the no-wrap labels
+// over each other; as in Vuetify 2, a checkbox keeps its content width and the row wraps.
+.TaskParamsAnsibleForm .v-checkbox {
+  min-width: max-content;
+}
 </style>
 
 <script>

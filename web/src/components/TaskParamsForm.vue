@@ -43,12 +43,14 @@
       v-if="inventory != null && needInventory"
     ></v-autocomplete>
 
+    <!-- Vuetify 3 does not clip the bones of type="card" (206 px) to the height: overflow hidden,
+         as Vuetify 2 drew it -->
     <v-skeleton-loader
       v-else-if="needInventory"
       data-testid="taskParams-loading"
       type="card"
       height="46"
-      style="margin-bottom: 16px; margin-top: 4px"
+      style="margin-bottom: 16px; margin-top: 4px; overflow: hidden"
     ></v-skeleton-loader>
 
     <TaskParamsAnsibleForm

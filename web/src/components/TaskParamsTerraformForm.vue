@@ -1,5 +1,5 @@
 <template>
-  <v-row no-gutters>
+  <v-row no-gutters class="TaskParamsTerraformForm">
     <v-col>
       <v-checkbox
         class="mt-0"
@@ -68,7 +68,11 @@
 </template>
 
 <style lang="scss">
-
+// Vuetify 3 gives a .v-input min-width 0, so equal v-col columns squeezed the no-wrap labels
+// over each other; as in Vuetify 2, a checkbox keeps its content width and the row wraps.
+.TaskParamsTerraformForm .v-checkbox {
+  min-width: max-content;
+}
 </style>
 
 <script>

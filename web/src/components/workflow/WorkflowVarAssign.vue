@@ -1,5 +1,5 @@
 <template>
-  <v-menu offset-y location="left" eager>
+  <v-menu location="bottom end" eager>
     <template v-slot:activator="{ props }">
       <v-btn
         icon
@@ -13,9 +13,9 @@
       </v-btn>
     </template>
     <v-list density="compact" class="WorkflowVarAssign__list" :data-testid="`${testId}-list`">
-      <v-subheader
+      <v-list-subheader
         :data-testid="`${testId}-title`"
-      >{{ $t('workflowNodeSurveyInputsAssignTitle') }}</v-subheader>
+      >{{ $t('workflowNodeSurveyInputsAssignTitle') }}</v-list-subheader>
       <v-list-item v-if="vars.length === 0" disabled :data-testid="`${testId}-empty`">
         <v-list-item-title class="text-caption text-wrap">
           {{ $t('workflowNodeSurveyInputsNoWorkflowVars') }}
@@ -28,10 +28,10 @@
         :data-testid="`${testId}-item-${v.name}`"
         @click="$emit('select', v.name)"
       >
-          <v-list-item-title>{{ v.title || v.name }}</v-list-item-title>
-          <v-list-item-subtitle class="WorkflowVarAssign__name">
-            {{ v.name }} · {{ v.type || 'string' }}
-          </v-list-item-subtitle>
+        <v-list-item-title>{{ v.title || v.name }}</v-list-item-title>
+        <v-list-item-subtitle class="WorkflowVarAssign__name">
+          {{ v.name }} · {{ v.type || 'string' }}
+        </v-list-item-subtitle>
       </v-list-item>
     </v-list>
   </v-menu>
