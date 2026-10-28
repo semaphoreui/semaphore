@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -69,3 +70,39 @@ def slot(ws):
 
 def read_config(stand):
     return json.loads(stand.config.read_text())
+
+
+def port_of(url):
+    return int(url.rstrip("/").rsplit(":", 1)[1])
+
+
+def listeners(port):
+    """(busy, pids) of the TCP listeners on <port>: pids of this user's processes only (ss -p)."""
+    res = subprocess.run(["ss", "-ltnpH", f"sport = :{port}"], text=True, capture_output=True)
+    lines = [ln for ln in res.stdout.splitlines() if ln.strip()]
+    pids = sorted({int(p) for ln in lines for p in re.findall(r"pid=(\d+)", ln)})
+    return bool(lines), pids
+
+
+def describe(port):
+    """Who listens on <port>, for an error message: pid, binary, the stand whose server.pid it is."""
+    busy, pids = listeners(port)
+    if not busy:
+        return "nobody"
+    if not pids:
+        return "a process of another user"
+    out = []
+    for pid in pids:
+        try:
+            exe = os.readlink(f"/proc/{pid}/exe")
+        except OSError:
+            exe = "?"
+        owner = ""
+        for pid_file in (ROOT / "runtime" / "instances").glob("*/server.pid"):
+            try:
+                if int(pid_file.read_text().strip()) == pid:
+                    owner = f", stand {pid_file.parent.name}"
+            except (OSError, ValueError):
+                pass
+        out.append(f"pid {pid} ({exe}{owner})")
+    return ", ".join(out)

@@ -12,11 +12,13 @@ Shots: b2__<screen>__<state>__<size>.png.
 
 import json
 import re
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
 
-from vu.ui import button, dialog, fail_api, field_input, field_message, goto, snap, tid, wait_state, wait_until
+from vu.ui import (button, dialog, fail_api, field_input, field_message, goto, menu_of, snap, tid, wait_state,
+                   wait_until)
 from vu.ui import VUETIFY_ACTIVE_ITEM  # noqa: E402 — step 2.4: shared selectors
 
 ZONE = "b2"
@@ -37,8 +39,8 @@ KEYS_TWO_EMPTY = [{"id": 901, "name": "k1", "type": "none", "empty": True},
 
 
 # ---- TEMPORARY helpers: candidates for vu/ui.py (base_requests of B2) ----------------------------
-# They use no Vuetify class: the open sidebar is "in the viewport", a menu is the ARIA role=menu
-# around its item, the rail is the width of the sidebar. The only Vuetify class — the active list
+# They use no Vuetify class: the open sidebar is "in the viewport", the rail is the width of the
+# sidebar; the menu around an item is menu_of of vu/ui.py. The only Vuetify class — the active list
 # item — is VUETIFY_ACTIVE_ITEM of vu/ui.py.
 
 
@@ -81,13 +83,6 @@ def open_sidebar(page: Page, toggle):
         tid(page, toggle).click()
     expect(sidebar).to_be_in_viewport(ratio=1)
     return sidebar
-
-
-def menu_of(page: Page, item_test_id) -> Locator:
-    """The open menu (v-menu has no mark of its own) that holds the item <item_test_id>."""
-    menu = page.get_by_role("menu").filter(has=tid(page, item_test_id))
-    expect(menu).to_be_visible()
-    return menu
 
 
 def snackbar_open(page: Page) -> Locator:
@@ -656,7 +651,9 @@ def test_app_relogin(ui, project):
 def test_app_unauthorized(ui, project):
     page = ui(None)
     page.goto(f"/project/{project(DEMO)}/history?t=1")
-    expect(page).to_have_url(re.compile(r"/auth/login\?return=%2Fproject%2F1%2Fhistory%3Ft%3D1$"))
+    # vue-router 3 encodes the return path (%2Fproject%2F1…), 4 keeps «/» and «?» as is: the same value
+    expect(page).to_have_url(re.compile(r"/auth/login\?return="))
+    assert parse_qs(urlsplit(page.url).query) == {"return": [f"/project/{project(DEMO)}/history?t=1"]}
     expect(tid(page, "app-page")).to_have_attribute("data-state", "ready")
     expect(tid(page, "sidebar")).to_have_count(0)
 

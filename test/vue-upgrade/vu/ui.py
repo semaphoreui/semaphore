@@ -2,7 +2,8 @@
 interception, masks and the snapshot.
 
 Everything that depends on the DOM of Vuetify lives here (VUETIFY_* selectors, field_message,
-the freeze CSS): after the Vue 3 / Vuetify 3–4 upgrade only this file should need a change.
+FieldInput, the freeze CSS): the selectors hold the Vuetify 2 and the Vuetify 3 form side by side, the
+DOM of the page picks the one that matches — the same suite runs before and after the upgrade.
 """
 
 import datetime as dt
@@ -25,30 +26,69 @@ SIZES = {
 
 # ---- Vuetify-dependent selectors: change here, nowhere else -------------------------------------
 # Strings with {tid} / {text} are formatted by the helpers below; regexes go to to_have_class().
+# Every selector holds the Vuetify 2 form and the Vuetify 3 form side by side (a CSS union / an
+# alternation): only one of them can match a given page, so the DOM itself picks the version.
+#   Vuetify 2: the mark of a field sits on its <input>; the field root is the .v-input around it.
+#   Vuetify 3: the mark (any data-* attribute) goes to the root .v-input, the <input> is inside.
 
-VUETIFY_FIELD_MESSAGE = '.v-input:has([data-testid="{tid}"]) .v-messages__message'
-VUETIFY_SELECT_SELECTION = '.v-input:has([data-testid="{tid}"]) .v-select__selection'
-VUETIFY_FIELD_SLOT = '.v-input:has([data-testid="{tid}"]) .v-input__slot'  # the clickable box of a field
-VUETIFY_APPEND_BUTTON = '.v-input:has([data-testid="{tid}"]) .v-input__append-inner button'  # password eye
-VUETIFY_CLEAR_BUTTON = '.v-input:has([data-testid="{tid}"]) .v-input__icon--clear button'  # clearable
-VUETIFY_ACTIVE_DIALOG = ".v-dialog--active"  # the open dialog window = its scroll container
-VUETIFY_ACTIVE_MENU = ".menuable__content__active"  # the open menu of a v-menu / v-select
-VUETIFY_TOOLTIP = ".v-tooltip__content.menuable__content__active"  # the open tooltip
-VUETIFY_CHIP_CLOSE = '.v-chip:has-text("{text}") .v-chip__close'  # the cross of a selection chip
-VUETIFY_EXPAND_ICON = ".v-data-table__expand-icon"  # the expand button of a show-expand row
-VUETIFY_BADGE_DOT = ".v-badge__badge"
-VUETIFY_ACTIVE_ITEM = re.compile(r"\bv-list-item--active\b")  # the current item of a v-list / nav
-VUETIFY_BTN_ACTIVE = re.compile(r"\bv-btn--active\b")  # the chosen button of a v-btn-toggle
+
+def _field(inner):
+    """Selector of <inner> of the field marked {tid}, in Vuetify 2 and in Vuetify 3."""
+    return f'.v-input:has([data-testid="{{tid}}"]) {inner}, .v-input[data-testid="{{tid}}"] {inner}'
+
+
+# the shown messages (validation, hint) of a field: Vuetify 3 keys a message by its text, so a new
+# message enters while the old one leaves (2 elements for a frame or two — a strict-mode error); the
+# leaving one is left out. Vuetify 2 keys them by index and patches the text in place.
+VUETIFY_FIELD_MESSAGE = _field('.v-messages__message:not([class*="-leave-active"])')
+VUETIFY_SELECT_SELECTION = (  # the shown choice: 2 — v-select; 3 — v-select, v-autocomplete, v-combobox
+    _field(".v-select__selection")
+    + ', .v-input[data-testid="{tid}"] .v-autocomplete__selection'
+    + ', .v-input[data-testid="{tid}"] .v-combobox__selection')
+VUETIFY_FIELD_SLOT = (  # the clickable box of a field: 2 — .v-input__slot, 3 — .v-field
+    '.v-input:has([data-testid="{tid}"]) .v-input__slot, .v-input[data-testid="{tid}"] .v-field')
+VUETIFY_APPEND_BUTTON = (  # the password eye: 2 — a <button> in .v-input__append-inner; 3 — a clickable
+    # icon (role=button) of `append-icon` (.v-input__append, beside the field) or `append-inner-icon`
+    '.v-input:has([data-testid="{tid}"]) .v-input__append-inner button'
+    ', .v-input[data-testid="{tid}"] .v-input__append [role="button"]'
+    ', .v-input[data-testid="{tid}"] .v-field__append-inner [role="button"]:not([class*="__menu-icon"])')
+VUETIFY_CLEAR_BUTTON = (  # clearable: 2 — a <button>; 3 — a clickable icon «Clear <label>»
+    '.v-input:has([data-testid="{tid}"]) .v-input__icon--clear button'
+    ', .v-input[data-testid="{tid}"] .v-field__clearable [role="button"]')
+# the open dialog window = its visible box: 2 — .v-dialog--active (also the scroll container);
+# 3 — the .v-overlay__content of the active v-dialog (the card inside it scrolls, a fullscreen one —
+# the box itself)
+VUETIFY_ACTIVE_DIALOG = ".v-dialog--active, .v-overlay--active.v-dialog > .v-overlay__content"
+# the open menu of a v-menu / v-select: 2 — .menuable__content__active (tooltips too); 3 — the content
+# of the active v-menu overlay (select lists are v-menu too)
+VUETIFY_ACTIVE_MENU = ".menuable__content__active, .v-overlay--active.v-menu > .v-overlay__content"
+VUETIFY_TOOLTIP = (".v-tooltip__content.menuable__content__active"
+                   ", .v-overlay--active.v-tooltip > .v-overlay__content")  # the open tooltip
+VUETIFY_CHIP_CLOSE = '.v-chip:has-text("{text}") .v-chip__close'  # the cross of a selection chip (2 and 3)
+# the expand button of a show-expand row: 2 — .v-data-table__expand-icon; 3 — the v-btn of the
+# data-table-expand cell
+VUETIFY_EXPAND_ICON = ".v-data-table__expand-icon, .v-data-table__td--expanded-row button"
+VUETIFY_BADGE_DOT = ".v-badge__badge"  # 2 and 3
+VUETIFY_DARK_APP = ".v-application.theme--dark, .v-application.v-theme--dark"  # the app in the dark theme
+VUETIFY_ACTIVE_ITEM = re.compile(r"\bv-list-item--active\b")  # the current item of a v-list / nav (2 and 3)
+VUETIFY_BTN_ACTIVE = re.compile(r"\bv-btn--active\b")  # the chosen button of a v-btn-toggle (2 and 3)
 VUETIFY_BTN_ACTIVE_CSS = ".v-btn--active"
-VUETIFY_BTN_LOADING = re.compile(r"\bv-btn--loading\b")
-VUETIFY_TAB_DISABLED = re.compile(r"\bv-tab--disabled\b")  # Vuetify 2 gives a v-tab no aria-disabled
-VUETIFY_CHIP_ACTIVE = re.compile(r"(^|\s)primary(\s|$)")  # a v-chip coloured primary (Vuetify 3+: bg-primary)
+VUETIFY_BTN_LOADING = re.compile(r"\bv-btn--loading\b")  # 2 and 3
+# a disabled v-tab: 2 — only the class v-tab--disabled; 3 — a v-tab is a v-btn: v-btn--disabled
+VUETIFY_TAB_DISABLED = re.compile(r"\bv-(tab|btn)--disabled\b")
+# a v-chip coloured primary: 2 — class primary; 3 — bg-primary (flat / elevated) or text-primary (tonal,
+# the default variant of v-chip)
+VUETIFY_CHIP_ACTIVE = re.compile(r"(^|\s)((bg|text)-)?primary(\s|$)")
+# a Vuetify 3 <input> that lets clicks through (v-select: pointer-events none — the field box under it
+# takes the click); Vuetify 2 has none
+VUETIFY_PASS_THROUGH_JS = "(e) => getComputedStyle(e).pointerEvents === 'none'"
 
-# CodeMirror 5 (vue-codemirror) — will change with the CodeMirror 6 facade
-CM_EDITOR = '[data-testid="{tid}"] .CodeMirror'  # the editable area inside the mark
-CM_CURSOR = ".CodeMirror-cursors"  # its own blinking cursor (caret="hide" does not hide it): a mask
+# CodeMirror 5 (vue-codemirror, Vue 2) or CodeMirror 6 (vue-codemirror6, Vue 3)
+CM_EDITOR = '[data-testid="{tid}"] .CodeMirror, [data-testid="{tid}"] .cm-content'  # the editable area
+# its own blinking cursor (caret="hide" does not hide it): a mask
+CM_CURSOR = ".CodeMirror-cursors, .cm-cursorLayer"
 
-# v-alert dismissible: the cross is the only button of the alert
+# v-alert dismissible: the cross is the last button of the alert (2 and 3)
 ALERT_CLOSE = '[data-testid="{tid}"] button'
 
 # Drawflow (workflow canvas)
@@ -65,7 +105,10 @@ FREEZE_CSS = """
   animation-duration: 0s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
   caret-color: transparent !important; scroll-behavior: auto !important;
 }
-.v-ripple__container { display: none !important; }
+.v-ripple__container { display: none !important; }  /* the ripple of Vuetify 2 and 3 */
+/* the error overlay of the dev server (vue-cli-service serve, the hot-reload UI — never in a build): Vue 3
+   in a dev build throws the errors of hooks, and the overlay over the page takes every click */
+#webpack-dev-server-client-overlay { display: none !important; }
 """
 
 INIT_JS_TEMPLATE = """(() => {
@@ -119,7 +162,13 @@ def attach_recorders(page: Page, info: PageInfo):
             info.console_errors.append(strip_origin(msg.text, info.origin))
 
     def on_pageerror(err):
-        info.console_errors.append("pageerror: " + strip_origin(str(err), info.origin))
+        # «<name>: <message>» as console.error prints an error: Vue 2, and Vue 3 in a production build,
+        # log an error of a hook to the console; Vue 3 in a dev build (the hot-reload UI) throws it, and it
+        # arrives here with the message alone (no «AxiosError»)
+        name, text = getattr(err, "name", "") or "", str(err)
+        if name and not text.startswith(name):
+            text = f"{name}: {text}"
+        info.console_errors.append("pageerror: " + strip_origin(text, info.origin))
 
     def on_response(resp):
         if resp.status >= 400:
@@ -169,16 +218,35 @@ def field_message(scope, test_id) -> Locator:
     return scope.locator(VUETIFY_FIELD_MESSAGE.format(tid=test_id))
 
 
+class FieldInput(Locator):
+    """The <input> of a field (field_input). A plain Locator but for click(): the <input> of a Vuetify 3
+    v-select lets clicks through (pointer-events: none) to the field box under it, so Playwright would
+    wait for it to «receive events» for good. Such an input is clicked at its place without that check
+    once it is visible — the click lands on the field box and opens the list, as a click on the input
+    of a Vuetify 2 v-select does. Every other input is clicked as usual."""
+
+    def click(self, **kwargs):
+        if not kwargs.get("force") and self.evaluate(VUETIFY_PASS_THROUGH_JS, timeout=kwargs.get("timeout")):
+            expect(self).to_be_visible(**({"timeout": kwargs["timeout"]} if "timeout" in kwargs else {}))
+            expect(self).to_be_enabled(**({"timeout": kwargs["timeout"]} if "timeout" in kwargs else {}))
+            kwargs["force"] = True
+        return super().click(**kwargs)
+
+
 def field_input(scope, test_id) -> Locator:
     """The <input> or <textarea> of a field marked <test_id>: Vuetify 2 puts the mark on the input
-    itself, a later Vuetify may put it on the wrapper. An autocomplete shows its selection here
-    (to_have_value); a v-textarea is found too."""
+    itself, Vuetify 3 on the root .v-input around it. A Vuetify 2 autocomplete shows its selection here
+    (to_have_value); a Vuetify 3 one only while focused (blurred — field_selection). A v-textarea is
+    found too. click() on the input of a Vuetify 3 v-select opens its list (FieldInput)."""
     t = f'[data-testid="{test_id}"]'
-    return scope.locator(f"input{t}, textarea{t}, {t} input, {t} textarea").first
+    loc = scope.locator(f"input{t}, textarea{t}, {t} input, {t} textarea").first
+    return FieldInput(loc._impl_obj)
 
 
 def field_selection(scope, test_id) -> Locator:
-    """The shown selection(s) of a v-select marked <test_id> (an autocomplete uses field_input)."""
+    """The shown selection(s) of a v-select marked <test_id>; in Vuetify 3 also of a v-autocomplete /
+    v-combobox (its <input> holds the text only while focused). A Vuetify 2 autocomplete shows the
+    selection in its input: field_input(...).to_have_value."""
     return scope.locator(VUETIFY_SELECT_SELECTION.format(tid=test_id))
 
 
@@ -193,8 +261,8 @@ def field_clear(scope, test_id) -> Locator:
 
 
 def toggle(scope, test_id, on=True):
-    """Check / uncheck a checkbox or switch marked <test_id> (Vuetify 2: the mark is on the hidden
-    <input>, hence force)."""
+    """Check / uncheck a checkbox or switch marked <test_id> (its hidden <input> — Vuetify 2: the mark is
+    on it; Vuetify 3: inside the marked .v-input; hence force)."""
     box = field_input(scope, test_id)
     box.set_checked(on, force=True)
     if on:
@@ -206,8 +274,9 @@ def toggle(scope, test_id, on=True):
 
 def open_menu(scope, test_id):
     """Open the list of the select / autocomplete / combobox marked <test_id>: a click on the free right
-    end of the field box, left of the arrow. Works when the <input> is 0 px high (multiple + chips,
-    nothing chosen) and does not hit a selection chip in the middle."""
+    end of the field box (Vuetify 2 .v-input__slot, 3 .v-field), left of the arrow. Works when the
+    <input> is 0 px high (multiple + chips, nothing chosen) and does not hit a selection chip in the
+    middle."""
     slot = scope.locator(VUETIFY_FIELD_SLOT.format(tid=test_id)).first
     expect(slot).to_be_visible()
     box = slot.bounding_box()
@@ -227,13 +296,15 @@ def pick(page: Page, scope, test_id, name):
 
 
 def active_menu(page: Page) -> Locator:
-    """The open v-menu / v-select list (no mark of its own); prefer menu_of() when an item has a mark."""
+    """The open v-menu / v-select list (no mark of its own; Vuetify 3: the content of the active menu
+    overlay, teleported to <body>); prefer menu_of() when an item has a mark."""
     return page.locator(VUETIFY_ACTIVE_MENU).last
 
 
 def menu_of(page: Page, item_test_id) -> Locator:
-    """The open menu (ARIA role=menu) that holds the item <item_test_id>; no Vuetify class."""
-    menu = page.get_by_role("menu").filter(has=tid(page, item_test_id))
+    """The open menu that holds the item <item_test_id>: Vuetify 2 — the ARIA role=menu; Vuetify 3 gives
+    a v-menu no role — the content of the active menu overlay (VUETIFY_ACTIVE_MENU)."""
+    menu = page.locator(f'[role="menu"], {VUETIFY_ACTIVE_MENU}').filter(has=tid(page, item_test_id)).last
     expect(menu).to_be_visible()
     return menu
 
@@ -244,7 +315,7 @@ def tooltip(page: Page) -> Locator:
 
 
 def chip_close(chip: Locator) -> Locator:
-    """The close cross of a chip (Vuetify 2: a button named «Close», no mark)."""
+    """The close cross of a chip: a button named «Close», no mark (Vuetify 2 and 3)."""
     return chip.get_by_role("button", name="Close")
 
 
@@ -290,7 +361,8 @@ def expect_loading(loc: Locator, loading=True):
 
 
 def expect_tab_disabled(loc: Locator, disabled=True):
-    """A v-tab is (not) disabled (Vuetify 2: only a class shows it)."""
+    """A v-tab is (not) disabled (Vuetify 2: only a class shows it; Vuetify 3: a v-tab is a v-btn —
+    v-btn--disabled)."""
     (expect(loc).to_have_class if disabled else expect(loc).not_to_have_class)(VUETIFY_TAB_DISABLED)
 
 
@@ -300,13 +372,15 @@ def expect_chip_active(loc: Locator, active=True):
 
 
 def editor(scope, test_id) -> Locator:
-    """The editable area of the code editor marked <test_id> (CodeMirror 5 today)."""
+    """The editable area of the code editor marked <test_id> (CodeMirror 5 on Vue 2, CodeMirror 6 —
+    .cm-content — on Vue 3)."""
     return scope.locator(CM_EDITOR.format(tid=test_id)).last
 
 
 def editor_type(page: Page, test_id, text):
-    """Replace the whole text of the code editor <test_id> by typing <text> (CodeMirror 5 does not
-    close brackets); blur() afterwards hides its own cursor."""
+    """Replace the whole text of the code editor <test_id> by typing <text> (neither CodeMirror 5 nor the
+    minimal CodeMirror 6 setup of lib/codeEditor.js closes brackets); blur() afterwards hides its own
+    cursor."""
     editor(page, test_id).click()
     page.keyboard.press("Control+A")
     page.keyboard.type(text)
@@ -412,7 +486,9 @@ def open_sidebar(page, toggle_test_id) -> Locator:
 
 # ---- snackbar (App.vue) -------------------------------------------------------------------------
 # Vuetify 2 keeps the root of v-snackbar (app-snackbar) in the DOM and «visible» to Playwright even
-# when closed, with data-state=ready: open / closed is told by its close button app-snackbarClose.
+# when closed, with data-state=ready; Vuetify 3 renders the root (an overlay) only from the first
+# opening on and keeps it after closing. Either way open / closed is told by its close button
+# app-snackbarClose.
 
 SNACKBAR_OPAQUE_JS = """() => {
   const root = document.querySelector('[data-testid="app-snackbar"]');
@@ -440,7 +516,8 @@ def expect_snackbar(page: Page, text=None, state=None, timeout=15000) -> Locator
 
 
 def expect_no_snackbar(page: Page):
-    """The snackbar is closed (to_be_hidden() on its root never passes in Vuetify 2)."""
+    """The snackbar is closed (to_be_hidden() on its root never passes in Vuetify 2; in Vuetify 3 the root
+    may be missing altogether)."""
     expect(tid(page, "app-snackbarClose")).to_be_hidden()
 
 

@@ -14,8 +14,8 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from seed.base import BASE_NAMES
-from vu.ui import (button, dialog, fail_api, field_input, field_message, goto, hold_api, hold_snackbar, only_names,
-                   open_dialog, requests_of, row, snap, tid, wait_console, wait_until)
+from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, hold_api, hold_snackbar,
+                   only_names, open_dialog, requests_of, row, snap, tid, wait_console, wait_until)
 
 ZONE = "z19"
 DEMO, EMPTY = "Seed Demo", "Seed Empty"
@@ -74,7 +74,7 @@ def set_type(card, typ):
 def pick_credential(page, card, name):
     field_input(card, "hostConfigForm-sshKeyId").click()
     page.get_by_role("option", name=name, exact=True).click()
-    expect(field_input(card, "hostConfigForm-sshKeyId")).to_have_value(name)
+    expect(field_selection(card, "hostConfigForm-sshKeyId")).to_have_text(name)
 
 
 def fill_new(page, card, host):
@@ -312,7 +312,7 @@ def test_dialog_edit_host(ui, project):
     expect(tid(card, "editDialog-title")).to_contain_text("Edit mapping")
     expect(field_input(card, "hostConfigForm-type-host")).to_be_checked()
     expect(field_input(card, "hostConfigForm-host")).to_have_value("github.com")
-    expect(field_input(card, "hostConfigForm-sshKeyId")).to_have_value("Seed SSH")
+    expect(field_selection(card, "hostConfigForm-sshKeyId")).to_have_text("Seed SSH")
     snap(page, ZONE, "dialog-edit", "host", element=DIALOG)
 
 
@@ -322,7 +322,7 @@ def test_dialog_edit_url(ui, project):
     card = edit_dialog(page, "git.example.com")
     expect(field_input(card, "hostConfigForm-type-url")).to_be_checked()
     expect(field_input(card, "hostConfigForm-host")).to_have_value("https://git.example.com/acme/")
-    expect(field_input(card, "hostConfigForm-sshKeyId")).to_have_value("Deploy login")
+    expect(field_selection(card, "hostConfigForm-sshKeyId")).to_have_text("Deploy login")
     snap(page, ZONE, "dialog-edit", "url", element=DIALOG)
 
 
@@ -417,9 +417,11 @@ def test_sidebar_opens_screen(ui, project):
 def test_drawer_toggle_mobile(ui, project):
     page = ui("admin")
     open_list(page, project)
-    expect(tid(page, "sidebar-hostConfig")).to_be_hidden()
+    # closed, the temporary drawer of Vuetify 3 is moved off the window (inert), not hidden
+    expect(tid(page, "sidebar-hostConfig")).not_to_be_in_viewport()
     tid(page, "hostConfig-drawerToggle").click()
     expect(tid(page, "sidebar-hostConfig")).to_be_visible()
+    expect(tid(page, "sidebar-hostConfig")).to_be_in_viewport()
 
 
 @pytest.mark.functional
@@ -475,7 +477,7 @@ def test_credentials_follow_type(ui, project):
     set_type(card, "url")
     pick_credential(page, card, "Deploy login")
     set_type(card, "host")
-    expect(field_input(card, "hostConfigForm-sshKeyId")).to_have_value("")
+    expect(field_selection(card, "hostConfigForm-sshKeyId")).to_have_count(0)
 
 
 @pytest.mark.functional
@@ -549,7 +551,7 @@ def test_edit_reopen_same_values(ui, project):
         card = edit_dialog(page, "git.example.com")
         expect(field_input(card, "hostConfigForm-type-url")).to_be_checked()
         expect(field_input(card, "hostConfigForm-host")).to_have_value("https://git.example.com/acme/")
-        expect(field_input(card, "hostConfigForm-sshKeyId")).to_have_value("Deploy login")
+        expect(field_selection(card, "hostConfigForm-sshKeyId")).to_have_text("Deploy login")
         button(card, "editDialog-close").click()
         expect(card).to_be_hidden()
 

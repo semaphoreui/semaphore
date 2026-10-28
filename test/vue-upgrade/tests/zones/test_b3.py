@@ -19,9 +19,8 @@ import pytest
 from playwright.sync_api import Page, Route, expect
 
 from seed.base import BASE_NAMES
-from vu.ui import (button, dialog, fail_api, field_input, field_message, goto, goto_after_apps, only_names, open_dialog,
-                   patch_api, row,
-                   settle, snap, tid, wait_until)
+from vu.ui import (button, dialog, expect_no_snackbar, fail_api, field_input, field_message, goto, goto_after_apps,
+                   only_names, open_dialog, patch_api, row, settle, snap, tid, wait_until)
 
 ZONE = "b3"
 INVENTORY_LIST_RE = re.compile(r"/api/project/\d+/inventory(\?.*)?$")
@@ -101,6 +100,14 @@ def count_requests(page: Page, method, path_suffix):
 
     page.on("request", on_request)
     return seen
+
+
+def queued_timers_run(page: Page):
+    """Wait until every timer the page has queued so far has fired: a setTimeout queued now runs after
+    them. Vuetify 3 moves the top of its overlay stack (globalTop, which EditDialog's Esc handler asks)
+    in a setTimeout after a dialog or menu opens; under the suite's fake clock that timer fires 20–100 ms
+    late (JOURNAL@C559E533D7), so an Esc pressed at once would meet the previous top."""
+    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def base_keys(page: Page, own=()):
@@ -532,7 +539,10 @@ def test_list_error(ui, project):
     goto(page, keys_url(project))
     wait_until(page, lambda: hits, "the failed GET keys")
     expect(tid(page, "keystore-page")).to_have_count(0)
-    expect(tid(page, "app-snackbar")).not_to_contain_text("B3 list fail")
+    # Vuetify 3 renders the app-snackbar root only from its first opening on: no root, or a root without
+    # the error — either way no message
+    expect(tid(page, "app-snackbar").filter(has_text="B3 list fail")).to_have_count(0)
+    expect_no_snackbar(page)
     snap(page, ZONE, "list", "error")
 
 
@@ -571,6 +581,7 @@ def test_editdialog_escape_closes(ui, project):
     open_keys(page, project)
     gets = count_requests(page, "GET", f"/api/project/{project(DEMO)}/keys")
     card = new_key_dialog(page)
+    queued_timers_run(page)  # the opened dialog is the top of the overlay stack
     page.keyboard.press("Escape")
     expect(card).to_be_hidden()
     settle(page)
@@ -685,6 +696,7 @@ def test_editdialog_escape_with_rich_editor(ui, project):
     tid(card, "varGroup-extraVarsJsonEditor-expand").click()
     editor = tid(page, "varGroup-extraVarsJsonEditorDialog")
     expect(editor).to_be_visible()
+    queued_timers_run(page)  # varGroupDialog is no longer the top of the overlay stack
     page.keyboard.press("Escape")
     settle(page)
     expect(card).to_be_visible()
@@ -694,9 +706,8 @@ def test_editdialog_escape_with_rich_editor(ui, project):
 
 
 @pytest.mark.functional
-def test_editdialog_escape_with_menu_closes_dialog(ui):
-    """JOURNAL@D9298814B4 (kept as is): Esc with the «…» menu of the subscription form open closes
-    the menu and the whole appSubscriptionDialog."""
+def test_editdialog_escape_with_menu_closes_only_menu(ui):
+    """Esc with the «…» menu open closes only the menu; bug D9298814B4 (closed the dialog too) fixed by the migration."""
     page = ui("admin")
     goto(page, "/project/1/history", "history-page")
     tid(page, "sidebar-userMenu").click()
@@ -704,9 +715,12 @@ def test_editdialog_escape_with_menu_closes_dialog(ui):
     card = dialog(page, "appSubscriptionDialog")
     tid(card, "subscription-actionsMenu").click()
     expect(tid(page, "subscription-actionsMenu-reload")).to_be_visible()
+    queued_timers_run(page)  # the menu, not the dialog, is the top of the overlay stack
     page.keyboard.press("Escape")
     expect(tid(page, "subscription-actionsMenu-reload")).to_be_hidden()
-    expect(card).to_be_hidden()
+    queued_timers_run(page)
+    settle(page)
+    expect(card).to_be_visible()
 
 
 # ---- functional: YesNoDialog -----------------------------------------------------------------------

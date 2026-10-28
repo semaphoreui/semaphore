@@ -33,9 +33,13 @@ Outside the repo (`runtime/visual/` of the workspace root, never committed):
                                                 # stop, freeze into runtime/visual/fixture/
 ./vu.sh fixture restore [<copy>] [--no-start]   # frozen DB + config into the copy's stand (own slot and
                                                 # paths, fixture keys and web_host), stand start
-./vu.sh fixture info                            # seed time, browser clock, project ids, zones
-./vu.sh seed zone <zone>… [-w <copy>]           # add a zone's data to the running stand (idempotent)
-./vu.sh run <label> [-w <copy>] [--no-restore] [--keep] [pytest args]
+./vu.sh fixture restore <copy> --at-baseline    # the copy's built binary on the baseline address instead
+./vu.sh fixture stop                            # stop the at-baseline server, free the baseline address
+./vu.sh fixture info                            # seed time, browser clock, project ids, zones, who serves
+                                                # the baseline address
+./vu.sh seed zone <zone>… [-w <copy>] [--at-baseline]
+                                                # add a zone's data to the running stand (idempotent)
+./vu.sh run <label> [-w <copy>] [--at-baseline] [--no-restore] [--keep] [pytest args]
                                                 # restore the fixture, run, shots in runtime/visual/<label>/
 ./vu.sh compare <label-a> <label-b> [--threshold 0.1]
 ```
@@ -45,6 +49,30 @@ first (`--keep` keeps it) and restores the fixture first (`--no-restore` keeps t
 debugging with `seed zone`). The stand runs the **built binary** (`stand start`), never `stand dev`:
 rebuild with `./project.sh -w <copy> build pro` after changing `web/src` (`fixture` warns when
 `web/src` is newer than the binary). Extra args go to pytest: `-k`, `-x`, a file, `-m snapshot`.
+`-k` matches test names, not paths: `-k "test_b1 or tests/common"` selects `test_b1` only — pass a
+folder or a file as a path (`tests/common tests/zones/test_z19.py`).
+
+**`--at-baseline`** — the run of another copy, comparable with `before`. The config keeps the
+fixture's `web_host` (`http://localhost:3100`, the address `before` was shot on: the UI prints it), and
+the server writes `web_host` into `<base href>`: on its own slot port a copy's binary makes the browser
+load the frontend and the API from `:3100` — another app. `--at-baseline` serves the copy's **built
+binary** on the fixture's `web_host` itself: a server of the suite (`vu/baseline.py`), data in
+`runtime/visual/_at-baseline/` (config, DB, secrets, `logs/server.log`, `server.json` — copy, binary,
+version, pid), task temp of the baseline stand (`/tmp/semaphore-<uid>/dry_vue_upgrade`: System info and
+task logs print it). The copy's own stand is not touched: its slot server and `stand web` keep running.
+One server per address: the command refuses while a stand listens on `:3100` — free it with
+`./project.sh -w dry_vue_upgrade stand stop`. Back to the baseline: `./vu.sh fixture restore
+dry_vue_upgrade` (or `fixture build` of it) stops the at-baseline server first (only from a suite
+that has `vu/baseline.py`; an older one would take the foreign server for the stand). A copy whose
+stand already lives on `:3100` gets the plain restore.
+
+```
+./project.sh -w dry_vue_upgrade stand stop      # free :3100
+./project.sh -w vue_upgrade build pro            # then: git -C work/vue_upgrade checkout -- api/public/.gitkeep
+./vu.sh run after -w vue_upgrade --at-baseline   # restore + run on :3100 with the vue_upgrade binary
+./vu.sh compare before after
+./vu.sh fixture restore dry_vue_upgrade          # back: stops the at-baseline server, baseline stand on :3100
+```
 
 Parallel run: a whole-suite `run` (no `-k`, `-m` or path) runs the snapshot tests in
 `VU_PARALLEL` workers (default 4, `pytest-xdist`, `--dist loadfile`: one zone file per worker, its
@@ -197,16 +225,31 @@ def test_validation(ui, project):
 | Group | Helpers |
 | --- | --- |
 | Lookups | `tid`, `shown(scope, id)` (visible copies only — v-dialog keeps closed dialogs in the DOM), `wait_state`, `row(page, table, text, exact=False)` (`has_text` is a case-insensitive substring; `exact=True` — a cell with exactly this text), `expand_button(row)` |
-| Fields | `field_input` (input or textarea), `field_message`, `field_selection`, `field_append` (the «eye»), `field_clear`, `toggle(scope, id, on)` (checkbox / switch), `open_menu(scope, id)` (select / autocomplete / combobox, also with a 0 px input), `option(page, name)`, `pick(page, scope, id, name)`, `chip_close(chip)`, `chip_close_by_text(scope, text)`, `editor(scope, id)` / `editor_type(page, id, text)` / `CM_CURSOR` mask (CodeMirror), `blur(page)` |
-| State by class (Vuetify 2 has no ARIA for it) | `expect_active` (list / nav item), `expect_btn_active`, `active_in_group(scope, group id)` (v-btn-toggle), `expect_loading` (v-btn), `expect_tab_disabled`, `expect_chip_active`, `badge_dot`, `alert_close`, `tooltip`, `active_menu` |
-| Dialogs, menus, layout | `dialog` (waits until the card is drawn at its own size — the open transition scales it for a frame), `open_dialog`, `dialog_frame`, `active_dialog`, `button`, `menu_of(page, item id)`, `open_sidebar(page, "<p>-drawerToggle")`, `press(loc)` (dispatches the click when the control is left / right of the window — mobile toolbars), `select_tab(tab)` (click event + `aria-selected`) |
+| Fields | `field_input` (input or textarea; its `click()` opens a Vuetify 3 v-select, whose input lets clicks through — `FieldInput`), `field_message` (shown messages only, a leaving one is left out), `field_selection` (Vuetify 2: v-select; 3: also v-autocomplete / v-combobox), `field_append` (the «eye»), `field_clear`, `toggle(scope, id, on)` (checkbox / switch), `open_menu(scope, id)` (select / autocomplete / combobox, also with a 0 px input), `option(page, name)`, `pick(page, scope, id, name)`, `chip_close(chip)`, `chip_close_by_text(scope, text)`, `editor(scope, id)` / `editor_type(page, id, text)` / `CM_CURSOR` mask (CodeMirror), `blur(page)` |
+| State by class (no ARIA for it in Vuetify 2; the classes are the same in 3, a v-tab is disabled as a v-btn) | `expect_active` (list / nav item), `expect_btn_active`, `active_in_group(scope, group id)` (v-btn-toggle), `expect_loading` (v-btn), `expect_tab_disabled`, `expect_chip_active`, `badge_dot`, `alert_close`, `tooltip`, `active_menu` |
+| Dialogs, menus, layout | `dialog` (waits until the card is drawn at its own size — the open transition scales it for a frame), `open_dialog`, `dialog_frame` / `active_dialog` (Vuetify 2: `.v-dialog--active`; 3: the `.v-overlay__content` of the active dialog — its visible box; the card inside scrolls), `button`, `menu_of(page, item id)` (Vuetify 2: ARIA `role=menu`; 3 gives a menu no role — the content of the active menu overlay), `open_sidebar(page, "<p>-drawerToggle")`, `press(loc)` (dispatches the click when the control is left / right of the window — mobile toolbars), `select_tab(tab)` (click event + `aria-selected`) |
 | Navigation | `goto` (also waits for the web fonts and fires a window resize — the v-tabs slider is measured with the real font), `goto_after_apps(page, path, pattern, …, change=None)` and `open_history(page, pid, last_task=None)` (lists held until `/api/apps` is in — the getAppIcon race, JOURNAL@236D70B238), `goto_apps_loaded(page, path, …)` (goto, then waits in the page until every GET `/api/apps` it sent is done — the template screen: «Edit» / «Copy» pressed before their dialog's apps are in open nothing for good), `full_load(page)` (expects a full document load), `settle_tabs(page, widen=False)`, `created_before(items, clock)` |
 | API | `answer_api(page, method, pattern, status=200, body=None)` → hits (requests; `hits.bodies` — what was sent; `body=None` — an empty body like a 204; `body` may be a callable(request)), `fail_api` (errors; hits are URLs; `{}` is sent as is → axios' «Request failed with status code N»), `abort_api` (network error), `patch_api(page, pattern, change)` (real answer changed; non-2xx passes), `only_names(page, pattern, names)`, `patch_info(page, **features)`, `hold_api(page, method, pattern)` → held (`held.wait()`, `held.release(status, body)`, `held.proceed()`, `held.drop()`), `requests_of(page, method, match)`, `responses_of`, `wait_console(page, text, count=1)`, `mock_socket(page)` (`/api/ws` without the server). All take `skip=N` (the first N calls go on), a glob, a regex or a predicate |
 | Shot | `snap(..., hover=False, pad=0)` (`hover=True` keeps the mouse — tooltips, hover states; `pad` — px around the element), `stop_timers(page, clock)`, `snackbar` / `expect_snackbar` / `expect_no_snackbar` / `close_snackbar` / `hold_snackbar(page, clock, text, state)`, `wait_until(..., settle=True)` (`settle=False` once the clock is paused), `settle` |
-| Constants | `VUETIFY_*`, `CM_EDITOR`, `CM_CURSOR`, `ALERT_CLOSE`, `DRAWFLOW_*` |
+| Constants | `VUETIFY_*` (each holds the Vuetify 2 and the Vuetify 3 form: a CSS union or a regex alternation — the page's DOM picks the one that matches, no version flag), `VUETIFY_DARK_APP`, `CM_EDITOR` / `CM_CURSOR` (CodeMirror 5 `.CodeMirror` / `.CodeMirror-cursors`, CodeMirror 6 `.cm-content` / `.cm-cursorLayer`), `ALERT_CLOSE`, `DRAWFLOW_*` |
 
 The `.json` of a shot keeps console errors without stack frames and bundle hashes
-(`/js/app.<hash>.js:1:2` → `/js/app.js`): a rebuild alone does not change it.
+(`/js/app.<hash>.js:1:2` → `/js/app.js`): a rebuild alone does not change it. An uncaught error is
+recorded as `pageerror: <name>: <message>` — the form console.error prints, so `wait_console(page,
+"AxiosError")` finds it either way (Vue 3 in a dev build throws the error of a hook, a production
+build logs it).
+
+### Vuetify 2 and 3 in the DOM
+
+| What | Vuetify 2 | Vuetify 3 |
+| --- | --- | --- |
+| Mark of a field (`data-testid` on v-text-field, v-select, v-checkbox, …) | on the `<input>` | on the root `.v-input` (any `data-*` goes there), the `<input>` inside |
+| Field box / messages / append icon / clear | `.v-input__slot`, `.v-messages__message`, `.v-input__append-inner button`, `.v-input__icon--clear button` | `.v-field`, `.v-messages__message` (keyed by text: old and new for a frame), `.v-input__append` or `.v-field__append-inner` `[role=button]`, `.v-field__clearable [role=button]` |
+| Selection of a select / autocomplete | v-select `.v-select__selection`; autocomplete — the `<input>` value | `.v-select__selection`, `.v-autocomplete__selection`, `.v-combobox__selection`; the `<input>` of an autocomplete holds the text only while focused |
+| Open dialog / menu / tooltip | `.v-dialog--active`, `.menuable__content__active` (`role=menu`), `.v-tooltip__content.menuable__content__active` | `.v-overlay--active.v-dialog` / `.v-menu` / `.v-tooltip` `> .v-overlay__content`, teleported to `.v-overlay-container` in `<body>`; no `role=menu` |
+| Expand button of a row | `.v-data-table__expand-icon` | the v-btn of `.v-data-table__td--expanded-row` |
+| Disabled tab, primary chip | `v-tab--disabled`, `primary` | `v-btn--disabled`, `bg-primary` / `text-primary` (tonal) |
+| Theme of the app | `.v-application.theme--dark` | `.v-application.v-theme--dark` |
 
 ## Traps
 
@@ -225,8 +268,27 @@ The `.json` of a shot keeps console errors without stack frames and bundle hashe
 - **`route.fetch` at the end of a test.** A fetch still on the way when the context closes raises
   TargetClosedError in the next test; the helpers swallow it, and the fixture removes page routes first.
 - **Snackbar.** In Vuetify 2 the root `app-snackbar` stays in the DOM and is «visible» with `data-state`
-  `ready` even when closed: check `expect_snackbar` / `expect_no_snackbar` (its close button), never
-  `to_be_hidden()` on the root. Its 3 s timer closes it: `hold_snackbar` before the shot.
+  `ready` even when closed; Vuetify 3 renders it only from the first opening on (a `not_to_contain_text`
+  on the root before that fails: no element). Check `expect_snackbar` / `expect_no_snackbar` (its close
+  button), never the root. Its 3 s timer closes it: `hold_snackbar` before the shot.
+- **Autocomplete value (Vuetify 3).** The `<input>` of a v-autocomplete / v-combobox holds the chosen
+  text only while the field is focused (right after a pick); blurred — and in a freshly opened form — it
+  is empty. `field_input(...).to_have_value(name)` then fails: check `field_selection(...)` (`to_have_text`).
+- **Field messages (Vuetify 3).** A new message enters while the old one leaves: `field_message` leaves
+  the leaving one out; a selector of your own on `.v-messages__message` meets two for a frame — a
+  strict-mode error, not retried.
+- **Closed drawer (Vuetify 3).** The temporary navigation drawer, closed, is moved off the window
+  (`translateX(-…)`, `inert`), not hidden: `to_be_hidden()` on its items fails — check
+  `not_to_be_in_viewport()`.
+- **Menus (Vuetify 3).** No `role=menu`: `page.get_by_role("menu")` finds nothing — `menu_of`,
+  `active_menu`. Options of a select / autocomplete list keep `role=option` (`option`, `pick`).
+- **v-select click (Vuetify 3).** Its `<input>` has `pointer-events: none`: a plain `.click()` on it waits
+  for good. `field_input(...).click()` (FieldInput) and `open_menu` handle it; `.first` / `.nth` of a
+  field_input are plain locators again.
+- **Hot-reload UI.** Vue 3 in a dev build throws the errors of hooks and renders; the error overlay of the
+  dev server is hidden by the freeze CSS (it would take every click). A render error still breaks the
+  patch of the parent there, which a production build survives — check such a failure on the built
+  binary.
 - **Paused clock.** After `page.clock.pause_at` (`stop_timers`, `hold_snackbar`) timers and
   `requestAnimationFrame` stand still: nothing that needs them may run (`wait_until(..., settle=False)`,
   no `settle`, no `goto`); step on with `page.clock.run_for(ms)`.

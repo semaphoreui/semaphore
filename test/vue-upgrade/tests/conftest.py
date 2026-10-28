@@ -1,7 +1,9 @@
 """Fixtures of the vue-upgrade suite.
 
 - The stand: ./project.sh -w <copy> stand env (option --workspace, VU_WORKSPACE, default dry_vue_upgrade);
-  VU_URL overrides the URL (e.g. the hot-reload UI for debugging — never for shots).
+  VU_AT_BASELINE=1 (set by ./vu.sh run --at-baseline) — the copy's at-baseline server on the fixture's
+  web_host instead (vu/baseline.py); VU_URL overrides the URL (e.g. the hot-reload UI for debugging —
+  never for shots).
 - The data: the frozen fixture (runtime/visual/fixture/meta.json) — ids, users, browser clock.
 - Pages: ui(role) opens a page in a fresh context: exact window size, light theme, en-US, UTC,
   frozen clock, no animations or caret, external requests aborted, logged in through the API.
@@ -22,6 +24,7 @@ from playwright.sync_api import sync_playwright
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from vu import baseline  # noqa: E402
 from vu import stand as st  # noqa: E402
 from vu.api import Api  # noqa: E402
 from vu.fixture import meta as fixture_meta  # noqa: E402
@@ -73,6 +76,11 @@ def ws(pytestconfig):
 
 @pytest.fixture(scope="session")
 def stand(ws):
+    if os.environ.get("VU_AT_BASELINE"):
+        try:
+            return baseline.stand(ws)
+        except SystemExit as e:
+            pytest.exit(str(e), returncode=3)
     s = st.env(ws)
     if s is None:
         pytest.exit(f"stand {ws} is not initialized — ./vu.sh fixture restore {ws}", returncode=3)

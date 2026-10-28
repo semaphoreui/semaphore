@@ -61,6 +61,7 @@ def build(ws, with_zones=True):
     st.project_sh(ws, "stand", "stop", check=False)
     st.project_sh(ws, "stand", "reset")
     st.project_sh(ws, "stand", "init", env={"STAND_SLOT": slot} if slot else None)
+    _claim_port(st.env(ws))
     st.project_sh(ws, "stand", "start")
     stand = st.env(ws)
     _wait_up(stand)
@@ -119,28 +120,18 @@ def meta():
     return json.loads(path.read_text())
 
 
-def restore(ws, start=True):
-    """Put the frozen database and config into the stand of <ws> (its own slot and paths, the
-    fixture's keys and web_host) and start it with the built binary."""
-    m = meta()
-    _check_binary(ws)
-    if st.env(ws) is None:
-        st.project_sh(ws, "stand", "init")
-    # `stand stop` also ends `stand web` (the hot-reload UI on port +1): note it to bring it back
-    web_was_up = _web_up(ws)
-    st.project_sh(ws, "stand", "stop", check=False)
-    stand = st.env(ws)
-    inst = stand.instance
+def install(inst, port, tmp_name, m):
+    """The frozen database and config into the folder <inst>: port <port>, its own DB and secrets
+    paths, task temp /tmp/semaphore-<uid>/<tmp_name>; the fixture's keys and web_host."""
     cfg = json.loads((FIXTURE / "config.json").read_text())
-    port = stand.url.rsplit(":", 1)[1]
     cfg["sqlite"] = {"host": str(inst / "database.sqlite")}
     cfg["port"] = f":{port}"
     # web_host stays the fixture's: the UI prints it (runner setup, raw log link, API docs link),
     # so every copy shows the same text; same-origin checks also accept the request host
     cfg["web_host"] = m["web_host"]
     # task temp and ssh-agent sockets: a unix socket path is limited to 107 bytes, so they live in
-    # the short private dir of utils/common.sh (short_tmp_dir), /tmp/semaphore-<uid>/<copy>
-    task_tmp = Path(f"/tmp/semaphore-{os.getuid()}") / ws
+    # the short private dir of utils/common.sh (short_tmp_dir), /tmp/semaphore-<uid>/<name>
+    task_tmp = Path(f"/tmp/semaphore-{os.getuid()}") / tmp_name
     task_tmp.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(task_tmp.parent, 0o700)
     os.chmod(task_tmp, 0o700)
@@ -160,11 +151,42 @@ def restore(ws, start=True):
         json.dump(cfg, f, indent=2)
         f.write("\n")
     os.replace(tmp, inst / "config.json")
+
+
+def _claim_port(stand):
+    """Before `stand start`: the stand's port must be free — `stand start` takes any server answering
+    there for the stand ("already up"). The at-baseline server of the suite gives it up; anything
+    else — refuse."""
+    from . import baseline
+
+    port = st.port_of(stand.url)
+    if baseline.owns(port):
+        baseline.stop()
+    busy, _ = st.listeners(port)
+    if busy:
+        raise SystemExit(f"vu: {stand.url} is taken by {st.describe(port)}, not by the stand "
+                         f"{stand.workspace} — stop it first")
+
+
+def restore(ws, start=True):
+    """Put the frozen database and config into the stand of <ws> (its own slot and paths, the
+    fixture's keys and web_host) and start it with the built binary."""
+    m = meta()
+    _check_binary(ws)
+    if st.env(ws) is None:
+        st.project_sh(ws, "stand", "init")
+    # `stand stop` also ends `stand web` (the hot-reload UI on port +1): note it to bring it back
+    web_was_up = _web_up(ws)
+    st.project_sh(ws, "stand", "stop", check=False)
+    stand = st.env(ws)
+    inst = stand.instance
+    install(inst, st.port_of(stand.url), ws, m)
     token = inst / "api.token"  # an admin token of the old database: stand license makes a new one
     if token.exists():
         token.unlink()
     print(f"vu: fixture ({m['seeded_at']}) restored into {inst}", flush=True)
     if start:
+        _claim_port(stand)
         st.project_sh(ws, "stand", "start")
         _wait_up(stand)
         if web_was_up:

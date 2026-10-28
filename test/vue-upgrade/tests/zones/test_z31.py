@@ -17,7 +17,7 @@ import json
 import pytest
 from playwright.sync_api import Locator, Page, Route, expect
 
-from vu.ui import active_dialog, dialog, fail_api, field_message, snap, tid, wait_state, wait_until
+from vu.ui import active_dialog, dialog, fail_api, field_message, settle, snap, tid, wait_state, wait_until
 
 ZONE = "z31"
 DEMO = "Seed Demo"
@@ -252,6 +252,14 @@ def actions_menu(page: Page, card):
     tid(card, "subscription-actionsMenu").click()
     for item in ("reload", "upload", "reset"):
         expect(tid(page, f"subscription-actionsMenu-{item}")).to_be_visible()
+
+
+def queued_timers_run(page: Page):
+    """Wait until every timer the page has queued so far has fired: a setTimeout queued now runs after
+    them. Vuetify 3 moves the top of its overlay stack (globalTop, which EditDialog's Esc handler asks)
+    in a setTimeout after a menu opens or closes; under the suite's fake clock it fires 20–100 ms late
+    (JOURNAL@C559E533D7)."""
+    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def snackbar_gone(page: Page, text):
@@ -845,12 +853,16 @@ def test_fn_subscription_close_reopen(ui, project, how):
 
 
 @pytest.mark.functional
-def test_fn_subscription_escape_menu_closes_dialog(ui, project):
-    """Esc with the «…» menu open closes the whole dialog (JOURNAL@D9298814B4) — kept as is."""
+def test_fn_subscription_escape_menu_closes_only_menu(ui, project):
+    """Esc with the «…» menu open closes only the menu; bug D9298814B4 (closed the dialog too) fixed by the migration."""
     page = ui("admin")
     serve(page, SUB, ACTIVE_LIMITS)
     card = open_sub(page, project)
     actions_menu(page, card)
+    queued_timers_run(page)  # the menu, not the dialog, is the top of the overlay stack
     page.keyboard.press("Escape")
     expect(tid(page, "subscription-actionsMenu-reload")).to_be_hidden()
-    expect(card).to_be_hidden()
+    queued_timers_run(page)
+    settle(page)
+    expect(card).to_be_visible()
+    wait_state(card, FORM, "ready")

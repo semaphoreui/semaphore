@@ -7,8 +7,8 @@ import pytest
 from playwright.sync_api import expect
 
 from seed.base import BASE_LAST_TASK, BASE_NAMES
-from vu.ui import (SIZES, abort_api, answer_api, expand_button, fail_api, goto, hold_api, open_history,
-                   patch_api, requests_of, row, snap, tid, wait_until)
+from vu.ui import (SIZES, VUETIFY_DARK_APP, abort_api, answer_api, expand_button, fail_api, goto, hold_api,
+                   open_history, patch_api, requests_of, row, snap, tid, wait_until)
 
 
 @pytest.mark.functional
@@ -16,15 +16,15 @@ from vu.ui import (SIZES, abort_api, answer_api, expand_button, fail_api, goto, 
 def test_page_conditions(ui, size, clock, project):
     page = ui("admin")
     goto(page, f"/project/{project('Seed Demo')}/history")
-    env = page.evaluate("""() => ({
+    env = page.evaluate("""(dark) => ({
         now: Date.now(),
         lang: navigator.language,
         tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
         stored: localStorage.getItem('lang'),
-        dark: !!document.querySelector('.v-application.theme--dark'),
+        dark: !!document.querySelector(dark),
         frozen: !!document.getElementById('vu-freeze'),
         width: window.innerWidth, height: window.innerHeight,
-    })""")
+    })""", VUETIFY_DARK_APP)
     assert dt.datetime.fromtimestamp(env["now"] / 1000, dt.timezone.utc) == clock
     assert env["lang"] == "en-US" and env["stored"] == "en" and env["tz"] == "UTC"
     assert not env["dark"], "the light theme is expected"
@@ -119,7 +119,7 @@ def test_ui_options(ui):
     """ui(locale=…, lang=None, color_scheme=…): the language and theme of the OS reach the page."""
     page = ui("admin", locale="de-DE", lang=None, color_scheme="dark")
     goto(page, "/")
-    env = page.evaluate("""() => ({ lang: navigator.language, stored: localStorage.getItem('lang'),
+    env = page.evaluate("""(dark) => ({ lang: navigator.language, stored: localStorage.getItem('lang'),
         dark: matchMedia('(prefers-color-scheme: dark)').matches })""")
     assert env["lang"] == "de-DE" and env["dark"]
     assert env["stored"] != "en"  # not pinned by the suite (the app may store its own choice)
