@@ -2327,6 +2327,70 @@ paths:
         204:
           description: Expired API Token
 
+  /user/mcp-tokens:
+    get:
+      tags:
+        - authentication
+        - user
+      summary: Fetch MCP tokens for user
+      description: >
+        MCP tokens sign in to the built-in MCP server (Pro). The list shows
+        the first 8 characters of each token only. Without the Pro module or
+        with mcp.enabled off the route answers 404.
+      responses:
+        200:
+          description: MCP Tokens
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/APIToken"
+    post:
+      tags:
+        - authentication
+        - user
+      summary: Create an MCP token
+      description: >
+        The token value is returned once, in this response. Without the Pro
+        module or with mcp.enabled off the route answers 404.
+      parameters:
+        - name: body
+          in: body
+          required: false
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "my agent"
+              expires_at:
+                type: string
+                format: date-time
+                description: When the token expires; it never expires when omitted. Must be in the future.
+      responses:
+        201:
+          description: MCP Token
+          schema:
+            $ref: "#/definitions/APIToken"
+
+  /user/mcp-tokens/{mcp_token_id}:
+    parameters:
+      - name: mcp_token_id
+        in: path
+        type: string
+        required: true
+        description: The token or its first 8 or more characters, as the list shows it
+        x-example: "dreddmcptoken0123456789abcdefghijklmnopqrst="
+    delete:
+      tags:
+        - authentication
+        - user
+      summary: Revokes MCP tokens by prefix
+      responses:
+        204:
+          description: Revoked MCP Tokens
+        404:
+          description: No MCP token of the user starts with the prefix
+
   /user/options:
     get:
       tags:
