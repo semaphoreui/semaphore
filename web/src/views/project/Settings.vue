@@ -76,8 +76,8 @@
       <v-divider class="mb-8" />
 
       <div class="project-backup project-settings-button" v-if="projectType === ''">
-        <v-row align="center">
-          <v-col class="shrink">
+        <v-row class="align-center">
+          <v-col cols="auto">
 
             <v-btn
               color="primary"
@@ -90,7 +90,7 @@
 
             <v-progress-linear
               v-if="backupProgress"
-              color="primary-accent-4"
+              color="primary"
               indeterminate
               rounded
               height="36"
@@ -99,7 +99,7 @@
             ></v-progress-linear>
 
           </v-col>
-          <v-col class="grow">
+          <v-col>
             <div style="font-size: 14px;" data-testid="settings-exportProjectText">
               {{ $t('downloadTheProjectBackupFile') }}
             </div>
@@ -108,8 +108,8 @@
       </div>
 
       <div class="project-backup project-settings-button" v-if="projectType === ''">
-        <v-row align="center">
-          <v-col class="shrink">
+        <v-row class="align-center">
+          <v-col cols="auto">
 
             <v-btn
               color="blue-grey"
@@ -130,7 +130,7 @@
             ></v-progress-linear>
 
           </v-col>
-          <v-col class="grow">
+          <v-col>
             <div style="font-size: 14px" data-testid="settings-clearCacheText">
               {{ $t('clear_cache_message') }}
             </div>
@@ -139,8 +139,8 @@
       </div>
 
       <div class="project-delete-form project-settings-button">
-        <v-row align="center">
-          <v-col class="shrink">
+        <v-row class="align-center">
+          <v-col cols="auto">
             <v-btn
               color="error"
               min-width="170"
@@ -149,7 +149,7 @@
             >{{ $t('deleteProject2') }}
             </v-btn>
           </v-col>
-          <v-col class="grow">
+          <v-col>
             <div style="font-size: 14px; color: #ff5252" data-testid="settings-deleteProjectText">
               {{ $t('onceYouDeleteAProjectThereIsNoGoingBackPleaseBeCer') }}
             </div>

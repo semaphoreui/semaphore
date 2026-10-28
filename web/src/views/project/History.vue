@@ -24,6 +24,7 @@
       :headers="headers"
       :items="items"
       :items-per-page="-1"
+      :mobile-breakpoint="600"
       :loading="loading"
       hide-default-footer
       class="mt-4 HistoryTable"
@@ -107,6 +108,7 @@
         :items="perPageOptions"
         class="HistoryPerPage mr-4"
         density="compact"
+        variant="underlined"
         hide-details
         style="max-width: 72px"
         data-testid="history-perPage"

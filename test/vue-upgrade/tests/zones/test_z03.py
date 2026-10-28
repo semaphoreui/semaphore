@@ -22,8 +22,8 @@ import pytest
 from playwright.sync_api import Page, Route, expect
 
 from vu.fixture import meta as fixture_meta
-from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, settle, snap, tid,
-                   wait_state, wait_until)
+from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, settle, shown, snap,
+                   tid, wait_state, wait_until)
 
 ZONE = "z03"
 DEMO, OTHER, EMPTY = "Seed Demo", "Seed Other", "Seed Empty"
@@ -532,13 +532,13 @@ def test_z03__history__version_tooltip(ui, project):
     open_history(page, project(DEMO), transform=row_variants)
     sync_tabs(page)  # before: the tooltip is placed once, at mouseenter, and a resize would move the row
     link = tid(tid(history_row(page, 3), "history-rowVersion"), "taskLink-open")
-    tip = tid(page, "taskLink-tooltip")
+    tip = shown(page, "taskLink-tooltip")  # Vuetify 3 renders every tooltip eagerly, hidden
     # placed once when it opens: the first opening may measure a layout that is still moving (one run in
     # several on mobile), so it is opened, closed and opened again on the settled page
     link.dispatch_event("mouseenter")
     expect(tip).to_be_visible()
     link.dispatch_event("mouseleave")
-    expect(tip).to_be_hidden()
+    expect(tip).to_have_count(0)
     settle(page)
     settle(page)
     link.dispatch_event("mouseenter")

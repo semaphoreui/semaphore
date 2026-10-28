@@ -23,6 +23,8 @@
       :items="items"
       class="mt-4 CenterToScreen"
       :items-per-page-options="[20]"
+      :items-per-page="20"
+      :mobile-breakpoint="600"
       style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width)); margin: auto;"
       data-testid="activity-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
