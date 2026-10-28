@@ -1667,7 +1667,7 @@ export default {
     },
 
     async loadUserInfo() {
-      const [user, systemInfo, options] = await Promise.all([
+      const [user, systemInfo, optionsResponse] = await Promise.all([
         axios({
           method: 'get',
           url: '/api/user',
@@ -1678,7 +1678,7 @@ export default {
           url: '/api/info',
           responseType: 'json',
         }),
-        await axios({
+        axios({
           method: 'get',
           url: '/api/user/options',
           responseType: 'json',
@@ -1687,6 +1687,8 @@ export default {
 
       this.user = user.data;
       this.systemInfo = systemInfo.data;
+
+      const options = optionsResponse.data || {};
 
       if (options['nav.unpinnedItems'] != null) {
         try {
