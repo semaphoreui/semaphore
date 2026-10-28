@@ -124,6 +124,7 @@ func Route(
 	roleMappingsController := proApi.NewRoleMappingsController(roleMappingStore, store)
 	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
+	workflowPermController := projects.NewWorkflowPermController(store)
 	systemInfoController := NewSystemInfoController(subscriptionService)
 
 	r := mux.NewRouter()
@@ -544,6 +545,12 @@ func Route(
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.GetWorkflow).Methods("GET")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}/revisions", workflowController.GetWorkflowRevisions).Methods("GET", "HEAD")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}/revisions/{revision_id}", workflowController.GetWorkflowRevision).Methods("GET", "HEAD")
+
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms", workflowPermController.GetWorkflowPerms).Methods("GET")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms", workflowPermController.AddWorkflowPerm).Methods("POST")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms/{perm_id}", workflowPermController.GetWorkflowPerm).Methods("GET")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms/{perm_id}", workflowPermController.UpdateWorkflowPerm).Methods("PUT")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms/{perm_id}", workflowPermController.DeleteWorkflowPerm).Methods("DELETE")
 
 	projectWorkflowRunAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows").Subrouter()
 	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanRunWorkflows), workflowMiddlewareController.WorkflowsMiddleware)

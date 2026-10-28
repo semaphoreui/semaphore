@@ -29,6 +29,12 @@ const (
 	CanApproveWorkflows
 )
 
+// The verbs a grant on a template or on a workflow may hold.
+const (
+	TemplateGrantPermissions = CanRunProjectTasks | CanManageProjectResources
+	WorkflowGrantPermissions = CanRunWorkflows | CanEditWorkflows | CanApproveWorkflows
+)
+
 type ProjectUser struct {
 	ProjectID int `db:"project_id" json:"project_id"`
 	UserID    int `db:"user_id" json:"user_id"`

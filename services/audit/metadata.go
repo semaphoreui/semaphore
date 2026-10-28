@@ -126,6 +126,12 @@ type TemplatePermissionMetadata struct {
 	Permissions []string `json:"permissions,omitempty"`
 }
 
+type WorkflowPermissionMetadata struct {
+	WorkflowID  int      `json:"workflow_id"`
+	Role        RoleRef  `json:"role,omitzero"`
+	Permissions []string `json:"permissions,omitempty"`
+}
+
 type SettingsMetadata struct {
 	// Keys only, never values.
 	Keys []string `json:"keys"`

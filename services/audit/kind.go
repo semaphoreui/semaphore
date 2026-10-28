@@ -64,6 +64,9 @@ const (
 	IAMTemplatePermissionCreate    Kind = "iam.template_permission/create"
 	IAMTemplatePermissionUpdate    Kind = "iam.template_permission/update"
 	IAMTemplatePermissionDelete    Kind = "iam.template_permission/delete"
+	IAMWorkflowPermissionCreate    Kind = "iam.workflow_permission/create"
+	IAMWorkflowPermissionUpdate    Kind = "iam.workflow_permission/update"
+	IAMWorkflowPermissionDelete    Kind = "iam.workflow_permission/delete"
 
 	SystemSettingsUpdate  Kind = "system.settings/update"
 	SystemLicenseActivate Kind = "system.license/activate"
