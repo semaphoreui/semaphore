@@ -108,7 +108,8 @@ export default {
       handler(newPermissions) {
         if (!this.item) return;
 
-        let permissionValue = 0;
+        // Verbs this form does not show yet must survive a save.
+        let permissionValue = (this.item.permissions || 0) & ~15;
         if (newPermissions.canRunProjectTasks) permissionValue |= 1;
         if (newPermissions.canUpdateProject) permissionValue |= 2;
         if (newPermissions.canManageProjectResources) permissionValue |= 4;
@@ -164,7 +165,7 @@ export default {
     beforeSave() {
       // Ensure permissions are properly set before saving
       if (this.item) {
-        let permissionValue = 0;
+        let permissionValue = (this.item.permissions || 0) & ~15;
         if (this.permissions.canRunProjectTasks) permissionValue |= 1;
         if (this.permissions.canUpdateProject) permissionValue |= 2;
         if (this.permissions.canManageProjectResources) permissionValue |= 4;
