@@ -20,6 +20,11 @@ Data: base set (Default, Empty) + seed/zones/z15.py (storage «Z15 Vault»; grou
   (wait_still) before any click, or the storage menu opened 104 px too low.
 - Controls inside the Variables / Secrets window are clicked by the click event (tap): on mobile the
   window shows 2 px less than it holds, and a retried mouse click scrolled the whole panel by 2 px.
+  Both are Vuetify 2 traps (JOURNAL@4673707BFB); on Vuetify 3 the window holds what it shows, the two
+  helpers stay harmless.
+- Vuetify 3 changed three behaviours of the zone's known bugs (the tests check the new one): the mode
+  toggle shows its v-model (JOURNAL@7210D76E88, JOURNAL@C2C9BAD365), a closed dialog drops its form, so
+  the tab is not kept (JOURNAL@9FF57522A3, item 2).
 """
 
 import json
@@ -28,8 +33,8 @@ import re
 import pytest
 from playwright.sync_api import Locator, Page, expect
 
-from vu.ui import (answer_api, blur, button, dialog, fail_api, field_input, field_message, field_selection, goto,
-                   only_names, open_dialog, open_menu, option, patch_api, patch_info, pick, press, select_tab, shown,
+from vu.ui import (active_in_group, answer_api, blur, button, dialog, expect_btn_active, fail_api, field_input,
+                   field_message, field_selection, goto, only_names, open_dialog, open_menu, option, patch_api, patch_info, pick, press, select_tab, shown,
                    snap, tid, wait_state, wait_until)
 
 ZONE = "z15"
@@ -137,6 +142,13 @@ def expand(page: Page, test_id, scope) -> Locator:
     expect(root).to_be_visible()
     expect(shown(page, f"{test_id}-code")).to_be_visible()
     return root
+
+
+def queued_timers_run(page: Page):
+    """Wait until every timer the page has queued so far has fired. Vuetify 3 moves the top of its overlay
+    stack (globalTop, which EditDialog's Esc handler asks) in a setTimeout after a dialog opens; an Esc
+    pressed at once still meets the group dialog as the top one and closes it."""
+    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def snap_dialog(page: Page, screen, state, element="varGroupDialog"):
@@ -396,8 +408,10 @@ def test_dialog_new__var_type_menu(ui, project):
 
 @pytest.mark.snapshot
 def test_dialog_new__mode_error_json(ui, project):
-    """Invalid JSON, then Table: the error, the JSON editor stays, the Table button is active
-    (JOURNAL@7210D76E88)."""
+    """Invalid JSON, then Table: the error, the JSON editor stays, and the JSON button stays active.
+    Vuetify 2 kept the pressed Table button in the toggle's own state (JOURNAL@7210D76E88); the Vuetify 3
+    toggle shows its v-model only, which the failed switch has already put back to json — the mismatch
+    is gone with the standard Vuetify 3 rendering."""
     page = ui("admin")
     open_list(page, project)
     card = new_group(page)
@@ -408,6 +422,8 @@ def test_dialog_new__mode_error_json(ui, project):
         "Expected property name or '}' in JSON at position 1 (line 1 column 2)")
     wait_state(card, "varGroup-form", "error")
     expect(tid(card, "varGroup-extraVarsJson")).to_be_visible()
+    expect_btn_active(tid(card, "varGroup-extraVarsMode-json"))
+    expect(active_in_group(card, "varGroup-extraVarsMode")).to_have_count(1)
     snap_dialog(page, "dialog-new", "mode-error-json")
 
 
@@ -427,13 +443,17 @@ def test_dialog_new__mode_error_root(ui, project):
 
 @pytest.mark.snapshot
 def test_dialog_new__mode_reclick(ui, project):
-    """A click on the active mode (JOURNAL@C2C9BAD365)."""
+    """A click on the active mode: the error «Invalid extra variables edit mode: undefined»
+    (JOURNAL@C2C9BAD365). Vuetify 2 also left no mode button active; the Vuetify 3 toggle follows its
+    v-model, which the revert has put back to table — Table stays active."""
     page = ui("admin")
     open_list(page, project)
     card = new_group(page)
     mode(card, "table")
     expect(tid(card, "varGroup-error")).to_have_text("Invalid extra variables edit mode: undefined")
     wait_state(card, "varGroup-form", "error")
+    expect_btn_active(tid(card, "varGroup-extraVarsMode-table"))
+    expect(active_in_group(card, "varGroup-extraVarsMode")).to_have_count(1)
     snap_dialog(page, "dialog-new", "mode-reclick")
 
 
@@ -521,16 +541,21 @@ def test_dialog_new__secret_rows(ui, project):
 
 @pytest.mark.snapshot
 def test_dialog_new__reopen_tab(ui, project):
-    """The new group opens on the tab last shown in the dialog (JOURNAL@9FF57522A3, item 2)."""
+    """The new group opens on Variables after the edit dialog was closed on Secrets. Vuetify 2 kept the
+    form of the closed dialog and so its tab (JOURNAL@9FF57522A3, item 2); a Vuetify 3 v-dialog unmounts
+    its content on close, the form is made anew with tab = variables — the bug is gone with the standard
+    Vuetify 3 rendering."""
     page = ui("admin")
     open_list(page, project)
     card = edit_group(page, DEFAULT)
     secrets_tab(card)
     tid(card, "editDialog-close").click()
     expect(card).to_be_hidden()
+    expect(tid(page, "varGroup-form")).to_have_count(0)
     card = new_group(page)
-    expect(tid(card, "varGroup-tabPanel-secrets")).to_be_visible()
-    expect(tid(card, "varGroup-tabPanel-variables")).to_be_hidden()
+    expect(tid(card, "varGroup-tab-variables")).to_have_attribute("aria-selected", "true")
+    expect(tid(card, "varGroup-tabPanel-variables")).to_be_visible()
+    expect(tid(card, "varGroup-tabPanel-secrets")).to_be_hidden()
     snap_dialog(page, "dialog-new", "reopen-tab")
 
 
@@ -1078,6 +1103,7 @@ def test_rich_editor_applies_text(ui, project):
     card = new_group(page)
     mode(card, "json")
     expand(page, JSON_ED, card)
+    queued_timers_run(page)
     page.keyboard.press("Escape")
     expect(shown(page, f"{JSON_ED}Dialog")).to_be_visible()
     type_code(page, shown(page, f"{JSON_ED}-code"), '{"vu_z15": 1}')

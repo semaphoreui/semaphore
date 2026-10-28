@@ -50,7 +50,9 @@
         @click="showDrawer()"
         data-testid="varGroup-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="varGroup-title">{{ $t('environment') }}</v-toolbar-title>
+      <v-toolbar-title class="flex-0-1" data-testid="varGroup-title">
+        {{ $t('environment') }}
+      </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
@@ -68,7 +70,8 @@
       :items="items"
       hide-default-footer
       class="mt-4 CenterToScreen"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       data-testid="varGroup-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width) - 200px); margin: auto"
@@ -77,9 +80,8 @@
         <a @click="editItem(item.id)" data-testid="varGroup-rowName">{{ item.name }}</a>
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
           data-testid="varGroup-rowActions"
         >
           <v-btn
@@ -96,7 +98,7 @@
           <v-btn @click="editItem(item.id)" data-testid="varGroup-rowEdit">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>

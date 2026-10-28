@@ -1,14 +1,15 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null && (!supportStorages || secretStorages != null)"
     class="pb-3"
     data-testid="varGroup-form"
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
-    <v-alert :model-value="!!formError" color="error" data-testid="varGroup-error"
+    <!-- mb-4: the bottom margin of a Vuetify 2 alert; without it the label of the name field goes
+         under the alert (JOURNAL@0B20914112) -->
+    <v-alert :model-value="!!formError" color="error" class="mb-4" data-testid="varGroup-error"
       >{{ formError }}
     </v-alert>
 
@@ -51,21 +52,21 @@
     </v-row>
 
     <v-tabs grow v-model="tab" data-testid="varGroup-tabs">
-      <v-tab key="variables" data-testid="varGroup-tab-variables">Variables</v-tab>
-      <v-tab key="secrets" data-testid="varGroup-tab-secrets">Secrets</v-tab>
+      <v-tab value="variables" data-testid="varGroup-tab-variables">Variables</v-tab>
+      <v-tab value="secrets" data-testid="varGroup-tab-secrets">Secrets</v-tab>
     </v-tabs>
 
     <v-divider style="margin-top: -1px" class="mb-7" />
 
-    <v-tabs-items v-model="tab">
-      <v-tab-item key="variables" data-testid="varGroup-tabPanel-variables">
-        <v-subheader class="px-0">
+    <v-window v-model="tab">
+      <v-window-item value="variables" data-testid="varGroup-tabPanel-variables">
+        <div class="EnvSubheader d-flex align-center text-body-2 text-medium-emphasis">
           {{ $t('extraVariables') }}
 
           <v-tooltip
             v-if="needHelp"
             location="bottom"
-            color="black"
+            content-class="bg-black"
             open-delay="300"
             max-width="400"
           >
@@ -83,8 +84,9 @@
 
           <v-btn-toggle
             v-model="extraVarsEditMode"
-            tile
-            group
+            rounded="0"
+            variant="text"
+            class="flex-shrink-0"
             data-testid="varGroup-extraVarsMode"
           >
             <v-btn
@@ -113,7 +115,7 @@
           <v-btn icon @click="addExtraVar()" data-testid="varGroup-addVar">
             <v-icon> mdi-plus </v-icon>
           </v-btn>
-        </v-subheader>
+        </div>
 
         <div v-if="extraVarsEditMode === 'json'" style="position: relative">
           <CodeMirror
@@ -168,6 +170,8 @@
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
+            :headers="varTableHeaders"
+            hide-default-header
             data-testid="varGroup-varTable"
             :data-state="extraVars.length === 0 ? 'empty' : 'ready'"
           >
@@ -191,6 +195,7 @@
                     hide-details
                     v-model="props.item.type"
                     :items="extraVarTypes"
+                    item-title="text"
                     class="v-text-field--solo--no-min-height"
                     data-testid="varGroup-varType"
                   ></v-select>
@@ -235,7 +240,7 @@
         </div>
 
         <div>
-          <v-subheader class="px-0 mt-4">
+          <div class="EnvSubheader d-flex align-center text-body-2 text-medium-emphasis mt-4">
             {{ $t('environmentVariables') }}
 
             <v-spacer />
@@ -243,7 +248,7 @@
             <v-btn icon @click="addEnvVar()" data-testid="varGroup-addEnv">
               <v-icon> mdi-plus </v-icon>
             </v-btn>
-          </v-subheader>
+          </div>
           <v-data-table
             :items="env"
             :items-per-page="-1"
@@ -251,6 +256,8 @@
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
+            :headers="envTableHeaders"
+            hide-default-header
             data-testid="varGroup-envTable"
             :data-state="env.length === 0 ? 'empty' : 'ready'"
           >
@@ -290,9 +297,9 @@
             </template>
           </v-data-table>
         </div>
-      </v-tab-item>
+      </v-window-item>
 
-      <v-tab-item key="secrets" data-testid="varGroup-tabPanel-secrets">
+      <v-window-item value="secrets" data-testid="varGroup-tabPanel-secrets">
         <div
           v-if="!isNew && secretStorage"
           class="px-4 py-3"
@@ -385,12 +392,12 @@
         </v-dialog>
 
         <div>
-          <v-subheader class="px-0">
+          <div class="EnvSubheader d-flex align-center text-body-2 text-medium-emphasis">
             {{ $t('extraVariables') }}
             <v-tooltip
               v-if="needHelp"
               location="bottom"
-              color="black"
+              content-class="bg-black"
               open-delay="300"
               max-width="400"
             >
@@ -408,7 +415,7 @@
             <v-btn icon @click="addSecret('var')" data-testid="varGroup-addSecretVar">
               <v-icon> mdi-plus </v-icon>
             </v-btn>
-          </v-subheader>
+          </div>
 
           <v-alert
             color="warning"
@@ -426,6 +433,8 @@
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
+            :headers="secretTableHeaders"
+            hide-default-header
             data-testid="varGroup-secretVarTable"
             :data-state="secrets.filter((s) => !s.remove && s.type === 'var').length === 0
               ? 'empty' : 'ready'"
@@ -470,7 +479,7 @@
         </div>
 
         <div>
-          <v-subheader class="px-0 mt-4">
+          <div class="EnvSubheader d-flex align-center text-body-2 text-medium-emphasis mt-4">
             {{ $t('environmentVariables') }}
 
             <v-spacer />
@@ -478,7 +487,7 @@
             <v-btn icon @click="addSecret('env')" data-testid="varGroup-addSecretEnv">
               <v-icon> mdi-plus </v-icon>
             </v-btn>
-          </v-subheader>
+          </div>
 
           <v-data-table
             :items="secrets.filter((s) => !s.remove && s.type === 'env')"
@@ -487,6 +496,8 @@
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
+            :headers="secretTableHeaders"
+            hide-default-header
             data-testid="varGroup-secretEnvTable"
             :data-state="secrets.filter((s) => !s.remove && s.type === 'env').length === 0
               ? 'empty' : 'ready'"
@@ -529,11 +540,16 @@
             </template>
           </v-data-table>
         </div>
-      </v-tab-item>
-    </v-tabs-items>
+      </v-window-item>
+    </v-window>
   </v-form>
 </template>
 <style lang="scss">
+// v-subheader of Vuetify 2: a 48 px row.
+.EnvSubheader {
+  height: 48px;
+}
+
 .EnvironmentEditor {
   .cm-editor {
     height: 160px !important;
@@ -542,7 +558,7 @@
 
 // Compact the RichEditor "expand" fab so it fits inside a variables table row.
 .EnvVarExpandBtn {
-  .v-btn--fab.v-size--small {
+  .v-btn--icon.v-btn--size-small {
     height: 30px;
     width: 30px;
   }
@@ -771,6 +787,13 @@ export default {
 
       extraVarsEditMode: 'json',
       suppressExtraVarsConversion: false,
+
+      // Columns of the four tables (their rows come from the item slot; no header is shown).
+      varTableHeaders: [
+        { key: 'name' }, { key: 'type' }, { key: 'value' }, { key: 'actions', sortable: false },
+      ],
+      envTableHeaders: [{ key: 'name' }, { key: 'value' }, { key: 'actions', sortable: false }],
+      secretTableHeaders: [{ key: 'name' }, { key: 'value' }, { key: 'actions', sortable: false }],
 
       extraVarTypes: [
         { text: 'String', value: 'string' },
