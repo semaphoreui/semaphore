@@ -18,7 +18,6 @@
   <v-form
     v-else
     ref="form"
-    lazy-validation
     v-model="formValid"
     data-testid="inventoryForm-form"
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
@@ -26,7 +25,7 @@
     <v-alert
       :model-value="!!formError"
       color="error"
-      class="pb-2"
+      class="pb-2 mb-4"
       data-testid="inventoryForm-error"
     >{{ formError }}
     </v-alert>

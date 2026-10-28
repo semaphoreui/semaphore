@@ -133,6 +133,13 @@ def hold_snackbar(page: Page, clock: dt.datetime, text):
     return bar
 
 
+def queued_timers_run(page: Page):
+    """Wait until every timer the page has queued so far has fired (a setTimeout queued now runs after
+    them). Vuetify 3 moves the top of its overlay stack (globalTop, which EditDialog's Esc handler asks)
+    in a setTimeout after a dialog or menu opens or closes; an Esc pressed before that meets a stale top."""
+    page.evaluate("() => new Promise(r => setTimeout(r))")
+
+
 def shown(page: Page, test_id):
     """The visible element <test_id>: RichEditor keeps hidden copies of dialogs opened before."""
     return page.locator(f'[data-testid="{test_id}"]:visible')
@@ -545,9 +552,10 @@ def test_dialog_edit_full(ui, project):
     page = ui("admin")
     open_list(page, project)
     card = edit_dialog(page, FULL, "static")
-    expect(field_input(card, "inventoryForm-runnerTag")).to_have_value("linux")
-    expect(field_input(card, "inventoryForm-sshKeyId")).to_have_value("Seed SSH")
-    expect(field_input(card, "inventoryForm-becomeKeyId")).to_have_value("Deploy login")
+    # Vuetify 3: an autocomplete shows its choice in the selection, not in the (blurred) <input>
+    expect(field_selection(card, "inventoryForm-runnerTag")).to_have_text("linux")
+    expect(field_selection(card, "inventoryForm-sshKeyId")).to_have_text("Seed SSH")
+    expect(field_selection(card, "inventoryForm-becomeKeyId")).to_have_text("Deploy login")
     expect(editor(card)).to_contain_text("web1 ansible_host=10.0.0.1")
     shot_dialog(page, "dialog-edit", "full")
 
@@ -689,7 +697,10 @@ def test_dialog_attach_load_error_first(ui, project):
 
 @pytest.mark.snapshot
 def test_dialog_attach_load_error_reopen(ui, project):
-    """GET templates fails on a later open: the alert over the stale list (JOURNAL@D9570074D0)."""
+    """GET templates fails on a later open. Vuetify 2 kept the form of the first open: the alert over
+    the stale list (JOURNAL@D9570074D0). Vuetify 3 unmounts the content of a closed v-dialog, so the
+    form is created anew and a later open behaves as the first one: an empty body, no alert, no stale
+    list (the second half of D9570074D0 gone with the standard Vuetify 3 dialog — finding of Z14)."""
     page = ui("admin")
     open_list(page, project)
     card = attach_dialog(page)
@@ -699,8 +710,9 @@ def test_dialog_attach_load_error_reopen(ui, project):
     card = attach_dialog(page, ready=False)
     wait_until(page, lambda: hits, "the failed GET templates")
     failed(page, 500)
-    expect(tid(card, "inventoryAttach-form")).to_have_attribute("data-state", "error")
-    expect(tid(card, "inventoryAttach-error")).to_have_text("Z14 templates fail")
+    expect(tid(card, "inventoryAttach-form")).to_have_count(0)
+    expect(tid(card, "inventoryAttach-error")).to_have_count(0)
+    expect(option(page, "Tofu apply")).to_have_count(0)
     shot_dialog(page, "dialog-attach", "load-error-reopen", "inventoryAttachDialog")
 
 
@@ -933,7 +945,9 @@ def test_editor_expand_collapse(ui, project):
     code = shown(page, "inventoryForm-inventoryEditor-code")
     expect(code).to_contain_text("host-a")
     type_in_editor(page, page, "[z14]\nhost-b", "inventoryForm-inventoryEditor-code")
+    queued_timers_run(page)  # the full screen editor, not inventoryDialog, is the top of the overlay stack
     page.keyboard.press("Escape")
+    queued_timers_run(page)
     expect(code).to_be_visible()
     shown(page, "inventoryForm-inventoryEditor-collapse").click()
     expect(shown(page, "inventoryForm-inventoryEditorDialog")).to_have_count(0)
@@ -949,9 +963,11 @@ def test_escape_closes_list_then_dialog(ui, project):
     card = new_dialog(page)
     field_input(card, "inventoryForm-type").click()
     expect(option(page, "File")).to_be_visible()
+    queued_timers_run(page)  # the list, not the dialog, is the top of the overlay stack
     page.keyboard.press("Escape")
     expect(option(page, "File")).to_be_hidden()
     expect(card).to_be_visible()
+    queued_timers_run(page)  # the dialog is the top again
     page.keyboard.press("Escape")
     expect(card).to_be_hidden()
 

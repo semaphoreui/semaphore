@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null"
     data-testid="inventory-page"
@@ -70,17 +70,21 @@
         @click="showDrawer()"
         data-testid="inventory-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="inventory-title">{{ $t('inventory') }}</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="inventory-title"
+      >{{ $t('inventory') }}</v-toolbar-title>
       <v-spacer></v-spacer>
 
       <v-menu
-        offset-y
+        location="bottom"
       >
         <template v-slot:activator="{ props }">
           <v-btn
             class="pr-2"
             v-bind="props"
             color="primary"
+            variant="elevated"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
             data-testid="inventory-new"
           >{{ $t('newInventory') }}
@@ -95,12 +99,12 @@
             @click="itemApp = item; editItem('new');"
             :data-testid="`inventory-new-${item}`"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon
                 :color="getAppColor(item)"
               >{{ getAppIcon(item) }}
               </v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>{{ APP_INVENTORY_TITLE[item] }}</v-list-item-title>
           </v-list-item>
         </v-list>
@@ -114,7 +118,8 @@
       :items="items"
       hide-default-footer
       class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       data-testid="inventory-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
@@ -134,9 +139,8 @@
         {{ ['file', 'terraform-workspace'].includes(item.type) ? item.inventory : '&mdash;' }}
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
           data-testid="inventory-rowActions"
         >
           <v-btn
@@ -163,7 +167,7 @@
           >
             <v-icon>mdi-connection</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
