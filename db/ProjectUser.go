@@ -35,6 +35,18 @@ const (
 	WorkflowGrantPermissions = CanRunWorkflows | CanEditWorkflows | CanApproveWorkflows
 )
 
+// LiftPermissions gives a mask written before the workflow verbs the same bits migration 2.20.17 gives
+// stored roles: run tasks → run and approve workflows, manage resources → edit workflows.
+func LiftPermissions(mask ProjectUserPermission) ProjectUserPermission {
+	if mask&CanRunProjectTasks != 0 {
+		mask |= CanRunWorkflows | CanApproveWorkflows
+	}
+	if mask&CanManageProjectResources != 0 {
+		mask |= CanEditWorkflows
+	}
+	return mask
+}
+
 type ProjectUser struct {
 	ProjectID int `db:"project_id" json:"project_id"`
 	UserID    int `db:"user_id" json:"user_id"`
