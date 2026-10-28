@@ -81,9 +81,11 @@
           </v-btn>
         </div>
 
+        <!-- overflow: visible — a Vuetify 3 card clips its content; the corner above ⚙
+             sticks out of it -->
         <v-card
           v-if="view.id === activeViewId"
-          style="background: var(--highlighted-card-bg-color);"
+          style="background: var(--highlighted-card-bg-color); overflow: visible;"
           class="mb-6 pt-3 mt-5"
           data-testid="viewsForm-viewSettingsCard"
         >

@@ -22,8 +22,8 @@ import time
 import pytest
 from playwright.sync_api import Page, Route, expect
 
-from vu.ui import (button, dialog, fail_api, field_input, field_selection, goto, open_dialog, row,
-                   settle, snap, tid, wait_state, wait_until)
+from vu.ui import (button, dialog, expect_no_snackbar, fail_api, field_input, field_selection, goto,
+                   open_dialog, row, settle, shown, snap, tid, toggle, wait_state, wait_until)
 
 ZONE = "z04"
 DEMO, EMPTY = "Seed Demo", "Seed Empty"
@@ -140,7 +140,7 @@ def view_row(card, title):
 
 
 def drag_view(page, card, src, dst, hits, attempts=3):
-    """Drag the handle of view <src> onto the handle of <dst> (locator.drag_to) until vuedraggable
+    """Drag the handle of view <src> onto the handle of <dst> (locator.drag_to) until the draggable list
     ends a drag — its @end always POSTs positions, <hits> gets it. A press that SortableJS did not
     take as a drag start (seen once on mobile in a full run) sends nothing and leaves the list as it
     was, so the drag is repeated."""
@@ -157,9 +157,10 @@ def drag_view(page, card, src, dst, hits, attempts=3):
 
 
 def no_snackbar(page):
-    """The app snackbar is closed: its root stays in the DOM, its close button shows only when open."""
-    expect(tid(page, "app-snackbarClose")).to_be_hidden()
-    expect(tid(page, "app-snackbar")).not_to_have_attribute("data-state", "error")
+    """No snackbar is open and none is left in the error state. Vuetify 2 keeps the closed root in the
+    DOM, Vuetify 3 renders it only from its first opening on — hence no check on the root itself."""
+    expect_no_snackbar(page)
+    expect(page.locator('[data-testid="app-snackbar"][data-state="error"]')).to_have_count(0)
 
 
 def record(page, pattern, methods=("GET",)):
@@ -453,7 +454,7 @@ def test_table_settings_open(ui, project, api):
     sheet = tid(page, "tableSettings-sheet")
     expect(sheet).to_be_visible()
     for col in COLUMNS:
-        expect(tid(sheet, f"tableSettings-column-{col}")).to_be_checked()
+        expect(field_input(sheet, f"tableSettings-column-{col}")).to_be_checked()
     snap(page, ZONE, "table-settings", "open")
 
 
@@ -667,6 +668,9 @@ def test_redirect_and_last_view(ui, project, api):
     ids = view_ids(api, pid)
     goto(page, f"/project/{pid}/templates", "templates-page", "ready")
     expect(page).to_have_url(re.compile(rf"/views/{ids['All']}/templates$"))
+    link = tid(page, "sidebar-templates")
+    expect(link).to_have_attribute("href", re.compile(rf"^/project/{pid}/"))
+    frozen = link.get_attribute("href")
     tab(page, "Infrastructure").click()
     expect(page).to_have_url(re.compile(rf"/views/{ids['Infrastructure']}/templates$"))
     wait_state(page, "templates-table", "ready")
@@ -675,8 +679,12 @@ def test_redirect_and_last_view(ui, project, api):
     wait_until(page, lambda: page.evaluate(f"localStorage.getItem('{key}')") == str(ids["Infrastructure"]),
                "lastVisitedViewId = Infrastructure")
     # the sidebar link is computed once per page load (App.vue templatesUrl, not reactive to
-    # localStorage): it keeps the first view until the app is loaded again (JOURNAL@EB1281C1FC)
-    expect(tid(page, "sidebar-templates")).to_have_attribute("href", f"/project/{pid}/views/{ids['All']}/templates")
+    # localStorage): it keeps the value of its first computation until the app is loaded again
+    # (JOURNAL@EB1281C1FC). That value depends on when App.vue first computes it: Vue 2 — after the
+    # redirect wrote the key (the All view), Vue 3 — on the first route of the initial navigation of
+    # Vue Router 4, before the key is written (/project/<id>/templates).
+    expect(link).to_have_attribute("href", frozen)
+    assert frozen != f"/project/{pid}/views/{ids['Infrastructure']}/templates", frozen
     goto(page, f"/project/{pid}/history")
     expect(tid(page, "sidebar-templates")).to_have_attribute(
         "href", f"/project/{pid}/views/{ids['Infrastructure']}/templates")
@@ -771,7 +779,8 @@ def test_permissions(ui, project, api):
 @pytest.mark.functional
 def test_new_menu_and_template_dialog(ui, project, api):
     """The menu lists the active apps in the order of /api/apps; a pick opens «New template» for it;
-    ✗ hides the card, which stays in the DOM."""
+    ✗ closes it (Vuetify 2 kept the closed card in the DOM hidden, Vuetify 3 removes it: no copy of
+    it is shown)."""
     page = ui("admin")
     open_view(page, project, api)
     tid(page, "templates-new").click()
@@ -787,7 +796,7 @@ def test_new_menu_and_template_dialog(ui, project, api):
     expect(tid(card, "editDialog-title")).to_contain_text("Bash")
     button(card, "editDialog-close").click()
     expect(card).to_be_hidden()
-    expect(tid(page, "templateDialog")).to_have_count(1)
+    expect(shown(page, "templateDialog")).to_have_count(0)
 
 
 @pytest.mark.functional
@@ -825,7 +834,7 @@ def test_column_settings(ui, project, api):
     table = tid(page, "templates-table")
     expect(table.get_by_role("columnheader", name="Playbook")).to_have_count(1)
     tid(page, "templates-tableSettings").click()
-    tid(page, "tableSettings-column-playbook").uncheck(force=True)
+    toggle(page, "tableSettings-column-playbook", False)
     expect(table.get_by_role("columnheader", name="Playbook")).to_have_count(0)
     saved = json.loads(page.evaluate("localStorage.getItem('project__template__settings')"))
     assert saved["columns"]["playbook"]["visible"] is False
@@ -897,9 +906,9 @@ def test_views_dialog_settings_save_at_once(ui, project, api):
     field_input(settings, "viewsForm-type").click(force=True)
     page.get_by_role("option", name="All", exact=True).click()
     wait_until(page, lambda: len(bodies) == 1, "PUT after Type")
-    tid(settings, "viewsForm-sortReverse").check(force=True)
+    toggle(settings, "viewsForm-sortReverse", True)
     wait_until(page, lambda: len(bodies) == 2, "PUT after Reverse")
-    tid(settings, "viewsForm-hidden").check(force=True)
+    toggle(settings, "viewsForm-hidden", True)
     wait_until(page, lambda: len(bodies) == 3, "PUT after Hidden")
     url, last = bodies[-1]
     assert url.endswith(f"/api/project/{pid}/views/{sid}")

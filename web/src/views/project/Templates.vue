@@ -11,14 +11,17 @@
     data-testid="templates-page"
     :data-state="viewItemsLoading ? 'loading' : (items.length === 0 ? 'empty' : 'ready')"
   >
+    <!-- eager after the first opening: Vuetify 3 unmounts the content of a closed dialog, Vuetify 2
+         kept it, so the form loads the views once and keeps its state between openings -->
     <v-dialog
       v-model="editViewsDialog"
       :max-width="400"
       persistent
       :transition="false"
+      :eager="editViewsDialog != null"
     >
       <v-card data-testid="templatesViewsDialog">
-        <v-card-title data-testid="templatesViewsDialog-title">
+        <v-card-title class="d-flex align-center" data-testid="templatesViewsDialog-title">
           {{ $t('editViews') }}
           <v-spacer></v-spacer>
           <v-btn
@@ -65,13 +68,12 @@
       </v-toolbar-title>
       <v-spacer></v-spacer>
 
-      <v-menu
-        offset-y
-      >
+      <v-menu location="bottom">
         <template v-slot:activator="{ props }">
           <v-btn
             v-bind="props"
             color="primary"
+            variant="elevated"
             class="mr-1 pr-2"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
             :disabled="!isAdmin && appsMixin.activeAppIds.length === 0"
@@ -89,13 +91,13 @@
             @click="editItem('new'); itemApp = appID;"
             :data-testid="`templates-new-${appID}`"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon
                 :color="getAppColor(appID)"
               >
                 {{ getAppIcon(appID) }}
               </v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>{{ getAppTitle(appID) }}</v-list-item-title>
           </v-list-item>
 
@@ -108,9 +110,9 @@
             to="/apps"
             data-testid="templates-appsLink"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-cogs</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>Applications</v-list-item-title>
           </v-list-item>
         </v-list>
@@ -160,12 +162,13 @@
     <v-data-table
       hide-default-footer
       class="mt-4 templates-table"
-      single-expand
       show-expand
-      :headers="filteredHeaders"
+      :headers="tableHeaders"
       :items="items"
-      :items-per-page="Number.MAX_VALUE"
-      v-model:expanded="openedItems"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
+      :expanded="openedItems"
+      @update:expanded="openedItems = $event.slice(-1)"
       :style="{
         opacity: viewItemsLoading ? 0.3 : 1,
       }"
@@ -255,9 +258,8 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
           data-testid="templates-rowActions"
         >
           <v-btn
@@ -267,22 +269,24 @@
           >
             <v-icon>mdi-play</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
 
-      <template v-slot:expanded-item="{ headers, item }">
-        <td
-          :colspan="headers.length"
-          v-if="openedItems.some((template) => template.id === item.id)"
-          data-testid="templates-rowHistory"
-        >
-          <TaskList
-            style="border: 1px solid lightgray; border-radius: 6px; margin: 10px 0;"
-            :template="item"
-            :limit="5"
-            :hide-footer="true"
-          />
-        </td>
+      <!-- the slot draws the whole row: Vuetify 3 does not wrap it in a <tr> as Vuetify 2 did -->
+      <template v-slot:expanded-row="{ columns, item }">
+        <tr v-if="openedItems.includes(item.id)">
+          <td
+            :colspan="columns.length"
+            data-testid="templates-rowHistory"
+          >
+            <TaskList
+              style="border: 1px solid lightgray; border-radius: 6px; margin: 10px 0;"
+              :template="item"
+              :limit="5"
+              :hide-footer="true"
+            />
+          </td>
+        </tr>
       </template>
     </v-data-table>
 
@@ -299,12 +303,15 @@
 @use 'sass:map';
 @use '@/scss/variables' as settings;
 
-.templates-table .text-start:first-child {
+// The expand column, first (Vuetify 3 adds it last unless the headers place it).
+.templates-table thead th:first-child,
+.templates-table .v-data-table__td--expanded-row {
   padding-right: 0 !important;
 }
 
+// Mobile rows: no expand cell (Vuetify 2 hid the first mobile row, the same cell).
 @media #{map.get(settings.$display-breakpoints, 'sm-and-down')} {
-  .templates-table .v-data-table__mobile-row:first-child {
+  .templates-table .v-data-table__tr--mobile > .v-data-table__td--expanded-row {
     display: none !important;
   }
 }
@@ -374,6 +381,11 @@ export default {
         return null;
       }
       return this.items.find((x) => x.id === this.itemId);
+    },
+
+    // The expand column first, as Vuetify 2 drew it.
+    tableHeaders() {
+      return [{ key: 'data-table-expand' }, ...this.filteredHeaders];
     },
 
     isLoaded() {
