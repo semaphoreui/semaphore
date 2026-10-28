@@ -1,10 +1,12 @@
 <template>
-  <BarChartGenerator
-    :id="chartId"
-    :dataset-id-key="chartId"
-    :options="chartOptions"
-    :data="chartData"
-  />
+  <div style="position: relative; height: 400px;">
+    <Bar
+      :id="chartId"
+      :dataset-id-key="chartId"
+      :options="chartOptions"
+      :data="chartData"
+    />
+  </div>
 </template>
 
 <script>
@@ -22,6 +24,7 @@ import {
   Tooltip,
 } from 'chart.js';
 
+import { Bar } from 'vue-chartjs';
 import './chartjs-adapter-day';
 
 ChartJS.register(
@@ -36,9 +39,13 @@ ChartJS.register(
   TimeScale,
 );
 
+// vue-chartjs 5 renders a bare canvas: the root div keeps the 400 px height of the vue-chartjs 4
+// wrapper and takes the attributes of the tag (data-testid).
 export default {
 
   name: 'LineChart',
+
+  components: { Bar },
 
   props: {
 

@@ -8,13 +8,14 @@
         ? 'empty'
         : 'ready')"
   >
-    <v-card-title data-testid="taskStats-title">
+    <v-card-title class="d-flex flex-wrap align-center" data-testid="taskStats-title">
       Task Status
       <v-spacer />
       <v-select
         hide-details
         density="compact"
         :items="dateRanges"
+        item-title="text"
         class="mr-6"
         style="max-width: 200px"
         v-model="dateRange"
@@ -25,6 +26,7 @@
         hide-details
         density="compact"
         :items="users"
+        item-title="text"
         style="max-width: 200px"
         v-model="user"
         data-testid="taskStats-user"

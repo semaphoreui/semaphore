@@ -19,7 +19,8 @@ import re
 import pytest
 from playwright.sync_api import Page, Route, expect
 
-from vu.ui import fail_api, field_input, field_selection, goto, row, settle, snap, tid, wait_state, wait_until
+from vu.ui import (expect_no_snackbar, fail_api, field_input, field_selection, goto, row, settle, shown, snap, tid,
+                   wait_state, wait_until)
 
 ZONE = "b5"
 DEMO = "Seed Demo"
@@ -265,7 +266,7 @@ def test_task_link_tooltip(ui, project):
     page = ui("admin")
     open_history(page, project, LINK_ROWS)
     tid(tid(history_row(page, 9106), "history-rowVersion"), "taskLink-open").dispatch_event("mouseenter")
-    tip = tid(page, "taskLink-tooltip")
+    tip = shown(page, "taskLink-tooltip")  # Vuetify 3 renders every tooltip eagerly, hidden
     expect(tip).to_be_visible()
     expect(tip).to_have_text("Build 1.0.3")
     snap(page, ZONE, "task-link", "tooltip")
@@ -473,9 +474,10 @@ def test_link_tooltip(ui, project):
     open_history(page, project, LINK_ROWS)
     tid(tid(history_row(page, 9101), "history-rowTask"), "taskLink-open").dispatch_event("mouseenter")
     settle(page)
-    expect(tid(page, "taskLink-tooltip")).to_be_hidden()
+    # Vuetify 3 renders every tooltip eagerly, hidden: count the shown ones
+    expect(shown(page, "taskLink-tooltip")).to_have_count(0)
     tid(tid(history_row(page, 9106), "history-rowVersion"), "taskLink-open").dispatch_event("mouseenter")
-    expect(tid(page, "taskLink-tooltip")).to_have_text("Build 1.0.3")
+    expect(shown(page, "taskLink-tooltip")).to_have_text("Build 1.0.3")
 
 
 @pytest.mark.functional
@@ -548,8 +550,9 @@ def test_stats_errors_are_silent(ui, project):
     card = open_stats(page, project, "loading")
     wait_until(page, lambda: stats_hits, "the failed GET stats")
     expect(field_selection(card, "taskStats-user")).to_have_text("All users")
-    expect(tid(page, "app-snackbar")).not_to_have_attribute("data-state", "error")
-    expect(tid(page, "app-snackbarClose")).to_be_hidden()  # the snackbar is not shown
+    # Vuetify 3 renders the snackbar root only from its first opening on: no error-state root at all
+    expect(page.locator('[data-testid="app-snackbar"][data-state="error"]')).to_have_count(0)
+    expect_no_snackbar(page)  # the snackbar is not shown
     expect(card).to_have_attribute("data-state", "loading")
 
 

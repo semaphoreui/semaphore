@@ -1,14 +1,13 @@
 <template>
-  <span>
+  <span class="task-link">
     <v-icon
         v-if="status != null"
         size="small"
         class="mr-1"
         :color="statusColor"
+        :icon="`mdi-${statusIcon}`"
         :data-testid="`taskLink-status-${status}`"
-    >
-      mdi-{{ statusIcon }}
-    </v-icon>
+    />
 
     <span v-if="disabled" data-testid="taskLink-label">{{ label }}</span>
 
@@ -38,6 +37,13 @@
 <style lang="scss">
 @use 'sass:map';
 @use '@/scss/variables' as settings;
+
+// Vuetify 2 coloured every link and gave it a pointer (`.v-application a`); Vuetify 3 does not,
+// and this link has no href.
+.task-link a {
+  color: rgb(var(--v-theme-primary));
+  cursor: pointer;
+}
 
 .task-link-with-tooltip {
   text-decoration: underline !important;
