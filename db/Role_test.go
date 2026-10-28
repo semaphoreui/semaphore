@@ -26,7 +26,7 @@ func TestValidateRole(t *testing.T) {
 		{"reserved slug", Role{Slug: string(ProjectOwner), Name: "D"}, true, true},
 		{"reserved slug in other case", Role{Slug: "Task_Runner", Name: "D"}, true, true},
 		{"reserved slug all", Role{Slug: "ALL", Name: "D"}, true, true},
-		{"unknown permission bit", Role{Slug: "d", Name: "D", Permissions: 16}, true, true},
+		{"unknown permission bit", Role{Slug: "d", Name: "D", Permissions: 1024}, true, true},
 		{"negative permissions", Role{Slug: "d", Name: "D", Permissions: -1}, true, true},
 		{"old slug stays editable", Role{Slug: "my role", Name: "D"}, false, false},
 		{"update still needs a name", Role{Slug: "my role"}, false, true},
