@@ -104,32 +104,38 @@ func sourceIP(r *http.Request) string {
 // verifyIntegrationAuth checks the request against the integration's auth
 // method and returns why it was rejected, empty when it passed.
 func verifyIntegrationAuth(integration db.Integration, r *http.Request, payload []byte) string {
-	secret := integration.AuthSecret.LoginPassword
+	// VerificationSecret reads the secret from whichever key type backs it
+	// (string or login/password); a plain AuthSecret.LoginPassword.Password
+	// read is empty for a string key, so it would reject a correctly signed
+	// request. A false ok (key can't provide the secret) is refused later by
+	// the caller, so it is not acted on here.
+	secret, _ := integration.VerificationSecret()
 
 	switch integration.AuthMethod {
 	case db.IntegrationAuthGitHub:
-		if !isValidHmacPayload(secret.Password, r.Header.Get("X-Hub-Signature-256"), payload, "sha256=", sha256.New) {
+		if !isValidHmacPayload(secret, r.Header.Get("X-Hub-Signature-256"), payload, "sha256=", sha256.New) {
 			return "Invalid GitHub/HMAC signature"
 		}
 	case db.IntegrationAuthBitbucket:
-		if !isValidHmacPayload(secret.Password, r.Header.Get("x-hub-signature"), payload, "sha256=", sha256.New) {
+		if !isValidHmacPayload(secret, r.Header.Get("x-hub-signature"), payload, "sha256=", sha256.New) {
 			return "Invalid Bitbucket/HMAC signature"
 		}
 	case db.IntegrationAuthHmac:
-		if !isValidHmacPayload(secret.Password, r.Header.Get(integration.AuthHeader), payload, "", sha256.New) {
+		if !isValidHmacPayload(secret, r.Header.Get(integration.AuthHeader), payload, "", sha256.New) {
 			return "Invalid HMAC signature"
 		}
 	case db.IntegrationAuthHmacSha512:
-		if !isValidHmacPayload(secret.Password, r.Header.Get(integration.AuthHeader), payload, "", sha512.New) {
+		if !isValidHmacPayload(secret, r.Header.Get(integration.AuthHeader), payload, "", sha512.New) {
 			return "Invalid HMAC-SHA512 signature"
 		}
 	case db.IntegrationAuthToken:
-		if secret.Password != r.Header.Get(integration.AuthHeader) {
+		if secret != r.Header.Get(integration.AuthHeader) {
 			return "Invalid verification token"
 		}
 	case db.IntegrationAuthBasic:
 		login, password, ok := r.BasicAuth()
-		if !ok || secret.Password != password || secret.Login != login {
+		secretLP := integration.AuthSecret.LoginPassword
+		if !ok || secretLP.Password != password || secretLP.Login != login {
 			return "Invalid BasicAuth: incorrect login or password"
 		}
 	case db.IntegrationAuthNone:
