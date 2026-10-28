@@ -20,6 +20,9 @@ var skipTests = []string{
 	"authentication > /api/auth/login > Performs Login > 204 > application/json",
 	"authentication > /api/auth/logout > Destroys current session > 204 > application/json",
 	"runner > /api/project/{project_id}/runners > Add project runner > 201 > application/json",
+	// A call is only ever recorded by a real webhook request; there is no API to create
+	// one to fetch. Covered by TestGetIntegrationCall in api/projects.
+	"integration > /api/project/{project_id}/integrations/calls/{call_id} > Get one integration call with its request body > 200 > application/json",
 }
 
 // Dredd expects that you have already set up the database and run all migrations before it begins.

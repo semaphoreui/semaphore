@@ -34,10 +34,11 @@ func TestCopyKeepsIntegrationCallHistory(t *testing.T) {
 	require.NoError(t, err)
 
 	runID, workflowID := 77, 88
+	body := `{"ref":"refs/heads/main"}`
 	require.NoError(t, src.CreateIntegrationCall(db.IntegrationCall{
 		ProjectID: proj.ID, IntegrationID: &integration.ID, IntegrationName: integration.Name,
 		Alias: "live-alias", Created: time.Now(), SourceIP: "203.0.113.9", Method: "POST",
-		Outcome: db.IntegrationCallOK,
+		Outcome: db.IntegrationCallOK, RequestSize: len(body), RequestBody: &body,
 	}))
 	require.NoError(t, src.CreateIntegrationCall(db.IntegrationCall{
 		ProjectID: proj.ID, IntegrationName: "deleted integration",
@@ -55,7 +56,7 @@ func TestCopyKeepsIntegrationCallHistory(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, projects, 1)
 
-	calls, err := dst.GetIntegrationCalls(projects[0].ID, db.RetrieveQueryParams{}, "", nil)
+	calls, err := dst.GetIntegrationCalls(projects[0].ID, db.RetrieveQueryParams{}, "", nil, true)
 	require.NoError(t, err)
 	require.Len(t, calls, 2, "both calls are copied")
 
@@ -70,6 +71,9 @@ func TestCopyKeepsIntegrationCallHistory(t *testing.T) {
 	require.NoError(t, err, "the remapped id must point at an integration in the destination")
 	assert.Equal(t, "live", restored.Name, "and at the same one, not an unrelated object")
 	assert.Equal(t, "203.0.113.9", live.SourceIP)
+	require.NotNil(t, live.RequestBody, "the body survives a backend migration")
+	assert.Equal(t, body, *live.RequestBody)
+	assert.Equal(t, len(body), live.RequestSize)
 
 	gone := byAlias["gone-alias"]
 	assert.Nil(t, gone.IntegrationID)

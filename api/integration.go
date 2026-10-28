@@ -180,30 +180,34 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 
 	log.Info(fmt.Sprintf("%d integrations found for alias %s", len(integrations), integrationAlias))
 
-	if len(integrations) == 0 {
-		// A real alias that starts nothing is the case a webhook author most needs to see.
-		// An unknown alias resolves to no project and is deliberately left unrecorded, so a
-		// public endpoint cannot be used to fill the table from the internet.
-		c.recordCall(db.IntegrationCall{
-			ProjectID: projectID,
-			Alias:     integrationAlias,
-			SourceIP:  sourceIP(r),
-			Method:    r.Method,
-		}, received, db.IntegrationCallSkipped, "No integration matched the alias")
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	projects := make(map[int]db.Project)
-
-	var payload []byte
-
-	payload, err = io.ReadAll(r.Body)
+	// Read only once the alias resolved: an unknown alias never gets its body read.
+	payload, err := io.ReadAll(r.Body)
 
 	if err != nil {
 		log.Error(err)
 		return
 	}
+
+	body := string(payload)
+	base := db.IntegrationCall{
+		ProjectID:   projectID,
+		Alias:       integrationAlias,
+		SourceIP:    sourceIP(r),
+		Method:      r.Method,
+		RequestSize: len(payload),
+		RequestBody: &body,
+	}
+
+	if len(integrations) == 0 {
+		// A real alias that starts nothing is the case a webhook author most needs to see.
+		// An unknown alias resolves to no project and is deliberately left unrecorded, so a
+		// public endpoint cannot be used to fill the table from the internet.
+		c.recordCall(base, received, db.IntegrationCallSkipped, "No integration matched the alias")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	projects := make(map[int]db.Project)
 
 	for _, integration := range integrations {
 
@@ -215,14 +219,10 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			"alias":          integrationAlias,
 		})
 
-		call := db.IntegrationCall{
-			ProjectID:       integration.ProjectID,
-			IntegrationID:   &integration.ID,
-			IntegrationName: integration.Name,
-			Alias:           integrationAlias,
-			SourceIP:        sourceIP(r),
-			Method:          r.Method,
-		}
+		call := base
+		call.ProjectID = integration.ProjectID
+		call.IntegrationID = &integration.ID
+		call.IntegrationName = integration.Name
 
 		project, ok := projects[integration.ProjectID]
 		if !ok {

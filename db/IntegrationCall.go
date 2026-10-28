@@ -41,4 +41,12 @@ type IntegrationCall struct {
 	// TaskID alone would leave a successful workflow call pointing at nothing.
 	RunID      *int `db:"run_id" json:"run_id"`
 	WorkflowID *int `db:"workflow_id" json:"workflow_id"`
+
+	// RequestSize is the size of the request body as received, in bytes, and
+	// RequestBody at most its first 64 KiB, so a size larger than the stored
+	// body means it was cut. The list leaves the body out and returns nil here;
+	// a single call carries it. Request headers are deliberately not kept: they
+	// carry the integration's own secret (signature, token, basic auth).
+	RequestSize int     `db:"request_size" json:"request_size"`
+	RequestBody *string `db:"request_body" json:"request_body,omitempty"`
 }

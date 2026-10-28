@@ -966,6 +966,7 @@ definitions:
         type: integer
       integration_id:
         type: integer
+        x-nullable: true
         description: null once the integration has been deleted
       integration_name:
         type: string
@@ -988,12 +989,22 @@ definitions:
         description: how long the integration took to answer the call, in milliseconds
       task_id:
         type: integer
+        x-nullable: true
       run_id:
         type: integer
+        x-nullable: true
       workflow_id:
         type: integer
         x-nullable: true
         description: set together with run_id, both are needed to link to the run
+      request_size:
+        type: integer
+        description: size of the request body as received, in bytes
+      request_body:
+        type: string
+        description: >-
+          at most the first 64 KiB of the request body; only returned for a single
+          call, the list leaves it out. Request headers are not stored.
 
   RepositoryRequest:
     type: object
@@ -2017,6 +2028,13 @@ parameters:
     type: integer
     required: true
     x-example: 13
+  call_id:
+    name: call_id
+    description: Integration Call ID
+    in: path
+    type: integer
+    required: true
+    x-example: 1
   alias_id:
     name: alias_id
     description: Integration Alias ID
@@ -3252,6 +3270,20 @@ paths:
             type: array
             items:
               $ref: "#/definitions/IntegrationCall"
+
+  /project/{project_id}/integrations/calls/{call_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/call_id"
+    get:
+      tags:
+        - integration
+      summary: Get one integration call with its request body
+      responses:
+        200:
+          description: Integration Call
+          schema:
+            $ref: "#/definitions/IntegrationCall"
 
   /project/{project_id}/integrations/aliases:
     parameters:

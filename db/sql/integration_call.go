@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"strings"
 	"unicode/utf8"
 
 	"github.com/Masterminds/squirrel"
@@ -16,7 +17,15 @@ const (
 	maxIntegrationCallReason   = 255
 	maxIntegrationCallSourceIP = 64
 	maxIntegrationCallMethod   = 10
+	// A webhook body can be megabytes, and it is stored once per integration
+	// the call reaches.
+	maxIntegrationCallBody = 64 * 1024
 )
+
+// integrationCallListColumns leaves request_body out: a page of the history
+// would otherwise carry every body on it. GetIntegrationCall loads one with it.
+const integrationCallListColumns = "id, project_id, integration_id, integration_name, alias, created, " +
+	"source_ip, method, outcome, reason, duration, task_id, run_id, workflow_id, request_size"
 
 // truncateUTF8 cuts s to at most n bytes without splitting a rune. A cut inside
 // a multi-byte rune leaves invalid UTF-8, which PostgreSQL rejects outright.
@@ -37,10 +46,18 @@ func (d *SqlDb) CreateIntegrationCall(call db.IntegrationCall) error {
 	call.SourceIP = truncateUTF8(call.SourceIP, maxIntegrationCallSourceIP)
 	call.Method = truncateUTF8(call.Method, maxIntegrationCallMethod)
 
+	if call.RequestBody != nil {
+		// A body need not be text at all, and a text column rejects invalid
+		// UTF-8; the replacement character keeps it visible that bytes were lost.
+		body := truncateUTF8(strings.ToValidUTF8(*call.RequestBody, "\uFFFD"), maxIntegrationCallBody)
+		call.RequestBody = &body
+	}
+
 	_, err := d.exec(
 		"insert into project__integration_call "+
-			"(project_id, integration_id, integration_name, alias, created, source_ip, method, outcome, reason, duration, task_id, run_id, workflow_id) "+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"(project_id, integration_id, integration_name, alias, created, source_ip, method, outcome, reason, duration, "+
+			"task_id, run_id, workflow_id, request_size, request_body) "+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		call.ProjectID,
 		call.IntegrationID,
 		call.IntegrationName,
@@ -53,7 +70,9 @@ func (d *SqlDb) CreateIntegrationCall(call db.IntegrationCall) error {
 		call.Duration,
 		call.TaskID,
 		call.RunID,
-		call.WorkflowID)
+		call.WorkflowID,
+		call.RequestSize,
+		call.RequestBody)
 
 	return err
 }
@@ -61,11 +80,17 @@ func (d *SqlDb) CreateIntegrationCall(call db.IntegrationCall) error {
 // GetIntegrationCalls returns a page of the project's integration calls, newest
 // first. An empty alias or a nil integrationID means no filter on that column.
 // params.BeforeID pages backwards by primary key, params.Count caps the page.
+// includeBody loads the request bodies, which the history page does not need.
 func (d *SqlDb) GetIntegrationCalls(
-	projectID int, params db.RetrieveQueryParams, alias string, integrationID *int,
+	projectID int, params db.RetrieveQueryParams, alias string, integrationID *int, includeBody bool,
 ) (calls []db.IntegrationCall, err error) {
 
-	q := squirrel.Select("*").
+	columns := integrationCallListColumns
+	if includeBody {
+		columns = "*"
+	}
+
+	q := squirrel.Select(columns).
 		From("project__integration_call").
 		Where("project_id=?", projectID).
 		OrderBy("id desc")
@@ -96,5 +121,14 @@ func (d *SqlDb) GetIntegrationCalls(
 	calls = []db.IntegrationCall{}
 	_, err = d.selectAll(&calls, query, args...)
 
+	return
+}
+
+// GetIntegrationCall returns one call with its request body. The project is part
+// of the lookup, so a call id from another project is not found.
+func (d *SqlDb) GetIntegrationCall(projectID int, callID int) (call db.IntegrationCall, err error) {
+	err = d.selectOne(&call,
+		"select * from project__integration_call where project_id=? and id=?",
+		projectID, callID)
 	return
 }

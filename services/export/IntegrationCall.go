@@ -18,7 +18,7 @@ func (e *IntegrationCallExporter) load(store db.Store, exporter DataExporter, pr
 	}
 
 	for _, proj := range projs {
-		calls, err := store.GetIntegrationCalls(proj, db.RetrieveQueryParams{Count: math.MaxInt}, "", nil)
+		calls, err := store.GetIntegrationCalls(proj, db.RetrieveQueryParams{Count: math.MaxInt}, "", nil, true)
 		if err != nil {
 			return err
 		}

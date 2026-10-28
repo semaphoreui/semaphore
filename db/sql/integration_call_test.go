@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -38,7 +39,7 @@ func TestIntegrationCalls_Filters(t *testing.T) {
 	})
 
 	t.Run("project scoped, newest first", func(t *testing.T) {
-		calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil)
+		calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil, false)
 		require.NoError(t, err)
 		require.Len(t, calls, 2)
 		assert.Equal(t, "alias-b", calls[0].Alias)
@@ -46,7 +47,7 @@ func TestIntegrationCalls_Filters(t *testing.T) {
 	})
 
 	t.Run("by alias", func(t *testing.T) {
-		calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "alias-b", nil)
+		calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "alias-b", nil, false)
 		require.NoError(t, err)
 		require.Len(t, calls, 1)
 		assert.Equal(t, db.IntegrationCallSkipped, calls[0].Outcome)
@@ -55,14 +56,14 @@ func TestIntegrationCalls_Filters(t *testing.T) {
 	})
 
 	t.Run("by integration", func(t *testing.T) {
-		calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", &integration.ID)
+		calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", &integration.ID, false)
 		require.NoError(t, err)
 		require.Len(t, calls, 1)
 		assert.Equal(t, "alias-a", calls[0].Alias)
 	})
 
 	t.Run("unknown alias", func(t *testing.T) {
-		calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "nope", nil)
+		calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "nope", nil, false)
 		require.NoError(t, err)
 		assert.Empty(t, calls)
 	})
@@ -78,13 +79,13 @@ func TestIntegrationCalls_Keyset(t *testing.T) {
 		})
 	}
 
-	first, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{Count: 2}, "", nil)
+	first, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{Count: 2}, "", nil, false)
 	require.NoError(t, err)
 	require.Len(t, first, 2)
 	assert.Greater(t, first[0].ID, first[1].ID)
 
 	next, err := store.GetIntegrationCalls(
-		project.ID, db.RetrieveQueryParams{Count: 2, BeforeID: first[1].ID}, "", nil)
+		project.ID, db.RetrieveQueryParams{Count: 2, BeforeID: first[1].ID}, "", nil, false)
 	require.NoError(t, err)
 	require.Len(t, next, 1)
 	assert.Less(t, next[0].ID, first[1].ID)
@@ -104,7 +105,7 @@ func TestIntegrationCalls_SurviveIntegrationDeletion(t *testing.T) {
 
 	require.NoError(t, store.DeleteIntegration(project.ID, integration.ID))
 
-	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil)
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil, false)
 	require.NoError(t, err)
 	require.Len(t, calls, 1)
 	assert.Equal(t, "alias", calls[0].Alias)
@@ -125,7 +126,7 @@ func TestIntegrationCall_ReasonTruncated(t *testing.T) {
 		Outcome: db.IntegrationCallError, Reason: long,
 	})
 
-	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil)
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil, false)
 	require.NoError(t, err)
 	require.Len(t, calls, 1)
 	assert.Len(t, calls[0].Reason, maxIntegrationCallReason)
@@ -173,10 +174,101 @@ func TestIntegrationCall_MultiByteReasonIsStored(t *testing.T) {
 		Outcome: db.IntegrationCallError, Reason: long,
 	})
 
-	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil)
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil, false)
 	require.NoError(t, err)
 	require.Len(t, calls, 1)
 	assert.True(t, utf8.ValidString(calls[0].Reason))
 	assert.LessOrEqual(t, len(calls[0].Reason), maxIntegrationCallReason)
 	assert.NotEmpty(t, calls[0].Reason)
+}
+
+// The list must stay light: a page of the history would otherwise carry every
+// body on it. One call is loaded with its body.
+func TestIntegrationCall_BodyOnlyOnTheSingleCall(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, _ := createTestIntegration(t, store)
+
+	body := `{"ref":"refs/heads/main"}`
+	createTestCall(t, store, db.IntegrationCall{
+		ProjectID: project.ID, Alias: "alias", Method: "POST", Outcome: db.IntegrationCallOK,
+		RequestSize: len(body), RequestBody: &body,
+	})
+
+	listed, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil, false)
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	assert.Nil(t, listed[0].RequestBody, "the list leaves the body out")
+	assert.Equal(t, len(body), listed[0].RequestSize, "but keeps its size")
+
+	one, err := store.GetIntegrationCall(project.ID, listed[0].ID)
+	require.NoError(t, err)
+	require.NotNil(t, one.RequestBody)
+	assert.Equal(t, body, *one.RequestBody)
+}
+
+// The project is part of the lookup, so a call id from another project — a
+// guessable integer — is not found rather than returned.
+func TestIntegrationCall_NotReadableFromAnotherProject(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, _ := createTestIntegration(t, store)
+	other, err := store.CreateProject(db.Project{Name: "other"})
+	require.NoError(t, err)
+
+	body := "secret payload"
+	createTestCall(t, store, db.IntegrationCall{
+		ProjectID: project.ID, Alias: "alias", Method: "POST", Outcome: db.IntegrationCallOK,
+		RequestBody: &body,
+	})
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil, false)
+	require.NoError(t, err)
+	require.Len(t, calls, 1)
+
+	_, err = store.GetIntegrationCall(other.ID, calls[0].ID)
+	assert.ErrorIs(t, err, db.ErrNotFound)
+}
+
+func TestIntegrationCall_BodyIsScrubbedAndCapped(t *testing.T) {
+	tests := []struct {
+		name    string
+		body    string
+		checkFn func(t *testing.T, stored string)
+	}{
+		{
+			name: "invalid utf-8 is replaced, not rejected",
+			body: "ok\xff\xfeend",
+			checkFn: func(t *testing.T, stored string) {
+				assert.True(t, utf8.ValidString(stored))
+				assert.Contains(t, stored, "ok")
+				assert.Contains(t, stored, "end")
+			},
+		},
+		{
+			name: "a large body is cut at the cap",
+			body: strings.Repeat("é", maxIntegrationCallBody),
+			checkFn: func(t *testing.T, stored string) {
+				assert.LessOrEqual(t, len(stored), maxIntegrationCallBody)
+				assert.True(t, utf8.ValidString(stored))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := InitConfigCreateTestStore()
+			project, _ := createTestIntegration(t, store)
+
+			body := tt.body
+			createTestCall(t, store, db.IntegrationCall{
+				ProjectID: project.ID, Alias: "alias", Method: "POST", Outcome: db.IntegrationCallOK,
+				RequestSize: len(body), RequestBody: &body,
+			})
+
+			calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil, true)
+			require.NoError(t, err)
+			require.Len(t, calls, 1)
+			require.NotNil(t, calls[0].RequestBody)
+			assert.Equal(t, len(tt.body), calls[0].RequestSize, "the size is the one received")
+			tt.checkFn(t, *calls[0].RequestBody)
+		})
+	}
 }

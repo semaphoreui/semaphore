@@ -46,21 +46,25 @@
       :no-data-text="$t('noIntegrationCalls')"
       hide-default-footer
       class="IntegrationCallsTable"
+      @click:row="openCall"
     >
       <template v-slot:item.created="{ item }">
         {{ item.created | formatDate }}
       </template>
 
+      <!-- Links inside a row stop the click, or it would also open the drawer. -->
       <template v-slot:item.integration_name="{ item }">
-        <router-link
-          v-if="item.integration_id"
-          :to="`/project/${projectId}/integrations/${item.integration_id}`"
-        >{{ item.integration_name }}
-        </router-link>
-        <span v-else class="text--secondary">{{ item.integration_name }}</span>
+        <span @click.stop>
+          <router-link
+            v-if="item.integration_id"
+            :to="`/project/${projectId}/integrations/${item.integration_id}`"
+          >{{ item.integration_name }}
+          </router-link>
+          <span v-else class="text--secondary">{{ item.integration_name }}</span>
+        </span>
 
         <div style="font-size: 14px">
-          <a @click.prevent="applyAlias(item.alias)" :title="$t('alias')">
+          <a @click.prevent.stop="applyAlias(item.alias)" :title="$t('alias')">
             <code>{{ item.alias }}</code>
           </a>
         </div>
@@ -75,14 +79,16 @@
       </template>
 
       <template v-slot:item.task_id="{ item }">
-        <router-link
-          v-if="item.run_id && item.workflow_id"
-          :to="`/project/${projectId}/workflows/${item.workflow_id}/runs/${item.run_id}`"
-        >{{ $t('run') }} #{{ item.run_id }}
-        </router-link>
-        <span v-else-if="item.run_id">{{ $t('run') }} #{{ item.run_id }}</span>
-        <TaskLink v-else-if="item.task_id" :label="'#' + item.task_id" :task-id="item.task_id" />
-        <span v-else>&mdash;</span>
+        <span @click.stop>
+          <router-link
+            v-if="item.run_id && item.workflow_id"
+            :to="`/project/${projectId}/workflows/${item.workflow_id}/runs/${item.run_id}`"
+          >{{ $t('run') }} #{{ item.run_id }}
+          </router-link>
+          <span v-else-if="item.run_id">{{ $t('run') }} #{{ item.run_id }}</span>
+          <TaskLink v-else-if="item.task_id" :label="'#' + item.task_id" :task-id="item.task_id" />
+          <span v-else>&mdash;</span>
+        </span>
       </template>
 
       <template v-slot:item.duration="{ item }"> {{ item.duration }} ms </template>
@@ -111,6 +117,23 @@
         <v-icon>mdi-chevron-right</v-icon>
       </v-btn>
     </div>
+
+    <v-navigation-drawer
+      :value="selected !== null"
+      right
+      fixed
+      temporary
+      width="480"
+      @input="(open) => { if (!open) selected = null; }"
+    >
+      <IntegrationCallCard
+        v-if="selected"
+        :call="selected"
+        :project-id="projectId"
+        :loading="selectedLoading"
+        @close="selected = null"
+      />
+    </v-navigation-drawer>
   </div>
 </template>
 
@@ -118,12 +141,17 @@
 .IntegrationCallsTable td {
   height: 60px !important;
 }
+
+.IntegrationCallsTable tbody tr {
+  cursor: pointer;
+}
 </style>
 
 <script>
 import axios from 'axios';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import TaskLink from '@/components/TaskLink.vue';
+import IntegrationCallCard from '@/components/IntegrationCallCard.vue';
 
 const OUTCOME_COLORS = {
   ok: 'success',
@@ -135,7 +163,7 @@ const OUTCOME_COLORS = {
 export default {
   mixins: [ItemListPageBase],
 
-  components: { TaskLink },
+  components: { TaskLink, IntegrationCallCard },
 
   data() {
     return {
@@ -168,6 +196,9 @@ export default {
       hasNext: false,
       perPage: 20,
       perPageOptions: [10, 20, 50, 100],
+      // The call open in the drawer.
+      selected: null,
+      selectedLoading: false,
     };
   },
 
@@ -194,6 +225,7 @@ export default {
     // was open before and have to be cleared here.
     async projectId() {
       this.integrations = [];
+      this.selected = null;
       this.integrationId = null;
       this.alias = '';
       this.appliedIntegrationId = null;
@@ -241,6 +273,25 @@ export default {
       // id, so the sequence number decides, not the id.
       if (seq === this.integrationsSeq) {
         this.integrations = integrations;
+      }
+    },
+
+    // Opens with the row from the list at once; its body comes with the single
+    // call. A call is immutable, so its id alone says whether a response still
+    // belongs to the call on screen when the user clicks through rows quickly.
+    async openCall(row) {
+      this.selected = row;
+      this.selectedLoading = true;
+
+      try {
+        const call = await this.loadProjectEndpoint(`/integrations/calls/${row.id}`);
+        if (this.selected && this.selected.id === row.id) {
+          this.selected = call;
+        }
+      } finally {
+        if (this.selected && this.selected.id === row.id) {
+          this.selectedLoading = false;
+        }
       }
     },
 

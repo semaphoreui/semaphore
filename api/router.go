@@ -585,6 +585,7 @@ func Route(
 	projectIntegrationsAliasAPI.HandleFunc("/aliases/{alias_id}", projects.RemoveIntegrationAlias).Methods("DELETE")
 	// Project-wide, so it must stay out of the {integration_id} subrouter below.
 	projectIntegrationsAliasAPI.HandleFunc("/calls", projects.GetIntegrationCalls).Methods("GET", "HEAD")
+	projectIntegrationsAliasAPI.HandleFunc("/calls/{call_id}", projects.GetIntegrationCall).Methods("GET", "HEAD")
 
 	projectIntegrationsAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
 	projectIntegrationsAPI.Use(projects.ProjectMiddleware, projects.IntegrationMiddleware)

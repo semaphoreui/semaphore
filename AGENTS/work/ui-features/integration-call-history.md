@@ -49,6 +49,12 @@ Status (2026-10-21): implemented on branch `prod-10-logs-for-intergrations`, not
   (`cli/cmd/root.go:371`), so `source_ip` is caller-controlled and unbounded; a reason carries an
   error message that may be non-ASCII. A cut inside a multi-byte rune leaves invalid UTF-8, which
   PostgreSQL rejects — and `recordCall` does not retry, so the row would be lost silently.
+- **The body is stored but never listed.** The list selects explicit columns without
+  `request_body`, so a page of 20 calls does not carry up to 20 × 64 KiB; `GET .../calls/{call_id}`
+  returns one call with it, and the drawer fetches that on open. The column is `longtext`, which the
+  migration preprocessor turns into `text` outside MySQL — a MySQL `TEXT` holds 65,535 bytes, one
+  short of the cap. `request_size` keeps the size as received, so the UI can say a body was cut.
+  The body is read only after the alias resolved, so an unknown alias never has its body read.
 - **Failure reasons are plumbed, not re-derived.** `IntegrationRunResult.Reason` carries why nothing
   started ("Integration has no template", "Workflows are not available in this build", …) from the
   run helpers to the recorded row.
@@ -59,8 +65,10 @@ Status (2026-10-21): implemented on branch `prod-10-logs-for-intergrations`, not
 
 - ⚠️ 2026-10-21: **no retention.** The table grows without bound, like `task` does. Ask Denis
   whether calls should expire; a sweeper would fit next to the audit one.
-- Request bodies and headers are deliberately **not** stored — a webhook payload carries secrets.
-  Only metadata is kept. Raise it with Denis if he wants payloads.
+- ⚠️ 2026-10-28: Denis asked for the request body, so it **is** stored now — capped at 64 KiB,
+  scrubbed of invalid UTF-8, and visible to every project member who can see the history. A webhook
+  payload can carry secrets or personal data; that trade-off was his call. **Headers stay out**: they
+  carry the integration's own secret (`X-Hub-Signature-256`, the token header, basic auth).
 - The auth switch in `ReceiveIntegration` compares the token with `!=`, not a constant-time compare.
   Pre-existing, untouched here, worth its own fix.
 - A call whose alias lookup *errors* (e.g. a dedicated alias on a `searchable` integration, which

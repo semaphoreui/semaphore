@@ -3,8 +3,11 @@ package projects
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
+
+	"github.com/gorilla/mux"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -78,4 +81,64 @@ func TestGetIntegrationCalls(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
+}
+
+func TestGetIntegrationCall(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "p"})
+	require.NoError(t, err)
+	other, err := store.CreateProject(db.Project{Name: "other"})
+	require.NoError(t, err)
+
+	body := `{"ref":"refs/heads/main"}`
+	require.NoError(t, store.CreateIntegrationCall(db.IntegrationCall{
+		ProjectID: project.ID, Alias: "a", Created: time.Now(), Method: http.MethodPost,
+		Outcome: db.IntegrationCallOK, RequestSize: len(body), RequestBody: &body,
+	}))
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil, false)
+	require.NoError(t, err)
+	require.Len(t, calls, 1)
+	id := strconv.Itoa(calls[0].ID)
+
+	get := func(p db.Project, callID string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodGet, "/api/project/1/integrations/calls/"+callID, nil)
+		r = mux.SetURLVars(r, map[string]string{"call_id": callID})
+		r = helpers.SetContextValue(r, "store", store)
+		r = helpers.SetContextValue(r, "project", p)
+		w := httptest.NewRecorder()
+		GetIntegrationCall(w, r)
+		return w
+	}
+
+	t.Run("returns the body the list leaves out", func(t *testing.T) {
+		w := get(project, id)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `"request_body":"{\"ref\":\"refs/heads/main\"}"`)
+	})
+
+	t.Run("another project's call is not found", func(t *testing.T) {
+		assert.Equal(t, http.StatusNotFound, get(other, id).Code)
+	})
+
+	t.Run("a non-numeric id is rejected", func(t *testing.T) {
+		assert.Equal(t, http.StatusBadRequest, get(project, "nope").Code)
+	})
+}
+
+func TestGetIntegrationCalls_ListLeavesBodiesOut(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "p"})
+	require.NoError(t, err)
+
+	body := "a body that must not travel with every page"
+	require.NoError(t, store.CreateIntegrationCall(db.IntegrationCall{
+		ProjectID: project.ID, Alias: "a", Created: time.Now(), Method: http.MethodPost,
+		Outcome: db.IntegrationCallOK, RequestSize: len(body), RequestBody: &body,
+	}))
+
+	w := callsRequest(t, store, project, "")
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.NotContains(t, w.Body.String(), "request_body")
+	assert.Contains(t, w.Body.String(), `"request_size":43`)
 }

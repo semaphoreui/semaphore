@@ -30,7 +30,7 @@ func GetIntegrationCalls(w http.ResponseWriter, r *http.Request) {
 		integrationID = &id
 	}
 
-	calls, err := helpers.Store(r).GetIntegrationCalls(project.ID, params, query.Get("alias"), integrationID)
+	calls, err := helpers.Store(r).GetIntegrationCalls(project.ID, params, query.Get("alias"), integrationID, false)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -43,4 +43,23 @@ func GetIntegrationCalls(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("X-Has-Next", strconv.FormatBool(hasNext))
 	helpers.WriteJSON(w, http.StatusOK, calls)
+}
+
+// GetIntegrationCall returns one call of the project's integration history,
+// with the request body the list leaves out.
+func GetIntegrationCall(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+
+	callID, ok := helpers.GetIntParamOrAbort("call_id", w, r)
+	if !ok {
+		return
+	}
+
+	call, err := helpers.Store(r).GetIntegrationCall(project.ID, callID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, call)
 }

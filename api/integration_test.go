@@ -934,7 +934,7 @@ func receivedCalls(t *testing.T, store db.Store, alias string) []db.IntegrationC
 	require.NoError(t, err)
 	require.Len(t, integrations, 1)
 
-	calls, err := store.GetIntegrationCalls(integrations[0].ProjectID, db.RetrieveQueryParams{}, "", nil)
+	calls, err := store.GetIntegrationCalls(integrations[0].ProjectID, db.RetrieveQueryParams{}, "", nil, false)
 	require.NoError(t, err)
 	return calls
 }
@@ -1005,7 +1005,7 @@ func TestReceiveIntegration_RecordsAliasThatMatchedNothing(t *testing.T) {
 
 	send("alias-that-does-not-exist")
 
-	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil)
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil, false)
 	require.NoError(t, err)
 	require.Len(t, calls, 1, "only the real alias is recorded")
 	assert.Equal(t, db.IntegrationCallSkipped, calls[0].Outcome)
@@ -1066,7 +1066,7 @@ func TestReceiveIntegration_FailureOnOneIntegrationDoesNotHideTheOthers(t *testi
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
-	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil)
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil, false)
 	require.NoError(t, err)
 	require.Len(t, calls, 2, "both integrations are recorded, not just the one that failed")
 
@@ -1079,4 +1079,38 @@ func TestReceiveIntegration_FailureOnOneIntegrationDoesNotHideTheOthers(t *testi
 	assert.Equal(t, db.IntegrationCallError, byIntegration[ids[0]].Outcome)
 	assert.Equal(t, "Could not load the integration secret", byIntegration[ids[0]].Reason)
 	assert.Equal(t, db.IntegrationCallSkipped, byIntegration[ids[1]].Outcome)
+}
+
+// The body is the part of a call someone debugging a webhook needs most — and
+// it must reach the row of an alias that started nothing, too.
+func TestReceiveIntegration_RecordsRequestBody(t *testing.T) {
+	base := sql.InitConfigCreateTestStore()
+	store := &templateProbeStore{Store: base}
+
+	project, err := store.CreateProject(db.Project{Name: "body project"})
+	require.NoError(t, err)
+
+	alias := "body-alias"
+	_, err = store.CreateIntegrationAlias(db.IntegrationAlias{Alias: alias, ProjectID: project.ID})
+	require.NoError(t, err)
+
+	ctrl := NewIntegrationController(store, &stubIntegrationService{}, nil, nil)
+
+	payload := `{"ref":"refs/heads/main","after":"abc123"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/integrations/"+alias, bytes.NewReader([]byte(payload)))
+	req.Header.Set("X-Hub-Signature-256", "sha256=must-not-be-stored")
+	req = mux.SetURLVars(req, map[string]string{"integration_alias": alias})
+
+	ctrl.ReceiveIntegration(httptest.NewRecorder(), req)
+
+	calls, err := store.GetIntegrationCalls(project.ID, db.RetrieveQueryParams{}, "", nil, false)
+	require.NoError(t, err)
+	require.Len(t, calls, 1)
+	assert.Equal(t, len(payload), calls[0].RequestSize)
+
+	call, err := store.GetIntegrationCall(project.ID, calls[0].ID)
+	require.NoError(t, err)
+	require.NotNil(t, call.RequestBody)
+	assert.Equal(t, payload, *call.RequestBody)
+	assert.NotContains(t, *call.RequestBody, "must-not-be-stored", "headers carry the secret and are not kept")
 }

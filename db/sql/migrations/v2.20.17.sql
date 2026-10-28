@@ -17,6 +17,8 @@ create table `project__integration_call`
     `task_id`          int          null,
     `run_id`           int          null,
     `workflow_id`      int          null,
+    `request_size`     int          not null default 0,
+    `request_body`     longtext     null,
 
     foreign key (`project_id`) references project (`id`) on delete cascade,
     foreign key (`integration_id`) references project__integration (`id`) on delete set null
