@@ -133,9 +133,18 @@ def fill_recovery(page, code="vu-recovery-code"):
     no_messages(page, "auth-recoveryCode")
 
 
+# Vuetify 2 puts auth-otp on each of the six inputs of v-otp-input, Vuetify 3 on its root (next to the
+# cells it keeps a hidden input with the whole code).
+OTP_CELLS = "input[data-testid=auth-otp], [data-testid=auth-otp] input:not([type=hidden])"
+
+
+def otp_cells(page):
+    """The six code cells of v-otp-input."""
+    return page.locator(OTP_CELLS)
+
+
 def otp_cell(page, i=0):
-    """Vuetify 2 puts auth-otp on each of the six inputs of v-otp-input."""
-    return tid(page, "auth-otp").nth(i)
+    return otp_cells(page).nth(i)
 
 
 def open_totp(page, login_options=B_TOTP):
@@ -318,7 +327,7 @@ def test_verification__totp(ui):
     open_totp(page)
     for t in ("auth-verificationHint-totp", "auth-returnToLogin", "auth-useRecoveryCode"):
         expect(tid(page, t)).to_be_visible()
-    expect(tid(page, "auth-otp")).to_have_count(6)
+    expect(otp_cells(page)).to_have_count(6)
     snap(page, ZONE, "verification", "totp")
 
 
@@ -340,7 +349,7 @@ def test_verification__email_otp(ui):
     open_login(page)
     for t in ("auth-title-verification", "auth-returnToLogin"):
         expect(tid(page, t)).to_be_visible()
-    expect(tid(page, "auth-otp")).to_have_count(6)
+    expect(otp_cells(page)).to_have_count(6)
     for t in ("auth-verificationHint-totp", "auth-verificationHint-email", "auth-useRecoveryCode",
               "auth-resendEmail"):
         expect(tid(page, t)).to_have_count(0)
@@ -502,8 +511,8 @@ def test_f01_redirect_without_session(ui, project):
     wait_state(page, "auth-page", "ready", timeout=20000)
     u = urlsplit(page.url)
     assert u.path == LOGIN
+    # Vue Router 3 encodes / in the query as %2F, Router 4 does not — compare the decoded value.
     assert parse_qs(u.query) == {"return": [f"/project/{project('Seed Demo')}/history"]}
-    assert "return=%2Fproject%2F" in u.query
 
 
 @pytest.mark.functional
@@ -709,7 +718,8 @@ def test_f14_invite_without_session(ui):
     wait_state(page, "auth-page", "ready", timeout=20000)
     u = urlsplit(page.url)
     assert u.path == LOGIN
-    assert u.query == "return=%2Faccept-invite%2Fvu-z01-token"
+    # Vue Router 3 encodes / in the query as %2F, Router 4 does not — compare the decoded value.
+    assert parse_qs(u.query) == {"return": [INVITE]}
 
 
 @pytest.mark.functional

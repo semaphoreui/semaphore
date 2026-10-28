@@ -1,9 +1,7 @@
 <template>
   <v-container
     fluid
-    align-center
-    justify-center
-    class="pa-0 fill-height"
+    class="pa-0 fill-height d-flex align-center justify-center"
     data-testid="acceptInvite-page"
     :data-state="state === 'processing' ? 'loading' : (state === 'success' ? 'ready' : 'error')"
   >
@@ -50,6 +48,7 @@
         <v-btn
           v-if="state === 'success'"
           color="primary"
+          variant="elevated"
           @click="goToProject"
           data-testid="acceptInvite-goToProject"
         >

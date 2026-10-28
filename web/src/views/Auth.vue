@@ -10,7 +10,12 @@
         <v-card-title>
           {{ $t('howToFixSigninIssues') }}
           <v-spacer></v-spacer>
-          <v-btn icon @click="loginHelpDialog = false" data-testid="authHelpDialog-closeIcon">
+          <v-btn
+            icon
+            variant="text"
+            @click="loginHelpDialog = false"
+            data-testid="authHelpDialog-closeIcon"
+          >
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </v-card-title>
@@ -74,13 +79,12 @@
       </v-card>
     </v-dialog>
 
-    <v-container fluid align-center justify-center class="pa-0 fill-height">
+    <v-container fluid class="pa-0 fill-height d-flex align-center justify-center">
       <v-card class="px-5 py-5" style="border-radius: 15px" data-testid="auth-card">
         <v-card-text>
           <v-form
             @submit.prevent
             ref="signInForm"
-            lazy-validation
             v-model="signInFormValid"
             style="width: 350px; max-width: 100%;"
             data-testid="auth-form"
@@ -88,7 +92,7 @@
             <v-img
               width="80"
               height="80"
-              transition="0"
+              :transition="false"
               src="favicon.png"
               style="margin: auto"
               class="mb-4"
@@ -155,7 +159,7 @@
               <div class="text-center">
                 <a
                   @click="signOut()"
-                  class="mr-6"
+                  class="mr-6 text-primary cursor-pointer"
                   data-testid="auth-returnToLogin"
                 >{{ $t('Return to login') }}</a>
                 <a
@@ -165,6 +169,7 @@
                     authMethods.totp.allow_recovery
                   "
                   @click="screen = 'recovery'"
+                  class="text-primary cursor-pointer"
                   data-testid="auth-useRecoveryCode"
                 >
                   {{ $t('Use recovery code') }}
@@ -214,6 +219,7 @@
               <div class="text-center pt-6">
                 <a
                   @click="screen = 'verification'"
+                  class="text-primary cursor-pointer"
                   data-testid="auth-returnToVerification"
                 >{{ $t('Return to verification') }}</a>
               </div>
@@ -224,9 +230,9 @@
                 v-if="loginTabs.length > 1"
                 v-model="loginTab"
                 mandatory
-                borderless
                 class="mb-7 d-flex"
-                :background-color="$vuetify.theme.current.dark ? '#212121' : 'grey-lighten-3'"
+                :class="$vuetify.theme.current.dark ? null : 'bg-grey-lighten-3'"
+                :style="$vuetify.theme.current.dark ? { backgroundColor: '#212121' } : null"
                 data-testid="auth-loginTabs"
               >
                 <v-btn
@@ -307,7 +313,7 @@
                   rounded
                   data-testid="auth-signin-with-eamil"
                 >
-                  <v-icon start dark> mdi-email </v-icon>
+                  <v-icon start> mdi-email </v-icon>
 
                   {{ $t('Continue with Email') }}
                 </v-btn>
@@ -328,7 +334,6 @@
                 size="large"
                 v-for="provider in oidcProviders"
                 :color="provider.color || 'secondary'"
-                dark
                 class="mt-3"
                 @click="oidcSignIn(provider.id)"
                 block
@@ -336,7 +341,7 @@
                 rounded
                 :data-testid="`auth-oidc-${provider.id}`"
               >
-                <v-icon start dark v-if="provider.icon"> mdi-{{ provider.icon }} </v-icon>
+                <v-icon start v-if="provider.icon"> mdi-{{ provider.icon }} </v-icon>
 
                 {{ provider.name }}
               </v-btn>
@@ -344,6 +349,7 @@
               <div class="text-center mt-6" v-if="loginWithPassword && false">
                 <a
                   @click="loginHelpDialog = true"
+                  class="text-primary cursor-pointer"
                   data-testid="auth-help"
                 >{{ $t('dontHaveAccountOrCantSignIn') }}</a>
               </div>
