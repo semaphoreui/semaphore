@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="isLoaded()"
     @submit.prevent="save()"
@@ -21,7 +20,7 @@
 
     <v-alert
       color="blue"
-      dark
+      theme="dark"
       closable
       density="compact"
       @update:model-value="item.commit_hash=null"
@@ -63,6 +62,7 @@
       v-else-if="template.type === 'deploy'"
       type="card"
       height="54"
+      class="overflow-hidden"
       data-testid="newTask-buildTaskLoading"
       style="margin-bottom: 16px; margin-top: 4px;"
     ></v-skeleton-loader>
@@ -120,7 +120,7 @@
           @click:close="deleteItem(v.name, index)"
           :data-testid="`newTask-surveyChip-${v.name}`"
         >
-          {{ item && item.name ? item.name : String(item) }}
+          {{ item.raw && item.raw.name ? item.raw.name : String(item.raw) }}
         </v-chip>
       </template>
     </v-select>
@@ -187,6 +187,7 @@
       v-else-if="needInventory"
       type="card"
       height="46"
+      class="overflow-hidden"
       data-testid="newTask-inventoryLoading"
       style="margin-bottom: 16px; margin-top: 4px;"
     ></v-skeleton-loader>
@@ -302,7 +303,9 @@ export default {
 
     git_branch: {
       get() {
-        return (this.item || {}).git_branch || this.template.git_branch;
+        // A cleared field keeps '' (sent as is): fall back to the template's branch only while
+        // the task has none — in Vue 3 the getter re-runs after every edit.
+        return (this.item || {}).git_branch ?? this.template.git_branch;
       },
       set(newValue) {
         this.item.git_branch = newValue;

@@ -7,7 +7,7 @@
     @close="closeDialog"
     :test-id="testId"
   >
-    <template v-slot:title={}>
+    <template #title>
       <v-icon
         size="small"
         class="mr-4"

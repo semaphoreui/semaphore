@@ -26,7 +26,7 @@ import pytest
 from playwright.sync_api import Page, Route, expect
 
 from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, open_dialog,
-                   row, snap, tid, wait_state, wait_until)
+                   row, shown, snap, tid, wait_console, wait_state, wait_until)
 
 ZONE = "z09"
 DEMO = "Seed Demo"
@@ -313,7 +313,7 @@ def open_ansible_params(page, api, project):
     expect(tid(card, "taskParams-limit-chip")).to_have_text("localhost")
     expect(tid(card, "taskParams-tags-chip")).to_have_text("deploy")
     expect(tid(card, "taskParams-skipTags-chip")).to_have_text("slow")
-    expect(field_input(card, "newTask-inventoryId")).to_have_value("Localhost")
+    expect(field_selection(card, "newTask-inventoryId")).to_have_text("Localhost")
     return card
 
 
@@ -374,7 +374,7 @@ def test_z09__run__terraform(ui, project, api):
 def test_z09__run__tofu_workspace(ui, project, api):
     page = ui("admin")
     card = open_run(page, api, project, "Z09 Tofu workspace")
-    expect(field_input(card, "newTask-inventoryId")).to_have_value("Z09 Tofu default")
+    expect(field_selection(card, "newTask-inventoryId")).to_have_text("Z09 Tofu default")
     expect(card).to_contain_text("Workspace (Optional)")
     expect(tid(card, "newTask-terraform")).to_be_visible()
     snap_card(page, "tofu-workspace")
@@ -394,7 +394,7 @@ def open_deploy(page, api, project, rows):
 def test_z09__run__deploy(ui, project, api):
     page = ui("admin")
     card = open_deploy(page, api, project, build_rows(api, project))
-    expect(field_input(card, "newTask-buildTaskId")).to_have_value("1.0.1 — Z09 build 1.0.1")
+    expect(field_selection(card, "newTask-buildTaskId")).to_have_text("1.0.1 — Z09 build 1.0.1")
     snap_card(page, "deploy")
 
 
@@ -413,7 +413,8 @@ def test_z09__run__deploy_empty(ui, project, api):
     """«Z09 Build» has no tasks: the real, empty build list."""
     page = ui("admin")
     card = open_run(page, api, project, "Z09 Deploy")
-    expect(field_input(card, "newTask-buildTaskId")).to_have_value("")
+    expect(field_input(card, "newTask-buildTaskId")).to_be_visible()
+    expect(field_selection(card, "newTask-buildTaskId")).to_have_count(0)
     expect(tid(card, "newTask-buildTaskLoading")).to_have_count(0)
     snap_card(page, "deploy-empty")
 
@@ -626,10 +627,15 @@ def test_z09__run__args_added(ui, project, api):
 
 @pytest.mark.snapshot
 def test_z09__run__args_not_array(ui, project, api):
-    """arguments «{}»: the CLI args block fails to render (JOURNAL@C4D561DF78), the error in .json."""
+    """arguments «{}»: the CLI args block fails to render (JOURNAL@C4D561DF78), the error in .json.
+    Vue 2 dropped the whole block on that render error; Vue 3 renders the slot of a chip lazily, inside
+    the chip, so only the chips fail: the frame «CLI args» stays without a chip and without «Add» — the
+    args can be neither seen nor changed, as before."""
     page = ui("admin")
     card = open_run(page, api, project, "Z09 Args object")
-    expect(tid(card, "newTask-args")).to_have_count(0)
+    wait_console(page, "map is not a function")
+    expect(tid(card, "newTask-args-chip")).to_have_count(0)
+    expect(tid(card, "newTask-args-add")).to_have_count(0)
     snap_card(page, "args-not-array")
 
 
@@ -742,8 +748,9 @@ def test_marks_and_types(ui, project, api):
     tid(task_row(page, 5), "taskList-rowRerun").click()
     rerun = dialog(page, "taskListRerunDialog")
     wait_state(rerun, "newTask-form", "ready")
-    expect(tid(page, "newTaskDialog")).to_have_count(1)
+    # Vuetify 3 takes a closed dialog out of the DOM (Vuetify 2 kept it hidden): one visible card
     expect(tid(page, "newTaskDialog")).to_be_hidden()
+    expect(shown(page, "taskListRerunDialog")).to_have_count(1)
     expect(tid(rerun, "newTask-form")).to_have_count(1)
     button(rerun, "editDialog-cancel").click()
     expect(rerun).to_be_hidden()
