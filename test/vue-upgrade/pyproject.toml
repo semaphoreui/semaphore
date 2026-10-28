@@ -1,0 +1,26 @@
+[project]
+name = "semaphore-vue-upgrade-tests"
+version = "0.1.0"
+description = "Browser tests and screenshots of the Semaphore UI before and after the Vue 3 + Vuetify 4 upgrade"
+requires-python = ">=3.12"
+dependencies = [
+    "playwright==1.59.0",
+    "pytest>=9.0.3",
+    "requests>=2.32.0",
+    "blazediff==6.0.1",
+    "pillow>=10",
+    "cryptography>=43",
+    "pytest-xdist>=3.6",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider -ra"
+markers = [
+    "snapshot: read-only test on untouched fixture data; screenshots in three sizes; runs first",
+    "functional: changes data (own objects with fixed names, removed at the end) or intercepts the API; runs after the snapshot tests",
+    "sizes(*names): sizes a functional test runs in (default: desktop only)",
+]

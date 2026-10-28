@@ -1,0 +1,7 @@
+- name: Seed playbook
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Say hello
+      ansible.builtin.debug:
+        msg: "seed: hello from Ansible"
