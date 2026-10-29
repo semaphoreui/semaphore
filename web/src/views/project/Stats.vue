@@ -9,9 +9,10 @@
       :project-id="projectId"
       :project-type="projectType"
       :can-update-project="can(USER_PERMISSIONS.updateProject)"
+      :can-read="can(USER_PERMISSIONS.readProject)"
     />
 
-    <TaskStats class="mt-4" :project-id="projectId"  />
+    <TaskStats class="mt-4" :project-id="projectId" :can-read="can(USER_PERMISSIONS.readProject)" />
 
   </div>
 </template>

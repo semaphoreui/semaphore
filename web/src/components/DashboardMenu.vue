@@ -16,7 +16,11 @@
         data-testid="dashboard-stats"
       >{{ $t('project_stats') }}</v-tab>
 
-      <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
+      <v-tab
+        v-if="canRead"
+        key="activity"
+        :to="`/project/${projectId}/activity`"
+      >{{ $t('activity') }}</v-tab>
 
       <v-tab
         v-if="canUpdateProject"
@@ -38,6 +42,7 @@ export default {
     projectId: Number,
     projectType: String,
     canUpdateProject: Boolean,
+    canRead: Boolean,
   },
 
   computed: {
