@@ -3,6 +3,7 @@ package project
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -191,7 +192,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
     }
   ],
   "templates": [],
-  "version": 3,
+  "version": 4,
   "views": [],
   "workflows": []
 }`, str)
@@ -585,7 +586,7 @@ func TestRestore_DropsUnknownPermissionBits(t *testing.T) {
 	store := sql.InitConfigCreateTestStore()
 
 	payload := `{
-  "version": 3,
+  "version": 4,
   "keys": [{"name": "noop", "owner": "", "type": "none"}],
   "meta": {"name": "Restored Roles", "type": ""},
   "repositories": [{"git_branch": "master", "git_url": "git@example.com:test/test.git", "name": "Repo", "ssh_key": "noop"}],
@@ -1048,7 +1049,7 @@ func TestVerify_RefusesOtherFormatVersions(t *testing.T) {
 	}{
 		{"no version with roles", BackupFormat{Roles: []BackupRole{{Role: db.Role{Slug: "ops", Name: "Ops"}}}}, "older version of Semaphore"},
 		{"no version with a grant", BackupFormat{Templates: []BackupTemplate{{Template: db.Template{Name: "t"}, Roles: grant}}}, "older version of Semaphore"},
-		{"newer", BackupFormat{Version: 4}, "newer version of Semaphore"},
+		{"newer", BackupFormat{Version: 5}, "newer version of Semaphore"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1206,7 +1207,7 @@ func TestRestore_LiftsMasksOfAVersion2File(t *testing.T) {
 	roles, err := store.GetProjectRoles(project.ID)
 	require.NoError(t, err)
 	require.Len(t, roles, 1)
-	assert.Equal(t, db.ProjectUserPermission(117), roles[0].Permissions, "5 lifted: run and approve workflows, edit workflows")
+	assert.Equal(t, db.ProjectUserPermission(245), roles[0].Permissions, "5 lifted: run and approve workflows, edit workflows, read")
 
 	templates, err := store.GetTemplates(project.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
 	require.NoError(t, err)
@@ -1214,5 +1215,56 @@ func TestRestore_LiftsMasksOfAVersion2File(t *testing.T) {
 	perms, err := store.GetTemplateRoles(project.ID, templates[0].ID)
 	require.NoError(t, err)
 	require.Len(t, perms, 1)
-	assert.Equal(t, db.CanRunProjectTasks, perms[0].Permissions, "a template grant has no workflow verbs to gain")
+	assert.Equal(t, db.CanRunProjectTasks|db.CanReadProject, perms[0].Permissions, "a template grant gains only read")
+}
+
+// Version 3 files carry the workflow verbs but not read, version 4 files carry everything as written.
+func TestRestore_ReadBitByFileVersion(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	tests := []struct {
+		version   int
+		roleMask  db.ProjectUserPermission
+		wantRole  db.ProjectUserPermission
+		wantGrant db.ProjectUserPermission
+	}{
+		{3, 0, 128, 129},
+		{3, 1, 129, 129},
+		{4, 0, 0, 1},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("version %d mask %d", tt.version, tt.roleMask), func(t *testing.T) {
+			store := sql.InitConfigCreateTestStore()
+			payload := fmt.Sprintf(`{
+  "version": %d,
+  "keys": [{"name": "noop", "owner": "", "type": "none"}],
+  "meta": {"name": "Versioned", "type": ""},
+  "repositories": [{"git_branch": "master", "git_url": "git@example.com:test/test.git", "name": "Repo", "ssh_key": "noop"}],
+  "roles": [{"name": "ops", "slug": "ops", "permissions": %d}],
+  "templates": [{
+    "app": "", "name": "Tpl", "playbook": "test.yml", "repository": "Repo", "type": "",
+    "roles": [{"slug": "ops", "permissions": 1}],
+    "vaults": [], "view": null, "environments": []
+  }]
+}`, tt.version, tt.roleMask)
+			backup := &BackupFormat{}
+			require.NoError(t, backup.Unmarshal(payload))
+			require.NoError(t, backup.Verify())
+			user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "v", Name: "v", Email: "v@example.com", Admin: true}})
+			require.NoError(t, err)
+
+			project, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+			require.NoError(t, err)
+
+			roles, err := store.GetProjectRoles(project.ID)
+			require.NoError(t, err)
+			require.Len(t, roles, 1)
+			assert.Equal(t, tt.wantRole, roles[0].Permissions)
+			templates, err := store.GetTemplates(project.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+			require.NoError(t, err)
+			perms, err := store.GetTemplateRoles(project.ID, templates[0].ID)
+			require.NoError(t, err)
+			require.Len(t, perms, 1)
+			assert.Equal(t, tt.wantGrant, perms[0].Permissions)
+		})
+	}
 }
