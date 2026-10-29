@@ -293,7 +293,7 @@ export default {
       return this.workflowId == null;
     },
     canManage() {
-      return this.can(USER_PERMISSIONS.manageProjectResources);
+      return this.can(USER_PERMISSIONS.editWorkflows);
     },
     palette() {
       return [

@@ -57,10 +57,10 @@ export default {
   mixins: [ItemFormBase],
 
   props: {
-    templateId: [Number, String],
+    objectId: [Number, String],
     scope: {
       type: String,
-      default: 'default',
+      default: 'template',
     },
   },
 
@@ -101,9 +101,9 @@ export default {
       handler(newPermissions) {
         if (newPermissions === undefined || newPermissions === null) return;
 
-        this.permissions = [1, 2, 4, 8].reduce((res, k) => ({
+        this.permissions = ROLE_PERMISSIONS[this.scope].reduce((res, p) => ({
           ...res,
-          [k]: !!(this.item.permissions & k),
+          [p.permission]: !!(this.item.permissions & p.permission),
         }), {});
       },
       immediate: true,
@@ -121,11 +121,11 @@ export default {
     },
 
     getItemsUrl() {
-      return `/api/project/${this.projectId}/templates/${this.templateId}/perms`;
+      return `/api/project/${this.projectId}/${this.scope}s/${this.objectId}/perms`;
     },
 
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/templates/${this.templateId}/perms/${this.itemId}`;
+      return `${this.getItemsUrl()}/${this.itemId}`;
     },
 
     getNewItem() {
@@ -147,9 +147,9 @@ export default {
     afterLoadData() {
       // Initialize permissions checkboxes after loading data
       if (this.item && this.item.permissions !== undefined) {
-        this.permissions = [1, 2, 4, 8].reduce((res, k) => ({
+        this.permissions = ROLE_PERMISSIONS[this.scope].reduce((res, p) => ({
           ...res,
-          [k]: !!(this.item.permissions & k),
+          [p.permission]: !!(this.item.permissions & p.permission),
         }), {});
       }
     },

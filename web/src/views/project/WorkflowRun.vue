@@ -241,16 +241,19 @@ export default {
     runId() {
       return parseInt(this.$route.params.runId, 10);
     },
+    item() {
+      return this.workflow;
+    },
     canResolveApprovals() {
-      return this.can(USER_PERMISSIONS.runProjectTasks);
+      return this.can(USER_PERMISSIONS.approveWorkflows);
     },
     // A run can be stopped while it is still in progress (executing tasks or
-    // blocked on an approval) and the user may run project tasks.
+    // blocked on an approval) and the user may run the workflow.
     canStopRun() {
       if (!this.details) return false;
       const { status } = this.details.run;
       return (status === 'running' || status === 'approval')
-        && this.can(USER_PERMISSIONS.runProjectTasks);
+        && this.can(USER_PERMISSIONS.runWorkflows);
     },
     // node.id -> run info for the card: status, timing, live delay countdown,
     // the task to open on click and the approval message.
@@ -386,10 +389,13 @@ export default {
         // built once from the first payload; later polls only refresh
         // statuses, so the user's pan/zoom survives.
         if (!this.workflow) {
+          // The workflow itself carries what the caller may do with it.
+          const workflow = await axios.get(`/api/project/${this.projectId}/workflows/${this.workflowId}`);
           this.workflow = {
             name: this.details.workflow_name,
             nodes: (this.details.nodes || []).map((n) => n.node),
             edges: this.details.edges || [],
+            permissions: workflow.data.permissions,
           };
         }
       } catch (err) {

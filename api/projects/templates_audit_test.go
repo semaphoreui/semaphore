@@ -2,7 +2,6 @@ package projects
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -99,27 +98,27 @@ func TestUpdateTemplatePerm_RecordsStoredRole(t *testing.T) {
 	store := sqlstore.InitConfigCreateTestStore()
 	runner := builtinRole(t, store, db.ProjectTaskRunner)
 	ref := audit.NewRoleRef(runner)
-	tests := []struct {
-		name   string
-		getErr error
-		want   audit.RoleRef
-	}{
-		{"stored role, not the request body", nil, ref},
-		{"failed audit read records no role", errors.New("db down"), audit.RoleRef{}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			controller := NewTemplateController(&fakeTemplateRoles{existing: db.TemplateRolePerm{ID: 5, RoleID: runner.ID, RoleSlug: runner.Slug}, getErr: tt.getErr}, nil)
-			r, rec := templatePermRequest(t, store, http.MethodPut, `{"role_slug":"guest","permissions":1}`, "5")
-			w := httptest.NewRecorder()
+	controller := NewTemplateController(&fakeTemplateRoles{existing: db.TemplateRolePerm{ID: 5, RoleID: runner.ID, RoleSlug: runner.Slug}}, nil)
+	r, rec := templatePermRequest(t, store, http.MethodPut, `{"role_slug":"guest","permissions":1}`, "5")
+	w := httptest.NewRecorder()
 
-			controller.UpdateTemplatePerm(w, r)
+	controller.UpdateTemplatePerm(w, r)
 
-			assert.Equal(t, http.StatusNoContent, w.Code)
-			meta := only(t, rec, audit.IAMTemplatePermissionUpdate).Event.Metadata.(audit.TemplatePermissionMetadata)
-			assert.Equal(t, tt.want, meta.Role)
-		})
-	}
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	meta := only(t, rec, audit.IAMTemplatePermissionUpdate).Event.Metadata.(audit.TemplatePermissionMetadata)
+	assert.Equal(t, ref, meta.Role)
+}
+
+func TestUpdateTemplatePerm_UnknownGrantIsNotFound(t *testing.T) {
+	store := sqlstore.InitConfigCreateTestStore()
+	controller := NewTemplateController(&fakeTemplateRoles{getErr: db.ErrNotFound}, nil)
+	r, rec := templatePermRequest(t, store, http.MethodPut, `{"role_slug":"guest","permissions":1}`, "5")
+	w := httptest.NewRecorder()
+
+	controller.UpdateTemplatePerm(w, r)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Empty(t, rec.All())
 }
 
 func TestTemplatePermissions_RejectUnknownBits(t *testing.T) {
@@ -136,11 +135,13 @@ func TestTemplatePermissions_RejectUnknownBits(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, rec := templatePermRequest(t, store, tt.method, `{"role_slug":"guest","permissions":17}`, tt.permID)
-			w := httptest.NewRecorder()
-			tt.handle(w, r)
-			assert.Equal(t, http.StatusBadRequest, w.Code)
-			assert.Empty(t, rec.All())
+			for _, body := range []string{`{"role_slug":"guest","permissions":1024}`, `{"role_slug":"guest","permissions":16}`} {
+				r, rec := templatePermRequest(t, store, tt.method, body, tt.permID)
+				w := httptest.NewRecorder()
+				tt.handle(w, r)
+				assert.Equal(t, http.StatusBadRequest, w.Code, body)
+				assert.Empty(t, rec.All())
+			}
 		})
 	}
 }

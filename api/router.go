@@ -124,6 +124,7 @@ func Route(
 	roleMappingsController := proApi.NewRoleMappingsController(roleMappingStore, store)
 	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
+	workflowPermController := projects.NewWorkflowPermController(store)
 	systemInfoController := NewSystemInfoController(subscriptionService)
 
 	r := mux.NewRouter()
@@ -376,8 +377,6 @@ func Route(
 
 	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
-	projectUserAPI.Path("/workflows").HandlerFunc(workflowController.GetWorkflows).Methods("GET", "HEAD")
-	projectUserAPI.Path("/workflows").HandlerFunc(workflowController.AddWorkflow).Methods("POST")
 
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.GetProjectSchedules).Methods("GET", "HEAD")
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
@@ -532,7 +531,14 @@ func Route(
 	projectTmplInvManagement.HandleFunc("/{inventory_id}/attach", projects.AttachInventory).Methods("POST")
 	projectTmplInvManagement.HandleFunc("/{inventory_id}/detach", projects.DetachInventory).Methods("POST")
 
-	projectWorkflowManagement := projectUserAPI.PathPrefix("/workflows").Subrouter()
+	//
+	// Workflows have verbs of their own, checked before the workflow is loaded
+	projectWorkflowAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectWorkflowAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanEditWorkflows))
+	projectWorkflowAPI.Path("/workflows").HandlerFunc(workflowController.GetWorkflows).Methods("GET", "HEAD")
+	projectWorkflowAPI.Path("/workflows").HandlerFunc(workflowController.AddWorkflow).Methods("POST")
+
+	projectWorkflowManagement := projectWorkflowAPI.PathPrefix("/workflows").Subrouter()
 	projectWorkflowManagement.Use(workflowMiddlewareController.WorkflowsMiddleware)
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.UpdateWorkflow).Methods("PUT")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.RemoveWorkflow).Methods("DELETE")
@@ -540,8 +546,14 @@ func Route(
 	projectWorkflowManagement.HandleFunc("/{workflow_id}/revisions", workflowController.GetWorkflowRevisions).Methods("GET", "HEAD")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}/revisions/{revision_id}", workflowController.GetWorkflowRevision).Methods("GET", "HEAD")
 
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms", workflowPermController.GetWorkflowPerms).Methods("GET")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms", workflowPermController.AddWorkflowPerm).Methods("POST")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms/{perm_id}", workflowPermController.GetWorkflowPerm).Methods("GET")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms/{perm_id}", workflowPermController.UpdateWorkflowPerm).Methods("PUT")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms/{perm_id}", workflowPermController.DeleteWorkflowPerm).Methods("DELETE")
+
 	projectWorkflowRunAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows").Subrouter()
-	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
+	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanRunWorkflows), workflowMiddlewareController.WorkflowsMiddleware)
 	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.RunWorkflow).Methods("POST")
 	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.GetWorkflowRuns).Methods("GET", "HEAD")
 
@@ -551,7 +563,10 @@ func Route(
 	projectWorkflowRunManagement.HandleFunc("/{run_id}/stop", workflowController.StopWorkflowRun).Methods("POST")
 	projectWorkflowRunManagement.HandleFunc("/{run_id}/artifacts", workflowController.GetWorkflowRunArtifacts).Methods("GET", "HEAD")
 	projectWorkflowRunManagement.HandleFunc("/{run_id}/approvals", workflowController.GetWorkflowApprovals).Methods("GET", "HEAD")
-	projectWorkflowRunManagement.HandleFunc("/{run_id}/approvals/{node_id}", workflowController.ResolveWorkflowApproval).Methods("POST")
+
+	projectWorkflowApprovalAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals").Subrouter()
+	projectWorkflowApprovalAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanApproveWorkflows), workflowMiddlewareController.WorkflowsMiddleware, workflowMiddlewareController.WorkflowRunsMiddleware)
+	projectWorkflowApprovalAPI.HandleFunc("/{node_id}", workflowController.ResolveWorkflowApproval).Methods("POST")
 
 	projectTaskManagement := projectUserAPI.PathPrefix("/tasks").Subrouter()
 	projectTaskManagement.Use(taskController.GetTaskMiddleware)

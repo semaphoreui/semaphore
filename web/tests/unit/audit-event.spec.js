@@ -51,6 +51,7 @@ describe('lib/auditEvent', () => {
     expect(reasonLabel('', i18n)).to.equal('');
     expect(reasonLabel('new_reason', i18n)).to.equal('new_reason');
     expect(targetTypeLabel('credential', i18n)).to.equal('Key');
+    expect(targetTypeLabel('workflow_permission', i18n)).to.equal('Workflow permission');
     expect(targetTypeLabel('new_type', i18n)).to.equal('new_type');
   });
 

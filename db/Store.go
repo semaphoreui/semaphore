@@ -615,6 +615,17 @@ type RoleRepository interface {
 	DeleteRoleWithAssignments(roleID int, withMappings bool) (RoleAssignments, error)
 }
 
+// Role grants on workflows: the table is in the community schema, the workflows are a Pro store.
+type WorkflowRoleManager interface {
+	GetWorkflowPermission(projectID int, workflowID int, userID int) (ProjectUserPermission, error)
+	GetWorkflowGrantsForUser(projectID int, userID int) (map[int]ProjectUserPermission, error)
+	GetWorkflowRoles(projectID int, workflowID int) ([]WorkflowRolePerm, error)
+	GetWorkflowRole(projectID int, workflowID int, permID int) (WorkflowRolePerm, error)
+	CreateWorkflowRole(perm WorkflowRolePerm) (WorkflowRolePerm, error)
+	UpdateWorkflowRole(perm WorkflowRolePerm) error
+	DeleteWorkflowRole(projectID int, workflowID int, permID int) error
+}
+
 // Store is the main interface that aggregates all specialized interfaces
 type Store interface {
 	ConnectionManager
@@ -624,6 +635,7 @@ type Store interface {
 	ProjectStore
 	ProjectInviteRepository
 	TemplateManager
+	WorkflowRoleManager
 	InventoryManager
 	RepositoryManager
 	HostConfigManager

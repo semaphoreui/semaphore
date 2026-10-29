@@ -11,7 +11,6 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/audit"
-	log "github.com/sirupsen/logrus"
 )
 
 // TemplatesMiddleware ensures a template exists and loads it to the context
@@ -421,8 +420,8 @@ func (c *TemplateController) AddTemplatePerm(w http.ResponseWriter, r *http.Requ
 	if !helpers.Bind(w, r, &perm) {
 		return
 	}
-	if perm.Permissions&^db.KnownRolePermissions != 0 {
-		helpers.WriteErrorStatus(w, "Permissions contain unknown bits", http.StatusBadRequest)
+	if perm.Permissions&^db.TemplateGrantPermissions != 0 {
+		helpers.WriteErrorStatus(w, "Permissions are not template permissions", http.StatusBadRequest)
 		return
 	}
 
@@ -472,8 +471,8 @@ func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.R
 	if !helpers.Bind(w, r, &perm) {
 		return
 	}
-	if perm.Permissions&^db.KnownRolePermissions != 0 {
-		helpers.WriteErrorStatus(w, "Permissions contain unknown bits", http.StatusBadRequest)
+	if perm.Permissions&^db.TemplateGrantPermissions != 0 {
+		helpers.WriteErrorStatus(w, "Permissions are not template permissions", http.StatusBadRequest)
 		return
 	}
 
@@ -481,26 +480,24 @@ func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.R
 	perm.ProjectID = template.ProjectID
 	perm.TemplateID = template.ID
 
-	err := c.templateRepo.UpdateTemplateRole(perm)
+	// The update changes only permissions, so the role comes from the stored grant.
+	stored, err := c.templateRepo.GetTemplateRole(template.ProjectID, template.ID, permID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
-
-	// The update changes only permissions, so the role comes from the stored rule.
-	var role audit.RoleRef
-	if stored, err := c.templateRepo.GetTemplateRole(template.ProjectID, template.ID, permID); err != nil {
-		log.WithError(err).WithField("context", "audit").Error("Cannot read the template permission for the audit")
-	} else {
-		role = audit.NewRoleRef(db.Role{ID: stored.RoleID, Slug: stored.RoleSlug})
+	if err = c.templateRepo.UpdateTemplateRole(perm); err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
+
 	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.IAMTemplatePermissionUpdate,
 		Target:    &audit.Target{Type: audit.TargetTemplatePermission, ID: strconv.Itoa(permID)},
 		ProjectID: template.ProjectID,
 		Metadata: audit.TemplatePermissionMetadata{
 			TemplateID:  template.ID,
-			Role:        role,
+			Role:        audit.NewRoleRef(db.Role{ID: stored.RoleID, Slug: stored.RoleSlug}),
 			Permissions: audit.PermissionNames(perm.Permissions),
 		},
 	})

@@ -169,9 +169,12 @@ func printUnassignedRoles(roles []projectService.UnassignedRole) {
 	}
 	fmt.Println("Roles not assigned, assign them in the UI:")
 	for _, role := range roles {
-		templates := make([]string, 0, len(role.Templates))
+		templates := make([]string, 0, len(role.Templates)+len(role.Workflows))
 		for _, t := range role.Templates {
 			templates = append(templates, t.Name)
+		}
+		for _, w := range role.Workflows {
+			templates = append(templates, w.Name+" (workflow)")
 		}
 		line := "  " + role.Slug
 		if role.Reason == projectService.ReasonSlugTaken {

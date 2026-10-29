@@ -66,7 +66,8 @@ type GlobalRole struct {
 	Permissions GlobalPermission `db:"permissions" json:"permissions"`
 }
 
-const KnownRolePermissions = CanRunProjectTasks | CanUpdateProject | CanManageProjectResources | CanManageProjectUsers
+const KnownRolePermissions = CanRunProjectTasks | CanUpdateProject | CanManageProjectResources | CanManageProjectUsers |
+	CanRunWorkflows | CanEditWorkflows | CanApproveWorkflows
 
 // conflictError is refused with 409 by the API: it matches ErrInvalidOperation and keeps its own message.
 type conflictError struct{ message string }
@@ -142,6 +143,16 @@ type TemplateRolePerm struct {
 	RoleSlug    string                `db:"role_slug" json:"role_slug"`
 }
 
+// WorkflowRolePerm is a role grant on one workflow, the twin of TemplateRolePerm.
+type WorkflowRolePerm struct {
+	ID          int                   `db:"id" json:"id"`
+	RoleID      int                   `db:"role_id" json:"-"`
+	WorkflowID  int                   `db:"workflow_id" json:"workflow_id"`
+	ProjectID   int                   `db:"project_id" json:"project_id"`
+	Permissions ProjectUserPermission `db:"permissions" json:"permissions"`
+	RoleSlug    string                `db:"role_slug" json:"role_slug"`
+}
+
 // GlobalRoleAssignment gives a user the permissions of a global role.
 type GlobalRoleAssignment struct {
 	ID     int `db:"id" json:"id"`
@@ -211,6 +222,7 @@ type RoleImpact struct {
 	Members        int `json:"members"`
 	Projects       int `json:"projects"`
 	TemplateGrants int `json:"template_grants"`
+	WorkflowGrants int `json:"workflow_grants"`
 	Mappings       int `json:"mappings"`
 }
 
@@ -226,9 +238,10 @@ type RoleMember struct {
 
 // RoleAssignments is everything that points to a role: the members who hold it, its template grants and its mappings.
 type RoleAssignments struct {
-	Members  []RoleMember
-	Grants   []TemplateRolePerm
-	Mappings []RoleMapping
+	Members        []RoleMember
+	Grants         []TemplateRolePerm
+	WorkflowGrants []WorkflowRolePerm
+	Mappings       []RoleMapping
 	// Assignments that go with Mappings.
 	MappedRoles []MappedRole
 }
@@ -249,6 +262,9 @@ func (a RoleAssignments) Impact() RoleImpact {
 	for _, g := range a.Grants {
 		projects[g.ProjectID] = true
 	}
+	for _, g := range a.WorkflowGrants {
+		projects[g.ProjectID] = true
+	}
 
 	for _, m := range a.Mappings {
 		projects[m.ProjectID] = true
@@ -257,6 +273,7 @@ func (a RoleAssignments) Impact() RoleImpact {
 		Members:        len(members),
 		Projects:       len(projects),
 		TemplateGrants: len(a.Grants),
+		WorkflowGrants: len(a.WorkflowGrants),
 		Mappings:       len(a.Mappings),
 	}
 }

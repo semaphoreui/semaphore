@@ -126,6 +126,12 @@ type TemplatePermissionMetadata struct {
 	Permissions []string `json:"permissions,omitempty"`
 }
 
+type WorkflowPermissionMetadata struct {
+	WorkflowID  int      `json:"workflow_id"`
+	Role        RoleRef  `json:"role,omitzero"`
+	Permissions []string `json:"permissions,omitempty"`
+}
+
 type SettingsMetadata struct {
 	// Keys only, never values.
 	Keys []string `json:"keys"`
@@ -173,6 +179,15 @@ func PermissionNames(p db.ProjectUserPermission) []string {
 	}
 	if p&db.CanManageProjectUsers != 0 {
 		names = append(names, "manage_users")
+	}
+	if p&db.CanRunWorkflows != 0 {
+		names = append(names, "run_workflows")
+	}
+	if p&db.CanEditWorkflows != 0 {
+		names = append(names, "edit_workflows")
+	}
+	if p&db.CanApproveWorkflows != 0 {
+		names = append(names, "approve_workflows")
 	}
 	return names
 }
