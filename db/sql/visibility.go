@@ -59,3 +59,42 @@ func visibleTasksWhere(projectID int, userID int) (string, []any) {
 }
 
 func filtered(viewer *db.Viewer) bool { return viewer != nil && !viewer.Admin }
+
+// GetTaskViewers lists who may see a task: members with read_project, members whose roles hold a read grant
+// on the template or on the workflow of the run, and every admin.
+func (d *SqlDb) GetTaskViewers(projectID int, templateID int, workflowRunID *int) ([]int, error) {
+	const roles = `
+		select pur.role_id from project__user_role pur where pur.project_id = ? and pur.user_id = u.id
+		union
+		select m.role_id
+		from project__user_mapped_role mr
+		join group_role_mapping m on m.id = mr.mapping_id
+		where mr.project_id = ? and mr.user_id = u.id`
+	query := "select u.id from `user` u where exists (select 1 from `role` r where r.permissions & " + readBit + " <> 0 and r.id in (" + roles + "))" +
+		" or exists (select 1 from project__template_role ptr where ptr.template_id = ? and ptr.permissions & " + readBit + " <> 0 and ptr.role_id in (" + roles + "))"
+	args := []any{projectID, projectID, templateID, projectID, projectID}
+	if workflowRunID != nil {
+		query += " or exists (select 1 from project__workflow_run wr join project__workflow_role pwr on pwr.workflow_id = wr.workflow_template_id where wr.id = ? and pwr.permissions & " + readBit + " <> 0 and pwr.role_id in (" + roles + "))"
+		args = append(args, *workflowRunID, projectID, projectID)
+	}
+	var ids []int
+	if _, err := d.selectAll(&ids, query, args...); err != nil {
+		return nil, err
+	}
+	admins, err := d.GetAllAdmins()
+	if err != nil {
+		return nil, err
+	}
+	seen := map[int]bool{}
+	viewers := []int{}
+	for _, id := range ids {
+		seen[id] = true
+		viewers = append(viewers, id)
+	}
+	for _, admin := range admins {
+		if !seen[admin.ID] {
+			viewers = append(viewers, admin.ID)
+		}
+	}
+	return viewers, nil
+}

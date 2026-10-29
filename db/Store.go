@@ -621,6 +621,7 @@ type RoleRepository interface {
 type WorkflowRoleManager interface {
 	GetWorkflowPermission(projectID int, workflowID int, userID int) (ProjectUserPermission, error)
 	GetWorkflowRunPermission(projectID int, runID int, userID int) (ProjectUserPermission, error)
+	GetTaskViewers(projectID int, templateID int, workflowRunID *int) ([]int, error)
 	GetWorkflowGrantsForUser(projectID int, userID int) (map[int]ProjectUserPermission, error)
 	GetWorkflowRoles(projectID int, workflowID int) ([]WorkflowRolePerm, error)
 	GetWorkflowRole(projectID int, workflowID int, permID int) (WorkflowRolePerm, error)

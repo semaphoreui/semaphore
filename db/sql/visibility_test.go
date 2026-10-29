@@ -140,3 +140,18 @@ func TestVisibility_Tasks(t *testing.T) {
 		})
 	}
 }
+
+// The people a task's live updates go to: whoever may see the task, plus the admins.
+func TestVisibility_TaskViewers(t *testing.T) {
+	f := newVisibilityFixture(t)
+	root, err := f.store.CreateUserWithoutPassword(db.User{Username: "root", Name: "root", Email: "root@example.com", Admin: true})
+	require.NoError(t, err)
+
+	viewers, err := f.store.GetTaskViewers(f.projectID, f.taskA.TemplateID, nil)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []int{f.reader.ID, f.grantee.ID, root.ID}, viewers)
+
+	viewers, err = f.store.GetTaskViewers(f.projectID, f.nodeTask.TemplateID, f.nodeTask.WorkflowRunID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []int{f.reader.ID, f.runGrantee.ID, root.ID}, viewers)
+}
