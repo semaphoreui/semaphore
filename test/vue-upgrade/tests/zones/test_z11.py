@@ -371,12 +371,26 @@ def test_list__single_expand(ui, data):
     snap(page, ZONE, "list", "single-expand", element="workflows-table", masks=[M_LAST_RUN, *M_RUNS_TIMES])
 
 
+SHEET_IN_VIEW_JS = """(el) => { const r = el.getBoundingClientRect();
+  return r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight + 1; }"""
+
+
+def open_sheet(page):
+    """Click ⚙ and wait until the column sheet stands in the window: Vuetify 4 may keep it at its enter
+    position (below the bottom edge) for a frame after it is visible, and a click on a checkbox then
+    misses (the same wait as test_b4, test_z04)."""
+    tid(page, "workflows-tableSettings").click()
+    expect(tid(page, "tableSettings-title")).to_be_visible()
+    sheet = tid(page, "tableSettings-sheet")
+    page.wait_for_function(SHEET_IN_VIEW_JS, arg=sheet.element_handle(), timeout=5000)
+    return sheet
+
+
 @pytest.mark.snapshot
 def test_list__table_settings(ui, data):
     page = ui("admin")
     open_list(page, data)
-    tid(page, "workflows-tableSettings").click()
-    expect(tid(page, "tableSettings-title")).to_be_visible()
+    open_sheet(page)
     for col in ("name", "version", "status", "last_run"):
         expect(field_input(page, f"tableSettings-column-{col}")).to_be_checked()
     snap(page, ZONE, "list", "table-settings", masks=[M_LAST_RUN])
@@ -386,8 +400,7 @@ def test_list__table_settings(ui, data):
 def test_list__column_hidden(ui, data):
     page = ui("admin")
     open_list(page, data)
-    tid(page, "workflows-tableSettings").click()
-    expect(tid(page, "tableSettings-title")).to_be_visible()
+    open_sheet(page)
     field_input(page, "tableSettings-column-version").click(force=True)
     queued_timers_run(page)
     page.keyboard.press("Escape")
