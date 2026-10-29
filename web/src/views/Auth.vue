@@ -94,8 +94,7 @@
               height="80"
               :transition="false"
               src="favicon.png"
-              style="margin: auto"
-              class="mb-4"
+              class="mx-auto mb-4"
               data-testid="auth-logo"
             />
 
@@ -298,7 +297,6 @@
                   required
                   :disabled="signInProcess"
                   @keyup.enter="signInWithEmail"
-                  style="margin-bottom: 20px"
                   data-testid="auth-password"
                   variant="outlined"
                   class="mb-0"

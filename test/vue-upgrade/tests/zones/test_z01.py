@@ -133,9 +133,11 @@ def fill_recovery(page, code="vu-recovery-code"):
     no_messages(page, "auth-recoveryCode")
 
 
-# Vuetify 2 puts auth-otp on each of the six inputs of v-otp-input, Vuetify 3 on its root (next to the
-# cells it keeps a hidden input with the whole code).
-OTP_CELLS = "input[data-testid=auth-otp], [data-testid=auth-otp] input:not([type=hidden])"
+# Vuetify 2 puts auth-otp on each of the six inputs of v-otp-input. Vuetify 4 puts it on the root: the
+# six cells are fields `[data-otp-index]` that show one character each (with an aria-hidden spacer
+# input), and the whole code is typed into one input `.v-otp-input__input`.
+OTP_CELLS = "input[data-testid=auth-otp], [data-testid=auth-otp] [data-otp-index]"
+OTP_INPUT = "[data-testid=auth-otp] input.v-otp-input__input"
 
 
 def otp_cells(page):
@@ -145,6 +147,20 @@ def otp_cells(page):
 
 def otp_cell(page, i=0):
     return otp_cells(page).nth(i)
+
+
+def expect_otp(page, code):
+    """The cells show <code>, one character each (Vuetify 2: the value of each input; Vuetify 4: the
+    text of each cell and the value of the one input)."""
+    cells = otp_cells(page)
+    expect(cells).to_have_count(len(code))
+    if cells.first.evaluate("e => e.tagName") == "INPUT":
+        for i, ch in enumerate(code):
+            expect(cells.nth(i)).to_have_value(ch)
+        return
+    for i, ch in enumerate(code):
+        expect(cells.nth(i)).to_have_text(ch)
+    expect(page.locator(OTP_INPUT)).to_have_value(code)
 
 
 def open_totp(page, login_options=B_TOTP):
@@ -364,7 +380,7 @@ def test_verification__verifying(ui):
     type_code(page)
     wait_until(page, lambda: held, "the held POST /api/auth/verify")
     wait_state(page, "auth-page", "loading")
-    expect(otp_cell(page, 5)).to_have_value("6")
+    expect_otp(page, "123456")
     snap(page, ZONE, "verification", "verifying")
 
 
@@ -376,7 +392,7 @@ def test_verification__error(ui):
     type_code(page)
     wait_state(page, "auth-page", "error")
     expect(tid(page, "auth-error")).to_have_text("Invalid passcode")
-    expect(otp_cell(page, 5)).to_have_value("6")
+    expect_otp(page, "123456")
     snap(page, ZONE, "verification", "error")
 
 
