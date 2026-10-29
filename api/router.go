@@ -159,7 +159,7 @@ func Route(
 	// MCP checks access itself and answers with its own content types, so it
 	// stays outside the shared /api groups (JSON responses, session and API-token auth).
 	// Its tools call the REST API through r with the token of the MCP request.
-	mcpController := proApi.NewMCPController(util.MCPEnabled(), store, r, webPath)
+	mcpController := proApi.NewMCPController(util.MCPEnabled(), store, subscriptionService, r, webPath)
 	r.Path(webPath + "api/mcp").Handler(mcpController)
 
 	metricsRouter := r.Path(webPath + "api/metrics").Subrouter()
