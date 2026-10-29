@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null"
     data-testid="globalRoles-page"
@@ -55,7 +55,6 @@
       ></span>
 
       <v-btn
-        dark
         variant="flat"
         v-if="isAdmin"
         color="hsl(348deg, 86%, 61%)"
@@ -86,6 +85,7 @@
       item-value="id"
       class="mt-4"
       :items-per-page-options="[20]"
+      :mobile-breakpoint="600"
       data-testid="globalRoles-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >

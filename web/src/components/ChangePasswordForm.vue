@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     data-testid="changePassword-form"
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
@@ -19,8 +18,8 @@
       data-testid="changePassword-currentPassword"
       :label="$t('currentPassword')"
       :class="{ 'masked-secret-input': !showCurrentPassword }"
-      :append-icon="showCurrentPassword ? 'mdi-eye' : 'mdi-eye-off'"
-      @click:append="showCurrentPassword = !showCurrentPassword"
+      :append-inner-icon="showCurrentPassword ? 'mdi-eye' : 'mdi-eye-off'"
+      @click:append-inner="showCurrentPassword = !showCurrentPassword"
       :rules="[(v) => !!v || $t('password_required')]"
       required
       density="compact"
@@ -33,8 +32,8 @@
       data-testid="changePassword-password"
       :label="$t('password2')"
       :class="{ 'masked-secret-input': !showPassword }"
-      :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
-      @click:append="showPassword = !showPassword"
+      :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+      @click:append-inner="showPassword = !showPassword"
       :rules="[(v) => !!v || $t('password_required')]"
       required
       density="compact"

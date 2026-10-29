@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null"
     data-testid="users-page"
@@ -66,8 +66,8 @@
     </v-toolbar>
 
     <v-tabs v-if="canManageGlobalRoles" v-model="tab" class="px-4" data-testid="users-tabs">
-      <v-tab key="users" href="#users" data-testid="users-tab-users">{{ $t('users') }}</v-tab>
-      <v-tab key="global-roles" href="#global-roles" data-testid="users-tab-global-roles">
+      <v-tab key="users" value="users" data-testid="users-tab-users">{{ $t('users') }}</v-tab>
+      <v-tab key="global-roles" value="global-roles" data-testid="users-tab-global-roles">
         {{ $t('globalRoles') }}
       </v-tab>
     </v-tabs>
@@ -88,6 +88,7 @@
       :items="items"
       class="mt-4"
       :items-per-page-options="[20]"
+      :mobile-breakpoint="600"
       data-testid="users-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >

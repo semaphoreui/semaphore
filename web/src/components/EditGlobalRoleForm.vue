@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null"
     data-testid="globalRole-form"
@@ -39,10 +38,10 @@
       :hint="$t('slugHint')"
     ></v-text-field>
 
-    <v-subheader
+    <v-list-subheader
       class="pl-0"
       data-testid="globalRole-permissionsTitle"
-    >{{ $t('globalPermissions') }}</v-subheader>
+    >{{ $t('globalPermissions') }}</v-list-subheader>
     <div
       class="text-medium-emphasis text-caption mb-3"
       data-testid="globalRole-permissionsHint"
@@ -133,7 +132,7 @@ export default {
 </script>
 
 <style scoped>
-.v-subheader {
+.v-list-subheader {
   font-weight: 500;
   font-size: 14px;
 }

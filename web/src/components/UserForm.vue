@@ -24,10 +24,10 @@
     </EditDialog>
 
     <v-tabs v-model="tab" data-testid="user-tabs">
-      <v-tab key="settings" href="#settings" data-testid="user-tab-settings">Settings</v-tab>
+      <v-tab key="settings" value="settings" data-testid="user-tab-settings">Settings</v-tab>
       <v-tab
         key="2fa"
-        href="#security"
+        value="security"
         v-if="canChangePassword || authMethods.totp || !isNew"
         data-testid="user-tab-security"
       >
@@ -35,7 +35,7 @@
       </v-tab>
       <v-tab
         key="global-roles"
-        href="#global-roles"
+        value="global-roles"
         v-if="canManageGlobalRoles && !isNew"
         data-testid="user-tab-globalRoles"
       >
@@ -45,11 +45,10 @@
 
     <v-divider class="mb-6" style="margin-top: -1px" />
 
-    <v-tabs-items v-model="tab" style="overflow: unset">
-      <v-tab-item key="settings" value="settings" data-testid="user-panel-settings">
+    <v-window v-model="tab" style="overflow: unset">
+      <v-window-item value="settings" data-testid="user-panel-settings">
         <v-form
           ref="form"
-          lazy-validation
           v-model="formValid"
           v-if="item != null"
           data-testid="user-form"
@@ -93,7 +92,7 @@
             variant="outlined"
             density="compact"
           >
-            <template v-slot:append>
+            <template v-slot:append-inner>
               <v-chip
                 variant="outlined"
                 color="green"
@@ -121,7 +120,7 @@
           <v-row class="pb-5 pt-2">
             <v-col cols="6">
               <v-checkbox
-                dense
+                density="compact"
                 hide-details
                 v-model="item.alert"
                 data-testid="user-alert"
@@ -130,7 +129,7 @@
             </v-col>
             <v-col cols="6" v-if="isAdmin">
               <v-checkbox
-                dense
+                density="compact"
                 hide-details
                 v-model="item.admin"
                 data-testid="user-admin"
@@ -140,7 +139,7 @@
             <v-col cols="6" v-if="isPro">
               <v-checkbox
                 :disabled="!isAdmin"
-                dense
+                density="compact"
                 hide-details
                 v-model="item.pro"
                 data-testid="user-pro"
@@ -150,7 +149,7 @@
             <v-col cols="6" v-if="isAdmin">
               <v-checkbox
                 :disabled="!isNew"
-                dense
+                density="compact"
                 hide-details
                 v-model="item.external"
                 data-testid="user-external"
@@ -159,10 +158,9 @@
             </v-col>
           </v-row>
         </v-form>
-      </v-tab-item>
+      </v-window-item>
 
-      <v-tab-item
-        key="2fa"
+      <v-window-item
         value="security"
         v-if="item != null && (canChangePassword || authMethods.totp || !isNew)"
         data-testid="user-panel-security"
@@ -188,7 +186,7 @@
 
           <v-card
             class="pt-2 mt-1"
-            style="background: var(--highlighted-card-bg-color)"
+            style="background: var(--highlighted-card-bg-color); overflow: visible"
             v-if="totpQrUrl"
             data-testid="user-totpCard"
           >
@@ -263,12 +261,15 @@
             <div class="text-h6 mb-2" data-testid="user-identitiesTitle">Linked accounts</div>
 
             <div style="margin-bottom: -8px;">
+              <!-- A closable chip hides itself on close; here the identities list decides. -->
               <v-chip
                 v-for="identity in identities"
                 :key="identity.id"
                 :color="identityProvider(identity).color"
                 :title="identity.external_uid"
                 class="mr-2 mb-2"
+                :model-value="true"
+                @update:model-value="() => {}"
                 closable
                 @click:close="unlinkIdentity(identity)"
                 :data-testid="`user-identity-${identity.type}-${identity.provider}`"
@@ -305,10 +306,10 @@
 
                   <v-btn-toggle
                     v-model="ldapLinkProvider"
-                    mandatory
-                    borderless
+                    mandatory="force"
                     class="mb-7 d-flex"
-                    :background-color="$vuetify.theme.current.dark ? '#212121' : 'grey-lighten-3'"
+                    :class="$vuetify.theme.current.dark ? '' : 'bg-grey-lighten-3'"
+                    :style="$vuetify.theme.current.dark ? { backgroundColor: '#212121' } : null"
                     data-testid="user-ldapProvider"
                   >
                     <v-btn
@@ -359,7 +360,6 @@
                 v-for="provider in unlinkedOidcProviders"
                 :key="provider.id"
                 :color="provider.color || 'secondary'"
-                dark
                 class="mr-3 mb-3"
                 rounded
                 style="width: 100%"
@@ -367,23 +367,22 @@
                 @click="linkOidcIdentity(provider.id)"
                 :data-testid="`user-oidcLink-${provider.id}`"
               >
-                <v-icon start dark v-if="provider.icon">mdi-{{ provider.icon }}</v-icon>
+                <v-icon start v-if="provider.icon">mdi-{{ provider.icon }}</v-icon>
                 Link {{ provider.name || provider.id }}
               </v-btn>
             </div>
           </div>
         </div>
-      </v-tab-item>
+      </v-window-item>
 
-      <v-tab-item
-        key="global-roles"
+      <v-window-item
         value="global-roles"
         v-if="item != null && canManageGlobalRoles && !isNew"
         data-testid="user-panel-globalRoles"
       >
         <GlobalRoleAssignments :user-id="itemId" />
-      </v-tab-item>
-    </v-tabs-items>
+      </v-window-item>
+    </v-window>
   </div>
 </template>
 <script>
@@ -404,7 +403,7 @@ export default {
     // The signed-in user may assign global roles; the tab is hidden otherwise.
     canManageGlobalRoles: Boolean,
     authMethods: Object,
-    LoginWithPassword: Boolean,
+    loginWithPassword: Boolean,
   },
 
   mixins: [ItemFormBase],
@@ -486,7 +485,7 @@ export default {
     },
 
     canChangePassword() {
-      return !this.isNew && !this.item.external && this.LoginWithPassword;
+      return !this.isNew && !this.item.external && this.loginWithPassword;
     },
 
     linkedProviders() {

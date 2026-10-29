@@ -58,16 +58,16 @@
         class="px-0"
         data-testid="globalRoleAssign-item"
       >
-          <v-list-item-title
-            data-testid="globalRoleAssign-itemName"
-          >{{ assignment.role_name }}</v-list-item-title>
-          <TemplatePermissionsChips
-            class="pt-1"
-            scope="global"
-            :permissions="assignment.global_permissions || 0"
-            data-testid="globalRoleAssign-itemPermissions"
-          />
-        <v-list-item-action>
+        <v-list-item-title
+          data-testid="globalRoleAssign-itemName"
+        >{{ assignment.role_name }}</v-list-item-title>
+        <TemplatePermissionsChips
+          class="pt-1"
+          scope="global"
+          :permissions="assignment.global_permissions || 0"
+          data-testid="globalRoleAssign-itemPermissions"
+        />
+        <template v-slot:append>
           <v-btn
             icon
             :disabled="loading"
@@ -77,7 +77,7 @@
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-        </v-list-item-action>
+        </template>
       </v-list-item>
     </v-list>
     <v-alert
@@ -91,10 +91,10 @@
       {{ $t('noGlobalRolesAssigned') }}
     </v-alert>
 
-    <v-subheader
+    <v-list-subheader
       class="px-0 mt-4"
       data-testid="globalRoleAssign-effectiveTitle"
-    >{{ $t('effectiveGlobalPermissions') }}</v-subheader>
+    >{{ $t('effectiveGlobalPermissions') }}</v-list-subheader>
     <v-list density="compact" class="px-0" data-testid="globalRoleAssign-effective">
       <v-list-item
         v-for="decision in effective.decisions || []"
@@ -102,7 +102,7 @@
         class="px-0"
         :data-testid="`globalRoleAssign-effective-${decision.permission}`"
       >
-        <v-list-item-icon class="mr-3">
+        <template v-slot:prepend>
           <v-icon
             :color="decision.allowed ? 'success' : 'grey'"
             :data-testid="decision.allowed
@@ -111,13 +111,13 @@
           >
             {{ decision.allowed ? 'mdi-check-circle' : 'mdi-minus-circle-outline' }}
           </v-icon>
-        </v-list-item-icon>
-          <v-list-item-title
-            data-testid="globalRoleAssign-effectiveName"
-          >{{ permissionTitle(decision.permission) }}</v-list-item-title>
-          <v-list-item-subtitle
-            data-testid="globalRoleAssign-effectiveSource"
-          >{{ provenance(decision) }}</v-list-item-subtitle>
+        </template>
+        <v-list-item-title
+          data-testid="globalRoleAssign-effectiveName"
+        >{{ permissionTitle(decision.permission) }}</v-list-item-title>
+        <v-list-item-subtitle
+          data-testid="globalRoleAssign-effectiveSource"
+        >{{ provenance(decision) }}</v-list-item-subtitle>
       </v-list-item>
     </v-list>
   </div>

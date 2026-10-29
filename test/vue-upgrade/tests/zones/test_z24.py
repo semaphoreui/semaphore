@@ -697,32 +697,43 @@ def test_user_dialog_edit(ui):
 
 @pytest.mark.snapshot
 def test_user_dialog_loading(ui, meta):
-    """GET of the user held: UserForm fails to render while item is null (JOURNAL@51CC45694C), so
-    the card has an empty body — no user-root, no tabs (the catalogue expected `loading` with tabs)."""
+    """GET of the user held: canChangePassword still throws once while item is null (JOURNAL@51CC45694C),
+    but on Vue 3 the v-if of the tabs runs inside the slot of v-tabs, not in the render of UserForm, and
+    the computed keeps its last value after the throw — the form root and the tabs are drawn, the
+    panel is empty (the catalogue's `loading`; the empty body of Vue 2 — JOURNAL@5C265733EF — is gone)."""
     page = start(ui)
     pattern = f"**/api/users/{uid(meta, 'seed_owner')}"
     held = hold_api(page, "GET", pattern)
     card = open_dialog(page, user_row(page, "seed_owner").get_by_test_id("users-rowEdit"), USER_DIALOG)
     held.wait()
     wait_console(page, "TypeError", 1)
+    expect(tid(card, "user-root")).to_have_attribute("data-state", "loading")
+    expect(tid(card, "user-tab-settings")).to_be_visible()
+    expect(tid(card, "user-tab-security")).to_be_visible()
+    expect(tid(card, "user-tab-globalRoles")).to_have_count(0)
+    expect(tid(card, "user-form")).to_have_count(0)
     assert sum("TypeError" in e for e in page.vu.console_errors) == 1, page.vu.console_errors
-    expect(tid(card, "user-root")).to_have_count(0)
     snap(page, ZONE, "user-dialog", "loading", element=USER_DIALOG)
     held.release()
 
 
 @pytest.mark.snapshot
 def test_user_dialog_load_error(ui, meta):
-    """GET of the user fails: the body stays empty for good, no message (JOURNAL@51CC45694C,
-    JOURNAL@3072003635)."""
+    """GET of the user fails: no form and no message for good (JOURNAL@3072003635); the TypeError of
+    canChangePassword comes once (JOURNAL@51CC45694C), the root and the tabs are drawn in `error`
+    (Vue 3 — see test_user_dialog_loading; the empty body of JOURNAL@5C265733EF is gone)."""
     page = start(ui)
     hits = fail_api(page, "GET", f"**/api/users/{uid(meta, 'seed_owner')}", 500, {"error": "Z24 load fail"})
     card = open_dialog(page, user_row(page, "seed_owner").get_by_test_id("users-rowEdit"), USER_DIALOG)
     wait_until(page, lambda: hits, "the failed GET of the user")
     wait_console(page, "500")
-    wait_console(page, "TypeError", 2)
-    assert sum("TypeError" in e for e in page.vu.console_errors) == 2, page.vu.console_errors
-    expect(tid(card, "user-root")).to_have_count(0)
+    wait_console(page, "TypeError", 1)
+    expect(tid(card, "user-root")).to_have_attribute("data-state", "error")
+    expect(tid(card, "user-tab-settings")).to_be_visible()
+    expect(tid(card, "user-tab-security")).to_be_visible()
+    expect(tid(card, "user-form")).to_have_count(0)
+    expect(tid(card, "user-error")).to_have_count(0)
+    assert sum("TypeError" in e for e in page.vu.console_errors) == 1, page.vu.console_errors
     expect(card).not_to_contain_text("Z24 load fail")
     snap(page, ZONE, "user-dialog", "load-error", element=USER_DIALOG)
 
