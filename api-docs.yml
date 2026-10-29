@@ -1484,7 +1484,7 @@ definitions:
         type: string
       type:
         type: string
-        enum: ["", int, enum, secret, text] # String => "", Integer => "int", Text (multiline) => "text"
+        enum: ["", int, enum, select, secret, text] # String => "", Integer => "int", Text (multiline) => "text"
         example: int
       target:
         type: string
@@ -1496,6 +1496,9 @@ definitions:
         type: array
         items:
           $ref: "#/definitions/TemplateSurveyVarValue"
+      default_value:
+        description: A string, or an array of strings for a select variable.
+        x-nullable: true
 
   TemplateSurveyVarValue:
     type: object
