@@ -184,8 +184,9 @@ FOCUS_INSIDE_JS = """(el) => { const a = document.activeElement;
 def open_sync_dialog(card: Locator, page: Page) -> Locator:
     tid(card, "secretStorage-syncPaths").click()
     sync = dialog(page, SYNC_DIALOG)
-    # Vuetify 3 moves the focus into the dialog once its enter transition is over (to the dialog frame
-    # around the card, or to its first field): wait for it, or the blur before a shot races with it
+    # the dialog takes the focus once its enter transition is over — on its frame around the card, as in
+    # Vue 2 (Vuetify 2 focused .v-dialog, Vuetify 3 focuses .v-overlay__content; checked on both builds):
+    # wait for it, or the blur before a shot races with it
     wait_until(page, lambda: sync.evaluate(FOCUS_INSIDE_JS), "the focus inside the Sync paths dialog")
     return sync
 

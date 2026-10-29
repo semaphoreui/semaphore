@@ -6,7 +6,8 @@
   never for shots).
 - The data: the frozen fixture (runtime/visual/fixture/meta.json) — ids, users, browser clock.
 - Pages: ui(role) opens a page in a fresh context: exact window size, light theme, en-US, UTC,
-  frozen clock, no animations or caret, external requests aborted, logged in through the API.
+  frozen clock (Date.now steps while an input event is handled — vu/ui.py INPUT_CLOCK_JS), no animations
+  or caret, external requests aborted, logged in through the API.
   ui(role, locale=…, lang=…, color_scheme=…) changes the language / theme conditions (lang=None —
   localStorage.lang is not set); ui(role, own_session=True) logs in anew (a test that signs out).
 - Sizes: every snapshot test runs in mobile, tablet and desktop; a functional one in desktop,
@@ -30,7 +31,7 @@ from vu.api import Api  # noqa: E402
 from vu.fixture import meta as fixture_meta  # noqa: E402
 from vu.paths import label_dir, workspace  # noqa: E402
 from vu.ui import (EXTERNAL, INIT_JS, SIZES, PageInfo, attach_recorders,  # noqa: E402
-                   guard_writes, init_js)
+                   freeze_clock, guard_writes, init_js)
 
 ROLES = {"admin": "admin", "runner": "seed_runner"}  # role → user; any seed_* username works too
 CHROMIUM_ARGS = ["--force-color-profile=srgb", "--disable-lcd-text", "--font-render-hinting=none",
@@ -210,7 +211,7 @@ def ui(request, browser, stand, meta, clock, out_dir, shots, auth_state, size):
         if read_only:
             guard_writes(ctx, info)
         page = ctx.new_page()
-        page.clock.set_fixed_time(clock)
+        freeze_clock(page, clock)
         page.vu = info
         infos.append(info)
         pages.append(page)

@@ -26,7 +26,7 @@ import pytest
 from playwright.sync_api import Page, Route, expect
 
 from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, open_dialog,
-                   row, shown, snap, tid, wait_console, wait_state, wait_until)
+                   row, shown, snap, tid, toggle, wait_console, wait_state, wait_until)
 
 ZONE = "z09"
 DEMO = "Seed Demo"
@@ -846,6 +846,26 @@ def test_run_success(ui, project, api):
     assert json.loads(body["secret"]) == {}
     assert body.get("arguments") is None  # not touched: the template's own args apply
     assert isinstance(body["params"], dict)
+
+
+@pytest.mark.functional
+def test_debug_level_default(ui, project, api):
+    """A new task's params come without debug_level: the slider's min, 1, is the default — «Debug -v»,
+    the thumb on 1, and debug_level 1 in the body with Debug on (Vue 2: Vuetify 2 v-slider wrote its
+    min into the missing value; JOURNAL@88B67A830C). Without it the server would run with -vvvv."""
+    page = ui("admin")
+    sent = answer_post(page, 500, {"error": "Z09 run failed"})
+    card = open_run(page, api, project, "Z09 Ansible params")
+    expect(tid(card, "taskParams-limit-chip")).to_have_text("localhost")  # the template's params are in
+    ansible = tid(card, "newTask-ansible")
+    expect(ansible.get_by_role("slider")).to_have_attribute("aria-valuenow", "1")
+    expect(ansible).to_contain_text(re.compile(r"Debug\s*-v(?!v)"))
+    toggle(card, "taskParams-debug", True)
+    expect(ansible).to_contain_text(re.compile(r"Debug\s*-v(?!v)"))
+    button(card, "editDialog-save").click()
+    wait_until(page, lambda: sent, "the POST")
+    params = sent[0]["params"]
+    assert params["debug"] is True and params["debug_level"] == 1, params
 
 
 @pytest.mark.functional

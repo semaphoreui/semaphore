@@ -19,8 +19,8 @@ import urllib.parse
 import pytest
 from playwright.sync_api import expect
 
-from vu.ui import (EXTERNAL, SIZES, button, dialog, fail_api, field_input, goto, settle, snap, tid,
-                   wait_state, wait_until)
+from vu.ui import (EXTERNAL, SIZES, button, dialog, fail_api, field_input, freeze_clock, goto, settle, snap,
+                   tid, wait_state, wait_until)
 
 ZONE = "b1"
 DEMO = "Seed Demo"
@@ -348,7 +348,7 @@ def raw_page(browser, stand, auth_state, clock):
         script += f"localStorage.setItem('lang', {lang!r});" if lang else "localStorage.removeItem('lang');"
         ctx.add_init_script(f"(() => {{ try {{ {script} }} catch (e) {{}} }})();")
         page = ctx.new_page()
-        page.clock.set_fixed_time(clock)
+        freeze_clock(page, clock)
         return page
 
     yield open_page

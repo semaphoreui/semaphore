@@ -33,7 +33,7 @@ from playwright.sync_api import Page, Route, expect
 
 from vu.ui import answer_api, button, chip_close, dialog_frame, fail_api, field_input, field_message, \
     field_selection, goto, goto_after_apps, hold_api, only_names, open_menu, patch_api, patch_info, pick, press, \
-    goto_apps_loaded, settle, shown, snap, tid, toggle, wait_state, wait_until
+    goto_apps_loaded, queued_timers_run, settle, shown, snap, tid, toggle, wait_state, wait_until
 
 ZONE = "z05"
 DEMO, EMPTY = "Seed Demo", "Seed Empty"
@@ -93,14 +93,6 @@ APPS_RE = re.compile(r"/api/apps$")
 def allow_cron_check(page: Page):
     """POST schedules/validate only checks a cron string: let it reach the server in snapshot tests."""
     page.route(SCHEDULE_VALIDATE_RE, lambda route: route.continue_())
-
-
-def queued_timers_run(page: Page):
-    """Wait until every timer the page has queued so far has fired: a setTimeout queued now runs after
-    them. Vuetify 3 moves the top of its overlay stack (globalTop, which its Esc handler asks) in a
-    setTimeout after a dialog opens; under the suite's fake clock that timer fires late
-    (JOURNAL@C559E533D7), so an Esc pressed at once would meet the previous top."""
-    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def scroll_to(loc, block="start"):

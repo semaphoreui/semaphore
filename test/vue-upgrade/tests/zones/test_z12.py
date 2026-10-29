@@ -20,7 +20,7 @@ from playwright.sync_api import Page, expect
 
 from vu.ui import (answer_api, badge_dot, dialog, expect_no_snackbar, expect_snackbar, fail_api, field_input,
                    field_message, field_selection, goto, hold_api, hold_snackbar, only_names, open_menu, patch_api,
-                   pick, press, settle, snap, tid, toggle, wait_state, wait_until)
+                   pick, press, queued_timers_run, settle, snap, tid, toggle, wait_state, wait_until)
 from vu.ui import DRAWFLOW_NODE, DRAWFLOW_INPUT, DRAWFLOW_OUTPUT, DRAWFLOW_EDGE_PATH, VUETIFY_BTN_LOADING
 
 ZONE = "z12"
@@ -205,14 +205,6 @@ def expect_dirty(page, dirty):
     else:
         expect(dot).to_have_css("display", "none")
     expect(dot).not_to_have_class(re.compile(r"-transition-"))
-
-
-def queued_timers_run(page: Page):
-    """Wait until every timer the page has queued so far has fired: a setTimeout queued now runs after
-    them. Vuetify 3 moves the top of its overlay stack (globalTop, which the dialog's Esc handler asks)
-    in a setTimeout after a dialog opens; under the suite's fake clock that timer fires late
-    (JOURNAL@C559E533D7), so an Esc pressed at once would meet the previous top."""
-    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def pick_template(page, name):

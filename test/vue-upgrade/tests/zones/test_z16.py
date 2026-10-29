@@ -19,7 +19,7 @@ import pytest
 from playwright.sync_api import Page, Route, expect
 
 from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, open_dialog,
-                   row, snap, tid, toggle, wait_state, wait_until)
+                   queued_timers_run, row, snap, tid, toggle, wait_state, wait_until)
 from vu.ui import VUETIFY_APPEND_BUTTON, VUETIFY_TAB_DISABLED  # noqa: E402 — step 2.4: shared selectors
 
 ZONE = "z16"
@@ -98,14 +98,6 @@ def patch_json(page: Page, method, pattern, change):
 
     page.route(pattern, handler)
     return hits
-
-
-def queued_timers_run(page: Page):
-    """Wait until every timer the page has queued so far has fired: a setTimeout queued now runs after
-    them. Vuetify 3 moves the top of its overlay stack (globalTop, which EditDialog's Esc handler asks)
-    in a setTimeout after a dialog or menu opens; under the suite's fake clock that timer fires late
-    (JOURNAL@C559E533D7), so an Esc pressed at once would meet the previous top."""
-    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def requests_of(page: Page, method, part):

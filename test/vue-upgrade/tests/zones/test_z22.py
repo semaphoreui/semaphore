@@ -22,7 +22,7 @@ import pytest
 from playwright.sync_api import Page, Route, expect
 
 from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, menu_of,
-                   open_dialog, row, snap, tid, wait_state, wait_until)
+                   open_dialog, queued_timers_run, row, snap, tid, wait_state, wait_until)
 from vu.ui import VUETIFY_FIELD_SLOT, VUETIFY_CHIP_CLOSE, VUETIFY_TOOLTIP, VUETIFY_BTN_ACTIVE  # noqa: E402 — step 2.4: shared selectors
 
 ZONE = "z22"
@@ -163,14 +163,6 @@ def wait_console(page, text):
     """Wait for a console error with <text>: it comes a moment after the failed response, and the
     inventory of the shot must not depend on that moment."""
     wait_until(page, lambda: any(text in e for e in page.vu.console_errors), f"console error «{text}»")
-
-
-def queued_timers_run(page: Page):
-    """Wait until every timer the page has queued so far has fired. Vuetify 3 moves the top of its overlay
-    stack (globalTop, which EditDialog's Esc handler asks) in a setTimeout after a menu opens; under the
-    suite's fake clock it fires late (JOURNAL@C559E533D7), so an Esc pressed at once would close the
-    dialog under the menu. Local copy, as in test_b3 / test_b4 / test_z31 (candidate for vu/ui.py)."""
-    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def hold_snackbar(page: Page, clock: dt.datetime, text, state):

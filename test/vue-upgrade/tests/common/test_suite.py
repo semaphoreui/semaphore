@@ -36,6 +36,25 @@ def test_page_conditions(ui, size, clock, project):
 
 
 @pytest.mark.functional
+def test_clock_input_steps(ui, clock, project):
+    """While an input event is handled Date.now() is the fixed clock + k ms for the k-th input event
+    (vu/ui.py INPUT_CLOCK_JS): an event is later than a listener attached before it, so Vue 3 does not
+    skip an ancestor listener of the same event. Outside input handling Date.now() is the fixed clock
+    again; new Date() always is."""
+    page = ui("admin")
+    goto(page, f"/project/{project('Seed Demo')}/history")
+    fixed = int(clock.timestamp() * 1000)
+    assert page.evaluate("[Date.now(), new Date().getTime()]") == [fixed, fixed]
+    page.evaluate("""() => { window.__vuSeen = [];
+        for (const t of ['keydown', 'keyup'])
+          document.addEventListener(t, () => window.__vuSeen.push([Date.now(), new Date().getTime()])); }""")
+    page.keyboard.press("Shift")
+    assert page.evaluate("window.__vuSeen") == [[fixed + 1, fixed], [fixed + 2, fixed]]
+    page.wait_for_function("(fixed) => Date.now() === fixed", arg=fixed, timeout=5000)
+    assert page.evaluate("new Date().getTime()") == fixed
+
+
+@pytest.mark.functional
 def test_roles(ui):
     admin = ui("admin")
     runner = ui("runner")

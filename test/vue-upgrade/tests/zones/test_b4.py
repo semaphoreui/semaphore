@@ -17,7 +17,7 @@ import json
 import pytest
 from playwright.sync_api import Page, Route, expect
 
-from vu.ui import (button, dialog, fail_api, field_input, goto, open_dialog, row, settle, snap, tid,
+from vu.ui import (button, dialog, fail_api, field_input, goto, open_dialog, queued_timers_run, row, settle, snap, tid,
                    toggle, wait_state, wait_until)
 from vu.ui import CM_EDITOR, CM_CURSOR, ALERT_CLOSE  # noqa: E402 — step 2.4: shared selectors
 
@@ -101,13 +101,6 @@ def storage(page: Page, key):
 def shown(page: Page, test_id):
     """The visible element <test_id>: RichEditor leaves hidden copies of dialogs opened before."""
     return page.locator(f'[data-testid="{test_id}"]:visible')
-
-
-def queued_timers_run(page: Page):
-    """Wait until every timer the page has queued so far has fired. Vuetify 3 moves the top of its overlay
-    stack (globalTop, which EditDialog's Esc handler asks) in a setTimeout after a dialog opens; an Esc
-    pressed at once would still meet the group dialog as the top one and close it."""
-    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def type_in_editor(page: Page, test_id, text):

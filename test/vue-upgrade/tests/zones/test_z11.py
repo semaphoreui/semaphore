@@ -26,7 +26,7 @@ import pytest
 from playwright.sync_api import expect
 
 from vu.ui import (answer_api, button, dialog, expand_button, expect_snackbar, fail_api, field_input,
-                   field_message, field_selection, goto, hold_api, patch_api, requests_of, row, settle, snap,
+                   field_message, field_selection, goto, hold_api, patch_api, queued_timers_run, requests_of, row, settle, snap,
                    tid, wait_state, wait_until)
 
 ZONE = "z11"
@@ -185,14 +185,6 @@ def open_list(page, data, state="ready", empty=False):
     goto(page, data.list_path(empty), "workflows-page", state)
     if state != "loading":
         wait_state(page, "workflows-table", state)
-
-
-def queued_timers_run(page):
-    """Wait until every timer the page has queued so far has fired: a setTimeout queued now runs after
-    them. Vuetify 3 moves the top of its overlay stack (globalTop, which the Esc handler of an overlay
-    asks) in a setTimeout after it opens; under the suite's fake clock that timer fires late
-    (JOURNAL@C559E533D7), so an Esc pressed at once would meet the previous top."""
-    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def wf_row(page, name):

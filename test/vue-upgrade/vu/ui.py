@@ -135,6 +135,48 @@ def init_js(lang="en"):
 
 INIT_JS = init_js("en")
 
+# Date.now() of the page: the suite's fixed clock, and while the page handles a user input event — from
+# its dispatch to the end of that task — the fixed clock + k ms for the k-th input event of the page.
+# Vue 3's event invoker (runtime-dom) skips a listener attached at or after the event's time
+# (`e._vts <= invoker.attached`, both from Date.now()): meant for a listener that a handler of the same
+# event attaches on an ancestor while the event bubbles. Under a Date.now that never moves every listener
+# looks that new: an ancestor listener of an event is skipped once a descendant's listener ran — the
+# content click of a Vuetify 3 menu (close-on-content-click) after an item's own @click, the menu stays
+# open (JOURNAL@9A9258D7A5). Here an input event is later than every listener attached before it (k grows
+# with each input), and a listener attached while it is handled gets its time — skipped, as in a browser.
+# Outside input handling Date.now() is the fixed clock exactly (a time shown in a shot, a value sent
+# later — the export file name, polls, timers — does not change); k depends only on the inputs of the
+# test, the same in every run; `new Date()` always stays at the fixed clock (an expiry = clock + 30 days
+# computed in a click handler stays exact). The end of the task is a message posted to a MessageChannel
+# (a real task: the clock does not fake it).
+INPUT_EVENTS = ("pointerdown", "pointerup", "mousedown", "mouseup", "click", "auxclick", "dblclick",
+                "contextmenu", "keydown", "keypress", "keyup", "beforeinput", "input", "change", "wheel",
+                "touchstart", "touchend", "dragstart", "drop")
+INPUT_CLOCK_JS = """(() => {
+  const fixedNow = Date.now;
+  const taskEnd = new MessageChannel();
+  let inputs = 0;
+  let handling = false;
+  taskEnd.port1.onmessage = () => { handling = false; };
+  Date.now = function now() { return fixedNow.call(this) + (handling ? inputs : 0); };
+  const onInput = () => {
+    inputs += 1;
+    if (!handling) {
+      handling = true;
+      taskEnd.port2.postMessage(0);
+    }
+  };
+  for (const type of %s) window.addEventListener(type, onInput, {capture: true, passive: true});
+})();""" % json.dumps(list(INPUT_EVENTS))
+
+
+def freeze_clock(page: Page, clock):
+    """Freeze Date at <clock> (timers keep running), Date.now() with the input steps of INPUT_CLOCK_JS.
+    For a page that has not loaded the app yet: the steps start with its next document."""
+    page.clock.set_fixed_time(clock)
+    page.context.add_init_script(INPUT_CLOCK_JS)  # after the fake Date of the clock: wraps its now()
+
+
 EXTERNAL = re.compile(r"^(https?|wss?)://(?!(localhost|127\.0\.0\.1)(:\d+)?/)")
 
 
@@ -1088,6 +1130,15 @@ def wait_until(page: Page, check, what, timeout=10000, settle=True):
 
 def _two_frames(page: Page):
     page.evaluate("() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
+
+
+def queued_timers_run(page: Page):
+    """Wait until every timer the page has queued so far has fired: a setTimeout queued now runs after
+    them. Vuetify 3 moves the top of its overlay stack (globalTop, which the Esc handler of EditDialog
+    and of every overlay asks) in a setTimeout after a dialog or menu opens or closes; under the suite's
+    fake clock that timer fires 20–100 ms late (JOURNAL@C559E533D7), so an Esc pressed at once would meet
+    the previous top. Call it after the overlay opened, before the key."""
+    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def settle(page: Page, ms=0):

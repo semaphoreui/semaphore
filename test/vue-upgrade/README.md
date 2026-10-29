@@ -90,7 +90,13 @@ never by a threshold.
 - Window exactly mobile 390×844, tablet 768×1024, desktop 1440×900 (Vuetify xs / sm / lg in 2 and 4);
   device scale 1.
 - Light theme, `en-US` (and `localStorage.lang = en`), timezone UTC, `Date` frozen at
-  `meta.json` `clock` (end of the seed + 2 h; timers keep running).
+  `meta.json` `clock` (end of the seed + 2 h; timers keep running) by `freeze_clock`. While the page
+  handles a user input event (pointer / mouse down and up, click, key down and up, input, change,
+  wheel, touch — to the end of that task) `Date.now()` is `clock` + k ms for the k-th input event
+  (`INPUT_CLOCK_JS`): Vue 3 skips a listener attached at or after an event's `Date.now()`, and under a
+  clock that never moves it skipped every ancestor listener of an event — a Vuetify 3 menu stayed open
+  after a click on an item with its own `@click`. Outside input handling `Date.now()` is `clock`
+  exactly; `new Date()` always is.
 - Transitions and animations off (CSS + `animations="disabled"`), ripples hidden, caret hidden,
   mouse moved off the page before a shot.
 - Requests to anything but localhost are aborted.
@@ -227,9 +233,10 @@ def test_validation(ui, project):
 | Lookups | `tid`, `shown(scope, id)` (visible copies only — v-dialog keeps closed dialogs in the DOM), `wait_state`, `row(page, table, text, exact=False)` (`has_text` is a case-insensitive substring; `exact=True` — a cell with exactly this text), `expand_button(row)` |
 | Fields | `field_input` (input or textarea; its `click()` opens a Vuetify 3 v-select, whose input lets clicks through — `FieldInput`), `field_message` (shown messages only, a leaving one is left out), `field_selection` (Vuetify 2: v-select; 3: also v-autocomplete / v-combobox), `field_append` (the «eye»), `field_clear`, `toggle(scope, id, on)` (checkbox / switch), `open_menu(scope, id)` (select / autocomplete / combobox, also with a 0 px input), `option(page, name)`, `pick(page, scope, id, name)`, `chip_close(chip)`, `chip_close_by_text(scope, text)`, `editor(scope, id)` / `editor_type(page, id, text)` / `CM_CURSOR` mask (CodeMirror), `blur(page)` |
 | State by class (no ARIA for it in Vuetify 2; the classes are the same in 3, a v-tab is disabled as a v-btn) | `expect_active` (list / nav item), `expect_btn_active`, `active_in_group(scope, group id)` (v-btn-toggle), `expect_loading` (v-btn), `expect_tab_disabled`, `expect_chip_active`, `badge_dot`, `alert_close`, `tooltip`, `active_menu` |
-| Dialogs, menus, layout | `dialog` (waits until the card is drawn at its own size — the open transition scales it for a frame), `open_dialog`, `dialog_frame` / `active_dialog` (Vuetify 2: `.v-dialog--active`; 3: the `.v-overlay__content` of the active dialog — its visible box; the card inside scrolls), `button`, `menu_of(page, item id)` (Vuetify 2: ARIA `role=menu`; 3 gives a menu no role — the content of the active menu overlay), `open_sidebar(page, "<p>-drawerToggle")`, `press(loc)` (dispatches the click when the control is left / right of the window — mobile toolbars), `select_tab(tab)` (click event + `aria-selected`) |
+| Dialogs, menus, layout | `queued_timers_run(page)` (waits until every timer queued so far has fired: Vuetify 3 moves the top of its overlay stack in a `setTimeout` after an overlay opens or closes — call it before an Esc meant for the new top), `dialog` (waits until the card is drawn at its own size — the open transition scales it for a frame), `open_dialog`, `dialog_frame` / `active_dialog` (Vuetify 2: `.v-dialog--active`; 3: the `.v-overlay__content` of the active dialog — its visible box; the card inside scrolls), `button`, `menu_of(page, item id)` (Vuetify 2: ARIA `role=menu`; 3 gives a menu no role — the content of the active menu overlay), `open_sidebar(page, "<p>-drawerToggle")`, `press(loc)` (dispatches the click when the control is left / right of the window — mobile toolbars), `select_tab(tab)` (click event + `aria-selected`) |
 | Navigation | `goto` (also waits for the web fonts and fires a window resize — the v-tabs slider is measured with the real font), `goto_after_apps(page, path, pattern, …, change=None)` and `open_history(page, pid, last_task=None)` (lists held until `/api/apps` is in — the getAppIcon race, JOURNAL@236D70B238), `goto_apps_loaded(page, path, …)` (goto, then waits in the page until every GET `/api/apps` it sent is done — the template screen: «Edit» / «Copy» pressed before their dialog's apps are in open nothing for good), `full_load(page)` (expects a full document load), `settle_tabs(page, widen=False)`, `created_before(items, clock)` |
 | API | `answer_api(page, method, pattern, status=200, body=None)` → hits (requests; `hits.bodies` — what was sent; `body=None` — an empty body like a 204; `body` may be a callable(request)), `fail_api` (errors; hits are URLs; `{}` is sent as is → axios' «Request failed with status code N»), `abort_api` (network error), `patch_api(page, pattern, change)` (real answer changed; non-2xx passes), `only_names(page, pattern, names)`, `patch_info(page, **features)`, `hold_api(page, method, pattern)` → held (`held.wait()`, `held.release(status, body)`, `held.proceed()`, `held.drop()`), `requests_of(page, method, match)`, `responses_of`, `wait_console(page, text, count=1)`, `mock_socket(page)` (`/api/ws` without the server). All take `skip=N` (the first N calls go on), a glob, a regex or a predicate |
+| Clock | `freeze_clock(page, clock)` (the conftest's frozen `Date` with the input steps — for a page of a context of your own) |
 | Shot | `snap(..., hover=False, pad=0)` (`hover=True` keeps the mouse — tooltips, hover states; `pad` — px around the element), `stop_timers(page, clock)`, `snackbar` / `expect_snackbar` / `expect_no_snackbar` / `close_snackbar` / `hold_snackbar(page, clock, text, state)`, `wait_until(..., settle=True)` (`settle=False` once the clock is paused), `settle` |
 | Constants | `VUETIFY_*` (each holds the Vuetify 2 and the Vuetify 3 form: a CSS union or a regex alternation — the page's DOM picks the one that matches, no version flag), `VUETIFY_DARK_APP`, `CM_EDITOR` / `CM_CURSOR` (CodeMirror 5 `.CodeMirror` / `.CodeMirror-cursors`, CodeMirror 6 `.cm-content` / `.cm-cursorLayer`), `ALERT_CLOSE`, `DRAWFLOW_*` |
 
@@ -289,6 +296,12 @@ build logs it).
   dev server is hidden by the freeze CSS (it would take every click). A render error still breaks the
   patch of the parent there, which a production build survives — check such a failure on the built
   binary.
+- **Fixed clock and Vue 3 events.** Do not move the clock before a click to make a menu close
+  (`set_fixed_time(Date.now() + 1 s)`): the input steps of `Date.now()` already put every input after
+  the listeners attached before it. A listener attached while an event is handled is still skipped for
+  that event — as in a browser. Events that are not input (focus by script, transitionend, scroll) still
+  carry the fixed time: an ancestor listener of such an event attached since the last input is skipped.
+  A value made from `Date.now()` inside an input handler is `clock` + k ms.
 - **Paused clock.** After `page.clock.pause_at` (`stop_timers`, `hold_snackbar`) timers and
   `requestAnimationFrame` stand still: nothing that needs them may run (`wait_until(..., settle=False)`,
   no `settle`, no `goto`); step on with `page.clock.run_for(ms)`.

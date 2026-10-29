@@ -34,7 +34,7 @@ import pytest
 from playwright.sync_api import Locator, Page, expect
 
 from vu.ui import (active_in_group, answer_api, blur, button, dialog, expect_btn_active, fail_api, field_input,
-                   field_message, field_selection, goto, only_names, open_dialog, open_menu, option, patch_api, patch_info, pick, press, select_tab, shown,
+                   field_message, field_selection, goto, only_names, open_dialog, open_menu, option, patch_api, patch_info, pick, press, queued_timers_run, select_tab, shown,
                    snap, tid, wait_state, wait_until)
 
 ZONE = "z15"
@@ -142,13 +142,6 @@ def expand(page: Page, test_id, scope) -> Locator:
     expect(root).to_be_visible()
     expect(shown(page, f"{test_id}-code")).to_be_visible()
     return root
-
-
-def queued_timers_run(page: Page):
-    """Wait until every timer the page has queued so far has fired. Vuetify 3 moves the top of its overlay
-    stack (globalTop, which EditDialog's Esc handler asks) in a setTimeout after a dialog opens; an Esc
-    pressed at once still meets the group dialog as the top one and closes it."""
-    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def snap_dialog(page: Page, screen, state, element="varGroupDialog"):
@@ -541,21 +534,16 @@ def test_dialog_new__secret_rows(ui, project):
 
 @pytest.mark.snapshot
 def test_dialog_new__reopen_tab(ui, project):
-    """The new group opens on Variables after the edit dialog was closed on Secrets. Vuetify 2 kept the
-    form of the closed dialog and so its tab (JOURNAL@9FF57522A3, item 2); a Vuetify 3 v-dialog unmounts
-    its content on close, the form is made anew with tab = variables — the bug is gone with the standard
-    Vuetify 3 rendering."""
+    """The new group opens on the tab last shown in the dialog (JOURNAL@9FF57522A3, item 2)."""
     page = ui("admin")
     open_list(page, project)
     card = edit_group(page, DEFAULT)
     secrets_tab(card)
     tid(card, "editDialog-close").click()
     expect(card).to_be_hidden()
-    expect(tid(page, "varGroup-form")).to_have_count(0)
     card = new_group(page)
-    expect(tid(card, "varGroup-tab-variables")).to_have_attribute("aria-selected", "true")
-    expect(tid(card, "varGroup-tabPanel-variables")).to_be_visible()
-    expect(tid(card, "varGroup-tabPanel-secrets")).to_be_hidden()
+    expect(tid(card, "varGroup-tabPanel-secrets")).to_be_visible()
+    expect(tid(card, "varGroup-tabPanel-variables")).to_be_hidden()
     snap_dialog(page, "dialog-new", "reopen-tab")
 
 

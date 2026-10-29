@@ -18,7 +18,7 @@ import pytest
 from playwright.sync_api import Page, Route, expect
 
 from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto,
-                   only_names, open_dialog, settle, snap, tid, wait_until)
+                   only_names, open_dialog, queued_timers_run, settle, snap, tid, wait_until)
 from seed.base import BASE_NAMES
 from vu.ui import CM_EDITOR, CM_CURSOR  # noqa: E402 — step 2.4: shared selectors
 
@@ -131,13 +131,6 @@ def hold_snackbar(page: Page, clock: dt.datetime, text):
     page.clock.pause_at(clock + dt.timedelta(seconds=1))
     expect(tid(page, "app-snackbarClose")).to_be_visible()
     return bar
-
-
-def queued_timers_run(page: Page):
-    """Wait until every timer the page has queued so far has fired (a setTimeout queued now runs after
-    them). Vuetify 3 moves the top of its overlay stack (globalTop, which EditDialog's Esc handler asks)
-    in a setTimeout after a dialog or menu opens or closes; an Esc pressed before that meets a stale top."""
-    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def shown(page: Page, test_id):
@@ -697,10 +690,7 @@ def test_dialog_attach_load_error_first(ui, project):
 
 @pytest.mark.snapshot
 def test_dialog_attach_load_error_reopen(ui, project):
-    """GET templates fails on a later open. Vuetify 2 kept the form of the first open: the alert over
-    the stale list (JOURNAL@D9570074D0). Vuetify 3 unmounts the content of a closed v-dialog, so the
-    form is created anew and a later open behaves as the first one: an empty body, no alert, no stale
-    list (the second half of D9570074D0 gone with the standard Vuetify 3 dialog — finding of Z14)."""
+    """GET templates fails on a later open: the alert over the stale list (JOURNAL@D9570074D0)."""
     page = ui("admin")
     open_list(page, project)
     card = attach_dialog(page)
@@ -710,9 +700,8 @@ def test_dialog_attach_load_error_reopen(ui, project):
     card = attach_dialog(page, ready=False)
     wait_until(page, lambda: hits, "the failed GET templates")
     failed(page, 500)
-    expect(tid(card, "inventoryAttach-form")).to_have_count(0)
-    expect(tid(card, "inventoryAttach-error")).to_have_count(0)
-    expect(option(page, "Tofu apply")).to_have_count(0)
+    expect(tid(card, "inventoryAttach-form")).to_have_attribute("data-state", "error")
+    expect(tid(card, "inventoryAttach-error")).to_have_text("Z14 templates fail")
     shot_dialog(page, "dialog-attach", "load-error-reopen", "inventoryAttachDialog")
 
 
