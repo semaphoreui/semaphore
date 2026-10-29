@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null && isAppsLoaded"
     data-testid="apps-page"
@@ -31,7 +31,7 @@
         @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-btn
           icon
           class="mr-4"
@@ -40,11 +40,15 @@
       >
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title data-testid="apps-title">{{ $t('Applications') }}</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="apps-title"
+      >{{ $t('Applications') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
           :disabled="!canManageSystem"
           color="primary"
+          variant="elevated"
           @click="editItem('')"
           data-testid="apps-new"
       >{{ $t('New App') }}</v-btn>
@@ -55,15 +59,21 @@
         :items="items"
         class="mt-4"
         :items-per-page-options="[20]"
+        :items-per-page="20"
+        :mobile-breakpoint="600"
         data-testid="apps-table"
         :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.active="{ item }">
+        <!-- min-width: the grid of a Vuetify 3 v-input is 0 px at its narrowest, and the column
+             of the switch (beside the 100 % wide «ID») shrank to it: the switch covered
+             the names -->
         <v-switch
             :disabled="!canManageSystem"
             v-model="item.active"
             inset
-            @update:model-value="setActive(item.id, item.active)"
+            style="min-width: max-content"
+            @update:model-value="setActive(item.id, $event)"
             data-testid="apps-rowActive"
         ></v-switch>
       </template>
@@ -89,6 +99,7 @@
           <v-btn
               v-if="!isDefaultApp(item.id)"
               icon
+              variant="text"
               class="mr-1"
               @click="askDeleteItem(item.id)"
               :disabled="item.id === userId"
@@ -99,6 +110,7 @@
 
           <v-btn
               icon
+              variant="text"
               class="mr-1"
               @click="editItem(item.id)"
               data-testid="apps-rowEdit"

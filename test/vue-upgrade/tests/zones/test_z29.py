@@ -17,8 +17,8 @@ import re
 import pytest
 from playwright.sync_api import Page, Route, expect
 
-from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, open_dialog,
-                   row, snap, tid, wait_until)
+from vu.ui import (button, dialog, dialog_frame, fail_api, field_input, field_message, field_selection,
+                   goto, open_dialog, row, snap, tid, wait_until)
 
 ZONE = "z29"
 DEMO = "Seed Demo"
@@ -200,6 +200,15 @@ def new_app_dialog(page):
     card = open_dialog(page, "apps-new", APP_DIALOG)
     expect(tid(card, "appForm-form")).to_have_attribute("data-state", "ready")
     return card
+
+
+def entered(page, card_id):
+    """Wait until the open dialog <card_id> has taken the focus — the end of its enter transition.
+    Vuetify 3 runs the transition as a Web Animation (the freeze CSS leaves it), and at its end
+    (afterEnter) the dialog moves the focus into itself unless it is already there: a nested dialog
+    opened earlier loses the focus of its autofocus field to the outer one."""
+    frame = dialog_frame(page, card_id)
+    page.wait_for_function("(el) => el.contains(document.activeElement)", arg=frame.element_handle())
 
 
 def edit_app_dialog(page, app_id):
@@ -395,6 +404,7 @@ def test_apps_dialog_new_args_dialog(ui):
     page = ui("admin")
     open_apps(page)
     card = new_app_dialog(page)
+    entered(page, APP_DIALOG)
     tid(card, "appForm-args-add").click()
     args = dialog(page, "appForm-argsDialog")
     expect(field_input(args, "appForm-argsDialog-name")).to_be_focused()

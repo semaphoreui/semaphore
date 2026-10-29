@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null"
     data-testid="tokens-page"
@@ -22,6 +22,7 @@
           <v-select
             v-model="expiresInDays"
             :items="expiryOptions"
+            item-title="text"
             :label="$t('Expires')"
             variant="outlined"
             density="compact"
@@ -65,11 +66,14 @@
       <v-btn icon class="mr-4" @click="returnToProjects()" data-testid="tokens-back">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title data-testid="tokens-title">{{ $t('api_tokens') }}</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="tokens-title"
+      >{{ $t('api_tokens') }}</v-toolbar-title>
       <v-spacer></v-spacer>
 
       <a
-        :href="`${this.systemInfo?.web_host || ''}/swagger/index.html`"
+        :href="`${systemInfo?.web_host || ''}/swagger/index.html`"
         class="mr-6"
         target="_blank"
         data-testid="tokens-apiReference"
@@ -79,6 +83,7 @@
 
       <v-btn
         color="primary"
+        variant="elevated"
         @click="newToken()"
         data-testid="tokens-new"
       >{{ $t('New Token') }}</v-btn>
@@ -91,6 +96,8 @@
       :items="items"
       class="mt-4"
       :items-per-page-options="[20]"
+      :items-per-page="20"
+      :mobile-breakpoint="600"
       data-testid="tokens-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -104,6 +111,7 @@
 
         <v-btn
           icon
+          variant="text"
           v-if="item.token_id && !item.show_token_id"
           @click="showToken(item.id)"
           data-testid="tokens-rowShow"
@@ -144,6 +152,7 @@
           <v-chip
             v-if="item.expired"
             style="font-weight: bold"
+            variant="flat"
             color="error"
             data-testid="tokens-rowStatus-revoked"
           >
@@ -152,6 +161,7 @@
           <v-chip
             v-else-if="isExpiredByTime(item)"
             style="font-weight: bold"
+            variant="flat"
             color="warning"
             data-testid="tokens-rowStatus-expired"
           >
@@ -160,6 +170,7 @@
           <v-chip
             v-else
             style="font-weight: bold"
+            variant="flat"
             color="success"
             data-testid="tokens-rowStatus-active"
           >
@@ -170,7 +181,13 @@
 
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap" data-testid="tokens-rowActions">
-          <v-btn icon class="mr-1" @click="deleteItem(item.id)" data-testid="tokens-rowDelete">
+          <v-btn
+            icon
+            variant="text"
+            class="mr-1"
+            @click="deleteItem(item.id)"
+            data-testid="tokens-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </div>
