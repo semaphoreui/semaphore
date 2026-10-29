@@ -73,6 +73,18 @@ func TestWorkflowPermissions_AreRecorded(t *testing.T) {
 	assert.Equal(t, audit.WorkflowPermissionMetadata{WorkflowID: 3}, deleted.Event.Metadata, "a delete carries identity only")
 }
 
+func TestUpdateWorkflowPerm_UnknownGrantIsNotFound(t *testing.T) {
+	store := sqlstore.InitConfigCreateTestStore()
+	controller := NewWorkflowPermController(&fakeWorkflowRoles{getErr: db.ErrNotFound})
+	r, rec := workflowPermRequest(t, store, http.MethodPut, `{"role_slug":"guest","permissions":16}`, "5")
+	w := httptest.NewRecorder()
+
+	controller.UpdateWorkflowPerm(w, r)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Empty(t, rec.All())
+}
+
 func TestWorkflowPermissions_RejectUnknownBits(t *testing.T) {
 	store := sqlstore.InitConfigCreateTestStore()
 	controller := NewWorkflowPermController(&fakeWorkflowRoles{existing: db.WorkflowRolePerm{ID: 5, RoleID: 7}})

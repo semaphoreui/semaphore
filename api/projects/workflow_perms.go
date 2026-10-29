@@ -8,7 +8,6 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/audit"
-	log "github.com/sirupsen/logrus"
 )
 
 // WorkflowPermController grants roles on one workflow, the twin of the template permission handlers.
@@ -99,26 +98,24 @@ func (c *WorkflowPermController) UpdateWorkflowPerm(w http.ResponseWriter, r *ht
 	perm.ProjectID = workflow.ProjectID
 	perm.WorkflowID = workflow.ID
 
-	err := c.workflowRoles.UpdateWorkflowRole(perm)
+	// The update changes only permissions, so the role comes from the stored grant.
+	stored, err := c.workflowRoles.GetWorkflowRole(workflow.ProjectID, workflow.ID, permID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
-
-	// The update changes only permissions, so the role comes from the stored rule.
-	var role audit.RoleRef
-	if stored, err := c.workflowRoles.GetWorkflowRole(workflow.ProjectID, workflow.ID, permID); err != nil {
-		log.WithError(err).WithField("context", "audit").Error("Cannot read the workflow permission for the audit")
-	} else {
-		role = audit.NewRoleRef(db.Role{ID: stored.RoleID, Slug: stored.RoleSlug})
+	if err = c.workflowRoles.UpdateWorkflowRole(perm); err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
+
 	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.IAMWorkflowPermissionUpdate,
 		Target:    &audit.Target{Type: audit.TargetWorkflowPermission, ID: strconv.Itoa(permID)},
 		ProjectID: workflow.ProjectID,
 		Metadata: audit.WorkflowPermissionMetadata{
 			WorkflowID:  workflow.ID,
-			Role:        role,
+			Role:        audit.NewRoleRef(db.Role{ID: stored.RoleID, Slug: stored.RoleSlug}),
 			Permissions: audit.PermissionNames(perm.Permissions),
 		},
 	})
