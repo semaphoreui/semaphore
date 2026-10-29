@@ -1,6 +1,8 @@
 package project
 
 import (
+	"fmt"
+
 	"github.com/semaphoreui/semaphore/db"
 )
 
@@ -22,8 +24,8 @@ type BackupDB struct {
 	integrationExtractValues map[int][]db.IntegrationExtractValue
 
 	secretStorages []db.SecretStorage
-	globalRoles    []db.Role
 	roles          []db.Role
+	unassigned     []UnassignedRole
 	templateRoles  map[int][]db.TemplateRolePerm
 	runners        []db.Runner
 	workflows      []db.WorkflowTemplate
@@ -37,7 +39,52 @@ type BackupDB struct {
 	workflowStore db.WorkflowManager
 }
 
+// BackupFormatVersion is 2: files before it carry no version and refer to roles by name.
+const BackupFormatVersion = 2
+
+// CleanupError says the project stayed behind after a failed restore.
+type CleanupError struct {
+	ProjectID int
+	Err       error
+	DeleteErr error
+}
+
+func (e *CleanupError) Error() string {
+	return fmt.Sprintf("%v (project %d could not be removed: %v)", e.Err, e.ProjectID, e.DeleteErr)
+}
+
+func (e *CleanupError) Unwrap() error { return e.Err }
+
+// UnassignedTemplate is a template whose grant to the role was not restored.
+type UnassignedTemplate struct {
+	ID          int                      `json:"id"`
+	Name        string                   `json:"name"`
+	Permissions db.ProjectUserPermission `json:"permissions"`
+}
+
+// Why a role is in the report.
+const (
+	ReasonNotInFile = "not_in_file"
+	ReasonSlugTaken = "slug_taken"
+)
+
+// UnassignedRole is a role the restore left to the user: not in the file, or its slug is held by a shared role.
+type UnassignedRole struct {
+	Slug        string                   `json:"slug"`
+	Reason      string                   `json:"reason"`
+	Name        string                   `json:"name,omitempty"`
+	Permissions db.ProjectUserPermission `json:"permissions,omitempty"`
+	Templates   []UnassignedTemplate     `json:"templates"`
+}
+
+// RestoredProject is the restore result: the project and what it did not restore.
+type RestoredProject struct {
+	db.Project
+	UnassignedRoles []UnassignedRole `json:"unassigned_roles"`
+}
+
 type BackupFormat struct {
+	Version            int                   `backup:"version"`
 	Meta               BackupMeta            `backup:"meta"`
 	Templates          []BackupTemplate      `backup:"templates"`
 	Repositories       []BackupRepository    `backup:"repositories"`
@@ -96,8 +143,7 @@ type BackupHostConfig struct {
 }
 
 type BackupTemplateRole struct {
-	Role        string                   `backup:"role"`
-	IsGlobal    bool                     `backup:"is_global"`
+	Slug        string                   `backup:"slug"`
 	Permissions db.ProjectUserPermission `backup:"permissions"`
 }
 

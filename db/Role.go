@@ -49,10 +49,10 @@ func GlobalPermissionCatalog() []GlobalPermissionDefinition {
 // project. Instance-wide permissions live in GlobalRole, never here.
 type Role struct {
 	ID          int                   `db:"id" json:"id" backup:"-"`
-	Slug        string                `db:"slug" json:"slug" backup:"-"`
+	Slug        string                `db:"slug" json:"slug"`
 	Name        string                `db:"name" json:"name"`
 	Permissions ProjectUserPermission `db:"permissions" json:"permissions"`
-	ProjectID   *int                  `db:"project_id" json:"project_id"`
+	ProjectID   *int                  `db:"project_id" json:"project_id" backup:"-"`
 	Scope       int                   `db:"scope" json:"-" backup:"-"`
 	Builtin     bool                  `db:"builtin" json:"builtin" backup:"-"`
 }
@@ -107,11 +107,15 @@ func ValidateRole(role Role, isNew bool) error {
 	if err := validateRoleSlug(role.Slug); err != nil {
 		return err
 	}
-	// "all" is taken by the /project/{id}/roles/all route.
-	if ProjectUserRole(strings.ToLower(role.Slug)).IsValid() || strings.EqualFold(role.Slug, "all") {
+	if IsReservedRoleSlug(role.Slug) {
 		return &common_errors.ValidationError{Message: "Role slug is reserved: " + role.Slug}
 	}
 	return nil
+}
+
+// IsReservedRoleSlug is true for the built-in slugs and "all", taken by the /project/{id}/roles/all route.
+func IsReservedRoleSlug(slug string) bool {
+	return ProjectUserRole(strings.ToLower(slug)).IsValid() || strings.EqualFold(slug, "all")
 }
 
 // ValidateGlobalRole checks a global role sent by a user. As with ValidateRole, the slug is checked only

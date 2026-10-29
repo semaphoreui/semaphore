@@ -102,11 +102,13 @@ var projectImportCmd = &cobra.Command{
 
 		okCount := 0
 		for _, f := range files {
-			if err := importProjectFromFile(f, targetProjectImportArgs.projectName, user, store); err != nil {
+			restored, err := importProjectFromFile(f, targetProjectImportArgs.projectName, user, store)
+			if err != nil {
 				log.Errorf("failed to import %s: %v", f, err)
 				continue
 			}
 			fmt.Printf("Imported project from %s\n", f)
+			printUnassignedRoles(restored.UnassignedRoles)
 			okCount++
 		}
 
@@ -142,22 +144,42 @@ func resolveImportUser(store db.Store) (res db.User, err error) {
 	return
 }
 
-func importProjectFromFile(path string, projectName string, user db.User, store db.Store) error {
+func importProjectFromFile(path string, projectName string, user db.User, store db.Store) (*projectService.RestoredProject, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var backup projectService.BackupFormat
 	if err := backup.Unmarshal(string(data)); err != nil {
-		return err
+		return nil, err
 	}
 	if err := backup.Verify(); err != nil {
-		return err
+		return nil, err
 	}
 	if projectName != "" {
 		backup.Meta.Name = projectName
 	}
 	workflowStore := proFactory.NewWorkflowStore(store)
-	_, err = backup.Restore(user, store, workflowStore)
-	return err
+	return backup.Restore(user, store, workflowStore)
+}
+
+func printUnassignedRoles(roles []projectService.UnassignedRole) {
+	if len(roles) == 0 {
+		return
+	}
+	fmt.Println("Roles not assigned, assign them in the UI:")
+	for _, role := range roles {
+		templates := make([]string, 0, len(role.Templates))
+		for _, t := range role.Templates {
+			templates = append(templates, t.Name)
+		}
+		line := "  " + role.Slug
+		if role.Reason == projectService.ReasonSlugTaken {
+			line += " (slug is taken, role not created)"
+		}
+		if len(templates) > 0 {
+			line += ": " + strings.Join(templates, ", ")
+		}
+		fmt.Println(line)
+	}
 }
