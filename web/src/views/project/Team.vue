@@ -60,7 +60,6 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="-1"
-      :mobile-breakpoint="600"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.roles="{ item }">

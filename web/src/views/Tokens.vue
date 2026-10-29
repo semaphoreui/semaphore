@@ -94,10 +94,9 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      class="mt-4"
+      class="mt-4 FixedPageSizeTable"
       :items-per-page-options="[20]"
       :items-per-page="20"
-      :mobile-breakpoint="600"
       data-testid="tokens-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >

@@ -10,7 +10,6 @@
       :items="runs || []"
       :loading="runs == null"
       :items-per-page="-1"
-      :mobile-breakpoint="600"
       :no-data-text="$t('notLaunched')"
       data-testid="workflowRuns-table"
       :data-state="runs == null ? 'loading' : (runs.length === 0 ? 'empty' : 'ready')"

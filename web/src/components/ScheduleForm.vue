@@ -22,11 +22,10 @@
       <code>schedule.timezone</code> to set timezone for Schedule.
     </v-alert>
 
-    <!-- mb-4: the margin of a Vuetify 2 alert; without it the alert covers the label of «Name» -->
     <v-alert
       :model-value="!!formError"
       color="error"
-      class="pb-2 mb-4"
+      class="pb-2"
       data-testid="scheduleForm-error"
     >{{ formError }}
     </v-alert>

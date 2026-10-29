@@ -9,6 +9,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     v-model="dialog"
     :max-width="maxWidth || 400"
     persistent
+    :eager="booted"
     :close-on-back="false"
     :fullscreen="expandable && fullscreen"
     :transition="false"
@@ -171,6 +172,9 @@ export default {
   data() {
     return {
       dialog: false,
+      // The content is rendered on the first open and then kept, as `v-dialog` of Vuetify 2 did:
+      // Vuetify 3 unmounts it on close, and the form would be created again on every open.
+      booted: false,
       needSave: false,
       needReset: false,
       fullscreen: null,
@@ -180,6 +184,9 @@ export default {
 
   watch: {
     async dialog(val) {
+      if (val) {
+        this.booted = true;
+      }
       this.needReset = val;
       this.$emit('update:modelValue', val);
       if (val) {

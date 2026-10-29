@@ -4,11 +4,8 @@
     data-testid="keystore-page"
     :data-state="items.length === 0 ? 'empty' : 'ready'"
   >
-    <!-- eager after the first opening: Vuetify 3 unmounts the content of a closed dialog, Vuetify 2
-         kept the form mounted — KeyForm loads the storages once per screen, needReset clears it -->
     <EditDialog
       v-model="editDialog"
-      :eager="editDialog != null"
       test-id="keystoreDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Key`"
@@ -106,7 +103,6 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="-1"
-      :mobile-breakpoint="600"
       data-testid="keystore-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"

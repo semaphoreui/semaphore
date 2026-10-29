@@ -166,7 +166,6 @@
       :headers="tableHeaders"
       :items="items"
       :items-per-page="-1"
-      :mobile-breakpoint="600"
       :expanded="openedItems"
       @update:expanded="openedItems = $event.slice(-1)"
       :style="{

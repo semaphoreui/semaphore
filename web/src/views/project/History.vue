@@ -24,7 +24,6 @@
       :headers="headers"
       :items="items"
       :items-per-page="-1"
-      :mobile-breakpoint="600"
       :loading="loading"
       hide-default-footer
       class="mt-4 HistoryTable"

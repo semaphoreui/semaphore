@@ -38,13 +38,6 @@
 @use 'sass:map';
 @use '@/scss/variables' as settings;
 
-// Vuetify 2 coloured every link and gave it a pointer (`.v-application a`); Vuetify 3 does not,
-// and this link has no href.
-.task-link a {
-  color: rgb(var(--v-theme-primary));
-  cursor: pointer;
-}
-
 .task-link-with-tooltip {
   text-decoration: underline !important;
   text-decoration-style: dashed !important;

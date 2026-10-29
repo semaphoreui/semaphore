@@ -114,7 +114,6 @@
       :items="items"
       class="mt-4"
       :items-per-page="-1"
-      :mobile-breakpoint="600"
       data-testid="integrations-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"

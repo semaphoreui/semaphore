@@ -99,7 +99,6 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="-1"
-      :mobile-breakpoint="600"
       data-testid="schedule-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="

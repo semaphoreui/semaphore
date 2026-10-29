@@ -134,9 +134,27 @@ export default {
 
   emits: ['update:modelValue'],
 
+  computed: {
+    debugLevelMissing() {
+      return !!this.templateParams?.allow_debug && this.params.debug_level == null;
+    },
+  },
+
   watch: {
     modelValue(val) {
       this.params = val;
+    },
+
+    // The debug level slider defaults to its min, 1. Vuetify 2 v-slider clamped a missing value
+    // to min and wrote it back through v-model, so New Task (its params come without debug_level)
+    // showed «-v» and sent debug_level 1; Vuetify 3 leaves the model as it is.
+    debugLevelMissing: {
+      immediate: true,
+      handler(missing) {
+        if (missing) {
+          this.params.debug_level = 1;
+        }
+      },
     },
   },
 

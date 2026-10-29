@@ -79,10 +79,9 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      class="mt-4"
-      :items-per-page="10"
+      class="mt-4 FixedPageSizeTable"
       :items-per-page-options="[20]"
-      :mobile-breakpoint="600"
+      :items-per-page="20"
       data-testid="roleMappings-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >

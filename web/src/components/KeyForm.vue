@@ -138,13 +138,10 @@
       data-testid="key-type"
     />
 
-    <!-- mb-4: the margin of a Vuetify 2 v-alert (none in 3) — without it Override (absolute, at the
-         bottom of the dialog) touches the alert -->
     <v-alert
       v-if="isReadOnly"
       type="info"
       variant="tonal"
-      class="mb-4"
       data-testid="key-readOnlyAlert"
     >Read-only secret storage chosen.</v-alert>
 
@@ -275,7 +272,6 @@
       variant="tonal"
       type="info"
       v-if="item.type === 'none'"
-      class="mb-4"
       data-testid="key-noneInfo"
     >
       {{ $t('useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook') }}

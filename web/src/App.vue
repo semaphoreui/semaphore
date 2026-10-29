@@ -1494,6 +1494,8 @@ export default {
   },
 
   mounted() {
+    document.addEventListener('click', this.onDocumentClick, true);
+
     EventBus.$on('i-subscription', (e) => {
       this.subscriptionDialog_feature = e.feature;
       this.subscriptionDialog = true;
@@ -1627,7 +1629,32 @@ export default {
     });
   },
 
+  beforeUnmount() {
+    document.removeEventListener('click', this.onDocumentClick, true);
+  },
+
   methods: {
+    /**
+     * Closes the temporary (mobile) drawer on a click outside it and its menus, as the
+     * click-outside of `v-navigation-drawer` did in Vuetify 2 (its menus were dependents);
+     * Vuetify 3 closes it only by its scrim, so a dialog opened from the drawer left it open.
+     */
+    onDocumentClick(e) {
+      if (!this.drawer || !e.isTrusted) {
+        return;
+      }
+      const nav = document.querySelector('.NavDrawer');
+      if (!nav || !nav.classList.contains('v-navigation-drawer--temporary')) {
+        return;
+      }
+      if (nav.contains(e.target) || (e.target.closest && e.target.closest('.v-menu'))) {
+        return;
+      }
+      setTimeout(() => {
+        this.drawer = false;
+      }, 0);
+    },
+
     async onSubscriptionKeyUpdates() {
       EventBus.$emit('i-snackbar', {
         color: 'success',

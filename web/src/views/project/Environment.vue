@@ -71,7 +71,6 @@
       hide-default-footer
       class="mt-4 CenterToScreen"
       :items-per-page="-1"
-      :mobile-breakpoint="600"
       data-testid="varGroup-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width) - 200px); margin: auto"

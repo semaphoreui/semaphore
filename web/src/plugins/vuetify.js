@@ -84,6 +84,14 @@ export default createVuetify({
       dark: { dark: true, colors: colors.dark },
     },
   },
+  defaults: {
+    VDataTable: {
+      // Vuetify 2 defaults of `v-data-table`: rows as cards below 600 px (Vuetify 3 never
+      // switches without a breakpoint) and the rows-per-page options of the footer.
+      mobileBreakpoint: 600,
+      itemsPerPageOptions: [5, 10, 15, -1],
+    },
+  },
   display: {
     // Breakpoints of Vuetify 2 (the same as $grid-breakpoints in scss/variables.scss);
     // `mobile` below lg, as in Vuetify 2.

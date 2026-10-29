@@ -83,9 +83,9 @@
       :headers="headers"
       :items="items"
       item-value="id"
-      class="mt-4"
+      class="mt-4 FixedPageSizeTable"
       :items-per-page-options="[20]"
-      :mobile-breakpoint="600"
+      :items-per-page="20"
       data-testid="globalRoles-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >

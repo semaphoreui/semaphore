@@ -7,7 +7,15 @@
       :data-testid="`${testId}-buffer`"
     ></textarea>
 
-    <v-btn icon @click="copy()" :size="large ? 'large' : undefined" :data-testid="testId">
+    <!-- variant text: `icon` of Vuetify 2 was a flat button; the elevated default of Vuetify 3
+         puts a white circle under the icon (a white icon disappears on it) -->
+    <v-btn
+      icon
+      variant="text"
+      @click="copy()"
+      :size="large ? 'large' : undefined"
+      :data-testid="testId"
+    >
       <v-icon :color="color">mdi-content-copy</v-icon>
     </v-btn>
   </span>

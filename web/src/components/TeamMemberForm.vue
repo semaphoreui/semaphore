@@ -9,7 +9,7 @@
     <v-alert
       :model-value="!!formError"
       color="error"
-      class="pb-2 mb-4"
+      class="pb-2"
       data-testid="teamMember-error"
     >{{ formError }}
     </v-alert>

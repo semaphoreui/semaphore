@@ -13,7 +13,6 @@
       :headers="headers"
       :items="tasks"
       :items-per-page="-1"
-      :mobile-breakpoint="600"
       :loading="loading"
       hide-default-footer
       class="mt-0 TaskListTable"

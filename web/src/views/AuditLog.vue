@@ -110,7 +110,6 @@
       :loading="loading"
       item-value="seq"
       :items-per-page="-1"
-      :mobile-breakpoint="600"
       hide-default-footer
       disable-sort
       class="mt-2 AuditLog__table"

@@ -71,3 +71,43 @@
     border-bottom-right-radius: 0 !important;
   }
 }
+
+// Global styles of Vuetify 2 that Vuetify 3 does not have. `:where()` keeps the weight of the
+// link and code rules at the bare element, so the colours of Vuetify components rendered as `<a>`
+// win, as they did in Vuetify 2; overlays are teleported outside `.v-application`, into
+// `.v-overlay-container`.
+:where(.v-application, .v-overlay-container) {
+  a {
+    color: rgb(var(--v-theme-primary));
+    cursor: pointer;
+  }
+
+  code {
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    background-color: rgba(0, 0, 0, 0.05);
+    color: currentColor;
+    font-size: 85%;
+    font-weight: normal;
+  }
+}
+
+:where(.v-theme--dark) code {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+// Space under an alert, as `.v-alert` of Vuetify 2 had (utility classes `mb-*` override it).
+.v-alert {
+  margin-bottom: 16px;
+}
+
+// Buttons of a dense group: `v-btn-toggle dense` of Vuetify 2 (48 px wide, 8 px padding).
+.v-btn-group--density-compact > .v-btn {
+  min-width: 48px;
+  padding: 0 8px;
+}
+
+// A table with one rows-per-page option: Vuetify 2 showed no rows-per-page select.
+.FixedPageSizeTable .v-data-table-footer__items-per-page {
+  display: none;
+}

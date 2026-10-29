@@ -146,7 +146,6 @@
           :items="status.nodes"
           :items-per-page="20"
           density="compact"
-          :mobile-breakpoint="600"
           data-testid="cluster-nodesTable"
           :data-state="status.nodes.length === 0 ? 'empty' : 'ready'"
         >
@@ -268,7 +267,6 @@
               :headers="taskHeaders"
               :items="queueRows"
               density="compact"
-              :mobile-breakpoint="600"
               data-testid="cluster-queueTable"
               :data-state="tasks == null
                 ? 'loading' : (queueRows.length === 0 ? 'empty' : 'ready')"
@@ -279,7 +277,6 @@
               :headers="taskHeaders"
               :items="runningRows"
               density="compact"
-              :mobile-breakpoint="600"
               data-testid="cluster-runningTable"
               :data-state="tasks == null
                 ? 'loading' : (runningRows.length === 0 ? 'empty' : 'ready')"
@@ -290,7 +287,6 @@
               :headers="taskHeaders"
               :items="activeRows"
               density="compact"
-              :mobile-breakpoint="600"
               data-testid="cluster-activeByProjectTable"
               :data-state="tasks == null
                 ? 'loading' : (activeRows.length === 0 ? 'empty' : 'ready')"
@@ -301,7 +297,6 @@
               :headers="aliasHeaders"
               :items="aliasRows"
               density="compact"
-              :mobile-breakpoint="600"
               data-testid="cluster-aliasesTable"
               :data-state="tasks == null
                 ? 'loading' : (aliasRows.length === 0 ? 'empty' : 'ready')"
@@ -312,7 +307,6 @@
               :headers="claimHeaders"
               :items="claimRows"
               density="compact"
-              :mobile-breakpoint="600"
               data-testid="cluster-claimsTable"
               :data-state="tasks == null
                 ? 'loading' : (claimRows.length === 0 ? 'empty' : 'ready')"

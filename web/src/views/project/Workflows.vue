@@ -60,7 +60,6 @@
       :headers="tableHeaders"
       :items="items"
       :items-per-page="-1"
-      :mobile-breakpoint="600"
       :expanded="openedItems"
       @update:expanded="openedItems = $event.slice(-1)"
       data-testid="workflows-table"
@@ -141,7 +140,6 @@
               :items="runs[item.id] || []"
               :loading="runsLoading[item.id]"
               :items-per-page="5"
-              :mobile-breakpoint="600"
               :no-data-text="$t('notLaunched')"
               data-testid="workflows-runsTable"
               :data-state="runsLoading[item.id]

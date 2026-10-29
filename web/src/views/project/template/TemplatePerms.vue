@@ -65,7 +65,6 @@
       hide-default-footer
       class="mt-4"
       :items-per-page="Number.MAX_VALUE"
-      :mobile-breakpoint="600"
       data-testid="templatePerms-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >

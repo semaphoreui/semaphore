@@ -64,7 +64,6 @@
       show-expand
       :expanded="expanded"
       @update:expanded="expanded = $event.slice(-1)"
-      :mobile-breakpoint="600"
       :headers="notOkServersHeaders"
       :items="failedTasks"
       :items-per-page="-1"

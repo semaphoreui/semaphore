@@ -539,10 +539,10 @@ semaphore runner start --config ./config.runner.json</pre
     <v-data-table
       :headers="headers"
       :items="filteredItems"
-      class="mt-4"
+      class="mt-4 FixedPageSizeTable"
       :style="projectId && !features.project_runners ? 'opacity: 0.4' : ''"
       :items-per-page-options="[20]"
-      :mobile-breakpoint="600"
+      :items-per-page="20"
       data-testid="runners-table"
       :data-state="filteredItems.length === 0 ? 'empty' : 'ready'"
     >

@@ -7,9 +7,7 @@
     data-testid="varGroup-form"
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
-    <!-- mb-4: the bottom margin of a Vuetify 2 alert; without it the label of the name field goes
-         under the alert (JOURNAL@0B20914112) -->
-    <v-alert :model-value="!!formError" color="error" class="mb-4" data-testid="varGroup-error"
+    <v-alert :model-value="!!formError" color="error" data-testid="varGroup-error"
       >{{ formError }}
     </v-alert>
 

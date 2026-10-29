@@ -101,9 +101,9 @@
       :headers="headers"
       :items="items"
       item-value="slug"
-      class="mt-4"
+      class="mt-4 FixedPageSizeTable"
       :items-per-page-options="[20]"
-      :mobile-breakpoint="600"
+      :items-per-page="20"
     >
       <template v-slot:item.name="{ item }">
         <div data-testid="roles-rowName">{{ item.name }}</div>

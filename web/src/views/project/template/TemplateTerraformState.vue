@@ -287,11 +287,11 @@
             :headers="headers"
             :items="states"
             :items-per-page-options="[20]"
-            :mobile-breakpoint="600"
+            :items-per-page="20"
             show-expand
             :expanded="expanded"
             @update:expanded="expanded = $event.slice(-1)"
-            class="mt-4 TaskListTable TaskListTable TerraformStateTable"
+            class="mt-4 TaskListTable TaskListTable TerraformStateTable FixedPageSizeTable"
             data-testid="templateState-table"
             :data-state="states.length === 0 ? 'empty' : 'ready'"
           >
