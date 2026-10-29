@@ -132,7 +132,7 @@ func TestKnownReasonsExcludeEmpty(t *testing.T) {
 func TestPermissionNames(t *testing.T) {
 	assert.Equal(t, []string{}, PermissionNames(0))
 	assert.Equal(t, []string{"run_tasks", "manage_users"}, PermissionNames(db.CanRunProjectTasks|db.CanManageProjectUsers))
-	assert.Equal(t, []string{"run_tasks", "update_project", "manage_resources", "manage_users", "run_workflows", "edit_workflows", "approve_workflows"}, PermissionNames(db.KnownRolePermissions))
+	assert.Equal(t, []string{"read_project", "run_tasks", "update_project", "manage_resources", "manage_users", "run_workflows", "edit_workflows", "approve_workflows"}, PermissionNames(db.KnownRolePermissions))
 }
 
 func TestTruncateName(t *testing.T) {
