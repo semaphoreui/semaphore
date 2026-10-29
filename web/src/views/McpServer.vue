@@ -102,7 +102,7 @@
     </v-alert>
 
     <v-alert
-      v-else-if="!features.mcp"
+      v-else-if="!features.mcp && !proLicenseWithoutSeat"
       text
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
@@ -165,10 +165,15 @@ export default {
 
     // An active Pro or Enterprise license turns on task_summary for everyone, and an Enterprise
     // one turns on MCP for everyone too: so without MCP here the license is Pro and the user has
-    // no Pro seat. Only an administrator gives a seat.
-    needsProSeat() {
+    // no Pro seat.
+    proLicenseWithoutSeat() {
       return this.systemInfo?.subscription_state === 'active'
         && !!this.features.task_summary && !this.features.mcp;
+    },
+
+    // A seat gives nothing while MCP is switched off: the page says it is off instead.
+    needsProSeat() {
+      return this.proLicenseWithoutSeat && !!this.systemInfo?.mcp?.enabled;
     },
 
     canManageSystem() {

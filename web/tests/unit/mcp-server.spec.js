@@ -23,15 +23,25 @@ describe('McpServer.vue', () => {
   });
 
   it('tells a user without a Pro seat on a Pro license apart from a missing license', () => {
-    const needsProSeat = (state, features) => McpServer.computed.needsProSeat.call({
+    const withoutSeat = (state, features) => McpServer.computed.proLicenseWithoutSeat.call({
       features,
       systemInfo: { subscription_state: state },
     });
-    expect(needsProSeat('active', { task_summary: true, mcp: false }), 'Pro, no seat').to.equal(true);
-    expect(needsProSeat('active', { task_summary: true, mcp: true }), 'Pro with a seat or Enterprise').to.equal(false);
-    expect(needsProSeat('', {}), 'no license').to.equal(false);
-    expect(needsProSeat('expired', {}), 'an expired license').to.equal(false);
-    expect(needsProSeat('active', {}), 'a plan the server does not know').to.equal(false);
+    expect(withoutSeat('active', { task_summary: true, mcp: false }), 'Pro, no seat').to.equal(true);
+    expect(withoutSeat('active', { task_summary: true, mcp: true }), 'Pro with a seat or Enterprise').to.equal(false);
+    expect(withoutSeat('', {}), 'no license').to.equal(false);
+    expect(withoutSeat('expired', {}), 'an expired license').to.equal(false);
+    expect(withoutSeat('active', {}), 'a plan the server does not know').to.equal(false);
+  });
+
+  it('asks for a Pro seat only while MCP is switched on', () => {
+    const needsProSeat = (proLicenseWithoutSeat, enabled) => McpServer.computed.needsProSeat.call({
+      proLicenseWithoutSeat,
+      systemInfo: { mcp: { enabled } },
+    });
+    expect(needsProSeat(true, true)).to.equal(true);
+    expect(needsProSeat(true, false), 'switched off: the page says so instead').to.equal(false);
+    expect(needsProSeat(false, true)).to.equal(false);
   });
 
   it('takes the tab from the address and changes the address with the tab', () => {
