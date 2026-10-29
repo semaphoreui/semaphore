@@ -22,7 +22,7 @@
       {{ $t('noGlobalRolesAvailable') }}
     </v-alert>
 
-    <v-row align="center" v-if="availableRoles.length > 0">
+    <v-row class="align-center" v-if="availableRoles.length > 0">
       <v-col cols="12" sm="8">
         <v-select
           v-model="newRoleId"

@@ -704,7 +704,7 @@
           class="d-inline-block flex-0-0"
           data-testid="app-error"
         >
-          <h3 class="text-h5">
+          <h3 class="text-headline-medium">
             {{ $t('error') }}
           </h3>
           {{ snackbarText }}
@@ -778,10 +778,10 @@ html.WorkflowEditor-html body {
   }
 
   // The flag fills its button (`max-width: 100%`): in Vuetify 2 the button content took the
-  // button's width, in Vuetify 3 its grid column is as wide as the content, so the image
-  // collapsed to 0.
-  .NavDrawer__toolsRow .v-btn--icon {
-    grid-template-columns: max-content 1fr max-content;
+  // button's width; in Vuetify 4 the content is a flex item as wide as its content, so the image,
+  // an SVG without its own size, collapsed to 0.
+  .NavDrawer__toolsRow .v-btn--icon > .v-btn__content {
+    width: 100%;
   }
 
   // Icon-only strip while the workflow editor has its palette collapsed.
@@ -845,9 +845,16 @@ html.WorkflowEditor-html body {
   //}
 }
 
-.nav-more-toggle {
-  min-height: 36px;
+// The minimum height of the list item (48 px in Vuetify 3, 56 px in Vuetify 2) always won over
+// this rule by specificity; in the layer under the Vuetify components it still does (in the layer
+// `semaphore` it would win and make the row 36 px high).
+@layer semaphore-base {
+  .nav-more-toggle {
+    min-height: 36px;
+  }
+}
 
+.nav-more-toggle {
   .nav-more-title {
     opacity: 0.6;
   }

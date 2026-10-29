@@ -211,11 +211,11 @@
           <div class="pa-3">
             <template v-if="!sideCollapsed">
               <div
-                class="text-subtitle-2 mb-1"
+                class="text-label-large mb-1"
                 data-testid="workflowEditor-paletteTitle"
               >{{ $t('workflowEditorPalette') }}</div>
               <div
-                class="text-caption text-medium-emphasis mb-3"
+                class="text-body-small text-medium-emphasis mb-3"
                 data-testid="workflowEditor-paletteHint"
               >
                 {{ $t('workflowPaletteClickHint') }}

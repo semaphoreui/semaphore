@@ -58,7 +58,7 @@
 
     <v-window v-model="tab">
       <v-window-item value="variables" data-testid="varGroup-tabPanel-variables">
-        <div class="EnvSubheader d-flex align-center text-body-2 text-medium-emphasis">
+        <div class="EnvSubheader d-flex align-center text-body-medium text-medium-emphasis">
           {{ $t('extraVariables') }}
 
           <v-tooltip
@@ -238,7 +238,7 @@
         </div>
 
         <div>
-          <div class="EnvSubheader d-flex align-center text-body-2 text-medium-emphasis mt-4">
+          <div class="EnvSubheader d-flex align-center text-body-medium text-medium-emphasis mt-4">
             {{ $t('environmentVariables') }}
 
             <v-spacer />
@@ -390,7 +390,7 @@
         </v-dialog>
 
         <div>
-          <div class="EnvSubheader d-flex align-center text-body-2 text-medium-emphasis">
+          <div class="EnvSubheader d-flex align-center text-body-medium text-medium-emphasis">
             {{ $t('extraVariables') }}
             <v-tooltip
               v-if="needHelp"
@@ -477,7 +477,7 @@
         </div>
 
         <div>
-          <div class="EnvSubheader d-flex align-center text-body-2 text-medium-emphasis mt-4">
+          <div class="EnvSubheader d-flex align-center text-body-medium text-medium-emphasis mt-4">
             {{ $t('environmentVariables') }}
 
             <v-spacer />

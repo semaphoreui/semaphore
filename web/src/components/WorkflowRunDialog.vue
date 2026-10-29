@@ -4,7 +4,7 @@
       <v-card-title data-testid="workflowRunDialog-title">{{ title }}</v-card-title>
       <v-card-text class="pb-0">
         <div
-          class="text-caption text-medium-emphasis mb-4"
+          class="text-body-small text-medium-emphasis mb-4"
           data-testid="workflowRunDialog-hint"
         >{{ $t('workflowRunDialogHint') }}</div>
         <v-form

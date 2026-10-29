@@ -784,7 +784,7 @@
 
           <template v-if="needField('allow_override_skip_galaxy_install')">
             <div
-              class="text-subtitle-2 mb-2"
+              class="text-label-large mb-2"
               data-testid="templateForm-galaxyPromptsTitle"
             >{{ $t('prompts') }}</div>
 

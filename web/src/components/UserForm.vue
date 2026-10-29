@@ -166,7 +166,7 @@
         data-testid="user-panel-security"
       >
         <div v-if="canChangePassword">
-          <div class="text-h6 mb-3" data-testid="user-passwordTitle">Password</div>
+          <div class="text-headline-small mb-3" data-testid="user-passwordTitle">Password</div>
           <v-btn
             color="primary"
             @click="passwordDialog = true"
@@ -175,7 +175,10 @@
         </div>
 
         <div :class="{ 'pt-10': canChangePassword }" v-if="authMethods.totp">
-          <div class="text-h6 mb-2" data-testid="user-totpTitle">Two-factor authentication</div>
+          <div
+            class="text-headline-small mb-2"
+            data-testid="user-totpTitle"
+          >Two-factor authentication</div>
 
           <v-switch
             class="mt-0"
@@ -225,7 +228,7 @@
                 data-testid="user-recovery"
               >
                 <div
-                  class="text-subtitle-1 mb-2"
+                  class="text-body-large mb-2"
                   data-testid="user-recoveryTitle"
                 >Recovery code</div>
                 <div style="position: relative">
@@ -258,7 +261,10 @@
           :style="{ marginTop: (!authMethods.totp || totpEnabled) ? 0 : '-30px' }"
         >
           <template v-if="identities.length > 0">
-            <div class="text-h6 mb-2" data-testid="user-identitiesTitle">Linked accounts</div>
+            <div
+              class="text-headline-small mb-2"
+              data-testid="user-identitiesTitle"
+            >Linked accounts</div>
 
             <div style="margin-bottom: -8px;">
               <!-- A closable chip hides itself on close; here the identities list decides. -->
@@ -287,7 +293,7 @@
             :class="{ 'pt-10': identities.length > 0 }"
             data-testid="user-link"
           >
-            <div class="text-h6 mb-2" data-testid="user-linkTitle">Link account</div>
+            <div class="text-headline-small mb-2" data-testid="user-linkTitle">Link account</div>
 
             <v-card
               class="mt-4"

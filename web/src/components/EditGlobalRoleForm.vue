@@ -43,7 +43,7 @@
       data-testid="globalRole-permissionsTitle"
     >{{ $t('globalPermissions') }}</v-list-subheader>
     <div
-      class="text-medium-emphasis text-caption mb-3"
+      class="text-medium-emphasis text-body-small mb-3"
       data-testid="globalRole-permissionsHint"
     >{{ $t('globalPermissionsHint') }}</div>
 

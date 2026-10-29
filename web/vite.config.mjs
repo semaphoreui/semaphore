@@ -76,6 +76,70 @@ function vuetifyImportsFirst() {
   };
 }
 
+// Cascade layers. Vuetify 4 puts all its styles in layers (vuetify-core, vuetify-components,
+// vuetify-overrides, vuetify-utilities, vuetify-final), and its utility classes (`mb-0`, `pa-2`,
+// `d-flex`, `text-grey`) no longer carry `!important`: an unlayered rule would always beat them.
+// The application styles therefore go to the layer `semaphore` between the components and the
+// utilities: they override Vuetify components, as unlayered styles do, while a utility class on
+// the element still wins over them, as the `!important` utilities of Vuetify 3 did. Other packages
+// (drawflow, the mdi font) go to `semaphore-vendor` just below, so the application styles keep
+// overriding them. A top-level `@layer` block of an application file stays where it is:
+// `semaphore-base`, under the components, holds the element defaults that Vuetify components must
+// override (assets/scss/components.scss).
+const vuetifyLayersFile = path.join(vuetifyRoot, 'lib', 'styles', 'layers.css');
+const vuetifyLayers = ['vuetify-core', 'vuetify-components', 'vuetify-overrides',
+  'vuetify-utilities', 'vuetify-final'];
+const layerOrder = ['vuetify-core', 'semaphore-base', 'vuetify-components', 'vuetify-overrides',
+  'semaphore-vendor', 'semaphore', 'vuetify-utilities', 'vuetify-final'];
+
+// The order of the layers is set by the first stylesheet that names them, and Vite bundles the CSS
+// in an order of its own (vuetifyjs/vuetify#22752): the order of the layers, with the sub-layers
+// of Vuetify (its layers.css), is declared in an inline `<style>` at the top of `<head>`, ahead of
+// every stylesheet, in the dev server and in the build alike.
+function vuetifyLayersFirst() {
+  const layers = fs.readFileSync(vuetifyLayersFile, 'utf8');
+  const topLevel = [...layers.matchAll(/^@layer ([\w-]+)/gm)].map((m) => m[1]);
+  if (topLevel.join() !== vuetifyLayers.join()) {
+    throw new Error(`Vuetify layers changed: ${topLevel.join(', ')} (${vuetifyLayersFile})`);
+  }
+  return {
+    name: 'semaphore:vuetify-layers-first',
+    transformIndexHtml() {
+      return [{
+        tag: 'style',
+        children: `\n@layer ${layerOrder.join(', ')};\n${layers.trim()}\n`,
+        injectTo: 'head-prepend',
+      }];
+    },
+  };
+}
+
+// PostCSS plugin: wraps a stylesheet in a layer (see above); Vuetify styles are layered already.
+function layerStyles() {
+  return {
+    postcssPlugin: 'semaphore-layers',
+    Once(root, { AtRule }) {
+      const file = (root.source && root.source.input && root.source.input.file) || '';
+      if (file.startsWith(vuetifyRoot) || /plugin-vuetify/.test(file)) {
+        return;
+      }
+      const layer = new AtRule({
+        name: 'layer',
+        params: /[\\/]node_modules[\\/]/.test(file) ? 'semaphore-vendor' : 'semaphore',
+      });
+      root.each((node) => {
+        if (node.type === 'atrule' && ['charset', 'import', 'layer'].includes(node.name)) {
+          return;
+        }
+        layer.append(node.remove());
+      });
+      if (layer.nodes && layer.nodes.length) {
+        root.append(layer);
+      }
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   // Relative asset URLs: index.html keeps `<base href="/">`, which the Go server replaces with the
   // address from `web_host` (api/router.go, serveFile), so the app also works under a sub-path.
@@ -92,7 +156,14 @@ export default defineConfig(({ mode }) => ({
       styles: { configFile: 'src/scss/variables.scss' },
     }),
     vuetifyImportsFirst(),
+    vuetifyLayersFirst(),
   ],
+
+  css: {
+    postcss: {
+      plugins: [layerStyles()],
+    },
+  },
 
   define: {
     'process.env.VUE_APP_BUILD_TYPE': JSON.stringify(buildType),

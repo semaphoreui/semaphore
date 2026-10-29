@@ -73,7 +73,7 @@
           <div>
             <div data-testid="templatePerms-rowName">{{ getRoleName(item.role_slug) }}</div>
             <div
-              class="text-medium-emphasis text-caption"
+              class="text-medium-emphasis text-body-small"
               data-testid="templatePerms-rowSlug"
             >{{ item.role_slug }}</div>
           </div>

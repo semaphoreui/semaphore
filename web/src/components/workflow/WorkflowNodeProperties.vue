@@ -10,11 +10,11 @@
       </span>
       <div class="WorkflowNodeProperties__heading">
         <div
-          class="text-subtitle-2 text-truncate"
+          class="text-label-large text-truncate"
           data-testid="workflowNodeProps-heading"
         >{{ heading }}</div>
         <div
-          class="text-caption text-medium-emphasis"
+          class="text-body-small text-medium-emphasis"
           data-testid="workflowNodeProps-nodeId"
         >{{ $t('workflowNodeId') }} #{{ node.id }}</div>
       </div>

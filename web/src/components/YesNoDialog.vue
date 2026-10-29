@@ -5,7 +5,10 @@
     :close-on-back="false"
   >
     <v-card :data-testid="testId">
-      <v-card-title class="text-h5" data-testid="yesNoDialog-title">{{ title }}</v-card-title>
+      <v-card-title
+        class="text-headline-medium"
+        data-testid="yesNoDialog-title"
+      >{{ title }}</v-card-title>
 
       <v-card-text data-testid="yesNoDialog-text">
         <slot>{{ text }}</slot>

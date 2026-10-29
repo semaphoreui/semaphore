@@ -1,9 +1,9 @@
-// Vuetify Sass settings: the plugin of the build (`webpack-plugin-vuetify`, `styles.configFile`)
+// Vuetify Sass settings: the plugin of the build (`vite-plugin-vuetify`, `styles.configFile`)
 // loads this file before every Vuetify style. Component styles reach the configured values with
 // `@use '@/scss/variables' as settings`. Emits no CSS.
 //
-// Breakpoints of Vuetify 2 (lg and xl 16px below Vuetify 3), the same as `display.thresholds` in
-// plugins/vuetify.js.
+// Breakpoints of Vuetify 2 (Vuetify 4 has md 840, lg 1145, xl 1545, xxl 2138), the same as
+// `display.thresholds` in plugins/vuetify.js.
 
 @forward 'vuetify/settings' with (
   $grid-breakpoints: (

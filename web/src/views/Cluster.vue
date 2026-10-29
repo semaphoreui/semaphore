@@ -140,7 +140,7 @@
     <div class="pa-4">
       <!-- Nodes -->
       <v-card v-if="status && status.nodes" class="mb-4" border data-testid="cluster-nodes">
-        <v-card-title class="text-subtitle-1">{{ $t('nodes') }}</v-card-title>
+        <v-card-title class="text-body-large">{{ $t('nodes') }}</v-card-title>
         <v-data-table
           :headers="nodeHeaders"
           :items="status.nodes"
@@ -179,17 +179,17 @@
 
       <!-- Redis -->
       <v-card v-if="status && status.redis" class="mb-4" border data-testid="cluster-redis">
-        <v-card-title class="text-subtitle-1">{{ $t('redisStatus') }}</v-card-title>
+        <v-card-title class="text-body-large">{{ $t('redisStatus') }}</v-card-title>
         <v-card-text>
-          <v-row dense>
+          <v-row density="compact">
             <v-col cols="12" md="6">
-              <v-row dense>
+              <v-row density="compact">
                 <v-col>
-                  <div class="text-caption text-grey">Addr</div>
+                  <div class="text-body-small text-grey">Addr</div>
                   <code data-testid="cluster-redisAddr">{{ status.redis.addr }}</code>
                 </v-col>
                 <v-col>
-                  <div class="text-caption text-grey">{{ $t('connected') }}</div>
+                  <div class="text-body-small text-grey">{{ $t('connected') }}</div>
                   <v-chip
                     size="x-small"
                     :color="status.redis.connected ? 'success' : 'error'"
@@ -200,19 +200,19 @@
                   </v-chip>
                 </v-col>
                 <v-col data-testid="cluster-redisVersion">
-                  <div class="text-caption text-grey">{{ $t('version') }}</div>
+                  <div class="text-body-small text-grey">{{ $t('version') }}</div>
                   {{ status.redis.version || '—' }}
                 </v-col>
                 <v-col data-testid="cluster-redisUsedMemory">
-                  <div class="text-caption text-grey">{{ $t('usedMemory') }}</div>
+                  <div class="text-body-small text-grey">{{ $t('usedMemory') }}</div>
                   {{ status.redis.used_memory || '—' }}
                 </v-col>
                 <v-col data-testid="cluster-redisTotalKeys">
-                  <div class="text-caption text-grey">{{ $t('totalKeys') }}</div>
+                  <div class="text-body-small text-grey">{{ $t('totalKeys') }}</div>
                   {{ status.redis.total_keys }}
                 </v-col>
               </v-row>
-              <div class="text-caption text-grey mt-3">{{ $t('keyGroups') }}</div>
+              <div class="text-body-small text-grey mt-3">{{ $t('keyGroups') }}</div>
               <v-chip
                 v-for="(count, group) in status.redis.key_groups || {}"
                 :key="group"
@@ -224,7 +224,7 @@
               </v-chip>
             </v-col>
             <v-col cols="12" md="6">
-              <div class="text-caption text-grey">{{ $t('redisMemoryChart') }}</div>
+              <div class="text-body-small text-grey">{{ $t('redisMemoryChart') }}</div>
               <RedisMemoryChart
                 data-testid="cluster-redisChart"
                 :history="memoryHistory"
@@ -238,7 +238,7 @@
 
       <!-- Task records -->
       <v-card border data-testid="cluster-taskRecords">
-        <v-card-title class="text-subtitle-1">{{ $t('taskRecords') }}</v-card-title>
+        <v-card-title class="text-body-large">{{ $t('taskRecords') }}</v-card-title>
         <v-tabs v-model="tab" data-testid="cluster-tabs">
           <v-tab
             :value="0"

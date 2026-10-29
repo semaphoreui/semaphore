@@ -41,7 +41,7 @@
     ></v-text-field>
 
     <div class="mt-1 mb-5" data-testid="repository-urlTypes">
-      <span class="text-caption">git:</span>
+      <span class="text-body-small">git:</span>
       <v-chip
         v-for="x in ['ssh', 'http', 'https', 'file', 'git']"
         size="x-small"
@@ -52,7 +52,7 @@
         :key="x"
         :data-testid="`repository-urlType-${x}`"
       >{{ x }}</v-chip>
-      <span class="text-caption ml-3">local:</span>
+      <span class="text-body-small ml-3">local:</span>
       <v-chip
         size="x-small"
         class="ml-1"

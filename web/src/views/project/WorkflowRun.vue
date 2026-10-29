@@ -74,7 +74,7 @@
       data-testid="workflowRun-vars"
     >
       <span
-        class="text-caption text-medium-emphasis mr-2"
+        class="text-body-small text-medium-emphasis mr-2"
         data-testid="workflowRun-varsTitle"
       >{{ $t('workflowRunVariables') }}</span>
       <v-chip

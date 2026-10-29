@@ -253,7 +253,7 @@
     </div>
 
     <div
-      class="text-center text-subtitle-1 mb-3"
+      class="text-center text-body-large mb-3"
       :class="{'mt-8': !rawCron, 'mt-3': rawCron}"
       style="color: limegreen; font-weight: bold;"
       data-testid="scheduleForm-nextRunTitle"

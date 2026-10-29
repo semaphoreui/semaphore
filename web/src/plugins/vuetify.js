@@ -78,6 +78,7 @@ export default createVuetify({
     },
   },
   theme: {
+    // Vuetify 4 follows the theme of the system by default; App.vue switches it.
     defaultTheme: 'light',
     themes: {
       light: { dark: false, colors: colors.light },
@@ -93,8 +94,8 @@ export default createVuetify({
     },
   },
   display: {
-    // Breakpoints of Vuetify 2 (the same as $grid-breakpoints in scss/variables.scss);
-    // `mobile` below lg, as in Vuetify 2.
+    // Breakpoints of Vuetify 2, not the smaller ones of Vuetify 4 (the same as $grid-breakpoints
+    // in scss/variables.scss); `mobile` below lg, as in Vuetify 2.
     mobileBreakpoint: 'lg',
     thresholds: {
       xs: 0,

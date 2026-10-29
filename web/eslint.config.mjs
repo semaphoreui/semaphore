@@ -1,12 +1,14 @@
 // ESLint 9 flat config. The rule set is the one of the former .eslintrc.js: airbnb-base 15 (through
 // @vue/eslint-config-airbnb), eslint-plugin-import recommended, eslint-plugin-vue `essential`
-// (Vue 3) and eslint-plugin-vuejs-accessibility recommended, plus the project rules below.
+// (Vue 3), eslint-plugin-vuejs-accessibility recommended and the Vuetify 4 rules of
+// eslint-plugin-vuetify, plus the project rules below.
 import { createRequire } from 'node:module';
 import { builtinRules } from 'eslint/use-at-your-own-risk';
 import globals from 'globals';
 import importPlugin from 'eslint-plugin-import';
 import pluginVue from 'eslint-plugin-vue';
 import pluginVueA11y from 'eslint-plugin-vuejs-accessibility';
+import pluginVuetify from 'eslint-plugin-vuetify';
 
 const require = createRequire(import.meta.url);
 
@@ -115,6 +117,17 @@ export default [
       'vue/no-deprecated-filter': 'error',
       'vue/no-deprecated-v-on-native-modifier': 'error',
       'vue/require-explicit-emits': 'error',
+    },
+  },
+
+  {
+    // Vuetify 4: the rules of the preset `recommended-v4` of eslint-plugin-vuetify (MD3
+    // typography classes, grid props, elevation 0-5, snackbar props). The preset itself also
+    // carries the Vuetify 2 -> 3 rules, which report valid Vuetify 3 code (`text` of v-btn).
+    files: ['src/**/*.vue'],
+    plugins: { vuetify: pluginVuetify },
+    rules: {
+      ...pluginVuetify.configs['recommended-v4'].rules,
     },
   },
 

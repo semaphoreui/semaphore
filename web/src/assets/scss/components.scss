@@ -72,31 +72,34 @@
   }
 }
 
-// Global styles of Vuetify 2 that Vuetify 3 does not have. `:where()` keeps the weight of the
-// link and code rules at the bare element, so the colours of Vuetify components rendered as `<a>`
-// win, as they did in Vuetify 2; overlays are teleported outside `.v-application`, into
-// `.v-overlay-container`.
-:where(.v-application, .v-overlay-container) {
-  a {
-    color: rgb(var(--v-theme-primary));
-    cursor: pointer;
+// Global styles of Vuetify 2 that Vuetify 3 and 4 do not have, in the layer `semaphore-base` under
+// the Vuetify components (vite.config.mjs): the colours of Vuetify components rendered as `<a>`
+// win, as they did in Vuetify 2. `:where()` keeps the weight of the link and code rules at the bare
+// element; overlays are teleported outside `.v-application`, into `.v-overlay-container`.
+@layer semaphore-base {
+  :where(.v-application, .v-overlay-container) {
+    a {
+      color: rgb(var(--v-theme-primary));
+      cursor: pointer;
+    }
+
+    code {
+      padding: 0.2em 0.4em;
+      border-radius: 3px;
+      background-color: rgba(0, 0, 0, 0.05);
+      color: currentColor;
+      font-size: 85%;
+      font-weight: normal;
+    }
   }
 
-  code {
-    padding: 0.2em 0.4em;
-    border-radius: 3px;
-    background-color: rgba(0, 0, 0, 0.05);
-    color: currentColor;
-    font-size: 85%;
-    font-weight: normal;
+  :where(.v-theme--dark) code {
+    background-color: rgba(255, 255, 255, 0.1);
   }
 }
 
-:where(.v-theme--dark) code {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-// Space under an alert, as `.v-alert` of Vuetify 2 had (utility classes `mb-*` override it).
+// Space under an alert, as `.v-alert` of Vuetify 2 had (utility classes `mb-*` override it: they
+// come in a later layer).
 .v-alert {
   margin-bottom: 16px;
 }

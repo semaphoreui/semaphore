@@ -74,11 +74,11 @@
     <div v-if="editable && isEmpty" class="WorkflowGraph__empty" data-testid="workflowCanvas-empty">
       <v-icon size="40" class="WorkflowGraph__emptyIcon">mdi-sitemap-outline</v-icon>
       <div
-        class="text-subtitle-1"
+        class="text-body-large"
         data-testid="workflowCanvas-emptyTitle"
       >{{ $t('workflowEmptyTitle') }}</div>
       <div
-        class="text-body-2 text-medium-emphasis mb-3"
+        class="text-body-medium text-medium-emphasis mb-3"
         data-testid="workflowCanvas-emptyHint"
       >{{ $t('workflowEmptyHint') }}</div>
       <v-btn

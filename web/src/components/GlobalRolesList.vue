@@ -92,7 +92,7 @@
       <template v-slot:item.name="{ item }">
         <div data-testid="globalRoles-rowName">{{ item.name }}</div>
         <div
-          class="text-medium-emphasis text-caption"
+          class="text-medium-emphasis text-body-small"
           data-testid="globalRoles-rowSlug"
         >{{ item.slug }}</div>
       </template>

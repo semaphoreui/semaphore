@@ -1,6 +1,6 @@
 <template>
   <div class="AuditFilters px-4 pt-4" data-testid="audit-filters">
-    <v-row dense>
+    <v-row density="compact">
       <v-col cols="12" sm="6" md="3">
         <v-text-field
           v-model="text.from"

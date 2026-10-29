@@ -268,7 +268,7 @@
               class="mt-3"
               data-testid="taskDetails-outputsSkipped"
             >
-              <div class="text-caption text-medium-emphasis mb-1">
+              <div class="text-body-small text-medium-emphasis mb-1">
                 {{ $t('workflowOutputsSkipped') }}
               </div>
               <v-chip

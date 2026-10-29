@@ -6,7 +6,7 @@
   >
     <v-card :data-testid="testId">
       <v-card-title
-        class="text-h5"
+        class="text-headline-medium"
         data-testid="objectRefsDialog-title"
       >{{ $t('cantDeleteThe', {objectTitle: objectTitle}) }}
       </v-card-title>

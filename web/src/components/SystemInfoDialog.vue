@@ -4,7 +4,9 @@
       data-testid="systemInfoDialog"
       :data-state="loading ? 'loading' : error ? 'error' : info ? 'ready' : 'empty'"
     >
-      <v-card-title class="text-h5 d-flex align-center" data-testid="systemInfoDialog-title">
+      <v-card-title
+        class="text-headline-medium d-flex align-center"
+        data-testid="systemInfoDialog-title">
         {{ $t('systemInfo') }}
         <v-spacer />
         <v-btn icon @click="dialog = false" data-testid="systemInfoDialog-close">
@@ -84,7 +86,7 @@
             </pre>
             <div
               v-else
-              class="px-0 text-medium-emphasis text-body-2"
+              class="px-0 text-medium-emphasis text-body-medium"
               data-testid="systemInfo-ansibleNotFound"
             >
               {{ $t('ansibleNotFound') }}

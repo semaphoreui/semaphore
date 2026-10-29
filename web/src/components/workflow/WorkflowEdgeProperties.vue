@@ -6,10 +6,10 @@
       </span>
       <div class="WorkflowEdgeProperties__heading">
         <div
-          class="text-subtitle-2"
+          class="text-label-large"
           data-testid="workflowEdgeProps-heading"
         >{{ $t('workflowEdgeCondition') }}</div>
-        <div class="text-caption text-medium-emphasis" data-testid="workflowEdgeProps-nodes">
+        <div class="text-body-small text-medium-emphasis" data-testid="workflowEdgeProps-nodes">
           #{{ edge.source_node_id }} → #{{ edge.destination_node_id }}
         </div>
       </div>
@@ -70,7 +70,7 @@
 
       <div class="pa-4 WorkflowEdgeProperties__inputs" data-testid="workflowEdgeProps-inputs">
         <div
-          class="text-subtitle-2 mb-1"
+          class="text-label-large mb-1"
           data-testid="workflowEdgeProps-inputsTitle"
         >{{ $t('workflowEdgeInputs') }}</div>
 
@@ -88,14 +88,14 @@
         <template v-if="!explicit">
           <div
             v-if="surveyVars.length === 0"
-            class="text-caption text-medium-emphasis"
+            class="text-body-small text-medium-emphasis"
             data-testid="workflowEdgeProps-inputsNone"
           >
             {{ $t('workflowEdgeInputsByNameNone', { template: destinationTemplate.name }) }}
           </div>
           <template v-else>
             <div
-              class="text-caption text-medium-emphasis mb-2"
+              class="text-body-small text-medium-emphasis mb-2"
               data-testid="workflowEdgeProps-byNameHint"
             >
               {{ $t('workflowEdgeInputsByNameHint', { template: destinationTemplate.name }) }}
@@ -122,14 +122,14 @@
         <template v-else>
           <div
             v-if="surveyVars.length === 0"
-            class="text-caption text-medium-emphasis"
+            class="text-body-small text-medium-emphasis"
             data-testid="workflowEdgeProps-inputsNone"
           >
             {{ $t('workflowEdgeInputsByNameNone', { template: destinationTemplate.name }) }}
           </div>
           <template v-else>
             <div
-              class="text-caption text-medium-emphasis mb-3"
+              class="text-body-small text-medium-emphasis mb-3"
               data-testid="workflowEdgeProps-explicitHint"
             >
               {{ $t('workflowEdgeInputsExplicitHint') }}
@@ -146,7 +146,7 @@
                   data-testid="workflowEdgeProps-varName"
                 >{{ v.name }}</span>
                 <span
-                  class="text-caption text-medium-emphasis"
+                  class="text-body-small text-medium-emphasis"
                   data-testid="workflowEdgeProps-varType"
                 >{{ typeLabel(v) }}</span>
               </div>
@@ -171,7 +171,7 @@
         </template>
 
         <div
-          class="text-caption text-medium-emphasis mt-2"
+          class="text-body-small text-medium-emphasis mt-2"
           data-testid="workflowEdgeProps-hintsCaption"
         >{{ hintsCaption }}</div>
       </div>

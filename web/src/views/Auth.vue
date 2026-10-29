@@ -20,10 +20,10 @@
           </v-btn>
         </v-card-title>
         <v-card-text>
-          <p class="text-body-1">
+          <p class="text-body-large">
             {{ $t('firstlyYouNeedAccessToTheServerWhereSemaphoreRunni') }}
           </p>
-          <p class="text-body-1">
+          <p class="text-body-large">
             {{ $t('executeTheFollowingCommandOnTheServerToSeeExisting') }}
           </p>
           <v-alert
@@ -35,7 +35,7 @@
           >
             {{ $t('semaphoreUserList') }}
           </v-alert>
-          <p class="text-body-1">
+          <p class="text-body-large">
             {{ $t('youCanChangePasswordOfExistingUser') }}
           </p>
           <v-alert
@@ -51,7 +51,7 @@
               })
             }}
           </v-alert>
-          <p class="text-body-1">
+          <p class="text-body-large">
             {{ $t('orCreateNewAdminUser') }}
           </p>
           <v-alert

@@ -17,7 +17,7 @@
         :data-testid="`${testId}-title`"
       >{{ $t('workflowNodeSurveyInputsAssignTitle') }}</v-list-subheader>
       <v-list-item v-if="vars.length === 0" disabled :data-testid="`${testId}-empty`">
-        <v-list-item-title class="text-caption text-wrap">
+        <v-list-item-title class="text-body-small text-wrap">
           {{ $t('workflowNodeSurveyInputsNoWorkflowVars') }}
         </v-list-item-title>
       </v-list-item>

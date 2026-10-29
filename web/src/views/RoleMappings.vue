@@ -100,7 +100,7 @@
       <template v-slot:item.role="{ item }">
         <div data-testid="roleMappings-rowRoleName">{{ item.role_name }}</div>
         <div
-          class="text-medium-emphasis text-caption"
+          class="text-medium-emphasis text-body-small"
           data-testid="roleMappings-rowRoleSlug"
         >{{ item.role }}</div>
       </template>

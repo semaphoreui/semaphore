@@ -2,9 +2,9 @@
   <div class="AuditEventCard pa-4" data-testid="audit-card">
     <div class="d-flex align-start">
       <div class="flex-grow-1">
-        <div class="text-h6" data-testid="audit-cardTitle">{{ title }}</div>
+        <div class="text-headline-small" data-testid="audit-cardTitle">{{ title }}</div>
         <div
-          class="text-caption text-medium-emphasis AuditEventCard__kind"
+          class="text-body-small text-medium-emphasis AuditEventCard__kind"
           data-testid="audit-cardKind"
         >{{ kind }}</div>
       </div>
@@ -43,7 +43,7 @@
       class="mt-4"
       :data-testid="`audit-cardSection-${section.key.replace('audit_card_', '')}`"
     >
-      <div class="text-overline" data-testid="audit-cardSectionTitle">{{ $t(section.key) }}</div>
+      <div class="text-label-small" data-testid="audit-cardSectionTitle">{{ $t(section.key) }}</div>
       <table class="AuditEventCard__fields">
         <tr v-for="row in section.rows" :key="row.label" data-testid="audit-cardRow">
           <th data-testid="audit-cardRowLabel">{{ row.label }}</th>

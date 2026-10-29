@@ -17,7 +17,10 @@
       data-testid="noProjects-empty"
     >
       <v-icon size="64" color="grey" data-testid="noProjects-icon">mdi-folder-outline</v-icon>
-      <div class="text-h6 mt-4" data-testid="noProjects-heading">{{ $t('noProjectsTitle') }}</div>
+      <div
+        class="text-headline-small mt-4"
+        data-testid="noProjects-heading"
+      >{{ $t('noProjectsTitle') }}</div>
       <div class="mt-2" data-testid="noProjects-text">{{ $t('noProjectsText') }}</div>
       <i18n-t
         v-if="user"
