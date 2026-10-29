@@ -105,6 +105,8 @@ export default [
   'task.approval/request',
   'task.approval/approve',
   'task.approval/reject',
+  'workflow.approval/approve',
+  'workflow.approval/reject',
   'task.control/stop',
   'task.control/force_stop',
   'task.control/stop_all',

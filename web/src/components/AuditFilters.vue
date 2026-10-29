@@ -128,6 +128,7 @@ const GROUPS = [
   ['audit_group_iam', ['iam']],
   ['audit_group_resources', ['resource', 'secret']],
   ['audit_group_tasks', ['task']],
+  ['audit_group_workflows', ['workflow']],
   ['audit_group_runners', ['runner']],
   ['audit_group_system', ['system', 'audit']],
 ];
