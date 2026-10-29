@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null"
     data-testid="role-form"
@@ -10,7 +9,7 @@
     <v-alert
       :model-value="!!formError"
       color="error"
-      class="pb-2"
+      class="pb-2 mb-4"
       data-testid="role-error"
     >{{ formError }}
     </v-alert>
@@ -41,10 +40,10 @@
 
 <!--    <v-divider class="my-4"></v-divider>-->
 
-    <v-subheader
+    <v-list-subheader
       class="pl-0"
       data-testid="role-permissionsTitle"
-    >{{ $t('permissions') }}</v-subheader>
+    >{{ $t('permissions') }}</v-list-subheader>
 
     <v-checkbox
       class="mt-0"
@@ -211,7 +210,7 @@ export default {
 </script>
 
 <style scoped>
-.v-subheader {
+.v-list-subheader {
   font-weight: 500;
   font-size: 14px;
 }

@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null"
     data-testid="roles-page"
@@ -46,12 +46,16 @@
       <v-btn icon class="mr-4" @click="returnToProjects()" data-testid="roles-back">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title data-testid="roles-title">{{ $t('Roles') }}</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="roles-title"
+      >{{ $t('Roles') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         v-if="canManageRoles"
         :disabled="!features.custom_roles_management"
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         data-testid="roles-new"
         >{{ $t('newRole') }}</v-btn
@@ -76,7 +80,6 @@
       ></span>
 
       <v-btn
-        dark
         variant="flat"
         v-if="isAdmin"
         color="amber-darken-3"
@@ -100,6 +103,7 @@
       item-value="slug"
       class="mt-4"
       :items-per-page-options="[20]"
+      :mobile-breakpoint="600"
     >
       <template v-slot:item.name="{ item }">
         <div data-testid="roles-rowName">{{ item.name }}</div>
@@ -126,6 +130,7 @@
         <div style="white-space: nowrap" data-testid="roles-rowActions">
           <v-btn
             icon
+            variant="text"
             class="mr-1"
             @click="askDeleteItem(item.slug)"
             data-testid="roles-rowDelete"
@@ -133,7 +138,13 @@
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn icon class="mr-1" @click="editItem(item.slug)" data-testid="roles-rowEdit">
+          <v-btn
+            icon
+            variant="text"
+            class="mr-1"
+            @click="editItem(item.slug)"
+            data-testid="roles-rowEdit"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>
