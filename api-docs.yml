@@ -2351,7 +2351,8 @@ paths:
       summary: Create an MCP token
       description: >
         The token value is returned once, in this response. Without the Pro
-        module or with mcp.enabled off the route answers 404.
+        module or with mcp.enabled off the route answers 404. Without MCP in
+        the license it answers 403: Pro needs a Pro seat, Enterprise does not.
       parameters:
         - name: body
           in: body
@@ -2371,6 +2372,8 @@ paths:
           description: MCP Token
           schema:
             $ref: "#/definitions/APIToken"
+        403:
+          description: The license gives the user no MCP
 
   /user/mcp-tokens/{mcp_token_id}:
     parameters:
