@@ -246,7 +246,7 @@ recorded as `pageerror: <name>: <message>` — the form console.error prints, so
 "AxiosError")` finds it either way (Vue 3 in a dev build throws the error of a hook, a production
 build logs it).
 
-### Vuetify 2 and 3 in the DOM
+### Vuetify 2, 3 and 4 in the DOM
 
 | What | Vuetify 2 | Vuetify 3 |
 | --- | --- | --- |
@@ -257,6 +257,21 @@ build logs it).
 | Expand button of a row | `.v-data-table__expand-icon` | the v-btn of `.v-data-table__td--expanded-row` |
 | Disabled tab, primary chip | `v-tab--disabled`, `primary` | `v-btn--disabled`, `bg-primary` / `text-primary` (tonal) |
 | Theme of the app | `.v-application.theme--dark` | `.v-application.v-theme--dark` |
+
+**Vuetify 4** keeps every class and role the suite reads (checked against `vuetify` 4.3.1): the
+selectors and `VUETIFY_*` of Vuetify 3 hold as they are. What a test may still meet:
+
+- Text of a `v-btn` is no longer upper case (`text-transform` gone): `inner_text()` and
+  `use_inner_text=True` now see the text as written; `textContent` (`to_have_text`) never changed.
+- MD3 typography: `text-h5` → `text-headline-medium`, `text-caption` → `text-body-small`, … (the
+  rule `vuetify/no-deprecated-typography`); list items and menus are wider (letter spacing 0.5 px).
+- A v-select / v-autocomplete / v-combobox renders an `<input type="hidden">` per chosen value
+  ahead of its own `<input>`: `field_input` leaves them out; a selector of your own on
+  `[data-testid=…] input` takes `:not([type=hidden])`.
+- The `item`, `chip` and `selection` slots of v-select / v-autocomplete / v-combobox get the raw
+  option as `item` (Vuetify 3: `item.raw`), the internal one as `internalItem`.
+- Styles in cascade layers, declared by an inline `<style>` first in `<head>`
+  (`web/vite.config.mjs`); utility classes win over the application styles without `!important`.
 
 ## Traps
 

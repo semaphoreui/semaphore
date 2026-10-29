@@ -105,7 +105,7 @@ FREEZE_CSS = """
   animation-duration: 0s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
   caret-color: transparent !important; scroll-behavior: auto !important;
 }
-.v-ripple__container { display: none !important; }  /* the ripple of Vuetify 2 and 3 */
+.v-ripple__container { display: none !important; }  /* the ripple of Vuetify 2, 3 and 4 */
 /* the error overlay of the dev server (the hot-reload UI — never in a build): vue-cli-service serve shows
    the errors Vue 3 throws from hooks in a dev build, Vite its compile errors; the overlay over the page
    takes every click */
@@ -280,9 +280,11 @@ def field_input(scope, test_id) -> Locator:
     """The <input> or <textarea> of a field marked <test_id>: Vuetify 2 puts the mark on the input
     itself, Vuetify 3 on the root .v-input around it. A Vuetify 2 autocomplete shows its selection here
     (to_have_value); a Vuetify 3 one only while focused (blurred — field_selection). A v-textarea is
-    found too. click() on the input of a Vuetify 3 v-select opens its list (FieldInput)."""
+    found too. click() on the input of a Vuetify 3 v-select opens its list (FieldInput). A Vuetify 4
+    v-select / v-autocomplete / v-combobox adds an <input type="hidden"> per chosen value ahead of its
+    own input: left out."""
     t = f'[data-testid="{test_id}"]'
-    loc = scope.locator(f"input{t}, textarea{t}, {t} input, {t} textarea").first
+    loc = scope.locator(f"input{t}, textarea{t}, {t} input:not([type=hidden]), {t} textarea").first
     return FieldInput(loc._impl_obj)
 
 
