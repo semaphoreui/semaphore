@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null"
     data-testid="runner-form"
@@ -10,7 +9,7 @@
     <v-alert
       :model-value="!!formError"
       color="error"
-      class="pb-2"
+      class="pb-2 mb-4"
       data-testid="runner-error"
     >{{ formError }}</v-alert>
 
@@ -42,7 +41,6 @@
         multiple
         chips
         closable-chips
-        small-chips
         hide-selected
         variant="outlined"
         hide-details
@@ -51,7 +49,8 @@
       <v-chip
         v-if="!isTagsAvailable"
         color="hsl(348deg, 86%, 61%)"
-        text-color="white"
+        class="text-white"
+        variant="flat"
         size="small"
         label
         style="position: absolute; top: -10px; right: 15px"
@@ -62,25 +61,27 @@
       </v-chip>
     </div>
 
+    <!-- cols / sm: Vuetify 2 put the two checkboxes under each other in the narrow mobile dialog
+         (a column could not shrink below its label); Vuetify 3 lets the label break inside a word.
+         The second column only for a new runner: an empty full-width column would add a gap -->
     <v-row>
-      <v-col>
+      <v-col cols="12" sm="6">
         <v-checkbox v-model="item.is_default" data-testid="runner-isDefault">
           <template v-slot:label>
             Is default
-            <v-chip class="ml-2" color="error" size="small">New</v-chip>
+            <v-chip class="ml-2" color="error" size="small" variant="flat">New</v-chip>
           </template>
         </v-checkbox>
       </v-col>
-      <v-col>
+      <v-col v-if="isNew" cols="12" sm="6">
         <v-checkbox
-          v-if="isNew"
           v-model="item.registered"
           :disabled="formSaving"
           data-testid="runner-registered"
         >
           <template v-slot:label>
             {{ $t('register') }}
-            <v-chip class="ml-2" color="error" size="small">New</v-chip>
+            <v-chip class="ml-2" color="error" size="small" variant="flat">New</v-chip>
           </template>
         </v-checkbox>
       </v-col>

@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null"
     data-testid="runners-page"
@@ -43,7 +43,7 @@
       :title="isUnregisteredRunner ? $t('runnerRegistrationToken') : $t('newRunnerToken')"
       hide-buttons
     >
-      <template v-slot:form="{}">
+      <template #form>
         <div v-if="isUnregisteredRunner" data-testid="runnerToken-register">
           <div class="mb-4">
             <div>{{ $t('registrationToken') }}</div>
@@ -89,7 +89,6 @@
               data-testid="runnerToken-advancedCard"
               style="width: 350px;"
           >
-            <template>
             <v-text-field
                 v-model="checkIntervalSeconds"
                 data-testid="runnerToken-checkInterval"
@@ -102,19 +101,18 @@
                 density="compact"
                 variant="outlined"
             />
-            </template>
           </HighlightedCard>
 
           <v-tabs v-model="registerTab" :show-arrows="false" data-testid="runnerToken-registerTabs">
-            <v-tab key="env" data-testid="runnerToken-tab-env">Env Vars</v-tab>
-            <v-tab key="config" data-testid="runnerToken-tab-config">Config file</v-tab>
-            <v-tab key="docker" data-testid="runnerToken-tab-docker">Docker</v-tab>
+            <v-tab value="env" data-testid="runnerToken-tab-env">Env Vars</v-tab>
+            <v-tab value="config" data-testid="runnerToken-tab-config">Config file</v-tab>
+            <v-tab value="docker" data-testid="runnerToken-tab-docker">Docker</v-tab>
           </v-tabs>
 
           <v-divider style="margin-top: -1px"/>
 
-          <v-tabs-items v-model="registerTab">
-            <v-tab-item key="env">
+          <v-window v-model="registerTab">
+            <v-window-item value="env">
               <div class="mt-3">Register and start the runner:</div>
               <div style="position: relative">
                 <pre
@@ -136,9 +134,9 @@
                   style="position: absolute; right: 10px; top: 10px"
                 />
               </div>
-            </v-tab-item>
+            </v-window-item>
 
-            <v-tab-item key="config">
+            <v-window-item value="config">
               <div class="mt-3">Config file content:</div>
               <div style="position: relative">
                 <pre
@@ -182,9 +180,9 @@
                   style="position: absolute; right: 10px; top: 10px"
                 />
               </div>
-            </v-tab-item>
+            </v-window-item>
 
-            <v-tab-item key="docker">
+            <v-window-item value="docker">
               <div class="mt-3">Register and start the runner:</div>
               <div style="position: relative">
                 <pre
@@ -206,8 +204,8 @@
                   style="position: absolute; right: 10px; top: 10px"
                 />
               </div>
-            </v-tab-item>
-          </v-tabs-items>
+            </v-window-item>
+          </v-window>
         </div>
 
         <div v-else data-testid="runnerToken-usage">
@@ -241,7 +239,6 @@
               data-testid="runnerToken-advancedCard"
               style="width: 350px;"
           >
-            <template>
             <v-text-field
                 v-model="checkIntervalSeconds"
                 data-testid="runnerToken-checkInterval"
@@ -254,22 +251,21 @@
                 density="compact"
                 variant="outlined"
             />
-            </template>
           </HighlightedCard>
 
           <h2 class="mt-11 mb-4" data-testid="runnerToken-variantsOfUsage">Variants of usage</h2>
 
           <v-tabs v-model="usageTab" :show-arrows="false" data-testid="runnerToken-usageTabs">
-            <v-tab key="config" data-testid="runnerToken-tab-config">Config file</v-tab>
-            <v-tab key="setup" data-testid="runnerToken-tab-setup">Setup</v-tab>
-            <v-tab key="env" data-testid="runnerToken-tab-env">Env Vars</v-tab>
-            <v-tab key="docker" data-testid="runnerToken-tab-docker">Docker</v-tab>
+            <v-tab value="config" data-testid="runnerToken-tab-config">Config file</v-tab>
+            <v-tab value="setup" data-testid="runnerToken-tab-setup">Setup</v-tab>
+            <v-tab value="env" data-testid="runnerToken-tab-env">Env Vars</v-tab>
+            <v-tab value="docker" data-testid="runnerToken-tab-docker">Docker</v-tab>
           </v-tabs>
 
           <v-divider style="margin-top: -1px"/>
 
-          <v-tabs-items v-model="usageTab">
-            <v-tab-item key="config">
+          <v-window v-model="usageTab">
+            <v-window-item value="config">
               <div class="mt-3">Config file content:</div>
               <div style="position: relative">
                 <pre
@@ -308,8 +304,8 @@
 semaphore runner start --config /path/to/config/file</pre
                 >
               </div>
-            </v-tab-item>
-            <v-tab-item key="setup">
+            </v-window-item>
+            <v-window-item value="setup">
               <div class="mt-3">Config file creation:</div>
               <div style="position: relative">
                 <pre
@@ -348,8 +344,8 @@ semaphore runner start --config /path/to/config/file</pre
 semaphore runner start --config ./config.runner.json</pre
                 >
               </div>
-            </v-tab-item>
-            <v-tab-item key="env">
+            </v-window-item>
+            <v-window-item value="env">
               <div class="mt-3">Launching the runner:</div>
               <div style="position: relative">
                 <pre
@@ -371,9 +367,9 @@ semaphore runner start --config ./config.runner.json</pre
                   test-id="runnerToken-envCommandCopy"
                 />
               </div>
-            </v-tab-item>
+            </v-window-item>
 
-            <v-tab-item key="docker">
+            <v-window-item value="docker">
               <div class="mt-3">Launching the runner:</div>
               <div style="position: relative">
                 <pre
@@ -395,8 +391,8 @@ semaphore runner start --config ./config.runner.json</pre
                   test-id="runnerToken-dockerCommandCopy"
                 />
               </div>
-            </v-tab-item>
-          </v-tabs-items>
+            </v-window-item>
+          </v-window>
         </div>
       </template>
     </EditDialog>
@@ -422,10 +418,14 @@ semaphore runner start --config ./config.runner.json</pre
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
 
-      <v-toolbar-title data-testid="runners-title">{{ $t('runners') }}</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="runners-title"
+      >{{ $t('runners') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         data-testid="runners-new"
       >{{ $t('newRunner') }}</v-btn>
@@ -452,9 +452,8 @@ semaphore runner start --config ./config.runner.json</pre
     >
       <span v-html="$t('project_runners_only_pro')" data-testid="runners-licenseAlertText"></span>
       <v-btn
-        dark
         v-if="canManageSystem"
-        class="ml-2"
+        class="ml-2 text-white"
         color="hsl(348deg, 86%, 61%)"
         @click="upgradeToPro('project_runners')"
         data-testid="runners-upgrade"
@@ -493,6 +492,7 @@ semaphore runner start --config ./config.runner.json</pre
         size="small"
         closable
         color="info"
+        variant="flat"
         @click:close="globalFilter = false"
         data-testid="runners-filter-global"
       >
@@ -504,6 +504,7 @@ semaphore runner start --config ./config.runner.json</pre
         size="small"
         closable
         color="warning"
+        variant="flat"
         @click:close="defaultFilter = false"
         data-testid="runners-filter-default"
       >
@@ -527,6 +528,7 @@ semaphore runner start --config ./config.runner.json</pre
         closable
         label
         color="primary"
+        variant="flat"
         @click:close="tagFilter = null"
         data-testid="runners-filter-tag"
       >
@@ -540,6 +542,7 @@ semaphore runner start --config ./config.runner.json</pre
       class="mt-4"
       :style="projectId && !features.project_runners ? 'opacity: 0.4' : ''"
       :items-per-page-options="[20]"
+      :mobile-breakpoint="600"
       data-testid="runners-table"
       :data-state="filteredItems.length === 0 ? 'empty' : 'ready'"
     >
@@ -548,7 +551,7 @@ semaphore runner start --config ./config.runner.json</pre
           v-if="item.project_id != null || projectId == null"
           v-model="item.active"
           inset
-          @update:model-value="setActive(item.id, item.active)"
+          @update:model-value="setActive(item.id, $event)"
           :disabled="item.project_id == null && !canManageSystem"
           data-testid="runners-rowActive"
         />
@@ -561,6 +564,7 @@ semaphore runner start --config ./config.runner.json</pre
           class="ml-2"
           size="small"
           color="warning"
+          variant="flat"
           style="cursor: pointer"
           @click="defaultFilter = !defaultFilter"
           data-testid="runners-rowDefault"
@@ -573,6 +577,7 @@ semaphore runner start --config ./config.runner.json</pre
           class="ml-2"
           size="small"
           color="info"
+          variant="flat"
           style="cursor: pointer"
           @click="globalFilter = !globalFilter"
           data-testid="runners-rowGlobal"
@@ -603,6 +608,7 @@ semaphore runner start --config ./config.runner.json</pre
               size="small"
               v-bind="props"
               :color="item.status === 'online' ? 'success' : 'blue-grey-lighten-3'"
+              variant="flat"
               style="font-weight: bold"
               :data-testid="`runners-rowStatus-${item.status === 'online' ? 'online' : 'offline'}`"
             >
@@ -635,7 +641,7 @@ semaphore runner start --config ./config.runner.json</pre
             class="mr-1 mb-1"
             style="cursor: pointer"
             :color="tagFilter === t ? 'primary' : undefined"
-            :dark="tagFilter === t"
+            :variant="tagFilter === t ? 'flat' : 'tonal'"
             @click="tagFilter = tagFilter === t ? null : t"
             data-testid="runners-rowTag"
           >
@@ -657,6 +663,7 @@ semaphore runner start --config ./config.runner.json</pre
                 :disabled="item.project_id == null && !canManageSystem"
                 class="mr-1"
                 icon
+                variant="text"
                 @click="askRegenerateRegistrationToken(item)"
                 data-testid="runners-rowRegenerateToken"
                 v-bind="props"
@@ -675,6 +682,7 @@ semaphore runner start --config ./config.runner.json</pre
           <v-btn
             v-if="item.project_id != null || projectId == null"
             icon
+            variant="text"
             class="mr-1"
             @click="askDeleteItem(item.id)"
             data-testid="runners-rowDelete"
@@ -686,6 +694,7 @@ semaphore runner start --config ./config.runner.json</pre
           <v-btn
             v-if="item.project_id != null || projectId == null"
             icon
+            variant="text"
             class="mr-1"
             @click="editItem(item.id)"
             data-testid="runners-rowEdit"
@@ -703,6 +712,7 @@ semaphore runner start --config ./config.runner.json</pre
               <v-btn
                 v-bind="props"
                 icon
+                variant="text"
                 class="mr-1"
                 @click="clearCache(item)"
                 data-testid="runners-rowClearCache"
