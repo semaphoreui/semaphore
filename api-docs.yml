@@ -633,9 +633,9 @@ definitions:
             type: array
             description: >-
               Roles the restore left for you to decide about. A template or workflow grant to a role that is
-              not in the file (reason not_in_file) or a project role whose slug a shared role already holds
-              (reason slug_taken) is not restored. Assign the templates and workflows to a role of this
-              instance yourself.
+              neither in the file nor a built-in role (reason not_in_file) or a project role whose slug a
+              shared role already holds (reason slug_taken) is not restored. Assign the templates and
+              workflows to a role of this instance yourself.
             example: []
             items:
               type: object
