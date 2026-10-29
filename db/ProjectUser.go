@@ -27,12 +27,14 @@ const (
 	CanRunWorkflows
 	CanEditWorkflows
 	CanApproveWorkflows
+	// CanReadProject on a project shows the whole project, on a grant only that object.
+	CanReadProject
 )
 
 // The verbs a grant on a template or on a workflow may hold.
 const (
-	TemplateGrantPermissions = CanRunProjectTasks | CanManageProjectResources
-	WorkflowGrantPermissions = CanRunWorkflows | CanEditWorkflows | CanApproveWorkflows
+	TemplateGrantPermissions = CanRunProjectTasks | CanManageProjectResources | CanReadProject
+	WorkflowGrantPermissions = CanRunWorkflows | CanEditWorkflows | CanApproveWorkflows | CanReadProject
 )
 
 // LiftPermissions gives a mask written before the workflow verbs the same bits migration 2.20.17 gives

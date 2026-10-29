@@ -168,6 +168,9 @@ func GlobalPermissionNames(p db.GlobalPermission) []string {
 
 func PermissionNames(p db.ProjectUserPermission) []string {
 	names := []string{}
+	if p&db.CanReadProject != 0 {
+		names = append(names, "read_project")
+	}
 	if p&db.CanRunProjectTasks != 0 {
 		names = append(names, "run_tasks")
 	}
