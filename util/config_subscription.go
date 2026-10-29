@@ -76,7 +76,7 @@ func (c *SubscriptionProxyConfig) ProxyURL() (*url.URL, error) {
 	}
 	proxyURL.Scheme = scheme
 
-	if proxyURL.Host == "" {
+	if proxyURL.Hostname() == "" {
 		return nil, errors.New("subscription.proxy.url has no host")
 	}
 
