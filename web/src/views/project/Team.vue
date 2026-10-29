@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null && roles != null"
     data-testid="team-page"
@@ -27,11 +27,12 @@
         @click="showDrawer()"
         data-testid="team-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="team-title">{{ $t('team2') }}</v-toolbar-title>
+      <v-toolbar-title class="flex-0-1" data-testid="team-title">{{ $t('team2') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         v-if="systemInfo.teams.members_can_leave"
         color="error"
+        variant="elevated"
         @click="leftProject()"
         class="mr-2"
         data-testid="team-leave"
@@ -39,6 +40,7 @@
       </v-btn>
       <v-btn
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectUsers)"
         data-testid="team-new"
@@ -57,7 +59,8 @@
       :items="items"
       hide-default-footer
       class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.roles="{ item }">
@@ -85,19 +88,22 @@
             item-value="slug"
             item-title="name"
             multiple
-            small-chips
+            chips
             closable-chips
             hide-details
+            variant="underlined"
             density="compact"
             class="pt-0 mt-0"
             @update:model-value="updateProjectUser(item)"
             data-testid="team-rowRolesSelect"
           >
-            <template v-slot:item="{ item: role }">
-              <v-list-item-content :data-testid="`team-roleOption-${role.slug}`">
-                <v-list-item-title>{{ role.name }}</v-list-item-title>
-                <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
-              </v-list-item-content>
+            <template v-slot:item="{ props, item: { raw: role } }">
+              <v-list-item
+                v-bind="props"
+                :title="role.name"
+                :subtitle="role.slug"
+                :data-testid="`team-roleOption-${role.slug}`"
+              />
             </template>
           </v-autocomplete>
           <div v-else data-testid="team-rowRoleChips">
@@ -109,9 +115,8 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
           data-testid="team-rowActions"
         >
           <v-btn
@@ -121,7 +126,7 @@
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>

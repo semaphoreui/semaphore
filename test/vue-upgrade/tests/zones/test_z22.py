@@ -21,8 +21,8 @@ import re
 import pytest
 from playwright.sync_api import Page, Route, expect
 
-from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, open_dialog,
-                   row, snap, tid, wait_state, wait_until)
+from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, menu_of,
+                   open_dialog, row, snap, tid, wait_state, wait_until)
 from vu.ui import VUETIFY_FIELD_SLOT, VUETIFY_CHIP_CLOSE, VUETIFY_TOOLTIP, VUETIFY_BTN_ACTIVE  # noqa: E402 — step 2.4: shared selectors
 
 ZONE = "z22"
@@ -163,6 +163,14 @@ def wait_console(page, text):
     """Wait for a console error with <text>: it comes a moment after the failed response, and the
     inventory of the shot must not depend on that moment."""
     wait_until(page, lambda: any(text in e for e in page.vu.console_errors), f"console error «{text}»")
+
+
+def queued_timers_run(page: Page):
+    """Wait until every timer the page has queued so far has fired. Vuetify 3 moves the top of its overlay
+    stack (globalTop, which EditDialog's Esc handler asks) in a setTimeout after a menu opens; under the
+    suite's fake clock it fires late (JOURNAL@C559E533D7), so an Esc pressed at once would close the
+    dialog under the menu. Local copy, as in test_b3 / test_b4 / test_z31 (candidate for vu/ui.py)."""
+    page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
 def hold_snackbar(page: Page, clock: dt.datetime, text, state):
@@ -770,10 +778,18 @@ def test_invites_task_runner(ui, project, meta):
 
 @pytest.mark.snapshot
 def test_invites_custom_role(ui, project, meta):
-    """An invite with a non-built-in role breaks the render: the table is gone (JOURNAL@740A42127D)."""
+    """An invite with a non-built-in role throws in the render of its Role cell (JOURNAL@740A42127D).
+    Vue 2 dropped the whole table; Vue 3 drops only the component that threw — the cell of that row —
+    and keeps the table with both rows (the role of the second one not shown)."""
     page = invites(ui, project, meta, body=invites_body(meta, project, role2="seed_people"))
     wait_console(page, "TypeError")
-    expect(tid(page, INVITES_TABLE)).to_have_count(0)
+    wait_state(page, INVITES_TABLE, "ready")
+    expect(rows(page, INVITES_TABLE)).to_have_count(2)
+    expect(row(page, INVITES_TABLE, "Seed Outsider")).to_contain_text("Guest")
+    invitee = row(page, INVITES_TABLE, "z22.invitee@example.com")
+    expect(invitee).to_be_visible()
+    expect(invitee).not_to_contain_text("Seed People")
+    expect(invitee).not_to_contain_text("seed_people")
     snap(page, ZONE, "invites", "custom-role")
 
 
@@ -898,17 +914,18 @@ def test_sidebar_opens_team(ui, project):
 def test_drawer_toggle_mobile(ui, project):
     page = ui("admin")
     open_team(page, project)
-    expect(tid(page, "sidebar-team")).to_be_hidden()
+    # the closed temporary drawer is moved off the window, not hidden (README «Closed drawer»)
+    expect(tid(page, "sidebar-team")).not_to_be_in_viewport()
     tid(page, "team-drawerToggle").click()
-    expect(tid(page, "sidebar-team")).to_be_visible()
+    expect(tid(page, "sidebar-team")).to_be_in_viewport()
 
     page = ui("admin")
     teams_info(page, invites_enabled=True)
     fail_api(page, "GET", RE_INVITES, 200, [])
     goto(page, invites_path(project), "invites-page", "empty")
-    expect(tid(page, "sidebar-team")).to_be_hidden()
+    expect(tid(page, "sidebar-team")).not_to_be_in_viewport()
     tid(page, "invites-drawerToggle").click()
-    expect(tid(page, "sidebar-team")).to_be_visible()
+    expect(tid(page, "sidebar-team")).to_be_in_viewport()
 
 
 @pytest.mark.functional
@@ -1002,6 +1019,41 @@ def test_role_change_queue(ui, project, api, func_member):
 
 
 @pytest.mark.functional
+def test_row_search_sends_nothing(ui, project):
+    """Text typed into the role search of a row and left without a pick saves nothing (no PUT)."""
+    page = ui("admin")
+    open_team(page, project)
+    puts = requests_of(page, "PUT", r"/api/project/\d+/users/\d+$")
+    open_row_menu(page, "seed_guest")
+    field_input(roles_cell(page, "seed_guest"), "team-rowRolesSelect").press_sequentially("mana")
+    expect(visible_option(page, "team-roleOption-manager")).to_be_visible()
+    expect(visible_option(page, "team-roleOption-owner")).to_have_count(0)
+    page.keyboard.press("Escape")
+    tid(page, "team-title").click()
+    expect(visible_option(page, "team-roleOption-manager")).to_have_count(0)
+    expect(tid(page, TEAM_TABLE)).to_have_attribute("data-state", "ready")
+    expect(roles_cell(page, "seed_guest")).not_to_contain_text("Manager")
+    assert puts == []
+
+
+@pytest.mark.functional
+def test_role_groups_not_options(ui, project):
+    """The group titles of the row list are not choices: the options are the 6 roles of the base set,
+    a click on a title saves nothing."""
+    page = team(ui, project)
+    puts = requests_of(page, "PUT", r"/api/project/\d+/users/\d+$")
+    open_row_menu(page, "seed_guest")
+    menu = menu_of(page, "team-roleOption-guest")
+    for title in ("Project roles", "Shared roles", "Built-in roles"):
+        expect(menu.get_by_text(title, exact=True)).to_be_visible()
+    expect(menu.get_by_role("option")).to_have_count(6)
+    menu.get_by_text("Built-in roles", exact=True).click()
+    expect(visible_option(page, "team-roleOption-guest")).to_be_visible()
+    expect(tid(page, TEAM_TABLE)).to_have_attribute("data-state", "ready")
+    assert puts == []
+
+
+@pytest.mark.functional
 def test_role_save_error_reverts(ui, project, clock):
     page = ui("admin")
     open_team(page, project)
@@ -1041,7 +1093,8 @@ def test_empty_roles_with_mapped_sends_put(ui, project):
     wait_until(page, lambda: bodies, "the PUT with an empty list")
     assert bodies == [{"roles": []}]
     wait_state(page, TEAM_TABLE, "ready")
-    expect(tid(page, "app-snackbar")).not_to_contain_text(NEEDS_ROLE)
+    # Vuetify 3 renders the app-snackbar root only from its first opening on: no snackbar with the text
+    expect(tid(page, "app-snackbar").filter(has_text=NEEDS_ROLE)).to_have_count(0)
 
 
 @pytest.mark.functional
@@ -1202,7 +1255,11 @@ def test_invite_goes_to_invites(ui, project):
     card = new_dialog(page)
     open_menu(card, "teamMember-role")
     expect(tid(page, "teamMember-roleOption-seed_people")).to_have_count(0)
+    queued_timers_run(page)  # the menu, not the dialog, is the top of the overlay stack: Esc closes the menu
     page.keyboard.press("Escape")
+    # Vuetify 3 gives the focus back to the role field when its menu has left: a click on User before
+    # that loses the focus — and the list — to it
+    expect(tid(page, "teamMember-roleOption-owner")).to_have_count(0)
     pick_user(page, card)
     pick_role(page, card, "task_runner", "Task Runner")
     button(card, "editDialog-save").click()

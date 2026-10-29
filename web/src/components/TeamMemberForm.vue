@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="teamMembers != null && users != null"
     data-testid="teamMember-form"
@@ -10,7 +9,7 @@
     <v-alert
       :model-value="!!formError"
       color="error"
-      class="pb-2"
+      class="pb-2 mb-4"
       data-testid="teamMember-error"
     >{{ formError }}
     </v-alert>
@@ -18,8 +17,8 @@
     <div class="d-flex justify-end mb-1" v-if="inviteType === 'both'">
       <v-btn-toggle
         v-model="selectedInviteType"
-        tile
-        group
+        rounded="0"
+        variant="text"
         data-testid="teamMember-inviteType"
       >
         <v-btn
@@ -81,11 +80,13 @@
       variant="outlined"
       density="compact"
     >
-      <template v-slot:item="{ item: role }">
-        <v-list-item-content :data-testid="`teamMember-roleOption-${role.slug}`">
-          <v-list-item-title>{{ role.name }}</v-list-item-title>
-          <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
-        </v-list-item-content>
+      <template v-slot:item="{ props, item: { raw: role } }">
+        <v-list-item
+          v-bind="props"
+          :title="role.name"
+          :subtitle="role.slug"
+          :data-testid="`teamMember-roleOption-${role.slug}`"
+        />
       </template>
     </v-select>
   </v-form>

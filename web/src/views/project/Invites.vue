@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null"
     data-testid="invites-page"
@@ -27,12 +27,15 @@
         @click="showDrawer()"
         data-testid="invites-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="invites-title">{{ $t('Invites') }}</v-toolbar-title>
+      <v-toolbar-title class="flex-0-1" data-testid="invites-title">
+        {{ $t('Invites') }}
+      </v-toolbar-title>
 
       <v-spacer></v-spacer>
 
       <v-btn
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectUsers)"
         data-testid="invites-new"
@@ -51,7 +54,8 @@
       :items="items"
       hide-default-footer
       class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
     >
       <template v-slot:item.name="{ item }">
@@ -63,9 +67,8 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
           data-testid="invites-rowActions"
         >
           <v-btn
@@ -75,7 +78,7 @@
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
