@@ -231,8 +231,22 @@ func (c *TaskController) GetTaskPermissionsMiddleware(next http.Handler) http.Ha
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-
 		permissions |= perm
+
+		if task.WorkflowRunID != nil {
+			perm, err = c.store.GetWorkflowRunPermission(project.ID, *task.WorkflowRunID, user.ID)
+			if err != nil {
+				helpers.WriteError(w, err)
+				return
+			}
+			permissions |= perm
+		}
+
+		// A task the member may not read is not there for them.
+		if !user.Admin && permissions&db.CanReadProject == 0 {
+			helpers.WriteError(w, db.ErrNotFound)
+			return
+		}
 
 		r = helpers.SetContextValue(r, "permissions", permissions)
 		next.ServeHTTP(w, r)
@@ -251,8 +265,7 @@ func (c *TaskController) GetTaskMiddleware(next http.Handler) http.Handler {
 
 		task, err := c.store.GetTask(project.ID, taskID)
 		if err != nil {
-			util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task from database"})
-			w.WriteHeader(http.StatusBadRequest)
+			helpers.WriteError(w, err)
 			return
 		}
 

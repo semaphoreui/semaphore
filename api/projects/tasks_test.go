@@ -1,11 +1,17 @@
 package projects
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"testing"
 
+	"github.com/gorilla/mux"
+	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/sql"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -177,4 +183,65 @@ func TestResolveTaskTemplate(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "more than one template")
 	})
+}
+
+func runTaskMiddlewares(f taskControlFixture, taskID int, user *db.User, permissions db.ProjectUserPermission) (*httptest.ResponseRecorder, db.ProjectUserPermission) {
+	r := httptest.NewRequest(http.MethodGet, "/api/project/1/tasks/"+strconv.Itoa(taskID), nil)
+	r = mux.SetURLVars(r, map[string]string{"task_id": strconv.Itoa(taskID)})
+	r = helpers.SetContextValue(r, "store", f.store)
+	r = helpers.SetContextValue(r, "user", user)
+	r = helpers.SetContextValue(r, "project", f.project)
+	r = helpers.SetContextValue(r, "permissions", permissions)
+	w := httptest.NewRecorder()
+	var effective db.ProjectUserPermission
+	controller := NewTaskController(f.store, nil)
+	controller.GetTaskMiddleware(controller.GetTaskPermissionsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		effective = helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+		w.WriteHeader(http.StatusNoContent)
+	}))).ServeHTTP(w, r)
+	return w, effective
+}
+
+// A task is readable through a grant on its template or on the workflow of its run; otherwise it is not there.
+func TestTaskMiddlewares_ReadThroughGrants(t *testing.T) {
+	f := newTaskControlFixture(t)
+	role, err := f.store.CreateRole(db.Role{Slug: "nobody", Name: "Nobody", ProjectID: &f.project.ID})
+	require.NoError(t, err)
+	bob, err := f.store.CreateUserWithoutPassword(db.User{Username: "bob", Name: "Bob", Email: "bob@example.com"})
+	require.NoError(t, err)
+	require.NoError(t, f.store.CreateProjectUser(f.project.ID, bob.ID, []int{role.ID}))
+	task := f.task(t, task_logger.TaskWaitingStatus, false)
+
+	missing, _ := runTaskMiddlewares(f, 9999, &bob, db.CanReadProject)
+	assert.Equal(t, http.StatusNotFound, missing.Code)
+	hidden, _ := runTaskMiddlewares(f, task.ID, &bob, 0)
+	assert.Equal(t, http.StatusNotFound, hidden.Code)
+	assert.Equal(t, missing.Body.String(), hidden.Body.String())
+
+	_, err = f.store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: f.project.ID, TemplateID: f.template.ID, RoleID: role.ID, Permissions: db.CanReadProject | db.CanRunProjectTasks})
+	require.NoError(t, err)
+	w, effective := runTaskMiddlewares(f, task.ID, &bob, 0)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Equal(t, db.CanReadProject|db.CanRunProjectTasks, effective)
+
+	_, err = f.store.Sql().Exec(f.store.PrepareQuery("insert into project__workflow_template (project_id, name) values (?, ?)"), f.project.ID, "release")
+	require.NoError(t, err)
+	workflowID, err := f.store.Sql().SelectInt(f.store.PrepareQuery("select id from project__workflow_template where project_id = ?"), f.project.ID)
+	require.NoError(t, err)
+	_, err = f.store.Sql().Exec(f.store.PrepareQuery("insert into project__workflow_run (project_id, workflow_template_id, status) values (?, ?, ?)"), f.project.ID, workflowID, "running")
+	require.NoError(t, err)
+	runID, err := f.store.Sql().SelectInt(f.store.PrepareQuery("select id from project__workflow_run where project_id = ?"), f.project.ID)
+	require.NoError(t, err)
+	other, err := f.store.CreateTemplate(db.Template{Name: "node", Playbook: "node.yml", ProjectID: f.project.ID, RepositoryID: f.template.RepositoryID, InventoryID: f.template.InventoryID})
+	require.NoError(t, err)
+	id := int(runID)
+	nodeTask, err := f.store.CreateTask(db.Task{ProjectID: f.project.ID, TemplateID: other.ID, WorkflowRunID: &id}, 0)
+	require.NoError(t, err)
+	hidden, _ = runTaskMiddlewares(f, nodeTask.ID, &bob, 0)
+	assert.Equal(t, http.StatusNotFound, hidden.Code)
+	_, err = f.store.CreateWorkflowRole(db.WorkflowRolePerm{ProjectID: f.project.ID, WorkflowID: int(workflowID), RoleID: role.ID, Permissions: db.CanReadProject | db.CanApproveWorkflows})
+	require.NoError(t, err)
+	w, effective = runTaskMiddlewares(f, nodeTask.ID, &bob, 0)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Equal(t, db.CanReadProject|db.CanApproveWorkflows, effective)
 }

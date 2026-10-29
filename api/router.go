@@ -342,10 +342,25 @@ func Route(
 
 	//
 	// Project resources CRUD
+	//
+	// Any member reads these: the lists answer only what the member may see
+	projectMemberAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectMemberAPI.Use(projects.ProjectMiddleware)
+	projectMemberAPI.Path("/role").HandlerFunc(projects.GetUserRole).Methods("GET", "HEAD")
+	projectMemberAPI.Path("/tasks").HandlerFunc(taskController.GetAllTasks).Methods("GET", "HEAD")
+	projectMemberAPI.HandleFunc("/tasks/last", taskController.GetLastTasks).Methods("GET", "HEAD")
+	projectMemberAPI.Path("/stats").HandlerFunc(taskController.GetTaskStats).Methods("GET", "HEAD")
+	projectMemberAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
+	projectMemberAPI.Path("/workflows").HandlerFunc(workflowController.GetWorkflows).Methods("GET", "HEAD")
+	projectMemberAPI.Path("/views").HandlerFunc(projects.GetViews).Methods("GET", "HEAD")
+	projectMemberAPI.Path("/roles/all").HandlerFunc(rolesController.GetProjectAndSharedRoles).Methods("GET", "HEAD")
+
+	projectMemberViews := projectMemberAPI.PathPrefix("/views").Subrouter()
+	projectMemberViews.Use(projects.ViewMiddleware)
+	projectMemberViews.HandleFunc("/{view_id}/templates", projects.GetViewTemplates).Methods("GET", "HEAD")
+
 	projectUserAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
 	projectUserAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanManageProjectResources))
-
-	projectUserAPI.Path("/role").HandlerFunc(projects.GetUserRole).Methods("GET", "HEAD")
 
 	projectUserAPI.Path("/events").HandlerFunc(getAllEvents).Methods("GET", "HEAD")
 	projectUserAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
@@ -370,19 +385,12 @@ func Route(
 	projectUserAPI.Path("/environment").HandlerFunc(projects.GetEnvironment).Methods("GET", "HEAD")
 	projectUserAPI.Path("/environment").HandlerFunc(environmentController.AddEnvironment).Methods("POST")
 
-	projectUserAPI.Path("/tasks").HandlerFunc(taskController.GetAllTasks).Methods("GET", "HEAD")
-	projectUserAPI.HandleFunc("/tasks/last", taskController.GetLastTasks).Methods("GET", "HEAD")
-
-	projectUserAPI.Path("/stats").HandlerFunc(taskController.GetTaskStats).Methods("GET", "HEAD")
-
-	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
 
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.GetProjectSchedules).Methods("GET", "HEAD")
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
 	projectUserAPI.Path("/schedules/validate").HandlerFunc(projects.ValidateScheduleCronFormat).Methods("POST")
 
-	projectUserAPI.Path("/views").HandlerFunc(projects.GetViews).Methods("GET", "HEAD")
 	projectUserAPI.Path("/views").HandlerFunc(projects.AddView).Methods("POST")
 	projectUserAPI.Path("/views/positions").HandlerFunc(projects.SetViewPositions).Methods("POST")
 
@@ -405,7 +413,6 @@ func Route(
 	projectRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(projectRunnerController.ClearRunnerCache).Methods("DELETE")
 
 	projectUserAPI.Path("/roles").HandlerFunc(rolesController.GetProjectRoles).Methods("GET", "HEAD")
-	projectUserAPI.Path("/roles/all").HandlerFunc(rolesController.GetProjectAndSharedRoles).Methods("GET", "HEAD")
 	projectUserAPI.Path("/roles").HandlerFunc(rolesController.AddProjectRole).Methods("POST")
 
 	projectRolesAPI := projectUserAPI.PathPrefix("/roles").Subrouter()
@@ -505,8 +512,10 @@ func Route(
 	projectEnvManagement.HandleFunc("/{environment_id}", environmentController.RemoveEnvironment).Methods("DELETE")
 	projectEnvManagement.HandleFunc("/{environment_id}/sync", environmentController.SyncEnvironment).Methods("POST")
 
-	projectTmplManagement := projectUserAPI.PathPrefix("/templates").Subrouter()
-	projectTmplManagement.Use(projects.TemplatesMiddleware)
+	//
+	// Objects load before the verb check: a template, workflow or task the member may not read is not there
+	projectTmplManagement := authenticatedAPI.PathPrefix("/project/{project_id}/templates").Subrouter()
+	projectTmplManagement.Use(projects.ProjectMiddleware, projects.TemplatesMiddleware, projects.GetMustCanMiddleware(db.CanManageProjectResources))
 
 	projectTmplManagement.HandleFunc("/{template_id}", projects.UpdateTemplate).Methods("PUT")
 	projectTmplManagement.HandleFunc("/{template_id}/description", projects.UpdateTemplateDescription).Methods("PUT")
@@ -532,14 +541,13 @@ func Route(
 	projectTmplInvManagement.HandleFunc("/{inventory_id}/detach", projects.DetachInventory).Methods("POST")
 
 	//
-	// Workflows have verbs of their own, checked before the workflow is loaded
+	// Workflows have verbs of their own
 	projectWorkflowAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
 	projectWorkflowAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanEditWorkflows))
-	projectWorkflowAPI.Path("/workflows").HandlerFunc(workflowController.GetWorkflows).Methods("GET", "HEAD")
 	projectWorkflowAPI.Path("/workflows").HandlerFunc(workflowController.AddWorkflow).Methods("POST")
 
-	projectWorkflowManagement := projectWorkflowAPI.PathPrefix("/workflows").Subrouter()
-	projectWorkflowManagement.Use(workflowMiddlewareController.WorkflowsMiddleware)
+	projectWorkflowManagement := authenticatedAPI.PathPrefix("/project/{project_id}/workflows").Subrouter()
+	projectWorkflowManagement.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, projects.GetMustCanMiddleware(db.CanEditWorkflows))
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.UpdateWorkflow).Methods("PUT")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.RemoveWorkflow).Methods("DELETE")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.GetWorkflow).Methods("GET")
@@ -553,7 +561,7 @@ func Route(
 	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms/{perm_id}", workflowPermController.DeleteWorkflowPerm).Methods("DELETE")
 
 	projectWorkflowRunAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows").Subrouter()
-	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanRunWorkflows), workflowMiddlewareController.WorkflowsMiddleware)
+	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, projects.GetMustCanMiddleware(db.CanRunWorkflows))
 	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.RunWorkflow).Methods("POST")
 	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.GetWorkflowRuns).Methods("GET", "HEAD")
 
@@ -565,11 +573,11 @@ func Route(
 	projectWorkflowRunManagement.HandleFunc("/{run_id}/approvals", workflowController.GetWorkflowApprovals).Methods("GET", "HEAD")
 
 	projectWorkflowApprovalAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals").Subrouter()
-	projectWorkflowApprovalAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanApproveWorkflows), workflowMiddlewareController.WorkflowsMiddleware, workflowMiddlewareController.WorkflowRunsMiddleware)
+	projectWorkflowApprovalAPI.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, workflowMiddlewareController.WorkflowRunsMiddleware, projects.GetMustCanMiddleware(db.CanApproveWorkflows))
 	projectWorkflowApprovalAPI.HandleFunc("/{node_id}", workflowController.ResolveWorkflowApproval).Methods("POST")
 
-	projectTaskManagement := projectUserAPI.PathPrefix("/tasks").Subrouter()
-	projectTaskManagement.Use(taskController.GetTaskMiddleware)
+	projectTaskManagement := authenticatedAPI.PathPrefix("/project/{project_id}/tasks").Subrouter()
+	projectTaskManagement.Use(projects.ProjectMiddleware, taskController.GetTaskMiddleware, taskController.GetTaskPermissionsMiddleware, projects.GetMustCanMiddleware(db.CanManageProjectResources))
 
 	projectTaskManagement.HandleFunc("/{task_id}/output", taskController.GetTaskOutput).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}/raw_output", taskController.GetTaskRawOutput).Methods("GET", "HEAD")
@@ -591,7 +599,6 @@ func Route(
 	projectViewManagement.HandleFunc("/{view_id}", projects.GetViews).Methods("GET", "HEAD")
 	projectViewManagement.HandleFunc("/{view_id}", projects.UpdateView).Methods("PUT")
 	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
-	projectViewManagement.HandleFunc("/{view_id}/templates", projects.GetViewTemplates).Methods("GET", "HEAD")
 
 	projectIntegrationsAliasAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
 	projectIntegrationsAliasAPI.Use(projects.ProjectMiddleware)
