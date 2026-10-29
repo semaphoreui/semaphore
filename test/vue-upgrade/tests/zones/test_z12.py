@@ -18,9 +18,9 @@ import re
 import pytest
 from playwright.sync_api import Page, expect
 
-from vu.ui import (answer_api, badge_dot, dialog, expect_no_snackbar, expect_snackbar, fail_api, field_input,
-                   field_message, field_selection, goto, hold_api, hold_snackbar, only_names, open_menu, patch_api,
-                   pick, press, queued_timers_run, settle, snap, tid, toggle, wait_state, wait_until)
+from vu.ui import (active_menu, answer_api, badge_dot, dialog, expect_no_snackbar, expect_snackbar, fail_api,
+                   field_input, field_message, field_selection, goto, hold_api, hold_snackbar, only_names, open_menu,
+                   patch_api, press, queued_timers_run, settle, snap, tid, toggle, wait_state, wait_until)
 from vu.ui import DRAWFLOW_NODE, DRAWFLOW_INPUT, DRAWFLOW_OUTPUT, DRAWFLOW_EDGE_PATH, VUETIFY_BTN_LOADING
 
 ZONE = "z12"
@@ -208,7 +208,20 @@ def expect_dirty(page, dirty):
 
 
 def pick_template(page, name):
-    pick(page, page, "workflowNodeProps-templateId", name)
+    """Choose the template <name> of the node. Vuetify 4 opens the list scrolled so that the chosen
+    template sits in the middle, and its virtual list renders only the options near it: a template far
+    below («Tofu apply» from «OK script») is not in the DOM yet — scroll the list with the wheel, as the
+    user does, until it comes up."""
+    open_menu(page, "workflowNodeProps-templateId")
+    opt = page.get_by_role("option", name=name, exact=True)
+    active_menu(page).hover()
+    for _ in range(20):
+        if opt.count():
+            break
+        page.mouse.wheel(0, 96)
+        settle(page)
+    expect(opt).to_be_visible()
+    opt.click()
 
 
 # ---- snapshots: editor -----------------------------------------------------------------------------

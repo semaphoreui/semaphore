@@ -40,16 +40,16 @@
         @update:model-value="emitChange"
         data-testid="workflowEdgeProps-condition"
       >
-        <!-- Vuetify 3: the item slot draws the whole list item; the option is item.raw,
-             item.value its item-value -->
+        <!-- The item slot draws the whole list item; in Vuetify 4 `item` is the option
+             itself (internalItem the wrapper) -->
         <template v-slot:item="{ item, props }">
           <v-list-item v-bind="props">
             <template v-slot:prepend>
               <v-icon
                 size="small"
-                :color="item.raw.color"
+                :color="item.color"
                 :data-testid="`workflowEdgeProps-conditionOption-${item.value}`"
-              >{{ item.raw.icon }}</v-icon>
+              >{{ item.icon }}</v-icon>
             </template>
           </v-list-item>
         </template>
@@ -57,10 +57,10 @@
           <v-icon
             size="small"
             start
-            :color="item.raw.color"
+            :color="item.color"
             :data-testid="`workflowEdgeProps-conditionSelected-${item.value}`"
-          >{{ item.raw.icon }}</v-icon>
-          {{ item.raw.text }}
+          >{{ item.icon }}</v-icon>
+          {{ item.text }}
         </template>
       </v-select>
     </div>
