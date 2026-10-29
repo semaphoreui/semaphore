@@ -189,3 +189,27 @@ func (key *AccessKey) Validate(validateSecretFields bool) error {
 func (key *AccessKey) IsEnvironmentVariable() bool {
 	return key.SourceStorageID == nil && key.SourceStorageKey != nil
 }
+
+// VerificationToken is the shared secret an incoming webhook is verified
+// against by the token, HMAC, GitHub and Bitbucket methods: the value of a
+// string key, or the password of a login/password key.
+//
+// ok is false when the auth method needs that secret and the key cannot
+// provide it — wrong key type, unloaded key or an empty value — so the
+// request must be refused. It is never reported as an empty secret: with
+// the token method that would match a request carrying no header at all.
+// For none and BasicAuth, which do not use a shared secret, the secret is
+// empty and ok is true.
+func (key *AccessKey) VerificationToken() (secret string, ok bool) {
+
+	switch key.Type {
+	case AccessKeyString:
+		secret = key.String
+		ok = true
+	case AccessKeyLoginPassword:
+		secret = key.LoginPassword.Password
+		ok = true
+	}
+
+	return
+}
