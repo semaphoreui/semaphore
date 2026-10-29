@@ -97,14 +97,10 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
+      class="mt-4 ScheduleTable"
       :items-per-page="-1"
       data-testid="schedule-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
-      style="
-          max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
-          margin: auto;
-        "
     >
       <template v-slot:item.active="{ item }">
         <!-- min-width: the grid of a Vuetify 3 v-input is 0 px at its narrowest, and the column
@@ -179,6 +175,13 @@
   </div>
 
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.ScheduleTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import ScheduleForm from '@/components/ScheduleForm.vue';
