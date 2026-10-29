@@ -1,10 +1,12 @@
 package projects
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -244,4 +246,38 @@ func TestTaskMiddlewares_ReadThroughGrants(t *testing.T) {
 	w, effective = runTaskMiddlewares(f, nodeTask.ID, &bob, 0)
 	assert.Equal(t, http.StatusNoContent, w.Code)
 	assert.Equal(t, db.CanReadProject|db.CanApproveWorkflows, effective)
+}
+
+// A new task carries what the client sent: a workflow run in the body must not lend its grants.
+func TestNewTaskMiddleware_IgnoresClientWorkflowRun(t *testing.T) {
+	f := newTaskControlFixture(t)
+	role, err := f.store.CreateRole(db.Role{Slug: "runner", Name: "Runner", Permissions: db.CanRunProjectTasks, ProjectID: &f.project.ID})
+	require.NoError(t, err)
+	bob, err := f.store.CreateUserWithoutPassword(db.User{Username: "bob", Name: "Bob", Email: "bob@example.com"})
+	require.NoError(t, err)
+	require.NoError(t, f.store.CreateProjectUser(f.project.ID, bob.ID, []int{role.ID}))
+	_, err = f.store.Sql().Exec(f.store.PrepareQuery("insert into project__workflow_template (project_id, name) values (?, ?)"), f.project.ID, "release")
+	require.NoError(t, err)
+	workflowID, err := f.store.Sql().SelectInt(f.store.PrepareQuery("select id from project__workflow_template where project_id = ?"), f.project.ID)
+	require.NoError(t, err)
+	_, err = f.store.Sql().Exec(f.store.PrepareQuery("insert into project__workflow_run (project_id, workflow_template_id, status) values (?, ?, ?)"), f.project.ID, workflowID, "running")
+	require.NoError(t, err)
+	runID, err := f.store.Sql().SelectInt(f.store.PrepareQuery("select id from project__workflow_run where project_id = ?"), f.project.ID)
+	require.NoError(t, err)
+	_, err = f.store.CreateWorkflowRole(db.WorkflowRolePerm{ProjectID: f.project.ID, WorkflowID: int(workflowID), RoleID: role.ID, Permissions: db.CanReadProject | db.CanRunWorkflows})
+	require.NoError(t, err)
+
+	body := fmt.Sprintf(`{"template_id": %d, "workflow_run_id": %d}`, f.template.ID, runID)
+	r := httptest.NewRequest(http.MethodPost, "/api/project/1/tasks", strings.NewReader(body))
+	r = helpers.SetContextValue(r, "store", f.store)
+	r = helpers.SetContextValue(r, "user", &bob)
+	r = helpers.SetContextValue(r, "project", f.project)
+	r = helpers.SetContextValue(r, "permissions", db.CanRunProjectTasks)
+	w := httptest.NewRecorder()
+	controller := NewTaskController(f.store, nil)
+	controller.NewTaskMiddleware(controller.GetTaskPermissionsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))).ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusNotFound, w.Code, "the template is hidden, whatever run the body names")
 }

@@ -83,7 +83,7 @@ func GetTemplateRefs(w http.ResponseWriter, r *http.Request) {
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	user := helpers.UserFromContext(r)
-	filter := db.TemplateFilter{}
+	filter := db.TemplateFilter{Viewer: &db.Viewer{UserID: user.ID, Admin: user.Admin}}
 	if r.URL.Query().Get("app") != "" {
 		app := db.TemplateApp(r.URL.Query().Get("app"))
 		filter.App = &app

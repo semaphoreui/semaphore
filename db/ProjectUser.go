@@ -49,6 +49,12 @@ func LiftPermissions(mask ProjectUserPermission) ProjectUserPermission {
 	return mask
 }
 
+// Viewer is the member a list is answered for. Lists skip the visibility filter for an admin.
+type Viewer struct {
+	UserID int
+	Admin  bool
+}
+
 type ProjectUser struct {
 	ProjectID int `db:"project_id" json:"project_id"`
 	UserID    int `db:"user_id" json:"user_id"`

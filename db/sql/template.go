@@ -299,6 +299,11 @@ func (d *SqlDb) getTemplates(
 
 	q := sq.Select(fields...).From("project__template pt")
 
+	if filtered(filter.Viewer) {
+		where, args := visibleTemplatesWhere(projectID, filter.Viewer.UserID, "pt")
+		q = q.Where(where, args...)
+	}
+
 	if filter.App != nil {
 		q = q.Where("pt.app=?", *filter.App)
 	}

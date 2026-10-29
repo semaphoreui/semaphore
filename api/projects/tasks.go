@@ -133,6 +133,11 @@ func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 func (c *TaskController) writeTasksList(w http.ResponseWriter, r *http.Request, params db.RetrieveQueryParams, pageSize int) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	tpl := helpers.GetFromContext(r, "template")
+	user := helpers.UserFromContext(r)
+	if params.TaskFilter == nil {
+		params.TaskFilter = &db.TaskFilter{}
+	}
+	params.TaskFilter.Viewer = &db.Viewer{UserID: user.ID, Admin: user.Admin}
 
 	var err error
 	var taskList []db.TaskWithTpl
@@ -284,7 +289,8 @@ func (c *TaskController) NewTaskMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		r = helpers.SetContextValue(r, "task", taskObj)
+		// Cleared before the permission check: a run named in the body must not lend its grants.
+		r = helpers.SetContextValue(r, "task", sanitizeClientTask(taskObj))
 		next.ServeHTTP(w, r)
 	})
 }
@@ -560,7 +566,8 @@ func (c *TaskController) GetTaskStats(w http.ResponseWriter, r *http.Request) {
 		tplID = &id
 	}
 
-	filter := db.TaskFilter{}
+	user := helpers.UserFromContext(r)
+	filter := db.TaskFilter{Viewer: &db.Viewer{UserID: user.ID, Admin: user.Admin}}
 
 	if start := r.URL.Query().Get("start"); start != "" {
 		d, err := time.Parse("2006-01-02", start)
