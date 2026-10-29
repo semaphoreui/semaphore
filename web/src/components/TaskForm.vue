@@ -120,7 +120,7 @@
           @click:close="deleteItem(v.name, index)"
           :data-testid="`newTask-surveyChip-${v.name}`"
         >
-          {{ item.raw && item.raw.name ? item.raw.name : String(item.raw) }}
+          {{ item && item.name ? item.name : String(item) }}
         </v-chip>
       </template>
     </v-select>
