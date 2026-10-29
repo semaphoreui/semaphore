@@ -82,6 +82,8 @@ func (c *SubscriptionProxyConfig) ProxyURL() (*url.URL, error) {
 
 	if c.Username != "" {
 		proxyURL.User = url.UserPassword(c.Username, c.Password)
+	} else if c.Password != "" && proxyURL.User != nil {
+		proxyURL.User = url.UserPassword(proxyURL.User.Username(), c.Password)
 	}
 
 	return proxyURL, nil
