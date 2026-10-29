@@ -618,6 +618,7 @@ type RoleRepository interface {
 // Role grants on workflows: the table is in the community schema, the workflows are a Pro store.
 type WorkflowRoleManager interface {
 	GetWorkflowPermission(projectID int, workflowID int, userID int) (ProjectUserPermission, error)
+	GetWorkflowRunPermission(projectID int, runID int, userID int) (ProjectUserPermission, error)
 	GetWorkflowGrantsForUser(projectID int, userID int) (map[int]ProjectUserPermission, error)
 	GetWorkflowRoles(projectID int, workflowID int) ([]WorkflowRolePerm, error)
 	GetWorkflowRole(projectID int, workflowID int, permID int) (WorkflowRolePerm, error)

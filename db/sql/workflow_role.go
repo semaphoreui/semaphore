@@ -39,6 +39,25 @@ func (d *SqlDb) GetWorkflowPermission(projectID int, workflowID int, userID int)
 	`, projectID, workflowID, projectID, userID, projectID, userID)
 }
 
+// GetWorkflowRunPermission is GetWorkflowPermission for the workflow of a run.
+func (d *SqlDb) GetWorkflowRunPermission(projectID int, runID int, userID int) (db.ProjectUserPermission, error) {
+	return d.workflowGrants(`
+		select
+		  pwr.permissions
+		from project__workflow_role pwr
+		join project__workflow_run wr on wr.workflow_template_id = pwr.workflow_id
+		where pwr.project_id = ? and wr.id = ?
+		  and pwr.role_id in (
+		    select pur.role_id from project__user_role pur where pur.project_id = ? and pur.user_id = ?
+		    union
+		    select m.role_id
+		    from project__user_mapped_role mr
+		    join group_role_mapping m on m.id = mr.mapping_id
+		    where mr.project_id = ? and mr.user_id = ?
+		  )
+	`, projectID, runID, projectID, userID, projectID, userID)
+}
+
 // Per workflow of the project, the OR of the grants of the member's roles; no grant, no entry.
 func (d *SqlDb) GetWorkflowGrantsForUser(projectID int, userID int) (map[int]db.ProjectUserPermission, error) {
 	var rows []db.WorkflowRolePerm
