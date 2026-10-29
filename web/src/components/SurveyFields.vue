@@ -67,7 +67,7 @@
             @click:close="removeSelectedItem(v.name, index)"
             :data-testid="`surveyFields-chip-${v.name}`"
           >
-            {{ item.raw && item.raw.name ? item.raw.name : String(item.raw ?? item) }}
+            {{ item && item.name ? item.name : String(item) }}
           </v-chip>
         </template>
         <template v-if="canBind(v)" v-slot:append>

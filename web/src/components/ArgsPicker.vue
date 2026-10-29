@@ -69,7 +69,10 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-    <fieldset style="padding: 0 10px 2px 10px;
+    <!-- margin: 0 — the reset of Vuetify 2/3 zeroed every margin, the one of Vuetify 4 does not:
+         without it the browser's 2px side margin of a fieldset shifts the frame off the fields. -->
+    <fieldset style="margin: 0;
+                     padding: 0 10px 2px 10px;
                         border-width: 1px;
                         border-color: rgba(133, 133, 133, 0.4);
                         background-color: rgba(133, 133, 133, 0.1);
