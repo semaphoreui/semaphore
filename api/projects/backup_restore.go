@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/audit"
 	projectService "github.com/semaphoreui/semaphore/services/project"
@@ -123,7 +125,7 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(log.Fields{
 			"context": "backup_api",
 		}).WithError(err).Error("failed to verify backup")
-		helpers.WriteError(w, err)
+		helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -131,17 +133,19 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var p *db.Project
 	p, err := backup.Restore(*user, store, c.workflowStore)
-
 	if err != nil {
 		log.WithFields(log.Fields{
 			"context": "backup_api",
 		}).WithError(err).Error("failed to restore backup")
-	}
-
-	// Without a project nothing was created; with one, a failed step is a partial success.
-	if err != nil && p == nil {
+		if cleanup, ok := errors.AsType[*projectService.CleanupError](err); ok {
+			writeCleanupFailure(w, cleanup.Err, cleanup.ProjectID)
+			return
+		}
+		if _, ok := errors.AsType[*common_errors.ValidationError](err); ok {
+			helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		helpers.WriteError(w, err)
 		return
 	}
@@ -151,39 +155,27 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 		integrationAliases += len(integration.Aliases)
 	}
 
-	event := audit.Event{
+	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.ResourceProjectBackupRestore,
 		Target:    audit.ResourceTarget(audit.TargetProject, p.ID, p.Name),
 		ProjectID: p.ID,
-	}
-	metadata := audit.BackupRestoreMetadata{Objects: map[string]int{
-		"templates":           len(backup.Templates),
-		"repositories":        len(backup.Repositories),
-		"host_configs":        len(backup.HostConfigs),
-		"keys":                len(backup.Keys),
-		"views":               len(backup.Views),
-		"inventories":         len(backup.Inventories),
-		"environments":        len(backup.Environments),
-		"integrations":        len(backup.Integration),
-		"integration_aliases": integrationAliases,
-		"schedules":           len(backup.Schedules),
-		"secret_storages":     len(backup.SecretStorages),
-		"roles":               len(backup.Roles),
-		"runners":             len(backup.Runners),
-		"workflows":           len(backup.Workflows),
-	}}
-
-	if err != nil {
-		event.Reason = audit.ReasonRestoreFailed
-		metadata.Partial = true
-	}
-	event.Metadata = metadata
-	helpers.Audit(r).Record(r.Context(), event)
-
-	if err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
+		Metadata: audit.BackupRestoreMetadata{Objects: map[string]int{
+			"templates":           len(backup.Templates),
+			"repositories":        len(backup.Repositories),
+			"host_configs":        len(backup.HostConfigs),
+			"keys":                len(backup.Keys),
+			"views":               len(backup.Views),
+			"inventories":         len(backup.Inventories),
+			"environments":        len(backup.Environments),
+			"integrations":        len(backup.Integration),
+			"integration_aliases": integrationAliases,
+			"schedules":           len(backup.Schedules),
+			"secret_storages":     len(backup.SecretStorages),
+			"roles":               len(backup.Roles),
+			"runners":             len(backup.Runners),
+			"workflows":           len(backup.Workflows),
+		}},
+	})
 
 	helpers.WriteJSON(w, http.StatusOK, p)
 }

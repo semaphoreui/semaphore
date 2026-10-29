@@ -732,13 +732,13 @@ type stubIntegrationService struct {
 	// failFor is the integration whose secret cannot be loaded, zero for none.
 	failFor int
 
-	key      *db.AccessKey
+	key *db.AccessKey
 }
 
 func (s *stubIntegrationService) FillIntegration(integration *db.Integration) error {
 	if s.failFor != 0 && integration.ID == s.failFor {
 		return errors.New("secret unavailable")
-  }
+	}
 	if s.key != nil {
 		integration.AuthSecret = *s.key
 		return nil
@@ -944,7 +944,6 @@ func TestGetTaskDefinitionGitBranchParam(t *testing.T) {
 	assert.Nil(t, task.GitBranch)
 	assert.Equal(t, "release/1.0", task.Params[db.TaskParamGitBranch])
 }
-
 
 // receivedCalls returns the call history recorded for the alias's project.
 func receivedCalls(t *testing.T, store db.Store, alias string) []db.IntegrationCall {

@@ -104,12 +104,12 @@ func sourceIP(r *http.Request) string {
 // verifyIntegrationAuth checks the request against the integration's auth
 // method and returns why it was rejected, empty when it passed.
 func verifyIntegrationAuth(integration db.Integration, r *http.Request, payload []byte) string {
-	// VerificationSecret reads the secret from whichever key type backs it
-	// (string or login/password); a plain AuthSecret.LoginPassword.Password
-	// read is empty for a string key, so it would reject a correctly signed
-	// request. A false ok (key can't provide the secret) is refused later by
-	// the caller, so it is not acted on here.
-	secret, _ := integration.VerificationSecret()
+	// A key that cannot provide the shared secret refuses the request here,
+	// before the method-specific check.
+	secret, ok := integration.VerificationSecret()
+	if !ok {
+		return "Auth secret is empty or its key type does not fit the auth method"
+	}
 
 	switch integration.AuthMethod {
 	case db.IntegrationAuthGitHub:
@@ -133,9 +133,17 @@ func verifyIntegrationAuth(integration db.Integration, r *http.Request, payload 
 			return "Invalid verification token"
 		}
 	case db.IntegrationAuthBasic:
+		if integration.AuthSecret.Type != db.AccessKeyLoginPassword {
+			return "BasicAuth needs a login/password credential"
+		}
+		creds := integration.AuthSecret.LoginPassword
 		login, password, ok := r.BasicAuth()
+<<<<<<< HEAD
 		secretLP := integration.AuthSecret.LoginPassword
 		if !ok || secretLP.Password != password || secretLP.Login != login {
+=======
+		if !ok || creds.Password != password || creds.Login != login {
+>>>>>>> 22c8f77217c473d0ca27947b467094846dc06b81
 			return "Invalid BasicAuth: incorrect login or password"
 		}
 	case db.IntegrationAuthNone:
@@ -259,105 +267,6 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			// Anyone who knows the URL can fail auth, so such a body is not kept.
 			call.RequestBody = nil
 			c.recordCall(call, started, db.IntegrationCallUnauthorized, reason)
-      continue
-		}
-
-		// A key that cannot provide the shared secret refuses the request here,
-		// before the method-specific check.
-		secret, ok := integration.VerificationSecret()
-		if !ok {
-			log.WithFields(log.Fields{
-				"context":       "integrations",
-				"integrationId": integration.ID,
-			}).Error("auth secret is empty or its key type does not fit the auth method")
-			continue
-		}
-
-		switch integration.AuthMethod {
-		case db.IntegrationAuthGitHub:
-			ok := isValidHmacPayload(
-				secret,
-				r.Header.Get("X-Hub-Signature-256"),
-				payload,
-				"sha256=",
-				sha256.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid GitHub/HMAC signature")
-				continue
-			}
-		case db.IntegrationAuthBitbucket:
-			ok := isValidHmacPayload(
-				secret,
-				r.Header.Get("x-hub-signature"),
-				payload,
-				"sha256=",
-				sha256.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid Bitbucket/HMAC signature")
-				continue
-			}
-		case db.IntegrationAuthHmac:
-			ok := isValidHmacPayload(
-				secret,
-				r.Header.Get(integration.AuthHeader),
-				payload,
-				"",
-				sha256.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid HMAC signature")
-				continue
-			}
-		case db.IntegrationAuthHmacSha512:
-			ok := isValidHmacPayload(
-				secret,
-				r.Header.Get(integration.AuthHeader),
-				payload,
-				"",
-				sha512.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid HMAC-SHA512 signature")
-				continue
-			}
-		case db.IntegrationAuthToken:
-			if secret != r.Header.Get(integration.AuthHeader) {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid verification token")
-				continue
-			}
-		case db.IntegrationAuthBasic:
-			if integration.AuthSecret.Type != db.AccessKeyLoginPassword {
-				log.WithFields(log.Fields{
-					"context":       "integrations",
-					"integrationId": integration.ID,
-				}).Error("BasicAuth needs a login/password credential")
-				continue
-			}
-			var username, password, auth = r.BasicAuth()
-			if !auth || integration.AuthSecret.LoginPassword.Password != password || integration.AuthSecret.LoginPassword.Login != username {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid BasicAuth: incorrect login or password")
-				continue
-			}
-		case db.IntegrationAuthNone:
-			// Do nothing
-		default:
-			log.WithFields(log.Fields{
-				"context": "integrations",
-			}).Error("Unknown verification method: " + integration.AuthMethod)
 			continue
 		}
 
