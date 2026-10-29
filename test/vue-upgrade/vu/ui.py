@@ -455,12 +455,35 @@ def select_tab(tab: Locator):
 
 
 def dialog(page, test_id, timeout=10000) -> Locator:
-    """The card of an open dialog (EditDialog / YesNoDialog test-id), once visible and drawn at its own
-    size (the enter transition scales it for a frame: a click then lands on the overlay)."""
+    """The card of an open dialog (EditDialog / YesNoDialog test-id), once visible, drawn at its own
+    size (the enter transition scales it for a frame: a click then lands on the overlay) and entered
+    (wait_entered)."""
     card = tid(page, test_id)
     expect(card).to_be_visible(timeout=timeout)
     wait_unscaled(page, card)
+    wait_entered(page)
     return card
+
+
+ENTER_FRAMES_JS = """() => { const id = (window.__vuEnterWait || 0) + 1; window.__vuEnterWait = id;
+  requestAnimationFrame(() => requestAnimationFrame(() => { window.__vuEntered = id; })); return id; }"""
+
+
+def wait_entered(page: Page, timeout_ms=1000):
+    """Wait two animation frames from now; best effort (returns False if the frames do not come — a
+    paused clock). Vuetify 3 ends the enter of a v-dialog in afterEnter, two frames after it shows: it
+    moves the focus into the dialog if the focus is outside. In the suite afterEnter comes 70–300 ms
+    after the card shows (more under load), so a test that already works in a dialog opened from this
+    one (the full screen RichEditor of a form) has its focus taken back by the outer dialog — the keys
+    typed next go to it, not to the editor. The timer that moves the top of the overlay stack
+    (queued_timers_run) is due before these frames."""
+    wait_id = page.evaluate(ENTER_FRAMES_JS)
+    deadline = time.time() + timeout_ms / 1000
+    while time.time() < deadline:
+        if page.evaluate("(id) => (window.__vuEntered || 0) >= id", wait_id):
+            return True
+        page.wait_for_timeout(10)
+    return False
 
 
 def wait_unscaled(page: Page, loc: Locator, timeout_ms=2000):

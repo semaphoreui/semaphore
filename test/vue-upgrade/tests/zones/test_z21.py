@@ -15,8 +15,8 @@ import pytest
 from playwright.sync_api import expect
 
 from vu.ui import (answer_api, button, dialog, fail_api, field_input, field_message, field_selection, goto,
-                   hold_api, open_dialog, open_menu, option, pick, requests_of, row, snap, tid, toggle,
-                   wait_state, wait_until)
+                   hold_api, open_dialog, open_menu, option, pick, queued_timers_run, requests_of, row, snap, tid,
+                   toggle, wait_state, wait_until)
 
 ZONE = "z21"
 DEMO = "Seed Demo"
@@ -969,6 +969,7 @@ def test_matcher_dialog_close_ways(ui, z21):
     for way in ("editDialog-cancel", "editDialog-close", "Escape"):
         card = matcher_dialog(page, edit)
         if way == "Escape":
+            queued_timers_run(page)  # the reopened dialog is the top of the overlay stack
             page.keyboard.press("Escape")
         else:
             button(card, way).click()
@@ -1026,6 +1027,7 @@ def test_value_dialog_close_ways(ui, z21):
     for way in ("editDialog-cancel", "editDialog-close", "Escape"):
         card = value_dialog(page, edit)
         if way == "Escape":
+            queued_timers_run(page)  # the reopened dialog is the top of the overlay stack
             page.keyboard.press("Escape")
         else:
             button(card, way).click()
