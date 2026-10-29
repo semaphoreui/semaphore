@@ -2061,7 +2061,7 @@ parameters:
     in: path
     type: integer
     required: true
-    x-example: 3
+    x-example: 25
   run_id:
     name: run_id
     description: workflow run ID
@@ -3886,7 +3886,6 @@ paths:
         204:
           description: template removed
 
-  # project workflows
   /project/{project_id}/templates/{template_id}/perms:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -3955,6 +3954,7 @@ paths:
         204:
           description: grant removed
 
+  # project workflows
   /project/{project_id}/workflows:
     parameters:
       - $ref: "#/parameters/project_id"
