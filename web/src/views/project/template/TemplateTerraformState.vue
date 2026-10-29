@@ -289,8 +289,8 @@
             :items-per-page-options="[20]"
             :items-per-page="20"
             show-expand
-            :expanded="expanded"
-            @update:expanded="expanded = $event.slice(-1)"
+            v-model:expanded="expanded"
+            expand-strategy="single"
             class="mt-4 TaskListTable TaskListTable TerraformStateTable FixedPageSizeTable"
             data-testid="templateState-table"
             :data-state="states.length === 0 ? 'empty' : 'ready'"
@@ -423,7 +423,7 @@ export default {
       attachInventoryDialog: null,
       aliasId: null,
       editDialog: null,
-      // single-expand of Vuetify 2: only the last expanded row stays open
+      // single-expand of Vuetify 2 (expand-strategy="single"): one expanded row at a time
       expanded: [],
       headers: [
         // the expand column first, as Vuetify 2 drew it (Vuetify 3 adds it last)
