@@ -27,7 +27,7 @@
       :disabled="formSaving"
       data-testid="templatePerm-roleSlug"
     >
-      <template v-slot:item="{ item: { raw: role }, props }">
+      <template v-slot:item="{ item: role, props }">
         <v-list-item v-bind="props" :title="undefined">
           <div :data-testid="`templatePerm-roleSlug-${role.slug}`">
             <v-list-item-title>{{ role.name }}</v-list-item-title>
