@@ -66,13 +66,14 @@ func TestTemplatePermissions_AreRecorded(t *testing.T) {
 	assert.Equal(t, &audit.Target{Type: audit.TargetTemplatePermission, ID: "5"}, got.Event.Target)
 	assert.Equal(t, 12, got.Event.ProjectID)
 	ref := audit.NewRoleRef(runner)
-	assert.Equal(t, audit.TemplatePermissionMetadata{TemplateID: 3, Role: ref, Permissions: []string{"run_tasks"}}, got.Event.Metadata)
+	assert.Equal(t, audit.TemplatePermissionMetadata{TemplateID: 3, Role: ref, Permissions: []string{"read_project", "run_tasks"}}, got.Event.Metadata)
 	assert.Contains(t, w.Body.String(), `"role_slug":"task_runner"`)
+	assert.Contains(t, w.Body.String(), `"permissions":129`, "a verb on a template includes seeing it")
 	assert.NotContains(t, w.Body.String(), "role_id")
 
 	r, rec = templatePermRequest(t, store, http.MethodPut, `{"role_slug":"task_runner","permissions":5}`, "5")
 	controller.UpdateTemplatePerm(httptest.NewRecorder(), r)
-	assert.Equal(t, audit.TemplatePermissionMetadata{TemplateID: 3, Role: ref, Permissions: []string{"run_tasks", "manage_resources"}},
+	assert.Equal(t, audit.TemplatePermissionMetadata{TemplateID: 3, Role: ref, Permissions: []string{"read_project", "run_tasks", "manage_resources"}},
 		only(t, rec, audit.IAMTemplatePermissionUpdate).Event.Metadata)
 
 	r, rec = templatePermRequest(t, store, http.MethodDelete, "", "5")

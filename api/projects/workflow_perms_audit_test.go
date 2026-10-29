@@ -57,13 +57,14 @@ func TestWorkflowPermissions_AreRecorded(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code)
 	assert.Equal(t, &audit.Target{Type: audit.TargetWorkflowPermission, ID: "5"}, got.Event.Target)
 	assert.Equal(t, 12, got.Event.ProjectID)
-	assert.Equal(t, audit.WorkflowPermissionMetadata{WorkflowID: 3, Role: ref, Permissions: []string{"run_workflows"}}, got.Event.Metadata)
+	assert.Equal(t, audit.WorkflowPermissionMetadata{WorkflowID: 3, Role: ref, Permissions: []string{"read_project", "run_workflows"}}, got.Event.Metadata)
 	assert.Contains(t, w.Body.String(), `"role_slug":"task_runner"`)
+	assert.Contains(t, w.Body.String(), `"permissions":144`, "a verb on a workflow includes seeing it")
 	assert.NotContains(t, w.Body.String(), "role_id")
 
 	r, rec = workflowPermRequest(t, store, http.MethodPut, `{"role_slug":"task_runner","permissions":96}`, "5")
 	controller.UpdateWorkflowPerm(httptest.NewRecorder(), r)
-	assert.Equal(t, audit.WorkflowPermissionMetadata{WorkflowID: 3, Role: ref, Permissions: []string{"edit_workflows", "approve_workflows"}},
+	assert.Equal(t, audit.WorkflowPermissionMetadata{WorkflowID: 3, Role: ref, Permissions: []string{"read_project", "edit_workflows", "approve_workflows"}},
 		only(t, rec, audit.IAMWorkflowPermissionUpdate).Event.Metadata)
 
 	r, rec = workflowPermRequest(t, store, http.MethodDelete, "", "5")
