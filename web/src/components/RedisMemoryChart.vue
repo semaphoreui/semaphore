@@ -1,11 +1,12 @@
 <template>
-  <LineChartGenerator
-    :id="chartId"
-    :dataset-id-key="chartId"
-    :options="chartOptions"
-    :data="chartData"
-    style="height: 220px;"
-  />
+  <div style="position: relative; height: 220px;">
+    <LineChartGenerator
+      :id="chartId"
+      :dataset-id-key="chartId"
+      :options="chartOptions"
+      :data="chartData"
+    />
+  </div>
 </template>
 
 <script>
@@ -51,6 +52,8 @@ function formatBytes(bytes) {
   return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
+// LineChartGenerator is vue-chartjs 5 Line (main.js), a bare canvas: the root div keeps the
+// 220 px height of the vue-chartjs 4 wrapper and takes the attributes of the tag (data-testid).
 export default {
 
   name: 'RedisMemoryChart',

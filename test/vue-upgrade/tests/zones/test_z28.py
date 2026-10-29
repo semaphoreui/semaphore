@@ -359,10 +359,22 @@ def test_cluster_tasks_error(ui, clock):
     snap(page, ZONE, "cluster", "tasks-error", masks=["cluster-redisChart"])
 
 
+def expect_toolbar_failed(page):
+    """The render error of JOURNAL@535B903DD5 with status == null. Vue 2 lost the whole screen; Vue 3
+    renders a slot inside the component that owns it, so only the v-toolbar (its slot reads
+    status.ha_enabled) fails: the root stays in `loading` with the task records, without the title,
+    «back» and Clear (finding of the Vue 3 step)."""
+    expect(tid(page, "cluster-page")).to_have_attribute("data-state", "loading")
+    for gone in ["cluster-title", "cluster-back", "cluster-clear", "cluster-haDisabled", "cluster-nodes",
+                 "cluster-redis", "cluster-licenseAlert"]:
+        expect(tid(page, gone)).to_have_count(0)
+    expect(tid(page, "cluster-queueTable")).to_have_attribute("data-state", "loading")
+
+
 @pytest.mark.snapshot
 def test_cluster_load_error(ui, clock):
     """GET /api/cluster 500 with the HA license: the render fails (TypeError, JOURNAL@535B903DD5) —
-    no screen root, only the snackbar."""
+    no toolbar (see expect_toolbar_failed), the snackbar."""
     page = ui("admin")
     hits = fail_api(page, "GET", CLUSTER, 500)
     open_cluster(page)
@@ -370,7 +382,7 @@ def test_cluster_load_error(ui, clock):
     wait_console(page, "500")
     wait_console(page, "ha_enabled")
     hold_snackbar(page, clock, f"{LOAD_FAILED} 500", "error")
-    expect(tid(page, "cluster-page")).to_have_count(0)
+    expect_toolbar_failed(page)
     snap(page, ZONE, "cluster", "load-error")
 
 
@@ -408,14 +420,16 @@ def test_cluster_loading(ui, clock):
 
 @pytest.mark.snapshot
 def test_cluster_runner_forbidden(ui, clock):
-    """seed_runner by a direct link: GET /api/cluster 403, the render fails, the snackbar 403."""
+    """seed_runner by a direct link: GET /api/cluster 403, the render fails (no toolbar), the snackbar
+    403."""
     page = ui("runner")
     calls = requests_of(page, "GET", "/api/cluster")
     open_cluster(page)
     wait_until(page, lambda: calls, "GET /api/cluster")
     wait_console(page, "403")
+    wait_console(page, "ha_enabled")
     hold_snackbar(page, clock, f"{LOAD_FAILED} 403", "error")
-    expect(tid(page, "cluster-page")).to_have_count(0)
+    expect_toolbar_failed(page)
     snap(page, ZONE, "cluster", "runner-forbidden")
 
 

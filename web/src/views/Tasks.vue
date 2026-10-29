@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null"
     data-testid="activeTasks-page"
@@ -23,6 +23,7 @@
       :items="items"
       class="mt-4"
       :items-per-page-options="[20]"
+      :mobile-breakpoint="600"
       data-testid="activeTasks-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -68,6 +69,7 @@
         <div style="white-space: nowrap">
           <v-btn
             icon
+            variant="text"
             class="mr-1"
             @click="deleteItem(item.task_id)"
             data-testid="activeTasks-rowStop"

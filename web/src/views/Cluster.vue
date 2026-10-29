@@ -22,42 +22,42 @@
             v-model="clearScope.queue"
             :label="$t('queue')"
             hide-details
-            dense
+            density="compact"
             data-testid="clusterClearDialog-queue"
           />
           <v-checkbox
             v-model="clearScope.running"
             :label="$t('running')"
             hide-details
-            dense
+            density="compact"
             data-testid="clusterClearDialog-running"
           />
           <v-checkbox
             v-model="clearScope.active"
             :label="$t('activeByProject')"
             hide-details
-            dense
+            density="compact"
             data-testid="clusterClearDialog-active"
           />
           <v-checkbox
             v-model="clearScope.aliases"
             :label="$t('aliases')"
             hide-details
-            dense
+            density="compact"
             data-testid="clusterClearDialog-aliases"
           />
           <v-checkbox
             v-model="clearScope.claims"
             :label="$t('claims')"
             hide-details
-            dense
+            density="compact"
             data-testid="clusterClearDialog-claims"
           />
           <v-checkbox
             v-model="clearScope.runtime_fields"
             :label="$t('runtimeFields')"
             hide-details
-            dense
+            density="compact"
             data-testid="clusterClearDialog-runtimeFields"
           />
         </v-card-text>
@@ -70,6 +70,7 @@
           >{{ $t('cancel') }}</v-btn>
           <v-btn
             color="error"
+            variant="elevated"
             :disabled="!isAnyGroupSelected || clearing"
             :loading="clearing"
             @click="clearTasks()"
@@ -89,6 +90,7 @@
       <v-spacer />
       <v-btn
         color="error"
+        variant="elevated"
         @click="openClearDialog()"
         :disabled="!features.high_availability || !status.ha_enabled"
         data-testid="cluster-clear"
@@ -110,7 +112,6 @@
       <span class="mr-1" v-html="$t('ha_only_enterprise')"></span>
 
       <v-btn
-        dark
         variant="flat"
         v-if="canManageSystem"
         color="amber-darken-3"
@@ -145,6 +146,7 @@
           :items="status.nodes"
           :items-per-page="20"
           density="compact"
+          :mobile-breakpoint="600"
           data-testid="cluster-nodesTable"
           :data-state="status.nodes.length === 0 ? 'empty' : 'ready'"
         >
@@ -161,7 +163,7 @@
             <v-chip
               size="x-small"
               :color="item.alive ? 'success' : 'error'"
-              dark
+              variant="flat"
               :data-testid="`cluster-rowStatus-${item.alive ? 'alive' : 'dead'}`"
             >
               {{ item.alive ? $t('alive') : $t('dead') }}
@@ -192,7 +194,7 @@
                   <v-chip
                     size="x-small"
                     :color="status.redis.connected ? 'success' : 'error'"
-                    dark
+                    variant="flat"
                     data-testid="cluster-redisConnected"
                   >
                     {{ status.redis.connected ? 'YES' : 'NO' }}
@@ -239,72 +241,84 @@
       <v-card border data-testid="cluster-taskRecords">
         <v-card-title class="text-subtitle-1">{{ $t('taskRecords') }}</v-card-title>
         <v-tabs v-model="tab" data-testid="cluster-tabs">
-          <v-tab data-testid="cluster-tab-queue">{{ $t('queue') }} ({{ queueRows.length }})</v-tab>
           <v-tab
+            :value="0"
+            data-testid="cluster-tab-queue"
+          >{{ $t('queue') }} ({{ queueRows.length }})</v-tab>
+          <v-tab
+            :value="1"
             data-testid="cluster-tab-running"
           >{{ $t('running') }} ({{ runningRows.length }})</v-tab>
           <v-tab
+            :value="2"
             data-testid="cluster-tab-activeByProject"
           >{{ $t('activeByProject') }} ({{ activeRows.length }})</v-tab>
           <v-tab
+            :value="3"
             data-testid="cluster-tab-aliases"
           >{{ $t('aliases') }} ({{ aliasRows.length }})</v-tab>
           <v-tab
+            :value="4"
             data-testid="cluster-tab-claims"
           >{{ $t('claims') }} ({{ claimRows.length }})</v-tab>
         </v-tabs>
-        <v-tabs-items v-model="tab">
-          <v-tab-item>
+        <v-tabs-window v-model="tab">
+          <v-tabs-window-item :value="0">
             <v-data-table
               :headers="taskHeaders"
               :items="queueRows"
               density="compact"
+              :mobile-breakpoint="600"
               data-testid="cluster-queueTable"
               :data-state="tasks == null
                 ? 'loading' : (queueRows.length === 0 ? 'empty' : 'ready')"
             />
-          </v-tab-item>
-          <v-tab-item>
+          </v-tabs-window-item>
+          <v-tabs-window-item :value="1">
             <v-data-table
               :headers="taskHeaders"
               :items="runningRows"
               density="compact"
+              :mobile-breakpoint="600"
               data-testid="cluster-runningTable"
               :data-state="tasks == null
                 ? 'loading' : (runningRows.length === 0 ? 'empty' : 'ready')"
             />
-          </v-tab-item>
-          <v-tab-item>
+          </v-tabs-window-item>
+          <v-tabs-window-item :value="2">
             <v-data-table
               :headers="taskHeaders"
               :items="activeRows"
               density="compact"
+              :mobile-breakpoint="600"
               data-testid="cluster-activeByProjectTable"
               :data-state="tasks == null
                 ? 'loading' : (activeRows.length === 0 ? 'empty' : 'ready')"
             />
-          </v-tab-item>
-          <v-tab-item>
+          </v-tabs-window-item>
+          <v-tabs-window-item :value="3">
             <v-data-table
               :headers="aliasHeaders"
               :items="aliasRows"
               density="compact"
+              :mobile-breakpoint="600"
               data-testid="cluster-aliasesTable"
               :data-state="tasks == null
                 ? 'loading' : (aliasRows.length === 0 ? 'empty' : 'ready')"
             />
-          </v-tab-item>
-          <v-tab-item>
+          </v-tabs-window-item>
+          <v-tabs-window-item :value="4">
             <v-data-table
               :headers="claimHeaders"
               :items="claimRows"
               density="compact"
+              :mobile-breakpoint="600"
               data-testid="cluster-claimsTable"
               :data-state="tasks == null
                 ? 'loading' : (claimRows.length === 0 ? 'empty' : 'ready')"
             />
-          </v-tab-item>
-        </v-tabs-items>
+          </v-tabs-window-item>
+        </v-tabs-window>
       </v-card>
     </div>
   </div>
@@ -361,35 +375,35 @@ export default {
 
     nodeHeaders() {
       return [
-        { text: this.$t('nodeId'), value: 'node_id' },
-        { text: this.$t('status'), value: 'alive' },
-        { text: this.$t('lastHeartbeat'), value: 'last_heartbeat' },
-        { text: this.$t('startedAt'), value: 'started_at' },
-        { text: this.$t('version'), value: 'version' },
+        { title: this.$t('nodeId'), key: 'node_id' },
+        { title: this.$t('status'), key: 'alive' },
+        { title: this.$t('lastHeartbeat'), key: 'last_heartbeat' },
+        { title: this.$t('startedAt'), key: 'started_at' },
+        { title: this.$t('version'), key: 'version' },
       ];
     },
 
     taskHeaders() {
       return [
-        { text: 'Task', value: 'task_id' },
-        { text: this.$t('project'), value: 'project_id' },
-        { text: 'Template', value: 'template_id' },
-        { text: this.$t('status'), value: 'status' },
-        { text: 'Runner', value: 'runner_id' },
-        { text: this.$t('username'), value: 'username' },
-        { text: this.$t('owningNode'), value: 'node_id' },
+        { title: 'Task', key: 'task_id' },
+        { title: this.$t('project'), key: 'project_id' },
+        { title: 'Template', key: 'template_id' },
+        { title: this.$t('status'), key: 'status' },
+        { title: 'Runner', key: 'runner_id' },
+        { title: this.$t('username'), key: 'username' },
+        { title: this.$t('owningNode'), key: 'node_id' },
       ];
     },
 
     aliasHeaders() {
       return [
-        { text: this.$t('aliases'), value: 'alias' },
-        { text: 'Task', value: 'task_id' },
+        { title: this.$t('aliases'), key: 'alias' },
+        { title: 'Task', key: 'task_id' },
       ];
     },
 
     claimHeaders() {
-      return [{ text: 'Task', value: 'task_id' }];
+      return [{ title: 'Task', key: 'task_id' }];
     },
 
     queueRows() {
