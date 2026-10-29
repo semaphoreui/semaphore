@@ -1281,6 +1281,10 @@ def test_settings_runner_denied(ui, project):
         tid(page, "settings-testAlerts").click()
     assert resp.value.status == 403
     expect(tid(page, "app-snackbar")).to_have_attribute("data-state", "error")
+    # The snackbar closes 3 s after it opens; a new text does not restart the timeout (Vuetify 2, 3
+    # and 4 alike). Let the 403 snackbar go first: «Project exported.» comes 1 s after the download
+    # and would otherwise share the last half second of the old one with the 1 s polls of expect.
+    expect(tid(page, "app-snackbar")).to_be_hidden()
     with page.expect_download(timeout=15000) as dl:
         tid(page, "settings-exportProject").click()
     assert dl.value.suggested_filename.startswith(f"backup_{pid}_")

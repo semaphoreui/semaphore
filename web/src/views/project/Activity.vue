@@ -21,10 +21,9 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      class="mt-4 CenterToScreen FixedPageSizeTable"
+      class="mt-4 CenterToScreen FixedPageSizeTable ActivityTable"
       :items-per-page-options="[20]"
       :items-per-page="20"
-      style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width)); margin: auto;"
       data-testid="activity-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -34,6 +33,13 @@
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.ActivityTable {
+  max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width));
+  margin: auto;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import DashboardMenu from '@/components/DashboardMenu.vue';
