@@ -19,6 +19,7 @@ export const TEMPLATE_TYPE_ACTION_TITLES = {
 };
 
 export const USER_PERMISSIONS = {
+  readProject: 128,
   runProjectTasks: 1,
   updateProject: 2,
   manageProjectResources: 4,
@@ -295,6 +296,11 @@ export const APP_FIELDS = {
 
 export const ROLE_PERMISSIONS = {
   default: [{
+    permission: 128,
+    label: 'canReadProject',
+    color: 'grey',
+    textColor: 'white',
+  }, {
     permission: 1,
     label: 'canRunProjectTasks',
     color: 'blue',
@@ -331,6 +337,11 @@ export const ROLE_PERMISSIONS = {
     textColor: 'white',
   }],
   template: [{
+    permission: 128,
+    label: 'canSeeTemplate',
+    color: 'grey',
+    textColor: 'white',
+  }, {
     permission: 1,
     label: 'canRunTemplate',
     color: 'blue',
@@ -342,6 +353,11 @@ export const ROLE_PERMISSIONS = {
     textColor: 'white',
   }],
   workflow: [{
+    permission: 128,
+    label: 'canSeeWorkflow',
+    color: 'grey',
+    textColor: 'white',
+  }, {
     permission: 16,
     label: 'canRunWorkflow',
     color: 'teal',

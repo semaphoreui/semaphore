@@ -40,7 +40,7 @@
       class="mt-0"
       v-model="permissions[p.permission]"
       :label="$t(p.label)"
-      :disabled="formSaving"
+      :disabled="formSaving || (p.permission === SEE && verbChecked)"
     ></v-checkbox>
 
   </v-form>
@@ -52,6 +52,14 @@ import axios from 'axios';
 import { getErrorMessage } from '@/lib/error';
 import { ROLE_PERMISSIONS } from '@/lib/constants';
 import groupRolesForSelect from '@/lib/roles';
+
+// Seeing the object: a verb on it includes it.
+const SEE = 128;
+
+function pack(checked) {
+  const mask = Object.keys(checked).filter((k) => checked[k]).reduce((res, k) => res | k, 0);
+  return mask === 0 ? 0 : mask | SEE;
+}
 
 export default {
   mixins: [ItemFormBase],
@@ -67,6 +75,7 @@ export default {
   data() {
     return {
       ROLE_PERMISSIONS,
+      SEE,
       availableRoles: [],
       permissions: {},
     };
@@ -75,6 +84,10 @@ export default {
   computed: {
     groupedRoles() {
       return groupRolesForSelect(this.availableRoles, (key) => this.$i18n.t(key));
+    },
+
+    verbChecked() {
+      return Object.keys(this.permissions).some((k) => Number(k) !== SEE && this.permissions[k]);
     },
   },
 
@@ -89,9 +102,7 @@ export default {
       handler(newPermissions) {
         if (!this.item) return;
 
-        this.item.permissions = Object.keys(newPermissions)
-          .filter((k) => newPermissions[k])
-          .reduce((res, k) => res | k, 0);
+        this.item.permissions = pack(newPermissions);
       },
       deep: true,
     },
@@ -138,9 +149,7 @@ export default {
     beforeSave() {
       // Ensure permissions are properly set before saving
       if (this.item) {
-        this.item.permissions = Object.keys(this.permissions)
-          .filter((k) => this.permissions[k])
-          .reduce((res, k) => res | k, 0);
+        this.item.permissions = pack(this.permissions);
       }
     },
 
