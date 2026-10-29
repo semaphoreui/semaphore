@@ -86,6 +86,22 @@
     </template>
 
     <v-alert
+      v-else-if="needsProSeat"
+      text
+      color="hsl(348deg, 86%, 61%)"
+      class="PageAlert"
+      data-testid="mcp-needs-pro-seat"
+    >
+      <span v-html="$t('mcp_needs_pro_seat')"></span>
+      <v-btn dark v-if="user && user.admin" class="ml-2" color="hsl(348deg, 86%, 61%)" to="/users">
+        {{ $t('mcp_assign_pro_seat') }}
+      </v-btn>
+      <span v-else style="font-weight: bold">
+        {{ $t('mcp_contact_admin_for_seat') }}
+      </span>
+    </v-alert>
+
+    <v-alert
       v-else-if="!features.mcp"
       text
       color="hsl(348deg, 86%, 61%)"
@@ -145,6 +161,14 @@ export default {
     // and the administrator has switched it on; otherwise it explains why not.
     available() {
       return !!this.features.mcp && !!this.systemInfo?.mcp?.enabled;
+    },
+
+    // An active Pro or Enterprise license turns on task_summary for everyone, and an Enterprise
+    // one turns on MCP for everyone too: so without MCP here the license is Pro and the user has
+    // no Pro seat. Only an administrator gives a seat.
+    needsProSeat() {
+      return this.systemInfo?.subscription_state === 'active'
+        && !!this.features.task_summary && !this.features.mcp;
     },
 
     canManageSystem() {

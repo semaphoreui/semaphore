@@ -22,6 +22,18 @@ describe('McpServer.vue', () => {
     expect(available({ mcp: true }, undefined), 'a server that does not report MCP').to.equal(false);
   });
 
+  it('tells a user without a Pro seat on a Pro license apart from a missing license', () => {
+    const needsProSeat = (state, features) => McpServer.computed.needsProSeat.call({
+      features,
+      systemInfo: { subscription_state: state },
+    });
+    expect(needsProSeat('active', { task_summary: true, mcp: false }), 'Pro, no seat').to.equal(true);
+    expect(needsProSeat('active', { task_summary: true, mcp: true }), 'Pro with a seat or Enterprise').to.equal(false);
+    expect(needsProSeat('', {}), 'no license').to.equal(false);
+    expect(needsProSeat('expired', {}), 'an expired license').to.equal(false);
+    expect(needsProSeat('active', {}), 'a plan the server does not know').to.equal(false);
+  });
+
   it('takes the tab from the address and changes the address with the tab', () => {
     const { get, set } = McpServer.computed.tab;
     expect(get.call({ $route: { path: '/mcp' } })).to.equal('tokens');
