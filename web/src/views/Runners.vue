@@ -981,7 +981,10 @@ ${advancedOptions}-d semaphoreui/runner:${this.version}`;
 
         // Reuse the same dialog shown right after creating an unregistered runner.
         this.newRunner = { ...runner, registration_token: data.registration_token };
-        this.registerTab = null;
+        // Back to the first tab (Env Vars). The dialog keeps its content between opens,
+        // and a Vuetify 3 v-tabs group picks its first tab only on mount, so a null
+        // model would leave no tab and no window item selected.
+        this.registerTab = 'env';
         this.newRunnerTokenDialog = true;
 
         // The runner's registration state may have changed (registered -> unregistered).

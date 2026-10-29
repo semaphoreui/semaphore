@@ -1,9 +1,22 @@
 import './setup';
 import { expect } from 'chai';
+import { h } from 'vue';
 import { shallowMount } from '@vue/test-utils';
 import SurveyVars from '@/components/SurveyVars.vue';
 
 let formValid = true;
+
+// The default stub of @vue/test-utils 2 hands every declared prop of the real component to its
+// `<v-…-stub>` element, `prefix: undefined` of the Vuetify 3 fields among them. `prefix` is a
+// read-only property of Element, so Vue fails to set it and warns with the TypeError and its
+// source-mapped stack — about 150 ms a warning, six per saveVar test, past the 2000 ms timeout
+// on a loaded machine. These stubs declare no props: only what SurveyVars passes reaches the DOM.
+const fieldStub = (name, tag) => ({
+  name,
+  render() {
+    return h(tag, this.$slots.default && this.$slots.default());
+  },
+});
 
 function mountVars(vars = []) {
   return shallowMount(SurveyVars, {
@@ -14,6 +27,9 @@ function mountVars(vars = []) {
       mocks: { $t: (k) => k },
       stubs: {
         'v-dialog': { template: '<div><slot /></div>' },
+        'v-text-field': fieldStub('VTextField', 'v-text-field-stub'),
+        'v-textarea': fieldStub('VTextarea', 'v-textarea-stub'),
+        'v-select': fieldStub('VSelect', 'v-select-stub'),
         // v-form of Vuetify 3: validate() resolves to { valid }, saveVar() awaits it
         'v-form': {
           template: '<form><slot /></form>',
