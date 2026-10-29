@@ -18,6 +18,10 @@ type resource[T any] struct {
 	kind    string   // singular, used as the command name: "template"
 	aliases []string // "templates", "tpl"
 	short   string
+	// long is the help text of the resource command; empty: generated from kind.
+	long string
+	// example is a name used in generated help examples: "deploy".
+	example string
 	columns []output.Column
 	// scope says where the objects live: in a project (default), globally, or
 	// globally unless --project is given explicitly (runners).
@@ -46,12 +50,56 @@ func (res resource[T]) newCmd(extra ...*cobra.Command) *cobra.Command {
 		Use:     res.kind,
 		Aliases: res.aliases,
 		Short:   res.short,
+		Long:    res.longText(),
+		Example: res.exampleText(),
 		Args:    cobra.NoArgs,
 		RunE:    func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 	cmd.AddCommand(res.listCmd(), res.getCmd())
 	cmd.AddCommand(extra...)
 	return cmd
+}
+
+// longText is the help text of the resource command.
+func (res resource[T]) longText() string {
+	if res.long != "" {
+		return res.long
+	}
+	where := "of the project given with --project (or the context's default project)"
+	switch res.scope {
+	case scopeGlobal:
+		where = "of the server"
+	case scopeProjectOptional:
+		where = "of the server, or of one project with --project"
+	}
+	return fmt.Sprintf(`%s. The subcommands work on the %s %s.
+
+An object is addressed by its numeric id or by its name (case-insensitive).
+A name shared by several objects is an error (exit code 5); use the id then.`,
+		res.short, plural(res.kind), where)
+}
+
+// exampleName is a plausible name for generated help examples.
+func (res resource[T]) exampleName() string {
+	if res.example != "" {
+		return res.example
+	}
+	return "my-" + res.kind
+}
+
+// projectFlag is " -p 1" for project-scoped resources and empty otherwise.
+func (res resource[T]) projectFlag() string {
+	if res.scope == scopeProject {
+		return " -p 1"
+	}
+	return ""
+}
+
+// exampleText lists the basic verbs in the help of the resource command.
+func (res resource[T]) exampleText() string {
+	return fmt.Sprintf(`  semaphore client %[1]s list%[3]s
+  semaphore client %[1]s get %[2]q%[3]s -o json
+  semaphore client %[1]s delete %[2]q%[3]s -y`, res.kind, res.exampleName(), res.projectFlag())
 }
 
 // projectFor returns the project id a command works in, or 0 for a global
@@ -78,7 +126,12 @@ func (res resource[T]) listCmd() *cobra.Command {
 		Use:     use,
 		Aliases: []string{"ls"},
 		Short:   short,
-		Args:    cobra.NoArgs,
+		Long: fmt.Sprintf(`%s as a table (default), JSON (-o json) or YAML (-o yaml).
+--fields picks the columns, -q prints only the ids, one per line.`, short),
+		Example: fmt.Sprintf(`  semaphore client %[1]s list%[2]s
+  semaphore client %[1]s list%[2]s -o json
+  semaphore client %[1]s list%[2]s -q`, res.kind, res.projectFlag()),
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			r := rt(cmd)
 			api, err := r.client(cmd)
@@ -108,7 +161,12 @@ func (res resource[T]) getCmd() *cobra.Command {
 		Use:     "get <id|name>",
 		Aliases: []string{"show"},
 		Short:   "Show one " + res.kind,
-		Args:    cobra.ExactArgs(1),
+		Long: fmt.Sprintf(`Show one %[1]s, addressed by its numeric id or by its name. With -o json or
+-o yaml every field of the object is printed; the table shows the main ones,
+--fields chooses others.`, res.kind),
+		Example: fmt.Sprintf(`  semaphore client %[1]s get 12%[3]s
+  semaphore client %[1]s get %[2]q%[3]s -o json`, res.kind, res.exampleName(), res.projectFlag()),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r := rt(cmd)
 			api, err := r.client(cmd)
@@ -210,6 +268,7 @@ func projectResource() resource[db.Project] {
 		kind:    "project",
 		aliases: []string{"projects"},
 		short:   "Manage projects",
+		example: "Homelab",
 		columns: output.Columns("id", "name", "type", "created"),
 		scope:   scopeGlobal,
 		list: func(ctx context.Context, api *apiclient.Client, _ int) ([]db.Project, error) {
@@ -229,6 +288,7 @@ func templateResource() resource[db.Template] {
 		kind:    "template",
 		aliases: []string{"templates", "tpl"},
 		short:   "Manage task templates",
+		example: "deploy",
 		columns: output.Columns("id", "name", "app", "playbook", "inventory_id", "repository_id", "environment_id"),
 		list: func(ctx context.Context, api *apiclient.Client, projectID int) ([]db.Template, error) {
 			return api.ListTemplates(ctx, projectID)
@@ -248,6 +308,7 @@ func inventoryResource() resource[db.Inventory] {
 		kind:    "inventory",
 		aliases: []string{"inventories", "inv"},
 		short:   "Manage inventories",
+		example: "prod",
 		columns: output.Columns("id", "name", "type", "ssh_key_id", "repository_id"),
 		list: func(ctx context.Context, api *apiclient.Client, projectID int) ([]db.Inventory, error) {
 			return api.ListInventories(ctx, projectID)
@@ -281,6 +342,13 @@ func environmentResource() resource[db.Environment] {
 		kind:    "environment",
 		aliases: []string{"environments", "env"},
 		short:   "Manage variable groups (environments)",
+		long: `Manage variable groups (environments): the extra variables, environment
+variables and secrets a task receives. Secret values are never printed — 'get'
+and 'list' show only the names of the secrets.
+
+An object is addressed by its numeric id or by its name (case-insensitive).
+A name shared by several objects is an error (exit code 5); use the id then.`,
+		example: "default",
 		columns: output.Columns("id", "name", "secret_names"),
 		list: func(ctx context.Context, api *apiclient.Client, projectID int) ([]db.Environment, error) {
 			return api.ListEnvironments(ctx, projectID)
@@ -319,6 +387,13 @@ func keyResource() resource[db.AccessKey] {
 		kind:    "key",
 		aliases: []string{"keys"},
 		short:   "Manage access keys (SSH keys, passwords)",
+		long: `Manage access keys: SSH private keys, login/password pairs and plain secrets
+used by repositories, inventories and templates. Secret material is read only
+from files or stdin and is never printed.
+
+An object is addressed by its numeric id or by its name (case-insensitive).
+A name shared by several objects is an error (exit code 5); use the id then.`,
+		example: "deploy-key",
 		columns: output.Columns("id", "name", "type"),
 		list: func(ctx context.Context, api *apiclient.Client, projectID int) ([]db.AccessKey, error) {
 			return api.ListKeys(ctx, projectID)
@@ -340,6 +415,7 @@ func repositoryResource() resource[db.Repository] {
 		kind:    "repository",
 		aliases: []string{"repositories", "repo"},
 		short:   "Manage repositories",
+		example: "infra",
 		columns: output.Columns("id", "name", "git_url", "git_branch", "ssh_key_id"),
 		list: func(ctx context.Context, api *apiclient.Client, projectID int) ([]db.Repository, error) {
 			return api.ListRepositories(ctx, projectID)
@@ -358,6 +434,7 @@ func scheduleResource() resource[db.ScheduleWithTpl] {
 		kind:    "schedule",
 		aliases: []string{"schedules"},
 		short:   "Manage schedules (cron runs of templates)",
+		example: "nightly",
 		columns: output.Columns("id", "name", "tpl_name", "cron_format", "active"),
 		list: func(ctx context.Context, api *apiclient.Client, projectID int) ([]db.ScheduleWithTpl, error) {
 			return api.ListSchedules(ctx, projectID)
@@ -378,6 +455,7 @@ func viewResource() resource[db.View] {
 		kind:    "view",
 		aliases: []string{"views"},
 		short:   "Manage views (template groups on the project page)",
+		example: "Deploy",
 		columns: output.Columns("id", "title", "position"),
 		list: func(ctx context.Context, api *apiclient.Client, projectID int) ([]db.View, error) {
 			return api.ListViews(ctx, projectID)
@@ -396,6 +474,9 @@ func userResource() resource[db.User] {
 		kind:    "user",
 		aliases: []string{"users"},
 		short:   "Manage users of the server (administrators only)",
+		long: `Manage the users of the server. Every subcommand needs an administrator
+token. A user is addressed by numeric id, login or e-mail address.`,
+		example: "bob",
 		columns: output.Columns("id", "username", "name", "email", "admin", "external"),
 		scope:   scopeGlobal,
 		list: func(ctx context.Context, api *apiclient.Client, _ int) ([]db.User, error) {
@@ -417,6 +498,12 @@ func runnerResource() resource[db.Runner] {
 		kind:    "runner",
 		aliases: []string{"runners"},
 		short:   "Manage runners (global, or a project's with --project)",
+		long: `Manage runners. Without --project the commands work on the global runners
+(administrators only), even when the context has a default project; with
+--project they work on the runners of that project.
+
+A runner is addressed by its numeric id or by its name (case-insensitive).`,
+		example: "worker-1",
 		columns: output.Columns("id", "name", "tags", "active", "status", "touched"),
 		scope:   scopeProjectOptional,
 		list: func(ctx context.Context, api *apiclient.Client, projectID int) ([]db.Runner, error) {
@@ -436,6 +523,10 @@ func memberResource() resource[apiclient.ProjectMember] {
 		kind:    "member",
 		aliases: []string{"members"},
 		short:   "Manage the users of a project and their roles",
+		long: `Manage the members of a project: which users belong to it and with which
+role (owner, manager, task_runner, guest). A member is addressed by user id or
+login.`,
+		example: "bob",
 		columns: output.Columns("id", "username", "name", "roles"),
 		list: func(ctx context.Context, api *apiclient.Client, projectID int) ([]apiclient.ProjectMember, error) {
 			return api.ListProjectMembers(ctx, projectID)
@@ -459,7 +550,11 @@ func newTemplateTasksCmd(tpl resource[db.Template]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tasks <id|name>",
 		Short: "List recent tasks of a template",
-		Args:  cobra.ExactArgs(1),
+		Long: `List the recent tasks of one template, newest first — the same as
+'task list --template'. --limit bounds the number of rows, --all lifts it.`,
+		Example: `  semaphore client template tasks deploy -p 1
+  semaphore client template tasks 12 -p 1 --limit 5 -o json`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r := rt(cmd)
 			api, err := r.client(cmd)
@@ -497,9 +592,11 @@ func newTemplateTasksCmd(tpl resource[db.Template]) *cobra.Command {
 // newViewTemplatesCmd is `view templates <id|name>`.
 func newViewTemplatesCmd(views resource[db.View], tpl resource[db.Template]) *cobra.Command {
 	return &cobra.Command{
-		Use:   "templates <id|name>",
-		Short: "List the templates shown in a view",
-		Args:  cobra.ExactArgs(1),
+		Use:     "templates <id|name>",
+		Short:   "List the templates shown in a view",
+		Long:    `List the templates that belong to one view, in the same columns as 'template list'.`,
+		Example: `  semaphore client view templates Deploy -p 1`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r := rt(cmd)
 			api, err := r.client(cmd)
@@ -535,7 +632,11 @@ func newProjectGetCmd(res resource[db.Project]) *cobra.Command {
 		Use:     "get [id|name]",
 		Aliases: []string{"show"},
 		Short:   "Show one project (the configured one by default)",
-		Args:    cobra.MaximumNArgs(1),
+		Long: `Show one project by numeric id or name. Without an argument the project of
+--project, SEMAPHORE_CLIENT_PROJECT or the current context is shown.`,
+		Example: `  semaphore client project get
+  semaphore client project get Homelab -o json`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r := rt(cmd)
 			api, err := r.client(cmd)
@@ -579,8 +680,14 @@ func resourceCommands() []*cobra.Command {
 		Use:     projects.kind,
 		Aliases: projects.aliases,
 		Short:   projects.short,
-		Args:    cobra.NoArgs,
-		RunE:    func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+		Long: `Manage projects: list and inspect them, create, change, back up, restore and
+delete them, and manage their members. A project is addressed by numeric id or
+by name; most other commands take it through -p / --project.`,
+		Example: `  semaphore client project list
+  semaphore client project get Homelab
+  semaphore client project backup Homelab --file homelab.json`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 	memberCmd := members.newCmd(newMemberAddCmd(members, users), newMemberUpdateCmd(members), newMemberRemoveCmd(members))
 	projectCmd.AddCommand(projects.listCmd(), newProjectGetCmd(projects), newProjectCreateCmd(projects))

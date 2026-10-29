@@ -35,6 +35,12 @@
   Cobra tree via `cmd.RootCommand()`; persistent flags registered in a `sync.OnceFunc`).
 - `task docs:gen` regenerates, `task docs:check` and the `docs-reference` CI job fail on drift.
   Both pages are English only — `ENGLISH_ONLY` in `docs/scripts/check-docs.mjs` exempts them.
+- `task docs:check` compares `git -C docs status --porcelain -- docs/reference`, so it stays red
+  until the regenerated pages are committed in the submodule — a clean regeneration with
+  uncommitted output is still "out of date" (seen 2026-10-27).
+- A fresh worktree's `docs/` has no `node_modules`; `npm run build` then prints
+  `sh: docusaurus: command not found` but still exits 0 — run `npm ci` first and check for
+  `build/<locale>/…/index.html`, not the exit code.
 
 ## Content conventions
 

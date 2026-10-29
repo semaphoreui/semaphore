@@ -269,8 +269,17 @@ func newTaskCmd(tpl resource[db.Template]) *cobra.Command {
 		Use:     "task",
 		Aliases: []string{"tasks"},
 		Short:   "Inspect, follow, stop and rerun tasks",
-		Args:    cobra.NoArgs,
-		RunE:    func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+		Long: `Work with the tasks of a project: list and inspect them, print or follow
+their logs, wait for them, stop, confirm, reject or rerun them. New tasks are
+started with 'template run'. Tasks are addressed by numeric id.
+
+Waiting commands exit with 0 when the task ends in 'success', 3 on 'error',
+6 on 'stopped' and 124 when --wait-timeout runs out (the task keeps running).`,
+		Example: `  semaphore client task list -p 1 --status error
+  semaphore client task logs 42 -p 1 --follow
+  semaphore client task wait 42 -p 1 --wait-timeout 30m`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 	cmd.AddCommand(
 		newTaskListCmd(tpl), newTaskGetCmd(), newTaskLogsCmd(), newTaskWatchCmd(), newTaskWaitCmd(),
@@ -307,7 +316,12 @@ func newTaskListCmd(tpl resource[db.Template]) *cobra.Command {
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List recent tasks of the project, newest first",
-		Args:    cobra.NoArgs,
+		Long: `List the recent tasks of the project, newest first. --template and --status
+filter the list; --limit bounds the number of rows and --all lifts it.`,
+		Example: `  semaphore client task list -p 1
+  semaphore client task list -p 1 --template deploy --status success --limit 10
+  semaphore client task list -p 1 -o json -q`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			r, api, projectID, err := taskCommandSetup(cmd)
 			if err != nil {
@@ -354,6 +368,8 @@ func newTaskGetCmd() *cobra.Command {
 		Use:     "get <id>",
 		Aliases: []string{"show"},
 		Short:   "Show one task",
+		Long:    `Show one task with all its fields: status, template, who started it, when it ran, its parameters.`,
+		Example: `  semaphore client task get 42 -p 1 -o json`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, err := taskCommandSetup(cmd)
@@ -441,6 +457,8 @@ func newTaskWatchCmd() *cobra.Command {
 		Long: `Show the status of a task as it changes, until the task finishes. By default
 the exit code is 0 whatever the outcome; with --exit-status it follows the task
 (3 error, 6 stopped), like 'gh run watch --exit-status'.`,
+		Example: `  semaphore client task watch 42 -p 1
+  semaphore client task watch 42 -p 1 --exit-status --wait-timeout 1h`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, err := taskCommandSetup(cmd)
@@ -474,8 +492,11 @@ the exit code is 0 whatever the outcome; with --exit-status it follows the task
 func newTaskWaitCmd() *cobra.Command {
 	var timeout time.Duration
 	cmd := &cobra.Command{
-		Use:     "wait <id>",
-		Short:   "Wait silently until a task finishes; exit code follows its status",
+		Use:   "wait <id>",
+		Short: "Wait silently until a task finishes; exit code follows its status",
+		Long: `Wait until a task finishes without printing anything, for scripts. Exit code
+0 on success, 3 on error, 6 when the task was stopped, 124 when --wait-timeout
+runs out (the task keeps running on the server).`,
 		Example: `  semaphore client task wait 42; case $? in 0) echo ok;; 3) echo failed;; 6) echo stopped;; 124) echo timeout;; esac`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -509,6 +530,8 @@ func newTaskStopCmd() *cobra.Command {
 		Long: `Ask the server to stop a task. Without --force the process gets a chance to
 end gracefully; --force kills it at once. --wait blocks until the task has
 actually stopped.`,
+		Example: `  semaphore client task stop 42 -p 1
+  semaphore client task stop 42 -p 1 --force --wait`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, err := taskCommandSetup(cmd)
@@ -546,7 +569,10 @@ func newTaskConfirmCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "confirm <id>",
 		Short: "Let a task that waits for confirmation proceed",
-		Args:  cobra.ExactArgs(1),
+		Long: `Approve a task whose template requires a confirmation before it runs (status
+'waiting_confirmation'). The task is queued and runs as usual afterwards.`,
+		Example: `  semaphore client task confirm 42 -p 1`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, err := taskCommandSetup(cmd)
 			if err != nil {
@@ -571,7 +597,10 @@ func newTaskRejectCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reject <id>",
 		Short: "Refuse a task that waits for confirmation",
-		Args:  cobra.ExactArgs(1),
+		Long: `Refuse a task whose template requires a confirmation before it runs (status
+'waiting_confirmation'). The task does not run.`,
+		Example: `  semaphore client task reject 42 -p 1`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, err := taskCommandSetup(cmd)
 			if err != nil {
@@ -600,6 +629,8 @@ func newTaskRerunCmd() *cobra.Command {
 		Long: `Start a new task with the template, inventory, branch, variables and
 parameters of an existing task. Overrides given on the command line replace
 the copied values. --wait and --follow work as for 'template run'.`,
+		Example: `  semaphore client task rerun 42 -p 1
+  semaphore client task rerun 42 -p 1 --branch hotfix --follow`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, err := taskCommandSetup(cmd)

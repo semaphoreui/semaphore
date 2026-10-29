@@ -151,6 +151,7 @@ func (m mutable[T]) deleteCmd() *cobra.Command {
 		Aliases: []string{"rm"},
 		Short:   "Delete a " + m.res.kind,
 		Long:    fmt.Sprintf("Delete a %s. Asks for confirmation in a terminal; pass --yes to skip it (required when stdin is not a terminal).", m.res.kind),
+		Example: fmt.Sprintf("  semaphore client %[1]s delete %[2]q%[3]s -y", m.res.kind, m.res.exampleName(), m.res.projectFlag()),
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, err := m.setup(cmd)

@@ -21,6 +21,9 @@ func newAuthCmd() *cobra.Command {
 		Long: `Log in to a Semaphore server and save the server URL and an API token as a
 named context in ~/.semaphore/client.yml (mode 0600). Later commands use the
 current context unless --url, --context or SEMAPHORE_CLIENT_* say otherwise.`,
+		Example: `  semaphore client auth login --url https://semaphore.example.com
+  echo "$TOKEN" | semaphore client auth login --url https://semaphore.example.com --with-token
+  semaphore client auth status`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
@@ -302,7 +305,8 @@ func newAuthTokenCmd() *cobra.Command {
 
 The token is written to stdout only; a warning goes to stderr when stdout is a
 terminal, because a token on screen tends to end up in screenshots and logs.`,
-		Args: cobra.NoArgs,
+		Example: `  curl -H "Authorization: Bearer $(semaphore client auth token)" https://semaphore.example.com/api/user`,
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			r := rt(cmd)
 			if err := r.requireToken(cmd); err != nil {

@@ -137,7 +137,10 @@ func newTemplateStopAllCmd(tpl resource[db.Template]) *cobra.Command {
 	return &cobra.Command{
 		Use:   "stop-all <id|name>",
 		Short: "Stop every running task of a template",
-		Args:  cobra.ExactArgs(1),
+		Long: `Ask the server to stop every running or queued task of one template. Asks
+for confirmation in a terminal; pass --yes to skip it.`,
+		Example: `  semaphore client template stop-all deploy -p 1 -y`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, err := taskCommandSetup(cmd)
 			if err != nil {
@@ -574,7 +577,10 @@ func newScheduleActiveCmd(res resource[db.ScheduleWithTpl], active bool) *cobra.
 	return &cobra.Command{
 		Use:   verb + " <id|name>",
 		Short: capitalize(verb) + " a schedule",
-		Args:  cobra.ExactArgs(1),
+		Long: fmt.Sprintf(`%s a schedule without changing anything else about it. A disabled
+schedule keeps its cron expression but does not start tasks.`, capitalize(verb)),
+		Example: fmt.Sprintf(`  semaphore client schedule %s nightly -p 1`, verb),
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, err := taskCommandSetup(cmd)
 			if err != nil {
@@ -600,7 +606,10 @@ func newScheduleValidateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate",
 		Short: "Check a cron expression with the server",
-		Args:  cobra.NoArgs,
+		Long: `Ask the server whether a cron expression is valid, before putting it into a
+schedule. Exit code 0 when it is, 1 with the server's message when it is not.`,
+		Example: `  semaphore client schedule validate --cron "0 3 * * *" -p 1`,
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			r, api, projectID, err := taskCommandSetup(cmd)
 			if err != nil {
@@ -765,8 +774,11 @@ never accepted as an argument; an --external user has no local password.`,
 func newUserSetPasswordCmd(res resource[db.User]) *cobra.Command {
 	var passwordStdin bool
 	cmd := &cobra.Command{
-		Use:     "set-password <id|login>",
-		Short:   "Set a user's password (read from stdin)",
+		Use:   "set-password <id|login>",
+		Short: "Set a user's password (read from stdin)",
+		Long: `Set a new password for a user. The password is read from stdin with
+--password-stdin (or prompted for in a terminal) and is never accepted as an
+argument, so it does not show up in the shell history or in 'ps'.`,
 		Example: `  echo "$NEW_PASSWORD" | semaphore client user set-password bob --password-stdin`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -854,6 +866,9 @@ func newProjectCreateCmd(res resource[db.Project]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a project",
+		Long: `Create a project from flags or from a JSON/YAML file (--from-file, API field
+names); flags override the file. --demo also fills it with the demo
+template, inventory and repository. The created project is printed.`,
 		Example: `  semaphore client project create --name Homelab
   semaphore client project create --name Playground --demo`,
 		Args: cobra.NoArgs,
@@ -935,8 +950,12 @@ cannot be undone, so the project name has to be typed back (or passed with
 func newProjectBackupCmd(res resource[db.Project]) *cobra.Command {
 	var file string
 	cmd := &cobra.Command{
-		Use:     "backup [id|name]",
-		Short:   "Download a project backup (JSON)",
+		Use:   "backup [id|name]",
+		Short: "Download a project backup (JSON)",
+		Long: `Download the backup of a project — its templates, inventories, keys,
+repositories, environments, views and schedules — as the JSON document the
+'Restore' page of the UI accepts. Without --file the document goes to stdout;
+with --file it is written with mode 0600, because it contains secrets.`,
 		Example: `  semaphore client project backup Homelab --file homelab.json`,
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -983,8 +1002,10 @@ func newProjectBackupCmd(res resource[db.Project]) *cobra.Command {
 func newProjectRestoreCmd(res resource[db.Project]) *cobra.Command {
 	var file string
 	cmd := &cobra.Command{
-		Use:     "restore",
-		Short:   "Create a project from a backup file",
+		Use:   "restore",
+		Short: "Create a project from a backup file",
+		Long: `Create a new project from a backup file produced by 'project backup' or by
+the UI. The new project is printed.`,
 		Example: `  semaphore client project restore --file homelab.json`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -1023,8 +1044,10 @@ func newProjectRestoreCmd(res resource[db.Project]) *cobra.Command {
 func newMemberAddCmd(members resource[apiclient.ProjectMember], users resource[db.User]) *cobra.Command {
 	var role string
 	cmd := &cobra.Command{
-		Use:     "add <user id|login|email>",
-		Short:   "Add a user to the project with a role",
+		Use:   "add <user id|login|email>",
+		Short: "Add a user to the project with a role",
+		Long: `Add an existing user of the server to the project with a role: owner,
+manager, task_runner or guest.`,
 		Example: `  semaphore client project member add bob --role manager -p 1`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -1057,6 +1080,7 @@ func newMemberUpdateCmd(members resource[apiclient.ProjectMember]) *cobra.Comman
 	cmd := &cobra.Command{
 		Use:     "update <user id|login>",
 		Short:   "Change the role of a project member",
+		Long:    `Give a project member another role: owner, manager, task_runner or guest.`,
 		Example: `  semaphore client project member update bob --role guest -p 1`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -1089,6 +1113,9 @@ func newMemberRemoveCmd(members resource[apiclient.ProjectMember]) *cobra.Comman
 		Use:     "remove <user id|login>",
 		Aliases: []string{"rm", "delete"},
 		Short:   "Remove a user from the project",
+		Long: `Remove a user from the project. The user keeps the account on the server.
+Asks for confirmation in a terminal; pass --yes to skip it.`,
+		Example: `  semaphore client project member remove bob -p 1 -y`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, err := taskCommandSetup(cmd)
@@ -1220,7 +1247,10 @@ func newRunnerActiveCmd(res resource[db.Runner], active bool) *cobra.Command {
 	return &cobra.Command{
 		Use:   verb + " <id|name>",
 		Short: capitalize(verb) + " a runner",
-		Args:  cobra.ExactArgs(1),
+		Long: fmt.Sprintf(`%s a runner. A disabled runner stays registered but is not given
+tasks until it is enabled again.`, capitalize(verb)),
+		Example: fmt.Sprintf(`  semaphore client runner %s worker-1`, verb),
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, rn, err := runnerSetup(cmd, res, args[0])
 			if err != nil {
@@ -1241,7 +1271,11 @@ func newRunnerTokenCmd(res resource[db.Runner]) *cobra.Command {
 	return &cobra.Command{
 		Use:   "registration-token <id|name>",
 		Short: "Re-issue the registration token of a runner (printed once)",
-		Args:  cobra.ExactArgs(1),
+		Long: `Issue a new registration token for a runner and print it. The previous
+token stops working; the server keeps only a hash, so the token cannot be shown
+again later.`,
+		Example: `  semaphore client runner registration-token worker-1 > runner.token`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, rn, err := runnerSetup(cmd, res, args[0])
 			if err != nil {
@@ -1267,7 +1301,10 @@ func newRunnerClearCacheCmd(res resource[db.Runner]) *cobra.Command {
 	return &cobra.Command{
 		Use:   "clear-cache <id|name>",
 		Short: "Ask a runner to drop its repository cache",
-		Args:  cobra.ExactArgs(1),
+		Long: `Ask a runner to delete its local clones of the repositories, so the next
+task fetches them afresh.`,
+		Example: `  semaphore client runner clear-cache worker-1`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, api, projectID, rn, err := runnerSetup(cmd, res, args[0])
 			if err != nil {

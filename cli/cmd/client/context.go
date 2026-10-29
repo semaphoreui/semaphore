@@ -43,6 +43,9 @@ func newContextCmd() *cobra.Command {
 		Long: `Manage the contexts saved in ~/.semaphore/client.yml. A context is a server
 URL with its token, an optional default project and TLS settings. One context is
 current; --context or SEMAPHORE_CLIENT_CONTEXT selects another one per call.`,
+		Example: `  semaphore client context list
+  semaphore client context use staging
+  semaphore client context set prod --url https://semaphore.example.com --project 3`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
@@ -55,6 +58,10 @@ func newContextListCmd() *cobra.Command {
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List saved contexts",
+		Long: `List the contexts of the configuration file: name, whether it is current,
+server URL, default project and where its token comes from (inline, file or
+none). Token values are never shown. Works without a server connection.`,
+		Example: `  semaphore client context list`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			r := rt(cmd)
@@ -72,7 +79,10 @@ func newContextGetCmd() *cobra.Command {
 		Use:     "get [NAME]",
 		Aliases: []string{"show"},
 		Short:   "Show one context (the current one by default)",
-		Args:    cobra.MaximumNArgs(1),
+		Long:    `Show one saved context without its token. Without a name the current context is shown.`,
+		Example: `  semaphore client context get
+  semaphore client context get staging -o yaml`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r := rt(cmd)
 			name := r.cfgFile.CurrentContext
@@ -95,7 +105,10 @@ func newContextUseCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "use NAME",
 		Short: "Make a context the current one",
-		Args:  cobra.ExactArgs(1),
+		Long: `Make a saved context the current one, so later commands use its server, token
+and default project unless --context or SEMAPHORE_CLIENT_CONTEXT say otherwise.`,
+		Example: `  semaphore client context use staging`,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r := rt(cmd)
 			name := args[0]
@@ -190,6 +203,10 @@ func newContextDeleteCmd() *cobra.Command {
 		Use:     "delete NAME",
 		Aliases: []string{"rm"},
 		Short:   "Delete a context",
+		Long: `Remove a context from the configuration file. The token stored in it is
+forgotten but not revoked on the server; use 'auth logout --revoke' for that.
+Asks for confirmation in a terminal; pass --yes to skip it.`,
+		Example: `  semaphore client context delete staging -y`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r := rt(cmd)
