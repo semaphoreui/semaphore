@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null"
     data-testid="roleMappings-page"
@@ -35,11 +35,15 @@
       <v-btn icon class="mr-4" @click="returnToProjects()" data-testid="roleMappings-back">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title data-testid="roleMappings-title">{{ $t('roleMappings') }}</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="roleMappings-title"
+      >{{ $t('roleMappings') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         :disabled="!features.custom_roles_management"
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         data-testid="roleMappings-new"
         >{{ $t('newRoleMapping') }}</v-btn
@@ -62,7 +66,6 @@
       ></span>
 
       <v-btn
-        dark
         variant="flat"
         color="amber-darken-3"
         href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_roles"
@@ -77,7 +80,9 @@
       :headers="headers"
       :items="items"
       class="mt-4"
+      :items-per-page="10"
       :items-per-page-options="[20]"
+      :mobile-breakpoint="600"
       data-testid="roleMappings-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -87,7 +92,7 @@
           v-if="!item.provider_configured"
           size="small"
           label
-          dark
+          variant="flat"
           color="amber-darken-3"
           class="ml-1"
           data-testid="roleMappings-rowProviderNotConfigured"
@@ -101,7 +106,12 @@
         >{{ item.role }}</div>
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn icon @click="askDeleteItem(item.id)" data-testid="roleMappings-rowDelete">
+        <v-btn
+          icon
+          variant="text"
+          @click="askDeleteItem(item.id)"
+          data-testid="roleMappings-rowDelete"
+        >
           <v-icon>mdi-delete</v-icon>
         </v-btn>
       </template>

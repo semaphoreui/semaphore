@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null && projects != null"
     data-testid="roleMapping-form"
@@ -10,7 +9,7 @@
     <v-alert
       :model-value="!!formError"
       color="error"
-      class="pb-2"
+      class="pb-2 mb-4"
       data-testid="roleMapping-error"
     >{{ formError }}
     </v-alert>
@@ -67,11 +66,12 @@
       variant="outlined"
       density="compact"
     >
-      <template v-slot:item="{ item: role }">
-        <v-list-item-content :data-testid="`roleMapping-roleOption-${role.slug}`">
-          <v-list-item-title>{{ role.name }}</v-list-item-title>
-          <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
-        </v-list-item-content>
+      <template v-slot:item="{ props, item: { raw: role } }">
+        <v-list-item
+          v-bind="props"
+          :subtitle="role.slug"
+          :data-testid="`roleMapping-roleOption-${role.slug}`"
+        />
       </template>
     </v-select>
   </v-form>
