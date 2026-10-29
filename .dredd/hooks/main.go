@@ -219,6 +219,8 @@ func main() {
 			defer store.Close()
 			addTokenOfType(mcpToken, testRunnerUser.ID, db.APITokenTypeMCP)
 		})
+		// The Dredd server has no license: issuing an MCP token answers 403.
+		h.Before("user > /api/user/mcp-tokens > Create an MCP token > 201 > application/json", skipTest)
 
 		// project runners
 		h.Before("runner > /api/project/{project_id}/runners > Get project runners > 200 > application/json", capabilityWrapper("project"))
