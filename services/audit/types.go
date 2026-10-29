@@ -19,7 +19,7 @@ func validTypes() []Type {
 }
 
 func validCategories() []string {
-	return []string{"auth", "iam", "resource", "secret", "task", "runner", "system", "audit"}
+	return []string{"auth", "iam", "resource", "secret", "task", "workflow", "runner", "system", "audit"}
 }
 
 type Outcome string

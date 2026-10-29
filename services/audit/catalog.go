@@ -144,6 +144,9 @@ func Catalog() []Entry {
 		{Kind: TaskControlStop, Type: TypeChange, Metadata: TaskMetadata{}},
 		{Kind: TaskControlForceStop, Type: TypeChange, Metadata: TaskMetadata{}},
 		{Kind: TaskControlStopAll, Type: TypeChange},
+
+		{Kind: WorkflowApprovalApprove, Type: TypeChange, Metadata: WorkflowApprovalMetadata{}, Pro: true},
+		{Kind: WorkflowApprovalReject, Type: TypeChange, Metadata: WorkflowApprovalMetadata{}, Pro: true},
 		{Kind: TaskHistoryDelete, Type: TypeDeletion, Metadata: TaskMetadata{}},
 
 		{Kind: RunnerLifecycleCreate, Type: TypeCreation},
