@@ -181,7 +181,7 @@
                       closable
                       data-testid="surveyVarDialog-defaultChip"
                       @click:close="removeDefaultItem(index)"
-                      >{{ selectedItemLabel(item.raw) }}
+                      >{{ selectedItemLabel(item) }}
                     </v-chip>
                   </template>
                 </v-select>

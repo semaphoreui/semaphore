@@ -53,7 +53,7 @@
         border-color="info"
         type="info"
         color="surface"
-        elevation="2"
+        elevation="1"
         class="mb-0 pb-0"
         data-testid="templateHelpDialog"
       >
@@ -111,7 +111,7 @@
     >{{ formError }}</v-alert>
 
     <v-row class="mb-0">
-      <v-col>
+      <v-col class="TemplateForm__column">
         <h2
           class="mb-4"
           data-testid="templateForm-commonTitle"
@@ -392,7 +392,7 @@
         ></v-autocomplete>
       </v-col>
 
-      <v-col>
+      <v-col class="TemplateForm__column">
         <h2 class="mb-4" data-testid="templateForm-advancedTitle">{{ $t('template_advanced') }}</h2>
 
         <div class="mb-4">
@@ -613,7 +613,7 @@
         </div>
       </v-col>
 
-      <v-col v-if="needAppBlock">
+      <v-col v-if="needAppBlock" class="TemplateForm__column">
         <div class="mb-3">
           <h2 class="mb-4" data-testid="templateForm-appTitle">
             {{ $t('template_app_options', { app: getAppTitle(app, true) }) }}
@@ -802,6 +802,14 @@
   </v-form>
 </template>
 <style lang="scss">
+// The columns of the form have no breakpoints: they wrap when their content stops fitting.
+// The narrower MD3 type of Vuetify 4 lets a column shrink to ~130px before that happens
+// (two squeezed columns on a phone, truncated fields on a tablet); this basis keeps the wrap
+// points of Vuetify 3: one column on a phone, the app block below on a tablet when it is wide.
+.TemplateForm__column {
+  flex-basis: 160px;
+}
+
 .cm-placeholder {
   color: #a4a4a4 !important;
 }
