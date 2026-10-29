@@ -72,3 +72,41 @@ func TestGetTemplateRefs_HidesReferrersTheMemberMayNotRead(t *testing.T) {
 	assert.Len(t, refsFor(&db.User{ID: 0, Admin: true}).Templates, 1, "the admin sees the deploy template")
 	assert.Empty(t, refsFor(&bob).Templates, "the grantee may not read the deploy template")
 }
+
+func TestGetTemplate_HidesBuildTaskTheMemberMayNotRead(t *testing.T) {
+	f := newTaskControlFixture(t)
+	build := f.template
+	release, err := f.store.CreateTemplate(db.Template{Name: "release", Playbook: "site.yml", Type: db.TemplateDeploy, ProjectID: f.project.ID, RepositoryID: build.RepositoryID, InventoryID: build.InventoryID, BuildTemplateID: &build.ID})
+	require.NoError(t, err)
+	buildTask, err := f.store.CreateTask(db.Task{ProjectID: f.project.ID, TemplateID: build.ID}, 0)
+	require.NoError(t, err)
+	_, err = f.store.CreateTask(db.Task{ProjectID: f.project.ID, TemplateID: release.ID, BuildTaskID: &buildTask.ID}, 0)
+	require.NoError(t, err)
+	role, err := f.store.CreateRole(db.Role{Slug: "releaser", Name: "Releaser", Permissions: 0, ProjectID: &f.project.ID})
+	require.NoError(t, err)
+	bob, err := f.store.CreateUserWithoutPassword(db.User{Username: "bob", Name: "Bob", Email: "bob@example.com"})
+	require.NoError(t, err)
+	require.NoError(t, f.store.CreateProjectUser(f.project.ID, bob.ID, []int{role.ID}))
+	_, err = f.store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: f.project.ID, TemplateID: release.ID, RoleID: role.ID, Permissions: db.CanReadProject | db.CanRunProjectTasks})
+	require.NoError(t, err)
+	loaded, err := f.store.GetTemplate(f.project.ID, release.ID)
+	require.NoError(t, err)
+	require.NotNil(t, loaded.LastTask.BuildTask, "the store fills the build task")
+
+	templateFor := func(user *db.User) db.TemplateWithPerms {
+		r := httptest.NewRequest(http.MethodGet, "/api/project/1/templates/2", nil)
+		r = helpers.SetContextValue(r, "store", f.store)
+		r = helpers.SetContextValue(r, "user", user)
+		r = helpers.SetContextValue(r, "template", loaded)
+		r = helpers.SetContextValue(r, "permissions", db.ProjectUserPermission(0))
+		w := httptest.NewRecorder()
+		GetTemplate(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+		var res db.TemplateWithPerms
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &res))
+		return res
+	}
+
+	assert.NotNil(t, templateFor(&db.User{ID: 0, Admin: true}).LastTask.BuildTask, "the admin sees the build task")
+	assert.Nil(t, templateFor(&bob).LastTask.BuildTask, "the grantee may not read the build template")
+}

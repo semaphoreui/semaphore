@@ -338,6 +338,15 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, workflowRunID *int, tas
 	_, err = d.selectAll(tasks, query, args...)
 
 	for i := range *tasks {
+		if params.TaskFilter != nil && filtered(params.TaskFilter.Viewer) {
+			visible, err := d.taskVisible(projectID, (*tasks)[i].BuildTaskID, params.TaskFilter.Viewer.UserID)
+			if err != nil {
+				return err
+			}
+			if !visible {
+				continue
+			}
+		}
 		err = (*tasks)[i].Fill(d)
 		if err != nil {
 			return

@@ -61,6 +61,21 @@ func NewTemplateController(
 func GetTemplate(w http.ResponseWriter, r *http.Request) {
 	template := helpers.GetFromContext(r, "template").(db.Template)
 	permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+	user := helpers.GetFromContext(r, "user").(*db.User)
+
+	// The last task is loaded again through the viewer filter so a hidden build task is left out.
+	if !user.Admin && template.LastTask != nil {
+		filter := db.TaskFilter{Viewer: &db.Viewer{UserID: user.ID}}
+		tasks, err := helpers.Store(r).GetTemplateTasks(template.ProjectID, template.ID, db.RetrieveQueryParams{Count: 1, TaskFilter: &filter})
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		if len(tasks) > 0 {
+			template.LastTask = &tasks[0]
+		}
+	}
+
 	res := db.TemplateWithPerms{
 		Template:    template,
 		Permissions: &permissions,

@@ -140,3 +140,34 @@ func TestVisibility_Tasks(t *testing.T) {
 		})
 	}
 }
+
+// The people a task's live updates go to: whoever may see the task, plus the admins.
+func TestVisibility_TaskViewers(t *testing.T) {
+	f := newVisibilityFixture(t)
+	root, err := f.store.CreateUserWithoutPassword(db.User{Username: "root", Name: "root", Email: "root@example.com", Admin: true})
+	require.NoError(t, err)
+
+	viewers, err := f.store.GetTaskViewers(f.projectID, f.taskA.TemplateID, nil)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []int{f.reader.ID, f.grantee.ID, root.ID}, viewers)
+
+	viewers, err = f.store.GetTaskViewers(f.projectID, f.nodeTask.TemplateID, f.nodeTask.WorkflowRunID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []int{f.reader.ID, f.runGrantee.ID, root.ID}, viewers)
+}
+
+// A deploy task carries its build task only when the member may see that task too.
+func TestVisibility_BuildTaskOfHiddenTemplate(t *testing.T) {
+	f := newVisibilityFixture(t)
+	deploy, err := f.store.CreateTask(db.Task{ProjectID: f.projectID, TemplateID: f.a.ID, BuildTaskID: &f.taskB.ID, Created: time.Now()}, 0)
+	require.NoError(t, err)
+
+	first := func(viewer *db.Viewer) db.TaskWithTpl {
+		tasks, err := f.store.GetProjectTasks(f.projectID, db.RetrieveQueryParams{TaskFilter: &db.TaskFilter{Viewer: viewer}})
+		require.NoError(t, err)
+		require.Equal(t, deploy.ID, tasks[0].ID)
+		return tasks[0]
+	}
+	assert.NotNil(t, first(&db.Viewer{UserID: f.reader.ID}).BuildTask, "the reader sees the build task")
+	assert.Nil(t, first(&db.Viewer{UserID: f.grantee.ID}).BuildTask, "the grantee may not read template b")
+}
