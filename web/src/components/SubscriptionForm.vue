@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null"
     data-testid="subscription-form"
@@ -83,12 +82,12 @@
         data-testid="subscription-key"
       ></v-textarea>
 
-      <v-menu offset-y v-if="item.state === 'active' || item.state === 'expired'">
+      <v-menu location="bottom" v-if="item.state === 'active' || item.state === 'expired'">
         <template v-slot:activator="{ props }">
           <v-btn
             color="primary"
             v-bind="props"
-            fab
+            icon
             data-testid="subscription-actionsMenu"
             size="small"
             style="position: absolute; top: 15px; right: -15px"
@@ -99,21 +98,21 @@
 
         <v-list>
           <v-list-item link @click="reloadToken" data-testid="subscription-actionsMenu-reload">
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-refresh</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>Reload</v-list-item-title>
           </v-list-item>
           <v-list-item link @click="uploadKeyFile" data-testid="subscription-actionsMenu-upload">
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-upload</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>Upload</v-list-item-title>
           </v-list-item>
           <v-list-item link @click="resetToken" data-testid="subscription-actionsMenu-reset">
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-delete</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>Reset</v-list-item-title>
           </v-list-item>
         </v-list>
@@ -122,7 +121,7 @@
       <v-btn
         v-else
         color="primary"
-        fab
+        icon
         size="small"
         style="position: absolute; top: 30px; right: -15px"
         @click="uploadKeyFile()"
@@ -188,12 +187,10 @@
       <v-card-text class="pb-2">
         <v-list class="py-0 pb-5" style="background: unset" v-if="item.company">
           <v-list-item class="pa-0">
-            <v-list-item-content class="py-0">
-              <v-list-item-title>Subscription holder</v-list-item-title>
-              <v-list-item-subtitle
-                data-testid="subscription-planHolder"
-              >{{ item.company }}</v-list-item-subtitle>
-            </v-list-item-content>
+            <v-list-item-title>Subscription holder</v-list-item-title>
+            <v-list-item-subtitle
+              data-testid="subscription-planHolder"
+            >{{ item.company }}</v-list-item-subtitle>
           </v-list-item>
         </v-list>
 
@@ -201,71 +198,71 @@
           <v-col class="py-0">
             <v-list class="py-0" style="background: unset">
               <v-list-item class="pa-0">
-                  <v-list-item-title>Plan</v-list-item-title>
-                  <v-list-item-subtitle
-                    data-testid="subscription-planName"
-                  >{{ item.plan }}</v-list-item-subtitle>
+                <v-list-item-title>Plan</v-list-item-title>
+                <v-list-item-subtitle
+                  data-testid="subscription-planName"
+                >{{ item.plan }}</v-list-item-subtitle>
               </v-list-item>
               <v-list-item class="pa-0">
-                  <v-list-item-title>Expires at</v-list-item-title>
-                  <v-list-item-subtitle
-                    data-testid="subscription-planExpiresAt"
-                  >{{ item.expiresAt }}</v-list-item-subtitle>
+                <v-list-item-title>Expires at</v-list-item-title>
+                <v-list-item-subtitle
+                  data-testid="subscription-planExpiresAt"
+                >{{ item.expiresAt }}</v-list-item-subtitle>
               </v-list-item>
               <v-list-item class="pa-0" v-if="item.nodes">
-                  <v-list-item-title>Nodes</v-list-item-title>
-                  <v-list-item-subtitle data-testid="subscription-planNodes">
-                    {{ item.nodes_used }} / {{ item.nodes }}
-                  </v-list-item-subtitle>
+                <v-list-item-title>Nodes</v-list-item-title>
+                <v-list-item-subtitle data-testid="subscription-planNodes">
+                  {{ item.nodes_used }} / {{ item.nodes }}
+                </v-list-item-subtitle>
               </v-list-item>
               <v-list-item class="pa-0" v-if="item.runners < 100000">
-                  <v-list-item-title>Project runners</v-list-item-title>
-                  <v-list-item-subtitle data-testid="subscription-planRunners">
-                    {{ item.runners_used }} / {{ item.runners }}
-                  </v-list-item-subtitle>
+                <v-list-item-title>Project runners</v-list-item-title>
+                <v-list-item-subtitle data-testid="subscription-planRunners">
+                  {{ item.runners_used }} / {{ item.runners }}
+                </v-list-item-subtitle>
               </v-list-item>
             </v-list>
           </v-col>
           <v-col class="py-0">
             <v-list class="py-0" style="background: unset">
               <v-list-item class="pa-0">
-                  <v-list-item-title>Status</v-list-item-title>
-                  <v-list-item-subtitle
-                    style="display: flex; align-items: center"
-                    data-testid="subscription-planStatus"
-                  >
-                    <div
-                      style="
-                        border-radius: 100px;
-                        width: 8px;
-                        height: 8px;
-                        margin-right: 5px;
-                        margin-top: 1px;
-                      "
-                      :style="{
-                        backgroundColor: item.state === 'active' ? '#00bc00' : '#ff0000',
-                      }"
-                    ></div>
-                    <div>{{ item.state }}</div>
-                  </v-list-item-subtitle>
+                <v-list-item-title>Status</v-list-item-title>
+                <v-list-item-subtitle
+                  style="display: flex; align-items: center"
+                  data-testid="subscription-planStatus"
+                >
+                  <div
+                    style="
+                      border-radius: 100px;
+                      width: 8px;
+                      height: 8px;
+                      margin-right: 5px;
+                      margin-top: 1px;
+                    "
+                    :style="{
+                      backgroundColor: item.state === 'active' ? '#00bc00' : '#ff0000',
+                    }"
+                  ></div>
+                  <div>{{ item.state }}</div>
+                </v-list-item-subtitle>
               </v-list-item>
               <v-list-item class="pa-0" v-if="item.users < 100000">
-                  <v-list-item-title>Pro users</v-list-item-title>
-                  <v-list-item-subtitle
-                    data-testid="subscription-planUsers"
-                  >{{ item.used }} / {{ item.users }}</v-list-item-subtitle>
+                <v-list-item-title>Pro users</v-list-item-title>
+                <v-list-item-subtitle
+                  data-testid="subscription-planUsers"
+                >{{ item.used }} / {{ item.users }}</v-list-item-subtitle>
               </v-list-item>
               <v-list-item class="pa-0" v-if="item.terraform_states < 100000">
-                  <v-list-item-title>Terraform backends</v-list-item-title>
-                  <v-list-item-subtitle data-testid="subscription-planTerraformStates">
-                    {{ item.terraform_states_used }} / {{ item.terraform_states }}
-                  </v-list-item-subtitle>
+                <v-list-item-title>Terraform backends</v-list-item-title>
+                <v-list-item-subtitle data-testid="subscription-planTerraformStates">
+                  {{ item.terraform_states_used }} / {{ item.terraform_states }}
+                </v-list-item-subtitle>
               </v-list-item>
               <v-list-item class="pa-0" v-if="item.uis">
-                  <v-list-item-title>UIs</v-list-item-title>
-                  <v-list-item-subtitle data-testid="subscription-planUis">
-                    {{ item.uis_used }} / {{ item.uis }}
-                  </v-list-item-subtitle>
+                <v-list-item-title>UIs</v-list-item-title>
+                <v-list-item-subtitle data-testid="subscription-planUis">
+                  {{ item.uis_used }} / {{ item.uis }}
+                </v-list-item-subtitle>
               </v-list-item>
             </v-list>
           </v-col>

@@ -4,7 +4,7 @@
       data-testid="systemInfoDialog"
       :data-state="loading ? 'loading' : error ? 'error' : info ? 'ready' : 'empty'"
     >
-      <v-card-title class="text-h5" data-testid="systemInfoDialog-title">
+      <v-card-title class="text-h5 d-flex align-center" data-testid="systemInfoDialog-title">
         {{ $t('systemInfo') }}
         <v-spacer />
         <v-btn icon @click="dialog = false" data-testid="systemInfoDialog-close">
@@ -24,7 +24,7 @@
 
       <v-card-text v-else-if="info" class="py-2 mb-4" data-testid="systemInfo-content">
         <!-- System -->
-        <v-subheader class="px-0">{{ $t('system') }}</v-subheader>
+        <v-list-subheader class="px-0">{{ $t('system') }}</v-list-subheader>
         <v-card
           data-testid="systemInfo-section-system"
           style="background: var(--highlighted-card-bg-color)"
@@ -69,7 +69,7 @@
         </v-card>
 
         <!-- Ansible -->
-        <v-subheader class="px-0 mt-2">Ansible</v-subheader>
+        <v-list-subheader class="px-0 mt-2">Ansible</v-list-subheader>
         <v-card
           data-testid="systemInfo-section-ansible"
           style="background: var(--highlighted-card-bg-color)"
@@ -93,7 +93,7 @@
         </v-card>
 
         <!-- Database -->
-        <v-subheader class="px-0 mt-2">{{ $t('database') }}</v-subheader>
+        <v-list-subheader class="px-0 mt-2">{{ $t('database') }}</v-list-subheader>
         <v-card
           data-testid="systemInfo-section-database"
           style="background: var(--highlighted-card-bg-color)"
@@ -113,7 +113,7 @@
         </v-card>
 
         <!-- Authentication -->
-        <v-subheader class="px-0 mt-2">{{ $t('authentication') }}</v-subheader>
+        <v-list-subheader class="px-0 mt-2">{{ $t('authentication') }}</v-list-subheader>
         <v-card
           data-testid="systemInfo-section-auth"
           style="background: var(--highlighted-card-bg-color)"
@@ -177,7 +177,7 @@
         </v-card>
 
         <!-- Notifications -->
-        <v-subheader class="px-0 mt-2">{{ $t('notifications') }}</v-subheader>
+        <v-list-subheader class="px-0 mt-2">{{ $t('notifications') }}</v-list-subheader>
         <v-card
           data-testid="systemInfo-section-notifications"
           style="background: var(--highlighted-card-bg-color)"
@@ -204,7 +204,7 @@
           </v-card-text>
         </v-card>
 
-        <v-subheader class="px-0 mt-2">{{ $t('cluster') }}</v-subheader>
+        <v-list-subheader class="px-0 mt-2">{{ $t('cluster') }}</v-list-subheader>
         <v-card
           data-testid="systemInfo-section-cluster"
           style="background: var(--highlighted-card-bg-color)"
@@ -232,7 +232,7 @@
         </v-card>
 
         <!-- Runners -->
-        <v-subheader class="px-0 mt-2">{{ $t('runners') }}</v-subheader>
+        <v-list-subheader class="px-0 mt-2">{{ $t('runners') }}</v-list-subheader>
         <v-card
           data-testid="systemInfo-section-runners"
           style="background: var(--highlighted-card-bg-color)"
@@ -265,7 +265,7 @@
         </v-card>
 
         <!-- Task Settings -->
-        <v-subheader class="px-0 mt-2">{{ $t('taskSettings') }}</v-subheader>
+        <v-list-subheader class="px-0 mt-2">{{ $t('taskSettings') }}</v-list-subheader>
         <v-card
           data-testid="systemInfo-section-taskSettings"
           style="background: var(--highlighted-card-bg-color)"
@@ -303,7 +303,7 @@
         </v-card>
 
         <!-- Features -->
-        <v-subheader class="px-0 mt-2">{{ $t('featureFlags') }}</v-subheader>
+        <v-list-subheader class="px-0 mt-2">{{ $t('featureFlags') }}</v-list-subheader>
         <v-card
           data-testid="systemInfo-section-features"
           style="background: var(--highlighted-card-bg-color)"

@@ -12,6 +12,7 @@ The user menu is opened on the History of Seed Demo; its task list is cut down t
 Shots: z31__<screen>__<state>__<size>.png.
 """
 
+import datetime as dt
 import json
 
 import pytest
@@ -198,6 +199,18 @@ def base_tasks(page: Page):
     return release
 
 
+def pick(page: Page, item: Locator):
+    """Click <item> of an open menu the way a user does — some time after the menu opened. Vue 3 drops an
+    event in a listener attached at or after the event's time (`e._vts <= invoker.attached`, both from
+    Date.now()); under the suite's fixed clock both are the same instant, so the content-click listener
+    of a Vuetify 3 menu (close-on-content-click) is skipped once the item's own @click has run, and the
+    menu stays open — in a browser with a running clock it closes (JOURNAL@9A9258D7A5). The fixed clock is
+    moved 1 s on first."""
+    now = page.evaluate("Date.now()")
+    page.clock.set_fixed_time(dt.datetime.fromtimestamp(now / 1000 + 1, tz=dt.timezone.utc))
+    item.click()
+
+
 # ---- steps --------------------------------------------------------------------------------------------
 
 def open_history(page: Page, project):
@@ -222,7 +235,7 @@ def user_menu(page: Page, project, item):
 def open_info(page: Page, project, state="ready"):
     """Steps «S»: the System info card; waits for <state> (None — only visible)."""
     user_menu(page, project, "sidebar-userMenu-systemInfo")
-    tid(page, "sidebar-userMenu-systemInfo").click()
+    pick(page, tid(page, "sidebar-userMenu-systemInfo"))
     card = dialog(page, SI)
     if state:
         wait_state(page, SI, state)
@@ -232,7 +245,7 @@ def open_info(page: Page, project, state="ready"):
 def open_sub(page: Page, project, state="ready"):
     """Steps «P»: the subscription card; waits for the form in <state> (None — only the card)."""
     user_menu(page, project, "sidebar-userMenu-subscription")
-    tid(page, "sidebar-userMenu-subscription").click()
+    pick(page, tid(page, "sidebar-userMenu-subscription"))
     card = dialog(page, SD)
     if state:
         wait_state(card, FORM, state)
@@ -244,7 +257,7 @@ def reopen_sub(page: Page):
     if page.vu.size != "desktop":
         tid(page, "history-drawerToggle").click()
     tid(page, "sidebar-userMenu").click()
-    tid(page, "sidebar-userMenu-subscription").click()
+    pick(page, tid(page, "sidebar-userMenu-subscription"))
     return dialog(page, SD)
 
 
@@ -557,7 +570,7 @@ def test_subscription_reload_error(ui, project):
     hits = fail_api(page, "POST", REFRESH, 504, {"error": text})
     card = open_sub(page, project)
     actions_menu(page, card)
-    tid(page, "subscription-actionsMenu-reload").click()
+    pick(page, tid(page, "subscription-actionsMenu-reload"))
     wait_until(page, lambda: hits, "the failed POST /api/subscription/refresh")
     wait_state(card, FORM, "error")
     expect(tid(card, "subscription-error")).to_have_text(text)
@@ -573,7 +586,7 @@ def test_subscription_reset_error(ui, project):
     hits = fail_api(page, "DELETE", SUB, 403, {"error": "vu 403 DELETE"})
     card = open_sub(page, project)
     actions_menu(page, card)
-    tid(page, "subscription-actionsMenu-reset").click()
+    pick(page, tid(page, "subscription-actionsMenu-reset"))
     wait_until(page, lambda: hits, "the failed DELETE /api/subscription")
     wait_state(card, FORM, "error")
     expect(tid(card, "subscription-error")).to_have_text("vu 403 DELETE")
@@ -644,7 +657,7 @@ def test_fn_system_info_close_no_reload(ui, project, how):
         page.mouse.click(5, 5)
     expect(card).to_be_hidden()
     tid(page, "sidebar-userMenu").click()
-    tid(page, "sidebar-userMenu-systemInfo").click()
+    pick(page, tid(page, "sidebar-userMenu-systemInfo"))
     wait_state(page, SI, "ready")
     assert len(gets) == 1
 
@@ -660,7 +673,7 @@ def test_fn_system_info_error_then_retry(ui, project):
     expect(card).to_be_hidden()
     page.unroute(INFO)
     tid(page, "sidebar-userMenu").click()
-    tid(page, "sidebar-userMenu-systemInfo").click()
+    pick(page, tid(page, "sidebar-userMenu-systemInfo"))
     wait_state(page, SI, "ready")
     expect(tid(card, "systemInfo-content")).to_be_visible()
     assert len(gets) == 2
@@ -766,7 +779,7 @@ def test_fn_subscription_reload_ok(ui, project):
     card = open_sub(page, project)
     gets = len(sub["hits"])
     actions_menu(page, card)
-    tid(page, "subscription-actionsMenu-reload").click()
+    pick(page, tid(page, "subscription-actionsMenu-reload"))
     wait_until(page, lambda: refresh["hits"] and len(sub["hits"]) > gets, "POST refresh and a new GET")
     wait_state(card, FORM, "ready")
     expect(tid(card, "subscription-status-active")).to_be_visible()
@@ -781,7 +794,7 @@ def test_fn_subscription_reset_ok(ui, project):
     card = open_sub(page, project)
     sub["body"] = NONE
     actions_menu(page, card)
-    tid(page, "subscription-actionsMenu-reset").click()
+    pick(page, tid(page, "subscription-actionsMenu-reset"))
     wait_until(page, lambda: deleted["hits"], "DELETE /api/subscription")
     expect(tid(card, "subscription-status-none")).to_be_visible()
     expect(tid(card, "subscription-plan")).to_have_count(0)
@@ -801,7 +814,7 @@ def test_fn_subscription_upload(ui, project, source):
         if source == "button":
             tid(card, "subscription-upload").click()
         else:
-            tid(page, "subscription-actionsMenu-upload").click()
+            pick(page, tid(page, "subscription-actionsMenu-upload"))
     fc.value.set_files(files=[{"name": "vu.key", "mimeType": "text/plain", "buffer": b"  VU-FILE-KEY \n"}])
     expect(key_input(card)).to_have_value("VU-FILE-KEY")
 
