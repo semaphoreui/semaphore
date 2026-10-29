@@ -469,6 +469,8 @@ export default {
 
       switch (data.type) {
         case 'update':
+          // Updates the task object of the parent in place (reported by eslint-plugin-vue 10).
+          // eslint-disable-next-line vue/no-mutating-props
           Object.assign(this.item, {
             ...data,
             type: undefined,

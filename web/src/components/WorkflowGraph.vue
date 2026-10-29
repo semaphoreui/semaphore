@@ -1080,7 +1080,7 @@ export default {
 </script>
 
 <style lang="scss">
-@import '~@/components/workflow/palette';
+@import '@/components/workflow/palette';
 
 .WorkflowGraph {
   --wf-surface: #{$wf-surface};

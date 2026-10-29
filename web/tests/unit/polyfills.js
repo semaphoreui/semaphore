@@ -28,6 +28,9 @@ if (!hasGlobal('localStorage')) {
     removeItem: (k) => store.delete(k),
     clear: () => store.clear(),
   });
+} else {
+  // jsdom's own storage is a getter-only property of window: specs swap it by assignment.
+  defineGlobal('localStorage', global.localStorage);
 }
 
 // Vuetify overlays use requestAnimationFrame/cancelAnimationFrame.
@@ -55,4 +58,11 @@ if (!hasGlobal('ResizeObserver')) {
 // Vuetify 3 overlays follow window.visualViewport, which jsdom does not have.
 if (!hasGlobal('visualViewport')) {
   defineGlobal('visualViewport', null);
+}
+
+// jsdom has PointerEvent, and @vue/test-utils then fails to set `clientX`/`clientY` of a triggered
+// pointer event (they are getters inherited from MouseEvent). Without it the test utils fall back
+// to a plain Event with the coordinates as own properties.
+if (typeof window !== 'undefined' && window.PointerEvent) {
+  delete window.PointerEvent;
 }

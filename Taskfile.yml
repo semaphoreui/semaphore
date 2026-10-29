@@ -85,23 +85,20 @@ tasks:
     sources:
       - src/*.*
       - src/**/*.*
-      - public/index.html
-      - public/favicon.ico
+      - public/**/*.*
+      - index.html
       - ../api-docs.yml
       - package.json
       - package-lock.json
-      - babel.config.js
-      - vue.config.js
+      - vite.config.mjs
     generates:
-      - ../api/public/css/*.css
-      - ../api/public/js/*.js
+      - ../api/public/assets/*.*
       - ../api/public/index.html
-      - ../api/public/favicon.ico
     cmds:
       - >-
         {{ if eq OS "windows" }}set VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }} && {{ else }}env VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }}{{ end }}
         npm run build
-      # vue-cli-service empties outputDir (../api/public) before every build,
+      # vite empties outDir (../api/public) before every build,
       # which deletes the tracked placeholder. Put it back: `go:embed public/*`
       # in api/router.go needs a match even when the frontend has not been
       # built, and the CI "Check modification" step fails if a build leaves the

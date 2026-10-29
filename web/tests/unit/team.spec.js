@@ -9,9 +9,8 @@ describe('Team.vue', () => {
   let Team;
   let http;
 
-  before(() => {
-    // eslint-disable-next-line global-require
-    Team = require('@/views/project/Team.vue').default;
+  beforeAll(async () => {
+    Team = (await import('@/views/project/Team.vue')).default;
   });
 
   beforeEach(() => {

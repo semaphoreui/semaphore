@@ -7,9 +7,8 @@ describe('GlobalRolesList.vue', () => {
   let GlobalRolesList;
   let http;
 
-  before(() => {
-    // eslint-disable-next-line global-require
-    GlobalRolesList = require('@/components/GlobalRolesList.vue').default;
+  beforeAll(async () => {
+    GlobalRolesList = (await import('@/components/GlobalRolesList.vue')).default;
   });
 
   beforeEach(() => {

@@ -381,7 +381,7 @@ export default {
 </script>
 
 <style lang="scss">
-@import '~@/components/workflow/palette';
+@import '@/components/workflow/palette';
 
 .WorkflowNodeCard {
   position: relative;

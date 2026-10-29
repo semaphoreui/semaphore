@@ -106,9 +106,10 @@ FREEZE_CSS = """
   caret-color: transparent !important; scroll-behavior: auto !important;
 }
 .v-ripple__container { display: none !important; }  /* the ripple of Vuetify 2 and 3 */
-/* the error overlay of the dev server (vue-cli-service serve, the hot-reload UI — never in a build): Vue 3
-   in a dev build throws the errors of hooks, and the overlay over the page takes every click */
-#webpack-dev-server-client-overlay { display: none !important; }
+/* the error overlay of the dev server (the hot-reload UI — never in a build): vue-cli-service serve shows
+   the errors Vue 3 throws from hooks in a dev build, Vite its compile errors; the overlay over the page
+   takes every click */
+#webpack-dev-server-client-overlay, vite-error-overlay { display: none !important; }
 """
 
 INIT_JS_TEMPLATE = """(() => {
