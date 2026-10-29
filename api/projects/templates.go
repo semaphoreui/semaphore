@@ -424,6 +424,10 @@ func (c *TemplateController) AddTemplatePerm(w http.ResponseWriter, r *http.Requ
 		helpers.WriteErrorStatus(w, "Permissions are not template permissions", http.StatusBadRequest)
 		return
 	}
+	// A verb on a template includes seeing it.
+	if perm.Permissions != 0 {
+		perm.Permissions |= db.CanReadProject
+	}
 
 	role, err := helpers.Store(r).GetProjectOrSharedRoleBySlug(template.ProjectID, perm.RoleSlug)
 	if errors.Is(err, db.ErrNotFound) {
@@ -474,6 +478,10 @@ func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.R
 	if perm.Permissions&^db.TemplateGrantPermissions != 0 {
 		helpers.WriteErrorStatus(w, "Permissions are not template permissions", http.StatusBadRequest)
 		return
+	}
+	// A verb on a template includes seeing it.
+	if perm.Permissions != 0 {
+		perm.Permissions |= db.CanReadProject
 	}
 
 	perm.ID = permID

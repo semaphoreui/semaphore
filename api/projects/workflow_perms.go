@@ -70,6 +70,10 @@ func (c *WorkflowPermController) AddWorkflowPerm(w http.ResponseWriter, r *http.
 		helpers.WriteErrorStatus(w, "Permissions are not workflow permissions", http.StatusBadRequest)
 		return
 	}
+	// A verb on a workflow includes seeing it.
+	if perm.Permissions != 0 {
+		perm.Permissions |= db.CanReadProject
+	}
 
 	role, err := helpers.Store(r).GetProjectOrSharedRoleBySlug(workflow.ProjectID, perm.RoleSlug)
 	if errors.Is(err, db.ErrNotFound) {
@@ -123,6 +127,10 @@ func (c *WorkflowPermController) UpdateWorkflowPerm(w http.ResponseWriter, r *ht
 	if perm.Permissions&^db.WorkflowGrantPermissions != 0 {
 		helpers.WriteErrorStatus(w, "Permissions are not workflow permissions", http.StatusBadRequest)
 		return
+	}
+	// A verb on a workflow includes seeing it.
+	if perm.Permissions != 0 {
+		perm.Permissions |= db.CanReadProject
 	}
 
 	perm.ID = permID
