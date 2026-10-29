@@ -16,6 +16,7 @@
       :project-id="projectId"
       :project-type="projectType"
       :can-update-project="true"
+      :can-read="true"
     />
 
     <div

@@ -259,6 +259,7 @@ export default {
     projectId: Number,
     systemInfo: Object,
     features: null,
+    canRead: Boolean,
   },
 
   data() {
@@ -449,10 +450,10 @@ export default {
     async loadData() {
       // Distinguishes "still loading" from "not there", so a valid origin is
       // never briefly labelled as deleted.
-      if (this.item.schedule_id) {
+      if (this.item.schedule_id && this.canRead) {
         this.schedule = { status: 'loading', data: null };
       }
-      if (this.item.integration_id) {
+      if (this.item.integration_id && this.canRead) {
         this.integration = { status: 'loading', data: null };
       }
 
@@ -477,11 +478,11 @@ export default {
           responseType: 'json',
         })).data : null,
 
-        this.item.schedule_id
+        this.item.schedule_id && this.canRead
           ? this.loadOrigin(`/api/project/${this.projectId}/schedules/${this.item.schedule_id}`)
           : null,
 
-        this.item.integration_id
+        this.item.integration_id && this.canRead
           ? this.loadOrigin(`/api/project/${this.projectId}/integrations/${this.item.integration_id}`)
           : null,
       ]);

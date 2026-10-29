@@ -208,6 +208,8 @@ export default {
   props: {
     template: Object,
     sourceTask: Object,
+    // Without read_project nothing is listed to pick from, the template's own values are used.
+    canRead: Boolean,
   },
 
   components: {
@@ -237,7 +239,7 @@ export default {
 
   computed: {
     needInventory() {
-      return this.needField('inventory') && this.template.task_params?.allow_override_inventory;
+      return this.canRead && this.needField('inventory') && this.template.task_params?.allow_override_inventory;
     },
 
     // A monorepo is shared by every template on the repository's own branch, so
@@ -387,6 +389,22 @@ export default {
       });
     },
 
+    // The build template may be hidden from the member, then there is nothing to pick from.
+    async loadBuildTasks() {
+      try {
+        return (await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks?status=success&limit=20`,
+          responseType: 'json',
+        })).data.filter((task) => task.status === 'success');
+      } catch (e) {
+        if (e.response && e.response.status === 404) {
+          return [];
+        }
+        throw e;
+      }
+    },
+
     async afterLoadData() {
       this.refreshItem();
 
@@ -396,11 +414,7 @@ export default {
         this.repository,
       ] = await Promise.all([
 
-        this.template.type === 'deploy' ? (await axios({
-          keys: 'get',
-          url: `/api/project/${this.projectId}/templates/${this.template.build_template_id}/tasks?status=success&limit=20`,
-          responseType: 'json',
-        })).data.filter((task) => task.status === 'success') : [],
+        this.template.type === 'deploy' ? await this.loadBuildTasks() : [],
 
         this.needInventory ? (await axios({
           keys: 'get',
@@ -410,7 +424,7 @@ export default {
 
         // The template carries only the repository id, and the monorepo flag
         // decides whether the branch prompt is shown at all.
-        this.template.allow_override_branch_in_task ? (await axios({
+        this.canRead && this.template.allow_override_branch_in_task ? (await axios({
           keys: 'get',
           url: `/api/project/${this.projectId}/repositories`,
           responseType: 'json',
