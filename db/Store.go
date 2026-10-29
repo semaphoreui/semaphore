@@ -172,6 +172,8 @@ type TaskFilter struct {
 	End    *time.Time `json:"end"`
 	UserID *int       `json:"user_id"`
 	Status []task_logger.TaskStatus
+	// Viewer keeps only the tasks this member may see; nil lists them all.
+	Viewer *Viewer `json:"-"`
 }
 
 type TaskStat struct {

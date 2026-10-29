@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func runTemplatesMiddleware(f taskControlFixture, templateID int, user *db.User, permissions db.ProjectUserPermission) *httptest.ResponseRecorder {
@@ -38,4 +40,35 @@ func TestTemplatesMiddleware_HidesWhatTheMemberMayNotRead(t *testing.T) {
 
 	assert.Equal(t, http.StatusNoContent, runTemplatesMiddleware(f, f.template.ID, bob, db.CanReadProject).Code)
 	assert.Equal(t, http.StatusNoContent, runTemplatesMiddleware(f, f.template.ID, &db.User{ID: 1, Admin: true}, 0).Code)
+}
+
+// A build template may be seen through a grant while the deploy templates built on it stay hidden.
+func TestGetTemplateRefs_HidesReferrersTheMemberMayNotRead(t *testing.T) {
+	f := newTaskControlFixture(t)
+	build := f.template
+	_, err := f.store.CreateTemplate(db.Template{Name: "release", Playbook: "site.yml", Type: db.TemplateDeploy, ProjectID: f.project.ID, RepositoryID: build.RepositoryID, InventoryID: build.InventoryID, BuildTemplateID: &build.ID})
+	require.NoError(t, err)
+	role, err := f.store.CreateRole(db.Role{Slug: "builder", Name: "Builder", Permissions: 0, ProjectID: &f.project.ID})
+	require.NoError(t, err)
+	bob, err := f.store.CreateUserWithoutPassword(db.User{Username: "bob", Name: "Bob", Email: "bob@example.com"})
+	require.NoError(t, err)
+	require.NoError(t, f.store.CreateProjectUser(f.project.ID, bob.ID, []int{role.ID}))
+	_, err = f.store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: f.project.ID, TemplateID: build.ID, RoleID: role.ID, Permissions: db.CanReadProject | db.CanManageProjectResources})
+	require.NoError(t, err)
+
+	refsFor := func(user *db.User) db.ObjectReferrers {
+		r := httptest.NewRequest(http.MethodGet, "/api/project/1/templates/1/refs", nil)
+		r = helpers.SetContextValue(r, "store", f.store)
+		r = helpers.SetContextValue(r, "user", user)
+		r = helpers.SetContextValue(r, "template", build)
+		w := httptest.NewRecorder()
+		GetTemplateRefs(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+		var refs db.ObjectReferrers
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &refs))
+		return refs
+	}
+
+	assert.Len(t, refsFor(&db.User{ID: 0, Admin: true}).Templates, 1, "the admin sees the deploy template")
+	assert.Empty(t, refsFor(&bob).Templates, "the grantee may not read the deploy template")
 }

@@ -70,10 +70,32 @@ func GetTemplate(w http.ResponseWriter, r *http.Request) {
 
 func GetTemplateRefs(w http.ResponseWriter, r *http.Request) {
 	tpl := helpers.GetFromContext(r, "template").(db.Template)
+	user := helpers.GetFromContext(r, "user").(*db.User)
 	refs, err := helpers.Store(r).GetTemplateRefs(tpl.ProjectID, tpl.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	// Templates built on this one are named only when the member may read them.
+	if !user.Admin {
+		filter := db.TemplateFilter{Viewer: &db.Viewer{UserID: user.ID}}
+		visible, err := helpers.Store(r).GetTemplates(tpl.ProjectID, filter, db.RetrieveQueryParams{})
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		seen := map[int]bool{}
+		for _, t := range visible {
+			seen[t.ID] = true
+		}
+		kept := []db.ObjectReferrer{}
+		for _, ref := range refs.Templates {
+			if seen[ref.ID] {
+				kept = append(kept, ref)
+			}
+		}
+		refs.Templates = kept
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, refs)
@@ -83,7 +105,7 @@ func GetTemplateRefs(w http.ResponseWriter, r *http.Request) {
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	user := helpers.UserFromContext(r)
-	filter := db.TemplateFilter{}
+	filter := db.TemplateFilter{Viewer: &db.Viewer{UserID: user.ID, Admin: user.Admin}}
 	if r.URL.Query().Get("app") != "" {
 		app := db.TemplateApp(r.URL.Query().Get("app"))
 		filter.App = &app
