@@ -9,7 +9,7 @@
         <v-card
           v-if="template"
           :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
-          style="background: #8585850f"
+          :style="cardStyle"
           data-testid="taskDetails-templateCard"
         >
           <v-card-title>Template info</v-card-title>
@@ -46,7 +46,7 @@
         <v-card
           v-if="item.commit_hash"
           :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
-          style="background: #8585850f"
+          :style="cardStyle"
           data-testid="taskDetails-commitCard"
         >
           <v-card-title>Commit info</v-card-title>
@@ -78,7 +78,7 @@
       <v-col cols="12" md="6">
         <v-card
           :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
-          style="background: #8585850f"
+          :style="cardStyle"
           class="mb-5"
           data-testid="taskDetails-runningCard"
         >
@@ -159,7 +159,7 @@
         <v-card
           v-if="item?.params"
           :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
-          style="background: #8585850f"
+          :style="cardStyle"
           class="mb-5"
           data-testid="taskDetails-paramsCard"
         >
@@ -221,7 +221,7 @@
       <v-col cols="12">
         <v-card
           :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
-          style="background: #8585850f"
+          :style="cardStyle"
           class="mb-5"
           data-testid="taskDetails-outputsCard"
         >
@@ -351,6 +351,13 @@ export default {
   },
 
   computed: {
+    // The tinted background of the cards shows in the dark theme only: in the light theme the
+    // card is white (`color="white"`, class `bg-white`). Up to Vuetify 3 that class carried
+    // `!important` and beat the inline background; the Vuetify 4 utilities do not.
+    cardStyle() {
+      return this.$vuetify.theme.current.dark ? { background: '#8585850f' } : undefined;
+    },
+
     // The outputs document of a workflow task: {values, skipped}. A document
     // written before that shape existed is a flat map and is shown as values.
     outputs() {

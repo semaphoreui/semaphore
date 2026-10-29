@@ -62,8 +62,8 @@
       v-if="tab === 'notOkServers'"
       hide-default-footer
       show-expand
-      :expanded="expanded"
-      @update:expanded="expanded = $event.slice(-1)"
+      v-model:expanded="expanded"
+      expand-strategy="single"
       :headers="notOkServersHeaders"
       :items="failedTasks"
       :items-per-page="-1"
@@ -249,7 +249,7 @@ export default {
       tab: 'notOkServers',
       failedTasks: [],
       hosts: null,
-      // single expand: only the last opened row stays in the list
+      // opened rows of the errors table (expand-strategy="single": one at a time)
       expanded: [],
       notOkServersHeaders: [
         {
