@@ -117,11 +117,10 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
+      class="mt-4 InventoryTable"
       :items-per-page="-1"
       data-testid="inventory-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
     >
       <template v-slot:item.name="{ item }">
         <v-icon class="mr-3" size="small" data-testid="inventory-rowIcon">
@@ -172,6 +171,13 @@
   </div>
 
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.InventoryTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import InventoryForm from '@/components/InventoryForm.vue';
