@@ -9,6 +9,7 @@
       :project-id="projectId"
       :project-type="projectType"
       :can-update-project="can(USER_PERMISSIONS.updateProject)"
+      :can-read="can(USER_PERMISSIONS.readProject)"
     />
 
     <v-data-table

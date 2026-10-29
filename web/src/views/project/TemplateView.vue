@@ -7,6 +7,7 @@
       v-model="newTaskDialog"
       :project-id="projectId"
       :template="item"
+      :can-read="can(USER_PERMISSIONS.readProject)"
     />
 
     <EditTemplateDialog
@@ -177,6 +178,7 @@
       :repositories="repositories"
       :features="features"
       :is-admin="isAdmin"
+      :can-read="can(USER_PERMISSIONS.readProject)"
       @update-template="loadData"
       :need-update="needLoadData"
     ></router-view>
@@ -404,6 +406,7 @@ export default {
     },
 
     async loadData() {
+      const canRead = this.can(this.USER_PERMISSIONS.readProject);
       [
         this.item,
         this.inventory,
@@ -411,9 +414,9 @@ export default {
         this.repositories,
       ] = await Promise.all([
         this.loadProjectResource('templates', this.itemId),
-        this.loadProjectResources('inventory'),
-        this.loadProjectResources('environment'),
-        this.loadProjectResources('repositories'),
+        canRead ? this.loadProjectResources('inventory') : [],
+        canRead ? this.loadProjectResources('environment') : [],
+        canRead ? this.loadProjectResources('repositories') : [],
       ]);
     },
 

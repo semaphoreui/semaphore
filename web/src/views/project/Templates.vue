@@ -43,6 +43,7 @@
       :project-id="projectId"
       :template="template"
       :template-id="itemId"
+      :can-read="can(USER_PERMISSIONS.readProject)"
     />
 
     <v-toolbar flat>
@@ -214,7 +215,7 @@
       </template>
 
       <template v-slot:item.repository_id="{ item }">
-        {{ repositories.find((x) => x.id === item.repository_id).name }}
+        {{ (repositories.find((x) => x.id === item.repository_id) || {name: '—'}).name }}
       </template>
 
       <template v-slot:item.actions="{ item }">
@@ -238,6 +239,7 @@
             :template="item"
             :limit="5"
             :hide-footer="true"
+            :can-read="can(USER_PERMISSIONS.readProject)"
           />
         </td>
       </template>
@@ -529,14 +531,15 @@ export default {
     },
 
     async loadData() {
+      const canRead = this.can(this.USER_PERMISSIONS.readProject);
       [
         this.inventory,
         this.environment,
         this.repositories,
       ] = await Promise.all([
-        this.loadProjectResources('inventory'),
-        this.loadProjectResources('environment'),
-        this.loadProjectResources('repositories'),
+        canRead ? this.loadProjectResources('inventory') : [],
+        canRead ? this.loadProjectResources('environment') : [],
+        canRead ? this.loadProjectResources('repositories') : [],
       ]);
     },
 

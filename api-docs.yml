@@ -358,11 +358,11 @@ definitions:
 
   ProjectBackup:
     type: object
-    example: {"version":3,"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","app":"ansible","working_directory":".","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"suppress_error_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}],"roles":[{"slug":"deployer","name":"Deployer","permissions":1}]}
+    example: {"version":4,"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","app":"ansible","working_directory":".","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"suppress_error_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}],"roles":[{"slug":"deployer","name":"Deployer","permissions":129}]}
     properties:
       version:
         type: integer
-        description: Format version of the backup file, 3. Files written by a newer version are refused. A version 2 file is accepted and its roles get the workflow verbs the upgrade gives stored roles. A file without a version is accepted only when it carries no roles and no template permissions.
+        description: Format version of the backup file, 4. Files written by a newer version are refused. A version 2 file is accepted and its roles get the workflow verbs the upgrade gives stored roles. A file of version 3 or older is accepted and its roles and permissions get read_project. A file without a version is accepted only when it carries no roles and no template permissions.
       meta:
         type: object
         properties:
@@ -636,7 +636,7 @@ definitions:
         type: string
       permissions:
         type: integer
-        description: run_tasks (1) and manage_resources (4).
+        description: read_project (128), run_tasks (1) and manage_resources (4). A verb includes read_project, the server adds it.
 
   WorkflowRolePermission:
     type: object
@@ -652,7 +652,7 @@ definitions:
         type: string
       permissions:
         type: integer
-        description: run_workflows (16), edit_workflows (32) and approve_workflows (64).
+        description: read_project (128), run_workflows (16), edit_workflows (32) and approve_workflows (64). A verb includes read_project, the server adds it.
 
   APIToken:
     type: object
@@ -3963,6 +3963,8 @@ paths:
           description: template object
           schema:
             $ref: "#/definitions/Template"
+        404:
+          description: no such template, or the member may not read it
     put:
       tags:
         - template
@@ -4096,6 +4098,8 @@ paths:
           description: workflow template
           schema:
             $ref: "#/definitions/WorkflowTemplate"
+        404:
+          description: no such workflow, or the member may not read it
     put:
       tags:
         - workflow
@@ -4569,6 +4573,8 @@ paths:
           description: Task
           schema:
             $ref: "#/definitions/Task"
+        404:
+          description: no such task, or the member may not read it
     delete:
       tags:
         - task

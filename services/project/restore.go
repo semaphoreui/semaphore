@@ -82,6 +82,9 @@ func (e BackupRole) Restore(b *BackupDB) error {
 	if b.version < 3 {
 		role.Permissions = db.LiftPermissions(role.Permissions)
 	}
+	if b.version < 4 {
+		role.Permissions |= db.CanReadProject
+	}
 	_, err := b.store.GetSharedRoleBySlug(role.Slug)
 	if err == nil {
 		taken := b.unassignedRole(role.Slug, ReasonSlugTaken)
@@ -488,6 +491,9 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 
 	for _, grant := range e.Roles {
 		permissions := grant.Permissions & db.TemplateGrantPermissions
+		if b.version < 4 && permissions != 0 {
+			permissions |= db.CanReadProject
+		}
 		role, err := b.fileRole(grant.Slug)
 		if errors.Is(err, db.ErrNotFound) {
 			unassigned := b.unassignedRole(grant.Slug, ReasonNotInFile)
@@ -692,6 +698,9 @@ func (e BackupWorkflow) Restore(b *BackupDB) error {
 
 	for _, grant := range e.Roles {
 		permissions := grant.Permissions & db.WorkflowGrantPermissions
+		if b.version < 4 && permissions != 0 {
+			permissions |= db.CanReadProject
+		}
 		role, err := b.fileRole(grant.Slug)
 		if errors.Is(err, db.ErrNotFound) {
 			unassigned := b.unassignedRole(grant.Slug, ReasonNotInFile)

@@ -20,16 +20,17 @@ func TestGetMustCanMiddleware_RecordsDenial(t *testing.T) {
 	router.Handle("/api/project/{project_id}/keys", GetMustCanMiddleware(db.CanManageProjectResources)(ok)).
 		Methods(http.MethodPost, http.MethodGet)
 
-	newRequest := func(method string) (*http.Request, *audittest.Recorder) {
+	newRequest := func(method string, user *db.User, permissions db.ProjectUserPermission) (*http.Request, *audittest.Recorder) {
 		rec := &audittest.Recorder{}
 		r := httptest.NewRequest(method, "/api/project/12/keys", nil)
-		r = helpers.SetContextValue(r, "user", &db.User{ID: 7, Username: "bob"})
-		r = helpers.SetContextValue(r, "permissions", db.CanRunProjectTasks)
+		r = helpers.SetContextValue(r, "user", user)
+		r = helpers.SetContextValue(r, "permissions", permissions)
 		r = helpers.SetContextValue(r, "project", db.Project{ID: 12})
 		return helpers.SetContextValue(r, "audit", rec), rec
 	}
+	bob := &db.User{ID: 7, Username: "bob"}
 
-	r, rec := newRequest(http.MethodPost)
+	r, rec := newRequest(http.MethodPost, bob, db.CanRunProjectTasks|db.CanReadProject)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, r)
 	assert.Equal(t, http.StatusForbidden, w.Code)
@@ -38,7 +39,22 @@ func TestGetMustCanMiddleware_RecordsDenial(t *testing.T) {
 	assert.Equal(t, 12, got.Event.ProjectID)
 	assert.Equal(t, audit.DenyMetadata{Method: http.MethodPost, Permission: "manage_resources"}, got.Event.Metadata)
 
-	r, rec = newRequest(http.MethodGet)
+	// A read needs read_project, whatever verb the route asks for otherwise.
+	r, rec = newRequest(http.MethodGet, bob, db.CanRunProjectTasks|db.CanManageProjectResources)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	got, err = rec.Only(audit.AuthAuthorizationDeny)
+	require.NoError(t, err)
+	assert.Equal(t, audit.DenyMetadata{Method: http.MethodGet, Permission: "read_project"}, got.Event.Metadata)
+
+	r, rec = newRequest(http.MethodGet, bob, db.CanReadProject)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Empty(t, rec.All())
+
+	r, rec = newRequest(http.MethodGet, &db.User{ID: 1, Username: "root", Admin: true}, 0)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, r)
 	assert.Equal(t, http.StatusNoContent, w.Code)

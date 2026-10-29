@@ -32,6 +32,7 @@
         :project-id="projectId"
         :item="item"
         :system-info="systemInfo"
+        :can-read="canRead"
       />
 
       <v-skeleton-loader
@@ -74,6 +75,7 @@ export default {
     projectId: Number,
     itemId: Number,
     systemInfo: Object,
+    canRead: Boolean,
   },
 
   watch: {

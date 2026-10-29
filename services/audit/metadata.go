@@ -168,6 +168,9 @@ func GlobalPermissionNames(p db.GlobalPermission) []string {
 
 func PermissionNames(p db.ProjectUserPermission) []string {
 	names := []string{}
+	if p&db.CanReadProject != 0 {
+		names = append(names, "read_project")
+	}
 	if p&db.CanRunProjectTasks != 0 {
 		names = append(names, "run_tasks")
 	}
@@ -271,6 +274,12 @@ type TaskCompleteMetadata struct {
 
 type TaskMetadata struct {
 	TemplateID int `json:"template_id"`
+}
+
+// The target of a workflow approval event is the workflow; the run and the node say which step.
+type WorkflowApprovalMetadata struct {
+	RunID  int `json:"run_id"`
+	NodeID int `json:"node_id"`
 }
 
 type RunnerRegisterMetadata struct {

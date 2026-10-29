@@ -67,7 +67,7 @@ type GlobalRole struct {
 }
 
 const KnownRolePermissions = CanRunProjectTasks | CanUpdateProject | CanManageProjectResources | CanManageProjectUsers |
-	CanRunWorkflows | CanEditWorkflows | CanApproveWorkflows
+	CanRunWorkflows | CanEditWorkflows | CanApproveWorkflows | CanReadProject
 
 // conflictError is refused with 409 by the API: it matches ErrInvalidOperation and keeps its own message.
 type conflictError struct{ message string }

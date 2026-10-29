@@ -29,6 +29,14 @@ func TemplatesMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// A template the member may not read is not there for them.
+		user := helpers.GetFromContext(r, "user").(*db.User)
+		permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+		if !user.Admin && permissions&db.CanReadProject == 0 {
+			helpers.WriteError(w, db.ErrNotFound)
+			return
+		}
+
 		r = helpers.SetContextValue(r, "template", template)
 		next.ServeHTTP(w, r)
 	})
@@ -75,7 +83,7 @@ func GetTemplateRefs(w http.ResponseWriter, r *http.Request) {
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	user := helpers.UserFromContext(r)
-	filter := db.TemplateFilter{}
+	filter := db.TemplateFilter{Viewer: &db.Viewer{UserID: user.ID, Admin: user.Admin}}
 	if r.URL.Query().Get("app") != "" {
 		app := db.TemplateApp(r.URL.Query().Get("app"))
 		filter.App = &app
@@ -424,6 +432,10 @@ func (c *TemplateController) AddTemplatePerm(w http.ResponseWriter, r *http.Requ
 		helpers.WriteErrorStatus(w, "Permissions are not template permissions", http.StatusBadRequest)
 		return
 	}
+	// A verb on a template includes seeing it.
+	if perm.Permissions != 0 {
+		perm.Permissions |= db.CanReadProject
+	}
 
 	role, err := helpers.Store(r).GetProjectOrSharedRoleBySlug(template.ProjectID, perm.RoleSlug)
 	if errors.Is(err, db.ErrNotFound) {
@@ -474,6 +486,10 @@ func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.R
 	if perm.Permissions&^db.TemplateGrantPermissions != 0 {
 		helpers.WriteErrorStatus(w, "Permissions are not template permissions", http.StatusBadRequest)
 		return
+	}
+	// A verb on a template includes seeing it.
+	if perm.Permissions != 0 {
+		perm.Permissions |= db.CanReadProject
 	}
 
 	perm.ID = permID

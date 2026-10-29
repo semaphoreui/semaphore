@@ -301,6 +301,11 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, workflowRunID *int, tas
 		q = q.Where(squirrel.Eq{"status": params.TaskFilter.Status})
 	}
 
+	if params.TaskFilter != nil && filtered(params.TaskFilter.Viewer) {
+		where, args := visibleTasksWhere(projectID, params.TaskFilter.Viewer.UserID)
+		q = q.Where(where, args...)
+	}
+
 	if templateID == nil {
 		q = q.Where("tpl.project_id=?", projectID)
 	} else {
