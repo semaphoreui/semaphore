@@ -21,6 +21,8 @@ type testItem struct {
 }
 
 func TestBackupProject(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
 	}
@@ -116,6 +118,8 @@ func TestBackupProject(t *testing.T) {
 }
 
 func TestBackup_BackupSecretStorage(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
 	}
@@ -233,6 +237,8 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 // restore, BackupSchedule.Restore used to dereference the nil pointer and
 // crash the HTTP handler with a runtime nil-pointer panic.
 func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
 	}
@@ -374,6 +380,8 @@ func TestMakeUniqueNames(t *testing.T) {
 // backup/restore cycle. Without it a restored project silently loses them and
 // its tasks lose the credentials they reach other hosts with.
 func TestBackupProject_HostConfig(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 
 	store := sql.InitConfigCreateTestStore()
@@ -458,6 +466,8 @@ func TestBackupProject_HostConfig(t *testing.T) {
 
 // A hand-edited backup must not get a mapping past the checks the API applies.
 func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	store := sql.InitConfigCreateTestStore()
 
@@ -582,6 +592,8 @@ func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
 
 // Old backups may carry bits the application never checks: restore keeps the roles and drops the bits.
 func TestRestore_DropsUnknownPermissionBits(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	store := sql.InitConfigCreateTestStore()
 
@@ -625,6 +637,8 @@ func TestRestore_DropsUnknownPermissionBits(t *testing.T) {
 // workflow store persists nothing) is left out of the backup instead of being
 // written as an empty entry.
 func TestBackup_IntegrationTargets(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	store := sql.InitConfigCreateTestStore()
 
@@ -750,6 +764,8 @@ func createBackupFixture(t *testing.T, store db.Store) (db.Project, db.Template)
 }
 
 func TestBackupKeepsBuiltinAndGlobalGrants(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	store := sql.InitConfigCreateTestStore()
 	workflows := proFactory.NewWorkflowStore(store)
@@ -789,6 +805,8 @@ func TestBackupKeepsBuiltinAndGlobalGrants(t *testing.T) {
 }
 
 func TestRestore_ReportsRolesOutsideTheFile(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	store := sql.InitConfigCreateTestStore()
 	p, _ := createBackupFixture(t, store)
@@ -814,6 +832,8 @@ func TestRestore_ReportsRolesOutsideTheFile(t *testing.T) {
 }
 
 func TestBackupJSONHasNoRoleInternals(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	store := sql.InitConfigCreateTestStore()
 	p, _ := createBackupFixture(t, store)
@@ -836,6 +856,8 @@ func TestBackupJSONHasNoRoleInternals(t *testing.T) {
 }
 
 func TestBackupProject_Roles(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	source := sql.InitConfigCreateTestStore()
 	project, err := source.CreateProject(db.Project{Name: "Payments"})
@@ -893,6 +915,8 @@ func TestBackupProject_Roles(t *testing.T) {
 }
 
 func TestBackupProject_KeepsAnOldSlug(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	source := sql.InitConfigCreateTestStore()
 	project, err := source.CreateProject(db.Project{Name: "Payments"})
@@ -962,6 +986,8 @@ func TestVerify_RoleSlugIsAddressable(t *testing.T) {
 }
 
 func TestRestore_ReportsATakenSlug(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	store := sql.InitConfigCreateTestStore()
 	p, tpl := createBackupFixture(t, store)
@@ -994,6 +1020,8 @@ func TestRestore_ReportsATakenSlug(t *testing.T) {
 }
 
 func TestRestore_UnassignedRolesIsEmptyList(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	store := sql.InitConfigCreateTestStore()
 	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "m", Name: "m", Email: "m@example.com", Admin: true}})
@@ -1024,6 +1052,8 @@ type failingDelete struct{ db.Store }
 func (failingDelete) DeleteProject(int) error { return errors.New("locked") }
 
 func TestRestore_ReportsAFailedCleanup(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	store := sql.InitConfigCreateTestStore()
 	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "m", Name: "m", Email: "m@example.com", Admin: true}})
@@ -1075,6 +1105,8 @@ func TestVerify_ReadsAnOldFileWithoutRoles(t *testing.T) {
 // type only. Its value stays behind, and the restored key is empty until the
 // owner fills it in again.
 func TestBackupProject_StringKey(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	store := sql.InitConfigCreateTestStore()
 
@@ -1180,6 +1212,8 @@ func TestRestore_RejectsStringKeyInHostConfig(t *testing.T) {
 // A file written before the workflow verbs carries roles and grants without them; restoring it gives them the
 // same bits the upgrade gives stored roles.
 func TestRestore_LiftsMasksOfAVersion2File(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	store := sql.InitConfigCreateTestStore()
 
@@ -1220,6 +1254,8 @@ func TestRestore_LiftsMasksOfAVersion2File(t *testing.T) {
 
 // Version 3 files carry the workflow verbs but not read, version 4 files carry everything as written.
 func TestRestore_ReadBitByFileVersion(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	tests := []struct {
 		version   int
