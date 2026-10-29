@@ -276,6 +276,12 @@ type TaskMetadata struct {
 	TemplateID int `json:"template_id"`
 }
 
+// The target of a workflow approval event is the workflow; the run and the node say which step.
+type WorkflowApprovalMetadata struct {
+	RunID  int `json:"run_id"`
+	NodeID int `json:"node_id"`
+}
+
 type RunnerRegisterMetadata struct {
 	Token string `json:"token"`
 }
