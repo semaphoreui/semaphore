@@ -261,7 +261,7 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
-	b.workflows, err = workflowStore.GetWorkflowTemplates(projectID, db.RetrieveQueryParams{})
+	b.workflows, err = workflowStore.GetWorkflowTemplates(projectID, nil, db.RetrieveQueryParams{})
 	if err != nil {
 		return
 	}
