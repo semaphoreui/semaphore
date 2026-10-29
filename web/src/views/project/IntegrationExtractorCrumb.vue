@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div v-if="integration != null" data-testid="integration-header">
     <v-toolbar flat>
       <v-app-bar-nav-icon
@@ -6,7 +6,7 @@
         data-testid="integration-drawerToggle"
       ></v-app-bar-nav-icon>
 
-      <v-toolbar-title class="breadcrumbs" data-testid="integration-breadcrumbs">
+      <v-toolbar-title class="breadcrumbs flex-0-1" data-testid="integration-breadcrumbs">
         <router-link
           class="breadcrumbs__item breadcrumbs__item--link"
           :to="`/project/${projectId}/integrations/`"

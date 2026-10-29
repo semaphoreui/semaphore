@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null"
     data-testid="integrationValue-section"
@@ -48,11 +48,15 @@
         @click="showDrawer()"
         data-testid="integrationValue-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="integrationValue-title">ExtractValue</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="integrationValue-title"
+      >ExtractValue</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         data-testid="integrationValue-new"
         >New Extracted Value</v-btn
@@ -62,7 +66,8 @@
       :headers="headers"
       :items="items"
       class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       data-testid="integrationValue-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
