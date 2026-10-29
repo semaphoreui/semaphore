@@ -1,7 +1,6 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="isLoaded"
     data-testid="integrationForm-form"
@@ -10,7 +9,7 @@
     <v-alert
       :model-value="!!formError"
       color="error"
-      class="pb-2"
+      class="pb-2 mb-4"
       data-testid="integrationForm-error"
     >{{ formError }} </v-alert>
 
@@ -34,8 +33,8 @@
       <v-btn-toggle
         :model-value="target"
         @update:model-value="setTarget($event)"
-        tile
-        group
+        rounded="0"
+        variant="text"
         mandatory
         :disabled="formSaving"
         data-testid="integrationForm-targetToggle"
@@ -91,7 +90,7 @@
       <v-chip
         v-if="!workflowIntegrationsAvailable"
         color="hsl(348deg, 86%, 61%)"
-        text-color="white"
+        variant="flat"
         size="small"
         label
         class="IntegrationForm__upgrade"
@@ -120,7 +119,7 @@
 
     <v-card
       v-if="target === 'template' && item.template_id"
-      style="background: var(--highlighted-card-bg-color)"
+      style="background: var(--highlighted-card-bg-color); overflow: visible"
       class="mb-6 pt-3"
       data-testid="integrationForm-taskParamsCard"
     >
@@ -159,30 +158,28 @@
     ></v-select>
 
     <HighlightedCard v-if="item.auth_method" data-testid="integrationForm-auth">
-      <template>
-        <v-text-field
-            v-if="['token', 'hmac', 'hmac-sha512'].includes(item.auth_method)"
-            v-model="item.auth_header"
-            label="Auth header"
-            :disabled="formSaving"
-            variant="outlined"
-            density="compact"
-            data-testid="integrationForm-authHeader"
-        ></v-text-field>
+      <v-text-field
+          v-if="['token', 'hmac', 'hmac-sha512'].includes(item.auth_method)"
+          v-model="item.auth_header"
+          label="Auth header"
+          :disabled="formSaving"
+          variant="outlined"
+          density="compact"
+          data-testid="integrationForm-authHeader"
+      ></v-text-field>
 
-        <v-select
-            v-model="item.auth_secret_id"
-            :label="$t('vaultPassword2')"
-            clearable
-            :items="loginPasswordKeys"
-            item-value="id"
-            item-title="name"
-            :disabled="formSaving"
-            variant="outlined"
-            density="compact"
-            data-testid="integrationForm-authSecretId"
-        ></v-select>
-      </template>
+      <v-select
+          v-model="item.auth_secret_id"
+          :label="$t('vaultPassword2')"
+          clearable
+          :items="loginPasswordKeys"
+          item-value="id"
+          item-title="name"
+          :disabled="formSaving"
+          variant="outlined"
+          density="compact"
+          data-testid="integrationForm-authSecretId"
+      ></v-select>
     </HighlightedCard>
   </v-form>
 </template>

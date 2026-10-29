@@ -47,10 +47,14 @@
         @click="showDrawer()"
         data-testid="integrations-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="integrations-title">{{ $t('integrations') }}</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="integrations-title"
+      >{{ $t('integrations') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
+        variant="elevated"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
         @click="editItem('new')"
         data-testid="integrations-new"
@@ -109,7 +113,8 @@
       :headers="headers"
       :items="items"
       class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       data-testid="integrations-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
@@ -142,9 +147,8 @@
         </router-link>
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
           data-testid="integrations-rowActions"
         >
           <v-btn
@@ -159,7 +163,7 @@
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>

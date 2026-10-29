@@ -70,11 +70,12 @@ def get_tracker(page, match):
 
 def edit_dialog(page, name):
     """Open Edit of <name>. The form loads its templates in created() apart from the item and keys, and
-    shows itself once the keys are in; templates arriving later leave TaskParamsForm empty for good
-    (JOURNAL@58F041F622). GET keys of the form is held until its GET templates has finished — the order
-    of a normal load, the same in every run. A form opened again on the same page keeps its templates
-    (created() does not run again): then there is no GET templates to wait for — it starts together with
-    GET integration, so it is on the way by the time GET keys is sent."""
+    shows itself once the keys are in; templates arriving later broke TaskParamsForm (JOURNAL@58F041F622;
+    on Vue 3 it is drawn once they come, the TypeError stays — JOURNAL@B34CED3DE9). GET keys of the form is
+    held until its GET templates has finished — the order of a normal load, the same in every run. On
+    Vue 3 the closed dialog unmounts its form (JOURNAL@8845989EBF): a form opened again runs created()
+    and sends its GET templates again, together with GET integration, so it is on the way by the time
+    GET keys is sent."""
     started, finished = get_tracker(page, TEMPLATES_RE)
     keys = hold_api(page, "GET", KEYS_GLOB)
     card = open_dialog(page, row(page, "integrations-table", name).get_by_test_id("integrations-rowEdit"), DIALOG)
@@ -88,7 +89,7 @@ def edit_dialog(page, name):
 
 def pick_template(page, card, name):
     pick(page, card, "integrationForm-templateId", name)
-    expect(field_input(card, "integrationForm-templateId")).to_have_value(name)
+    expect(field_selection(card, "integrationForm-templateId")).to_have_text(name)
     expect(tid(card, "integrationForm-taskParamsCard")).to_be_visible()
     wait_state(card, "integrationForm-taskParams", "ready")
 
@@ -506,7 +507,7 @@ def test_edit_template(ui, project):
     page = ui("admin")
     open_list(page, project)
     card = edit_dialog(page, TOKEN_HOOK)
-    expect(field_input(card, "integrationForm-templateId")).to_have_value("OK script")
+    expect(field_selection(card, "integrationForm-templateId")).to_have_text("OK script")
     wait_state(card, "integrationForm-taskParams", "ready")
     expect(field_input(card, "taskParams-message")).to_have_value("z20 message")
     expect(field_selection(card, "integrationForm-authMethod")).to_have_text("Token")
@@ -521,7 +522,7 @@ def test_edit_workflow(ui, project):
     open_list(page, project)
     card = edit_dialog(page, WORKFLOW_HOOK)
     expect(active_target(card)).to_have_attribute("data-testid", "integrationForm-target-workflow")
-    expect(field_input(card, "integrationForm-workflowId")).to_have_value(WORKFLOW)
+    expect(field_selection(card, "integrationForm-workflowId")).to_have_text(WORKFLOW)
     expect(tid(card, "integrationForm-upgrade")).to_have_count(0)
     snap(page, ZONE, "dialog-edit", "workflow", element=DIALOG)
 
@@ -546,7 +547,7 @@ def test_edit_workflow_upgrade(ui, project):
     open_list(page, project)
     card = edit_dialog(page, WORKFLOW_HOOK)
     expect(field_input(card, "integrationForm-workflowId")).to_be_disabled()
-    expect(field_input(card, "integrationForm-workflowId")).to_have_value(WORKFLOW)
+    expect(field_selection(card, "integrationForm-workflowId")).to_have_text(WORKFLOW)
     expect(tid(card, "integrationForm-upgrade")).to_be_visible()
     snap(page, ZONE, "dialog-edit", "workflow-upgrade", element=DIALOG)
 
@@ -798,8 +799,10 @@ def test_validation_sends_nothing(ui, project):
 
 @pytest.mark.functional
 def test_target_toggle_while_saving(ui, project):
-    """The target toggle carries disabled while saving, but its buttons stay clickable (Vuetify 2
-    v-btn-toggle has no disabled prop): a click switches the target during the POST."""
+    """The target toggle is locked while saving. Vuetify 2 v-btn-toggle had no disabled prop: the
+    attribute went to its root and a click switched the target during the POST (JOURNAL@D8C3BA3022).
+    The Vuetify 3 v-btn-toggle takes `disabled` and disables its buttons — the bug is gone with the
+    standard Vuetify 3 behaviour: the buttons are disabled, a click keeps the template target."""
     page = ui("admin")
     open_list(page, project)
     held = hold_api(page, "POST", LIST_GLOB)
@@ -808,10 +811,11 @@ def test_target_toggle_while_saving(ui, project):
     button(card, "editDialog-save").click()
     held.wait()
     wait_state(card, "integrationForm-form", "loading")
-    expect(tid(card, "integrationForm-targetToggle")).to_have_attribute("disabled", "disabled")
-    expect(tid(card, "integrationForm-target-workflow")).to_be_enabled()
-    tid(card, "integrationForm-target-workflow").click()
-    expect(active_target(card)).to_have_attribute("data-testid", "integrationForm-target-workflow")
+    expect(tid(card, "integrationForm-target-template")).to_be_disabled()
+    expect(tid(card, "integrationForm-target-workflow")).to_be_disabled()
+    tid(card, "integrationForm-target-workflow").click(force=True)
+    expect(active_target(card)).to_have_attribute("data-testid", "integrationForm-target-template")
+    expect(tid(card, "integrationForm-taskParamsCard")).to_be_visible()
     held.release()
 
 
@@ -829,6 +833,7 @@ def test_switch_target(ui, project):
     tid(card, "integrationForm-target-template").click()
     expect(active_target(card)).to_have_attribute("data-testid", "integrationForm-target-template")
     expect(field_input(card, "integrationForm-templateId")).to_have_value("")
+    expect(field_selection(card, "integrationForm-templateId")).to_have_count(0)
     expect(tid(card, "integrationForm-taskParamsCard")).to_have_count(0)
 
 
@@ -996,7 +1001,7 @@ def test_edit_reopen_and_workflow_put(ui, project, api):
     expect(card).to_be_hidden()
     card = edit_dialog(page, TOKEN_HOOK)
     expect(field_input(card, "integrationForm-authHeader")).to_have_value("X-Z20-Token")
-    expect(field_input(card, "integrationForm-templateId")).to_have_value("OK script")
+    expect(field_selection(card, "integrationForm-templateId")).to_have_text("OK script")
     button(card, "editDialog-cancel").click()
     expect(card).to_be_hidden()
 
