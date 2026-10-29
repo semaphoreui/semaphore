@@ -137,11 +137,23 @@ def open_templates(page: Page, project):
     goto(page, f"/project/{project(DEMO)}/templates", "templates-page", "ready")
 
 
-def open_sheet(page: Page):
-    tid(page, "templates-tableSettings").click()
+SHEET_IN_VIEW_JS = """(el) => { const r = el.getBoundingClientRect();
+  return r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight + 1; }"""
+
+
+def sheet_shown(page: Page, opener):
+    """Click <opener> and wait until the column sheet is in the window. The sheet slides up from below
+    the window: in Vuetify 4 it may still stand at its enter position (translated below the bottom edge)
+    for a frame after it is visible, and a click aimed at a checkbox then lands outside the window."""
+    tid(page, opener).click()
     sheet = tid(page, "tableSettings-sheet")
     expect(sheet).to_be_visible()
+    page.wait_for_function(SHEET_IN_VIEW_JS, arg=sheet.element_handle(), timeout=5000)
     return sheet
+
+
+def open_sheet(page: Page):
+    return sheet_shown(page, "templates-tableSettings")
 
 
 def wait_loaded(page: Page, test_id):
@@ -341,8 +353,7 @@ def test_table_settings_workflows_open(ui, project):
     page = ui("admin")
     goto(page, f"/project/{project(DEMO)}/workflows")
     wait_loaded(page, "workflows-page")
-    tid(page, "workflows-tableSettings").click()
-    expect(tid(page, "tableSettings-sheet")).to_be_visible()
+    sheet_shown(page, "workflows-tableSettings")
     for key in WORKFLOW_KEYS:
         expect(field_input(page, f"tableSettings-column-{key}")).to_be_checked()
     snap(page, ZONE, "table-settings", "workflows-open", element="tableSettings-sheet")
@@ -726,7 +737,7 @@ def test_table_settings_workflows_storage(ui, project):
     page = ui("admin")
     goto(page, f"/project/{project(DEMO)}/workflows")
     wait_loaded(page, "workflows-page")
-    tid(page, "workflows-tableSettings").click()
+    sheet_shown(page, "workflows-tableSettings")
     for key in WORKFLOW_KEYS:
         expect(field_input(page, f"tableSettings-column-{key}")).to_be_checked()
     toggle(page, "tableSettings-column-last_run", False)
