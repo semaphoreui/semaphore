@@ -1011,6 +1011,7 @@ export default {
   audit_target_role: 'Role',
   audit_target_project_role_definition: 'Project role',
   audit_target_template_permission: 'Template permission',
+  audit_target_workflow_permission: 'Workflow permission',
   audit_target_license: 'License',
   audit_target_project: 'Project',
   audit_target_inventory: 'Inventory',
