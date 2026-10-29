@@ -32,7 +32,7 @@ type SubscriptionProxyConfig struct {
 	// Schemes http, https, socks5 and socks5h are supported. When empty, the
 	// proxy variables of the server process are used (HTTP_PROXY, HTTPS_PROXY,
 	// NO_PROXY), as for every other outgoing request.
-	URL string `json:"url,omitempty" env:"SEMAPHORE_SUBSCRIPTION_PROXY_URL"`
+	URL string `json:"url,omitempty" env:"SEMAPHORE_SUBSCRIPTION_PROXY_URL,sensitive"`
 	// Username authenticates against the proxy. It overrides a user name given
 	// in URL, and keeps the credentials out of the logged proxy address.
 	Username string `json:"username,omitempty" env:"SEMAPHORE_SUBSCRIPTION_PROXY_USERNAME"`
