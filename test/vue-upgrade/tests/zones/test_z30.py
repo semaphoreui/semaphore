@@ -17,7 +17,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 from playwright.sync_api import Page, Route, expect
 
-from vu.ui import field_input, goto, row, snap, tid, wait_state, wait_until
+from vu.ui import field_input, field_selection, goto, row, snap, tid, wait_state, wait_until
 
 ZONE = "z30"
 DEMO, OTHER = "Seed Demo", "Seed Other"
@@ -908,7 +908,8 @@ def test_drawer_close(ui, feed_page):
     card = open_event(page, "Signed in")
     tid(card, "audit-cardClose").click()
     expect(tid(page, "audit-card")).to_have_count(0)
-    expect(tid(page, "audit-drawer")).to_be_hidden()
+    # A closed temporary drawer: hidden in Vuetify 2, moved out of the window in Vuetify 3.
+    expect(tid(page, "audit-drawer")).not_to_be_in_viewport()
     open_event(page, "Signed in")
     page.mouse.click(200, 450)  # outside the 480 px drawer on the right
     expect(tid(page, "audit-card")).to_have_count(0)
@@ -925,11 +926,11 @@ def test_drawer_pivots(ui, feed_page, project):
     card = open_event(page, "Signed in")
     step(page, feed, lambda: tid(card, "audit-pivot-user").click())
     assert feed.last["user"] == ["1"]
-    expect(field_input(page, "auditFilter-user")).to_have_value("Admin (admin)")
+    expect(field_selection(page, "auditFilter-user")).to_have_text("Admin (admin)")
     card = open_event(page, "Template updated")
     step(page, feed, lambda: tid(card, "audit-pivot-project").click())
     assert feed.last["project"] == [str(project(DEMO))]
-    expect(field_input(page, "auditFilter-project")).to_have_value(DEMO)
+    expect(field_selection(page, "auditFilter-project")).to_have_text(DEMO)
 
 
 @pytest.mark.functional

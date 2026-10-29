@@ -11,10 +11,11 @@
       </v-btn>
       <v-toolbar-title data-testid="audit-title">{{ $t('audit_log') }}</v-toolbar-title>
       <v-spacer />
-      <v-menu offset-y>
+      <v-menu location="bottom">
         <template v-slot:activator="{ props }">
           <v-btn
             color="primary"
+            variant="elevated"
             :disabled="!features.audit_log_filters"
             data-testid="audit-export"
             v-bind="props"
@@ -49,8 +50,7 @@
     >
       <span v-html="$t('audit_filters_only_pro')"></span>
       <v-btn
-        dark
-        class="ml-2"
+        class="ml-2 text-white"
         color="hsl(348deg, 86%, 61%)"
         data-testid="audit-upgrade"
         @click="upgradeToPro('audit_log_filters')"
@@ -108,14 +108,15 @@
       :headers="headers"
       :items="events"
       :loading="loading"
-      item-key="seq"
+      item-value="seq"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       hide-default-footer
-      disable-pagination
       disable-sort
       class="mt-2 AuditLog__table"
       data-testid="audit-table"
       :data-state="loading ? 'loading' : failed ? 'error' : events.length ? 'ready' : 'empty'"
-      @click:row="selected = $event"
+      @click:row="(e, { item }) => { selected = item; }"
     >
       <template v-slot:no-data>
         <span
@@ -260,7 +261,6 @@
     <v-navigation-drawer
       :model-value="selected !== null"
       location="right"
-      fixed
       temporary
       width="480"
       data-testid="audit-drawer"
@@ -324,13 +324,13 @@ export default {
   computed: {
     headers() {
       return [
-        { text: this.$t('audit_col_time'), value: 'timestamp' },
-        { text: this.$t('audit_col_actor'), value: 'actor' },
-        { text: this.$t('audit_col_action'), value: 'action' },
-        { text: this.$t('audit_col_object'), value: 'target' },
-        { text: this.$t('audit_col_project'), value: 'project' },
-        { text: this.$t('audit_col_result'), value: 'outcome' },
-        { text: this.$t('audit_col_ip'), value: 'ip' },
+        { title: this.$t('audit_col_time'), key: 'timestamp' },
+        { title: this.$t('audit_col_actor'), key: 'actor' },
+        { title: this.$t('audit_col_action'), key: 'action' },
+        { title: this.$t('audit_col_object'), key: 'target' },
+        { title: this.$t('audit_col_project'), key: 'project' },
+        { title: this.$t('audit_col_result'), key: 'outcome' },
+        { title: this.$t('audit_col_ip'), key: 'ip' },
       ];
     },
   },
@@ -516,7 +516,7 @@ export default {
     min-height: 0;
     overflow: hidden;
 
-    .v-data-table__wrapper {
+    .v-table__wrapper {
       height: 100%;
       overflow: auto;
     }

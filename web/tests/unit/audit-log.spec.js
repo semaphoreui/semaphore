@@ -134,6 +134,8 @@ describe('AuditLog.vue', () => {
     });
     wrappers.push(root);
     const wrapper = root.findComponent(AuditLog);
+    // the first navigation ends later; a temporary drawer closes on a route change
+    await router.isReady();
     await flush();
     window.innerWidth = innerWidth;
     return wrapper;

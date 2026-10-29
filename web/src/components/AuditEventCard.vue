@@ -16,6 +16,7 @@
       />
       <v-btn
         icon
+        variant="text"
         :aria-label="$t('close')"
         data-testid="audit-cardClose"
         @click="$emit('close')"

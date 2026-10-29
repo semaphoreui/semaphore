@@ -3,7 +3,7 @@
     <v-row dense>
       <v-col cols="12" sm="6" md="3">
         <v-text-field
-          :model-value="modelValue.from"
+          v-model="text.from"
           :label="$t('audit_filter_from')"
           type="datetime-local"
           :disabled="disabled"
@@ -11,12 +11,13 @@
           density="compact"
           hide-details
           data-testid="auditFilter-from"
-          @change="update({ from: $event })"
+          @update:focused="onFocused('from', $event)"
+          @keydown.enter="commit('from')"
         />
       </v-col>
       <v-col cols="12" sm="6" md="3">
         <v-text-field
-          :model-value="modelValue.to"
+          v-model="text.to"
           :label="$t('audit_filter_to')"
           type="datetime-local"
           :disabled="disabled"
@@ -24,13 +25,15 @@
           density="compact"
           hide-details
           data-testid="auditFilter-to"
-          @change="update({ to: $event })"
+          @update:focused="onFocused('to', $event)"
+          @keydown.enter="commit('to')"
         />
       </v-col>
       <v-col cols="12" sm="6" md="3">
         <v-autocomplete
           :model-value="modelValue.user"
           :items="userItems"
+          item-title="text"
           :label="$t('audit_filter_user')"
           :disabled="disabled"
           clearable
@@ -45,6 +48,7 @@
         <v-autocomplete
           :model-value="modelValue.project"
           :items="projectItems"
+          item-title="text"
           :label="$t('audit_filter_project')"
           :disabled="disabled"
           clearable
@@ -59,10 +63,11 @@
         <v-autocomplete
           :model-value="modelValue.kind"
           :items="kindItems"
+          item-title="text"
           :label="$t('audit_filter_kinds')"
           :disabled="disabled"
           multiple
-          small-chips
+          chips
           closable-chips
           clearable
           variant="outlined"
@@ -76,6 +81,7 @@
         <v-select
           :model-value="modelValue.outcome"
           :items="outcomeItems"
+          item-title="text"
           :label="$t('audit_filter_result')"
           :disabled="disabled"
           clearable
@@ -88,7 +94,7 @@
       </v-col>
       <v-col cols="12" sm="6" md="3">
         <v-text-field
-          :model-value="modelValue.ip"
+          v-model="text.ip"
           :label="$t('audit_filter_ip')"
           :disabled="disabled"
           clearable
@@ -96,8 +102,9 @@
           density="compact"
           hide-details
           data-testid="auditFilter-ip"
-          @change="update({ ip: $event })"
-          @click:clear="update({ ip: null })"
+          @update:focused="onFocused('ip', $event)"
+          @keydown.enter="commit('ip')"
+          @click:clear="clear('ip')"
         />
       </v-col>
     </v-row>
@@ -150,6 +157,26 @@ export default {
 
   emits: ['update:modelValue'],
 
+  // From, To and IP are applied on blur or Enter (the `change` of Vuetify 2), not on every key.
+  data() {
+    return {
+      text: { from: this.modelValue.from, to: this.modelValue.to, ip: this.modelValue.ip },
+      initial: {},
+    };
+  },
+
+  watch: {
+    'modelValue.from': function sync(value) {
+      this.text.from = value;
+    },
+    'modelValue.to': function sync(value) {
+      this.text.to = value;
+    },
+    'modelValue.ip': function sync(value) {
+      this.text.ip = value;
+    },
+  },
+
   computed: {
     hasFilters() {
       return Object.keys(filterParams(this.modelValue)).length > 0;
@@ -172,7 +199,7 @@ export default {
 
     kindItems() {
       return GROUPS.flatMap(([header, categories]) => [
-        { header: this.$t(header) },
+        { type: 'subheader', text: this.$t(header) },
         ...AUDIT_KINDS.filter((kind) => categories.includes(kind.split('.')[0])).map((kind) => {
           const [code, action] = kind.split('/');
           return {
@@ -189,6 +216,26 @@ export default {
   },
 
   methods: {
+    onFocused(key, focused) {
+      if (focused) {
+        this.initial[key] = this.text[key];
+      } else {
+        this.commit(key);
+      }
+    },
+
+    commit(key) {
+      if (this.text[key] !== this.initial[key]) {
+        this.initial[key] = this.text[key];
+        this.update({ [key]: this.text[key] });
+      }
+    },
+
+    clear(key) {
+      this.initial[key] = null;
+      this.update({ [key]: null });
+    },
+
     update(patch) {
       this.$emit('update:modelValue', { ...this.modelValue, ...patch });
     },
