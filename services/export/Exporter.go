@@ -28,6 +28,7 @@ const (
 	IntegrationAlias        = "IntegrationAlias"
 	IntegrationExtractValue = "IntegrationExtractValue"
 	IntegrationMatcher      = "IntegrationMatcher"
+	IntegrationCall         = "IntegrationCall"
 	Schedule                = "Schedule"
 	Task                    = "Task"
 	TaskStage               = "TaskStage"
@@ -431,6 +432,7 @@ func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUs
 		IntegrationExtractValue: &IntegrationExtractValueExporter{},
 		IntegrationMatcher:      &IntegrationMatcherExporter{},
 		IntegrationAlias:        &IntegrationAliasExporter{},
+		IntegrationCall:         &IntegrationCallExporter{},
 		Task:                    &TaskExporter{},
 		//TaskStage:               &TaskStageExporter{},
 		Option: &OptionExporter{},

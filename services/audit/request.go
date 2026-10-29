@@ -13,15 +13,35 @@ const (
 	maxForwardedHops        = 32
 )
 
+// RequestMiddleware resolves the caller's address against the trusted proxies
+// and tags the request with an id.
 func RequestMiddleware(trusted []netip.Prefix) func(http.Handler) http.Handler {
+	return requestMiddleware(trusted, true)
+}
+
+// ClientAddrMiddleware resolves the caller's address without tagging the
+// request. It must run whether or not audit recording is enabled: it is
+// installed outside `handlers.ProxyHeaders`, which overwrites RemoteAddr from
+// X-Forwarded-For without validating it, so it is the only place the real peer
+// is still visible. Features that record the caller's address — the integration
+// call history among them — would otherwise store a value the caller chose.
+func ClientAddrMiddleware(trusted []netip.Prefix) func(http.Handler) http.Handler {
+	return requestMiddleware(trusted, false)
+}
+
+func requestMiddleware(trusted []netip.Prefix, tagRequest bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			info := RequestInfo{
-				ID:        uuid.NewString(),
 				IP:        clientIP(r.RemoteAddr, r.Header, trusted),
 				UserAgent: TruncateName(r.UserAgent(), maxUserAgentBytes),
 			}
-			w.Header().Set("X-Request-ID", info.ID)
+
+			if tagRequest {
+				info.ID = uuid.NewString()
+				w.Header().Set("X-Request-ID", info.ID)
+			}
+
 			next.ServeHTTP(w, r.WithContext(WithRequest(r.Context(), info)))
 		})
 	}

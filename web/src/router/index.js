@@ -26,6 +26,7 @@ import Users from '../views/Users.vue';
 import Auth from '../views/Auth.vue';
 import New from '../views/project/New.vue';
 import Integrations from '../views/project/Integrations.vue';
+import IntegrationCalls from '../views/project/IntegrationCalls.vue';
 import IntegrationExtractor from '../views/project/IntegrationExtractor.vue';
 import Apps from '../views/Apps.vue';
 import Runners from '../views/Runners.vue';
@@ -167,6 +168,11 @@ const routes = [
   {
     path: '/project/:projectId/integrations',
     component: Integrations,
+  },
+  {
+    // Must stay above :integrationId, which would match "history" first.
+    path: '/project/:projectId/integrations/history',
+    component: IntegrationCalls,
   },
   {
     path: '/project/:projectId/integrations/:integrationId',

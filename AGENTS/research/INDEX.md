@@ -35,6 +35,7 @@ maintained, not a full export of the MCP catalogue.
 | `RESEARCH@e5c7579df7` | Progressive disclosure rules for rare options in the template form (used for Galaxy args). |
 | `RESEARCH@702f04c19a` | In-app contextual help panel: offline, build-embedded docs in the Vue app. |
 | `RESEARCH@7732ef5556` | How GitLab documents Docker/Kubernetes runner executors — model for the Pro executor docs. |
+| `RESEARCH@8e21867f35` | Ограничение роста истории входящих вебхуков: сроки хранения у GitLab/GitHub/Stripe/Svix, CWE-779 и механика batch-удаления — читать перед изменением лимитов `project__integration_call`. |
 | `RESEARCH@d8d16e3974` | Per-job secret delivery to remote workers in HA systems — basis for task-bound survey secrets. |
 | `RESEARCH@6a7e8ecd1b` | Encryption key separation for secrets at rest (one key vs purpose-specific keys, rotation). |
 | `RESEARCH@c81c73d4f9` | How competitors deliver audit logs to SIEM reliably (retries, buffering, integrity). |

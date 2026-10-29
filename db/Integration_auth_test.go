@@ -42,34 +42,29 @@ func TestIntegration_VerificationSecret(t *testing.T) {
 	sshKey := AccessKey{Type: AccessKeySSH, SshKey: SshKey{PrivateKey: "k"}}
 
 	tests := []struct {
-		name   string
-		method IntegrationAuthMethod
-		key    AccessKey
-		want   string
-		wantOk bool
+		name           string
+		key            AccessKey
+		expectedSecret string
+		expectedOk     bool
 	}{
-		{"token with a string key gives its value", IntegrationAuthToken, stringKey, "tok", true},
-		{"hmac with a login/password key gives the password", IntegrationAuthHmac, loginKey, "pw", true},
-		{"github with a string key", IntegrationAuthGitHub, stringKey, "tok", true},
-		{"bitbucket with a string key", IntegrationAuthBitbucket, stringKey, "tok", true},
-		{"hmac-sha512 with a string key", IntegrationAuthHmacSha512, stringKey, "tok", true},
-		{"token with an empty string key is refused", IntegrationAuthToken, AccessKey{Type: AccessKeyString}, "", false},
-		{"token with a login/password key without a password is refused", IntegrationAuthToken, AccessKey{Type: AccessKeyLoginPassword, LoginPassword: LoginPassword{Login: "bob"}}, "", false},
-		{"token with an ssh key is refused", IntegrationAuthToken, sshKey, "", false},
-		{"token with a none key is refused", IntegrationAuthToken, AccessKey{Type: AccessKeyNone}, "", false},
-		{"token with an unloaded key is refused", IntegrationAuthToken, AccessKey{}, "", false},
-		{"basic does not use a shared secret", IntegrationAuthBasic, stringKey, "", true},
-		{"none does not use a shared secret", IntegrationAuthNone, sshKey, "", true},
-		{"unknown method does not use a shared secret", "jwt", AccessKey{}, "", true},
+		{"token with a string key gives its value", stringKey, "tok", true},
+		{"hmac with a login/password key gives the password", loginKey, "pw", true},
+		{"github with a string key", stringKey, "tok", true},
+		{"bitbucket with a string key", stringKey, "tok", true},
+		{"hmac-sha512 with a string key", stringKey, "tok", true},
+		{"token with an empty string key is refused", AccessKey{Type: AccessKeyString}, "", true},
+		{"token with a login/password key without a password is refused", AccessKey{Type: AccessKeyLoginPassword, LoginPassword: LoginPassword{Login: "bob"}}, "", true},
+		{"token with an ssh key is refused", sshKey, "", false},
+		{"token with a none key is refused", AccessKey{Type: AccessKeyNone}, "", false},
+		{"token with an unloaded key is refused", AccessKey{}, "", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			integration := Integration{AuthMethod: tt.method, AuthSecret: tt.key}
 
-			got, ok := integration.VerificationSecret()
+			got, ok := tt.key.VerificationToken()
 
-			assert.Equal(t, tt.want, got)
-			assert.Equal(t, tt.wantOk, ok)
+			assert.Equal(t, tt.expectedSecret, got)
+			assert.Equal(t, tt.expectedOk, ok)
 		})
 	}
 }
