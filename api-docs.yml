@@ -1272,6 +1272,8 @@ definitions:
     properties:
       debug:
         type: boolean
+      debug_level:
+        type: integer
       dry_run:
         type: boolean
       diff:
@@ -1301,6 +1303,8 @@ definitions:
       auto_approve:
         type: boolean
       upgrade:
+        type: boolean
+      reconfigure:
         type: boolean
 
   TaskPrams:
