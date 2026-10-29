@@ -138,12 +138,7 @@ func verifyIntegrationAuth(integration db.Integration, r *http.Request, payload 
 		}
 		creds := integration.AuthSecret.LoginPassword
 		login, password, ok := r.BasicAuth()
-<<<<<<< HEAD
-		secretLP := integration.AuthSecret.LoginPassword
-		if !ok || secretLP.Password != password || secretLP.Login != login {
-=======
 		if !ok || creds.Password != password || creds.Login != login {
->>>>>>> 22c8f77217c473d0ca27947b467094846dc06b81
 			return "Invalid BasicAuth: incorrect login or password"
 		}
 	case db.IntegrationAuthNone:
