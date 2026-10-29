@@ -127,16 +127,20 @@
       </v-btn>
     </v-toolbar>
 
+    <!-- The active tab follows the route, as in Vuetify 2. Vuetify 3/4 select a link tab only when
+         its link becomes active, and a group ignores the selection of a disabled tab: the tabs are
+         disabled while the view loads, so the tab of the new view stayed unselected. -->
     <v-tabs
       show-arrows
       class="pl-4"
-      v-model="viewTab"
+      :model-value="viewId"
       data-testid="templates-viewTabs"
     >
 
       <v-tab
         v-for="(view) in views"
         :key="view.id"
+        :value="view.id"
         :to="getViewUrl(view.id)"
         :disabled="viewItemsLoading"
         :style="{
@@ -166,8 +170,8 @@
       :headers="tableHeaders"
       :items="items"
       :items-per-page="-1"
-      :expanded="openedItems"
-      @update:expanded="openedItems = $event.slice(-1)"
+      v-model:expanded="openedItems"
+      expand-strategy="single"
       :style="{
         opacity: viewItemsLoading ? 0.3 : 1,
       }"
@@ -360,7 +364,6 @@ export default {
       views: null,
       editViewsDialog: null,
       viewItemsLoading: null,
-      viewTab: null,
       apps: null,
       itemApp: '',
     };

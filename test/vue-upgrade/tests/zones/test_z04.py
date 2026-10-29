@@ -119,6 +119,21 @@ def apps_off(data):
     return [dict(a, active=False) for a in data]
 
 
+SHEET_IN_VIEW_JS = """(el) => { const r = el.getBoundingClientRect();
+  return r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight + 1; }"""
+
+
+def open_sheet(page: Page):
+    """Click ⚙ and wait until the column sheet stands in the window: Vuetify 4 may keep it at its enter
+    position (below the bottom edge) for a frame after it is visible, and a click on a checkbox then
+    misses (the same wait as test_b4)."""
+    tid(page, "templates-tableSettings").click()
+    sheet = tid(page, "tableSettings-sheet")
+    expect(sheet).to_be_visible()
+    page.wait_for_function(SHEET_IN_VIEW_JS, arg=sheet.element_handle(), timeout=5000)
+    return sheet
+
+
 def open_views_dialog(page):
     card = open_dialog(page, "templates-editViews", "templatesViewsDialog")
     return card
@@ -216,6 +231,7 @@ def test_list_all(ui, project, api):
     expect(page).to_have_url(re.compile(rf"/project/{pid}/views/{view_ids(api, pid)['All']}/templates$"))
     wait_state(page, "templates-table", "ready")
     expect(names(page)).to_have_count(len(api.get(f"/project/{pid}/templates")))
+    expect(tab(page, "All")).to_have_attribute("aria-selected", "true")
     snap(page, ZONE, "list", "all")
 
 
@@ -247,6 +263,7 @@ def test_list_empty(ui, project, api):
     expect(page).to_have_url(re.compile(rf"/views/{view_ids(api, pid)['All']}/templates$"))
     wait_state(page, "templates-table", "empty")
     expect(tid(page, "templates-viewTab")).to_have_count(1)
+    expect(tab(page, "All")).to_have_attribute("aria-selected", "true")
     snap(page, ZONE, "list", "empty")
 
 
@@ -276,6 +293,7 @@ def test_list_view_loading(ui, project, api):
     wait_state(page, "templates-page", "loading")
     wait_state(page, "templates-table", "loading")
     expect_rows(page, api, project, "Scripts", SCRIPTS)
+    expect(tab(page, "Infrastructure")).to_have_attribute("aria-selected", "true")  # the route's tab
     snap(page, ZONE, "list", "view-loading")
 
 
@@ -291,6 +309,7 @@ def test_list_view_load_error(ui, project, api):
     wait_state(page, "templates-table", "ready")
     expect(page).to_have_url(re.compile(rf"/views/{view_ids(api, project(DEMO))['Infrastructure']}/templates$"))
     expect_rows(page, api, project, "Scripts", SCRIPTS)
+    expect(tab(page, "Infrastructure")).to_have_attribute("aria-selected", "true")
     snap(page, ZONE, "list", "view-load-error")
 
 
@@ -450,9 +469,7 @@ def test_table_settings_open(ui, project, api):
     """z04__table-settings__open — the column sheet, every column on."""
     page = ui("admin")
     open_view(page, project, api)
-    tid(page, "templates-tableSettings").click()
-    sheet = tid(page, "tableSettings-sheet")
-    expect(sheet).to_be_visible()
+    sheet = open_sheet(page)
     for col in COLUMNS:
         expect(field_input(sheet, f"tableSettings-column-{col}")).to_be_checked()
     snap(page, ZONE, "table-settings", "open")
@@ -675,6 +692,8 @@ def test_redirect_and_last_view(ui, project, api):
     expect(page).to_have_url(re.compile(rf"/views/{ids['Infrastructure']}/templates$"))
     wait_state(page, "templates-table", "ready")
     expect_rows(page, api, project, "Infrastructure", INFRA)
+    expect(tab(page, "Infrastructure")).to_have_attribute("aria-selected", "true")
+    expect(tab(page, "All")).to_have_attribute("aria-selected", "false")
     key = f"project{pid}__lastVisitedViewId"
     wait_until(page, lambda: page.evaluate(f"localStorage.getItem('{key}')") == str(ids["Infrastructure"]),
                "lastVisitedViewId = Infrastructure")
@@ -833,7 +852,7 @@ def test_column_settings(ui, project, api):
     open_view(page, project, api)
     table = tid(page, "templates-table")
     expect(table.get_by_role("columnheader", name="Playbook")).to_have_count(1)
-    tid(page, "templates-tableSettings").click()
+    open_sheet(page)
     toggle(page, "tableSettings-column-playbook", False)
     expect(table.get_by_role("columnheader", name="Playbook")).to_have_count(0)
     saved = json.loads(page.evaluate("localStorage.getItem('project__template__settings')"))
