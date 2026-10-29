@@ -520,6 +520,22 @@ definitions:
           properties:
             name:
               type: string
+            description:
+              type: string
+            start_version:
+              type: string
+            survey_vars:
+              type: array
+              items:
+                $ref: "#/definitions/TemplateSurveyVar"
+            nodes:
+              type: array
+              items:
+                $ref: "#/definitions/BackupWorkflowNode"
+            edges:
+              type: array
+              items:
+                $ref: "#/definitions/BackupWorkflowEdge"
             roles:
               type: array
               description: Workflow permissions granted to roles, by role slug.
@@ -530,6 +546,60 @@ definitions:
                     type: string
                   permissions:
                     type: integer
+
+  BackupWorkflowNode:
+    type: object
+    description: A workflow node in a backup. The template is referred to by name, ids of the database are left out.
+    properties:
+      id:
+        type: integer
+        description: Node number inside the workflow, referred to by the edges.
+      template:
+        type: string
+        description: Name of the template a task node runs.
+      kind:
+        type: string
+        enum: [task, approval, note, delay]
+      convergence_mode:
+        type: string
+        enum: [all, any]
+      approval_timeout:
+        type: integer
+      approval_message:
+        type: string
+      task_params:
+        $ref: '#/definitions/TaskPrams'
+      note:
+        type: string
+      delay_seconds:
+        type: integer
+      survey_inputs:
+        type: array
+        items:
+          $ref: "#/definitions/WorkflowNodeSurveyInput"
+      position_x:
+        type: integer
+      position_y:
+        type: integer
+
+  BackupWorkflowEdge:
+    type: object
+    description: A workflow edge in a backup, between node numbers of the same workflow.
+    properties:
+      source_node_id:
+        type: integer
+      destination_node_id:
+        type: integer
+      condition:
+        type: string
+        enum: [on_success, on_failure, always]
+      input_mode:
+        type: string
+        enum: [by_name, explicit]
+      input_mappings:
+        type: array
+        items:
+          $ref: "#/definitions/WorkflowInputMapping"
 
   TemplateRolePermission:
     type: object
