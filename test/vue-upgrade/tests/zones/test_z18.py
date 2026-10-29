@@ -18,8 +18,8 @@ from contextlib import contextmanager
 import pytest
 from playwright.sync_api import Page, Route, expect
 
-from vu.ui import (button, dialog, fail_api, field_input, field_message, goto, open_dialog, row, snap, tid,
-                   wait_until)
+from vu.ui import (button, dialog, fail_api, field_input, field_message, field_selection, goto, open_dialog, row,
+                   snap, tid, toggle, wait_until)
 from vu.ui import VUETIFY_CHIP_ACTIVE  # noqa: E402 — step 2.4: shared selectors
 
 ZONE = "z18"
@@ -194,6 +194,18 @@ def repo_row(page, name):
     return row(page, TABLE, name)
 
 
+def expect_key_cell_lost(page, rows):
+    """JOURNAL@C9911FB2CF on Vue 3: the key of Demo SSH is missing — all <rows> rows are listed, the row
+    of Demo SSH has no key name and one cell less than the sound Demo HTTPS (key None)."""
+    expect(tid(page, TABLE)).to_have_attribute("data-state", "ready")
+    expect(tid(page, "repositories-rowEdit")).to_have_count(rows)
+    broken, sound = repo_row(page, "Demo SSH"), repo_row(page, "Demo HTTPS")
+    expect(sound).to_contain_text("None")
+    expect(broken).to_contain_text("Demo SSH")
+    expect(broken).not_to_contain_text("Seed SSH")
+    expect(broken.locator("td")).to_have_count(sound.locator("td").count() - 1)
+
+
 def form(card):
     return tid(card, "repository-form")
 
@@ -321,11 +333,14 @@ def test_list__keys_error(ui, project):
 
 @pytest.mark.snapshot
 def test_list__key_missing(ui, project):
-    """The key of Demo SSH is not in GET keys: the root is ready, the table is gone (JOURNAL@C9911FB2CF)."""
+    """The key of Demo SSH is not in GET keys (JOURNAL@C9911FB2CF): the root is ready, the TypeError of
+    the key cell is in the console. Vue 2 lost the whole table; Vue 3 catches the render error per
+    component — the table and every row stay, only the key cell of Demo SSH is gone (JOURNAL@B939194B6B,
+    like JOURNAL@D5820624EB of Z04)."""
     page = ui("admin")
     base_view(page, drop_keys={"Seed SSH"})
     goto(page, list_path(project), "repositories-page", "ready")
-    expect(tid(page, TABLE)).to_have_count(0)
+    expect_key_cell_lost(page, len(BASE_REPOS))
     wait_until(page, lambda: type_errors(page), "the TypeError of the table")
     snap(page, ZONE, "list", "key-missing")
 
@@ -359,7 +374,8 @@ def test_dialog_new__ready(ui, project):
     expect(tid(card, "editDialog-title")).to_contain_text("New Repository")
     for field in ("repository-name", "repository-gitUrl", "repository-gitBranch", "repository-sshKeyId"):
         expect(field_input(card, field)).to_have_value("")
-    expect(tid(card, "repository-monorepo")).not_to_be_checked()
+    expect(field_selection(card, "repository-sshKeyId")).to_have_count(0)
+    expect(field_input(card, "repository-monorepo")).not_to_be_checked()
     expect(tid(card, "repository-error")).to_be_hidden()
     expect_active_chip(card, None)
     snap_dialog(page, "dialog-new", "ready")
@@ -418,7 +434,7 @@ def test_dialog_new__url_https(ui, project):
     fill(page, card)
     expect_active_chip(card, "https")
     expect(field_input(card, "repository-gitBranch")).to_be_enabled()
-    expect(tid(card, "repository-monorepo")).to_be_enabled()
+    expect(field_input(card, "repository-monorepo")).to_be_enabled()
     snap_dialog(page, "dialog-new", "url-https")
 
 
@@ -442,7 +458,7 @@ def test_dialog_new__url_local(ui, project):
     field_input(card, "repository-gitUrl").fill("/srv/repos/demo")
     expect_active_chip(card, "local")
     expect(field_input(card, "repository-gitBranch")).to_be_disabled()
-    expect(tid(card, "repository-monorepo")).to_be_disabled()
+    expect(field_input(card, "repository-monorepo")).to_be_disabled()
     snap_dialog(page, "dialog-new", "url-local")
 
 
@@ -485,8 +501,7 @@ def test_dialog_new__monorepo(ui, project):
     base_view(page)
     open_list(page, project)
     card = new_dialog(page)
-    tid(card, "repository-monorepo").check(force=True)
-    expect(tid(card, "repository-monorepo")).to_be_checked()
+    toggle(card, "repository-monorepo", True)
     expect(field_message(card, "repository-monorepo")).to_contain_text(MONOREPO_HELP)
     snap_dialog(page, "dialog-new", "monorepo")
 
@@ -564,7 +579,8 @@ def test_dialog_edit__ready(ui, project):
     expect(tid(card, "editDialog-title")).to_contain_text("Edit Repository")
     expect(field_input(card, "repository-gitUrl")).to_have_value(URL_HTTPS)
     expect(field_input(card, "repository-gitBranch")).to_have_value("main")
-    expect(field_input(card, "repository-sshKeyId")).to_have_value("None")
+    # Vuetify 3: an autocomplete shows its choice in the selection, not in the (blurred) <input>
+    expect(field_selection(card, "repository-sshKeyId")).to_have_text("None")
     expect_active_chip(card, "https")
     snap_dialog(page, "dialog-edit", "ready")
 
@@ -578,7 +594,7 @@ def test_dialog_edit__local(ui, project):
     expect_active_chip(card, "local")
     expect(field_input(card, "repository-gitBranch")).to_have_value("main")
     expect(field_input(card, "repository-gitBranch")).to_be_disabled()
-    expect(tid(card, "repository-monorepo")).to_be_disabled()
+    expect(field_input(card, "repository-monorepo")).to_be_disabled()
     snap_dialog(page, "dialog-edit", "local")
 
 
@@ -589,7 +605,7 @@ def test_dialog_edit__ssh(ui, project):
     open_list(page, project)
     card = edit_dialog(page, "Demo SSH")
     expect_active_chip(card, "ssh")
-    expect(field_input(card, "repository-sshKeyId")).to_have_value("Seed SSH")
+    expect(field_selection(card, "repository-sshKeyId")).to_have_text("Seed SSH")
     snap_dialog(page, "dialog-edit", "ssh")
 
 
@@ -607,9 +623,13 @@ def test_dialog_edit__load_error(ui, project):
 
 
 @pytest.mark.snapshot
-def test_dialog_edit__key_missing(ui, project):
-    """The form's keys lack Seed SSH: Access Key shows nothing. Save is not pressed: the hidden id still
-    passes the rule and goes out with PUT (functional test_key_missing)."""
+def test_dialog_edit__key_missing(ui, project, api):
+    """The form's keys lack Seed SSH. Vuetify 2: Access Key showed nothing; Vuetify 3 shows the raw key id
+    as the selection (a value missing from the items keeps its own value as the title) — the same bug
+    JOURNAL@1C462FCAA9, another look (JOURNAL@F74617D5BB). Save is not pressed: the id passes the rule and
+    goes out with PUT (functional test_key_missing). The id is read through the API (a GET, nothing
+    written)."""
+    seed_ssh = api.find(f"/project/{project(DEMO)}/keys", "Seed SSH")
     page = ui("admin")
     base_view(page)
     rewrite_get(page, KEYS, lambda d: [k for k in d if k["name"] in BASE_KEYS and k["name"] != "Seed SSH"],
@@ -619,6 +639,7 @@ def test_dialog_edit__key_missing(ui, project):
     expect(form(card)).to_have_attribute("data-state", "ready")
     expect(field_input(card, "repository-name")).to_have_value("Demo SSH")
     expect(field_input(card, "repository-sshKeyId")).to_have_value("")
+    expect(field_selection(card, "repository-sshKeyId")).to_have_text(str(seed_ssh["id"]))
     expect(field_message(card, "repository-sshKeyId")).to_have_count(0)
     snap_dialog(page, "dialog-edit", "key-missing")
 
@@ -814,7 +835,7 @@ def test_local_path_needs_no_branch(ui, project):
     field_input(card, "repository-gitUrl").fill("/srv/repos/vu-z18")
     pick_key(page, card, "None")
     expect(field_input(card, "repository-gitBranch")).to_be_disabled()
-    expect(tid(card, "repository-monorepo")).to_be_disabled()
+    expect(field_input(card, "repository-monorepo")).to_be_disabled()
     button(card, "editDialog-save").click()
     expect(tid(card, "repository-error")).to_have_text("Z18 intercepted")
     assert len(sent) == 1
@@ -942,12 +963,14 @@ def test_keys_errors(ui, project):
 
 @pytest.mark.functional
 def test_key_missing(ui, project, api):
-    """13. A key not in GET keys: screen — root ready without the table; form — empty Access Key, yet
-    Save passes validation and PUT sends the hidden key id (intercepted, nothing written)."""
+    """13. A key not in GET keys: screen — root ready, the key cell of the row lost (Vue 2: the whole
+    table); form — Access Key without the key's name (Vuetify 3: its raw id), Save passes validation and
+    PUT sends that key id (intercepted, nothing written)."""
     page = ui("admin")
     rewrite_get(page, KEYS, lambda d: [k for k in d if k["name"] != "Seed SSH"])
     goto(page, list_path(project), "repositories-page", "ready")
-    expect(tid(page, TABLE)).to_have_count(0)
+    expect_key_cell_lost(page, len(api.get(f"/project/{project(DEMO)}/repositories")))
+    wait_until(page, lambda: type_errors(page), "the TypeError of the table")
 
     page = ui("admin")
     rewrite_get(page, KEYS, lambda d: [k for k in d if k["name"] != "Seed SSH"], from_call=2)
@@ -955,11 +978,12 @@ def test_key_missing(ui, project, api):
     sent = capture(page, "PUT", REPO, 400, {"error": "Z18 intercepted"})
     card = open_dialog(page, repo_row(page, "Demo SSH").get_by_test_id("repositories-rowEdit"), DIALOG)
     expect(field_input(card, "repository-name")).to_have_value("Demo SSH")
-    expect(field_input(card, "repository-sshKeyId")).to_have_value("")
+    seed_ssh = api.find(f"/project/{project(DEMO)}/keys", "Seed SSH")
+    # Vuetify 3: the raw id of the missing key as the selection (Vuetify 2: an empty field)
+    expect(field_selection(card, "repository-sshKeyId")).to_have_text(str(seed_ssh["id"]))
     button(card, "editDialog-save").click()
     expect(tid(card, "repository-error")).to_have_text("Z18 intercepted")
     expect(field_message(card, "repository-sshKeyId")).to_have_count(0)
-    seed_ssh = api.find(f"/project/{project(DEMO)}/keys", "Seed SSH")
     assert len(sent) == 1 and sent[0]["ssh_key_id"] == seed_ssh["id"]
 
 

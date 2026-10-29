@@ -1,7 +1,6 @@
 <template>
   <v-form
       ref="form"
-      lazy-validation
       v-model="formValid"
       v-if="item != null && keys != null"
       data-testid="repository-form"
@@ -10,7 +9,7 @@
     <v-alert
         :model-value="!!formError"
         color="error"
-        class="pb-2"
+        class="pb-2 mb-4"
         data-testid="repository-error"
     >{{ formError }}
     </v-alert>
@@ -100,8 +99,8 @@
         density="compact"
         data-testid="repository-sshKeyId"
     >
-      <template v-slot:append-outer>
-        <v-tooltip location="left" color="black" content-class="opacity1">
+      <template v-slot:append>
+        <v-tooltip location="left" content-class="opacity1 bg-black">
           <template v-slot:activator="{ props }">
             <v-icon
               v-bind="props"
@@ -112,7 +111,9 @@
           </template>
           <div class="py-4" data-testid="repository-sshKeyHelpText">
             <p>{{ $t('credentialsToAccessToTheGitRepositoryItShouldBe') }}</p>
-            <ul>
+            <!-- pl-6: the list indent of Vuetify 2 (.v-application ul); Vuetify 3 has none,
+                 without it the bullets fall out of the tooltip box -->
+            <ul class="pl-6">
               <li><code>{{ $t('ssh') }}</code> {{ $t('ifYouUseGitOrSshUrl') }}</li>
               <li><code>{{ $t('none') }}</code> {{ $t('ifYouUseHttpsOrFileUrl') }}</li>
             </ul>

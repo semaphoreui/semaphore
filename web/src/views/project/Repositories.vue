@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div
     v-if="items != null && keys != null"
     data-testid="repositories-page"
@@ -45,10 +45,14 @@
         @click="showDrawer()"
         data-testid="repositories-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title data-testid="repositories-title">{{ $t('repositories') }}</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="repositories-title"
+      >{{ $t('repositories') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
         data-testid="repositories-new"
@@ -62,7 +66,8 @@
       :items="items"
       hide-default-footer
       class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
+      :mobile-breakpoint="600"
       data-testid="repositories-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px); margin: auto;"
@@ -80,9 +85,8 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle
+        <v-btn-group
           density="compact"
-          :value-comparator="() => false"
           data-testid="repositories-rowActions"
         >
           <v-btn
@@ -97,7 +101,7 @@
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
