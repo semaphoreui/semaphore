@@ -568,7 +568,7 @@ definitions:
       approval_message:
         type: string
       task_params:
-        $ref: '#/definitions/TaskPrams'
+        $ref: '#/definitions/BackupTaskParams'
       note:
         type: string
       delay_seconds:
@@ -581,6 +581,27 @@ definitions:
         type: integer
       position_y:
         type: integer
+
+  BackupTaskParams:
+    type: object
+    description: Task parameters of a workflow node in a backup. The inventory is referred to by name.
+    properties:
+      environment:
+        type: string
+      git_branch:
+        type: string
+      message:
+        type: string
+      version:
+        type: string
+      arguments:
+        type: string
+      inventory_name:
+        type: string
+      params:
+        allOf:
+          - $ref: '#/definitions/AnsibleTaskParams'
+          - $ref: '#/definitions/TerraformTaskParams'
 
   BackupWorkflowEdge:
     type: object
