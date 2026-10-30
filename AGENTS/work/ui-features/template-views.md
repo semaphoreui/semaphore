@@ -32,8 +32,9 @@ only, and the author has not asked for a search.
   still sends the filter for a custom view, so switching a view to custom and back keeps it.
 - **The filter is bounded by its encoded JSON**, not the name: `project__view.filter` is
   `varchar(1000)`, and `json.Marshal` writes `<`, `>`, `&` as six bytes each.
-- **`UpdateView` replaces the whole view**, filter included, so `EditViewsForm.vue` sends the
-  filter with every save; leaving it out would clear it whenever the title or sort was edited.
+- **`UpdateView` keeps the stored filter when the body has none**, and `"filter": {}` clears it.
+  Every other field is replaced, but clients written before filters existed — the UI's Edit Views
+  form among them — send no `filter` and would otherwise wipe it on any save.
 - **`UpdateView` matches on the project and does not write it.** It used to set `project_id` from
   the request body, so a member could move their view into another project. The handler now also
   takes the project from the loaded view.

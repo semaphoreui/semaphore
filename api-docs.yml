@@ -1379,6 +1379,7 @@ definitions:
     description: >-
       Applied by a view of type "all", which then lists only the project's templates
       whose name contains `name`, ignoring case. Kept but not applied by a custom view.
+      On update, leaving `filter` out keeps the stored one; `{}` clears it.
     properties:
       name:
         type: string

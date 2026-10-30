@@ -66,6 +66,29 @@ func TestUpdateView(t *testing.T) {
 		assert.Equal(t, "moved?", saved.Title, "the rest of the update still applies")
 	})
 
+	t.Run("keeps the stored filter when the body leaves it out", func(t *testing.T) {
+		filtered, err := store.CreateView(db.View{
+			ProjectID: project.ID, Title: "prod", Type: db.ViewTypeAll,
+			Filter: &db.MapStringAnyField{db.ViewFilterName: "prod"},
+		})
+		require.NoError(t, err)
+
+		body := fmt.Sprintf(`{"id":%d,"project_id":%d,"title":"renamed","type":"all"}`, filtered.ID, project.ID)
+		assert.Equal(t, http.StatusNoContent, updateViewRequest(t, store, &user, filtered, body).Code)
+
+		saved, err := store.GetView(project.ID, filtered.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "renamed", saved.Title)
+		assert.Equal(t, "prod", saved.NameFilter())
+
+		body = fmt.Sprintf(`{"id":%d,"project_id":%d,"title":"renamed","type":"all","filter":{}}`, filtered.ID, project.ID)
+		assert.Equal(t, http.StatusNoContent, updateViewRequest(t, store, &user, filtered, body).Code)
+
+		saved, err = store.GetView(project.ID, filtered.ID)
+		require.NoError(t, err)
+		assert.Empty(t, saved.NameFilter(), "an empty filter clears it")
+	})
+
 	t.Run("refuses a filter the backend would not apply", func(t *testing.T) {
 		body := fmt.Sprintf(`{"id":%d,"project_id":%d,"title":"x","type":"all","filter":{"app":"ansible"}}`,
 			view.ID, project.ID)
