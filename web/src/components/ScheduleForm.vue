@@ -5,6 +5,7 @@
   <v-form
     ref="form"
     v-model="formValid"
+    class="ScheduleForm"
     style="position: relative"
     v-if="templates && item != null"
     data-testid="scheduleForm-form"
@@ -41,6 +42,7 @@
       data-testid="scheduleForm-name"
     ></v-text-field>
 
+    <!-- the menu 304 px high, as a Vuetify 2 select menu (310 px in Vuetify 4) -->
     <v-autocomplete
       v-model="item.template_id"
       :label="$t('Template')"
@@ -52,6 +54,7 @@
       :disabled="formSaving"
       variant="outlined"
       density="compact"
+      :menu-props="{ maxHeight: 304 }"
       data-testid="scheduleForm-templateId"
     />
 
@@ -253,7 +256,7 @@
     </div>
 
     <div
-      class="text-center text-body-large mb-3"
+      class="ScheduleForm__nextRunTitle text-center mb-3"
       :class="{'mt-8': !rawCron, 'mt-3': rawCron}"
       style="color: limegreen; font-weight: bold;"
       data-testid="scheduleForm-nextRunTitle"
@@ -305,10 +308,52 @@
 </template>
 
 <style lang="scss">
+.ScheduleForm {
+  // The text of an alert is never narrower than its longest word (a flex item of
+  // `.v-alert__wrapper` in Vuetify 2): `SEMAPHORE_SCHEDULE_TIMEZONE` is not broken on a phone,
+  // the close button moves instead.
+  .v-alert__content {
+    min-width: min-content;
+  }
+
+  // The close button of the timezone alert: centred, 8 px from the text and 8 px into the padding
+  // (`.v-alert__dismissible`), not at the top 16 px from the text.
+  .v-alert__close {
+    grid-row: 1 / -1;
+    align-self: center;
+    margin-inline: 8px -8px;
+  }
+
+  // The suffix («UTC time») in the text colour and 4 px after the input (`.v-text-field__suffix`),
+  // not in the medium emphasis right at the input.
+  .v-text-field__suffix {
+    padding-inline-start: 4px;
+    color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+  }
+
+  // «Run at»: the calendar button at the right end of the input and the field 40 px high, as in
+  // Vuetify 2. The input of Vuetify 4 is a flex box, which leaves the button right after the date,
+  // and its 24 px line makes a date input 42 px high.
+  input[type="datetime-local"].v-field__input {
+    display: block;
+    line-height: 20px;
+  }
+}
+
+// «Next run time»: `text-subtitle-1` of Vuetify 2 (16 px on a 28 px line), the class before the
+// rename; `text-body-large` of Vuetify 4 has a 24 px line.
+.ScheduleForm__nextRunTitle {
+  font-size: 1rem;
+  line-height: 1.75rem;
+  letter-spacing: .009375em;
+}
+
 .ScheduleCheckbox {
 
+  // 8 px under the plate: the margin of `.v-input__slot` in Vuetify 2, rows 44 px apart.
   .v-selection-control {
     padding: 4px 6px;
+    margin-bottom: 8px;
     font-weight: bold;
     border-radius: 6px;
   }

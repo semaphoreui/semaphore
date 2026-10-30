@@ -180,6 +180,69 @@
 .ScheduleTable {
   max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
   margin: auto;
+
+  // The inset switch of Vuetify 2 (`.v-input--switch--inset`): the control 48 × 24 px and 8 px
+  // after it, the track (48 × 28) 4 px out to the left at .32, a white thumb when off. Vuetify 4
+  // makes the control 40 px high (a row 16 px higher) and starts the track at the control.
+  .v-switch--inset {
+    .v-selection-control__wrapper {
+      height: 24px;
+      margin-inline: -4px 12px;
+    }
+
+    .v-switch__track {
+      opacity: .32;
+    }
+  }
+
+  .v-switch--inset.v-theme--light
+    .v-selection-control:not(.v-selection-control--dirty) .v-switch__thumb {
+    background-color: #fff;
+  }
+
+  // Disabled (no right to manage, `.v-input--is-disabled`): an inactive switch is a faint track and
+  // a light thumb, an active one is in the primary colour at .6; not the whole control at .38.
+  .v-switch--inset .v-selection-control--disabled {
+    opacity: 1;
+
+    &.v-selection-control--dirty .v-selection-control__wrapper {
+      opacity: .6;
+    }
+
+    // Vuetify 4 drops the colour of the track of a disabled switch.
+    &.v-selection-control--dirty .v-switch__track {
+      background-color: rgb(var(--v-theme-primary));
+    }
+  }
+
+  .v-switch--inset.v-theme--light
+    .v-selection-control--disabled:not(.v-selection-control--dirty) {
+    .v-switch__track {
+      background-color: rgba(0, 0, 0, .12);
+    }
+
+    .v-switch__thumb {
+      background-color: #fafafa;
+    }
+  }
+
+  .v-switch--inset.v-theme--dark
+    .v-selection-control--disabled:not(.v-selection-control--dirty) {
+    .v-switch__track {
+      background-color: rgba(255, 255, 255, .1);
+    }
+
+    .v-switch__thumb {
+      background-color: #424242;
+    }
+  }
+
+  // Mobile rows: the value at the right end of the row (`.v-data-table__mobile-row__cell`, a
+  // shrink-to-fit flex item); Vuetify 4 stretches it over the second grid column, so the switch
+  // and the template link sat in the middle of the row.
+  .v-data-table__tr--mobile > td > .v-data-table__td-value {
+    justify-self: end;
+  }
 }
 </style>
 <script>
