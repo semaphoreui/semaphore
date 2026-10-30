@@ -201,6 +201,42 @@
   padding-right: 0 !important;
 }
 
+// The expand toggle: the 24 px chevron icon of Vuetify 2 (`.v-data-table__expand-icon`), not a
+// small icon button of 28 px, so the column is 26 px wide. Focused (after a click) it keeps the
+// circle of a focused link icon (`.v-icon--link:focus::after`: currentColor at .12, scale 1.3).
+.workflows-table .v-data-table__td--expanded-row > .v-btn {
+  width: 24px;
+  height: 24px;
+
+  &:focus {
+    overflow: visible;
+
+    > .v-btn__overlay {
+      border-radius: 50%;
+      opacity: .12;
+      transform: scale(1.3);
+    }
+  }
+}
+
+// Status chips: a small chip of Vuetify 2 is 24 px high (`$chip-sizes`), Vuetify 4 makes it 26 px.
+.workflows-table .v-chip.v-chip--size-small {
+  --v-chip-height: 24px;
+}
+
+// The loading line of the runs table in the disabled text colour, as the no-data line (both are
+// `.v-data-table__empty-wrapper` of Vuetify 2).
+.workflows-table .v-data-table-rows-loading {
+  color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+}
+
+// Mobile rows: the value sits at the right end of the row (`.v-data-table__mobile-row__cell`, a
+// shrink-to-fit flex item); Vuetify 4 stretches it over the second grid column, so a block value
+// (the status chip, the last run) started at the middle of the row.
+.workflows-table .v-data-table__tr--mobile > td > .v-data-table__td-value {
+  justify-self: end;
+}
+
 // Mobile rows: no expand cell (Vuetify 2 hid the first mobile row, the same cell).
 @media #{map.get(settings.$display-breakpoints, 'sm-and-down')} {
   .workflows-table .v-data-table__tr--mobile > .v-data-table__td--expanded-row {
@@ -237,9 +273,10 @@ export default {
   },
 
   computed: {
-    // The expand column first, as Vuetify 2 drew it.
+    // The expand column first and as narrow as its toggle (`width: '1px'` of the Vuetify 2
+    // default header), as Vuetify 2 drew it.
     tableHeaders() {
-      return [{ key: 'data-table-expand' }, ...this.filteredHeaders];
+      return [{ key: 'data-table-expand', width: '1px' }, ...this.filteredHeaders];
     },
 
     runHeaders() {

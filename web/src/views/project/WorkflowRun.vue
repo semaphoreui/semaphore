@@ -38,7 +38,7 @@
         v-if="details"
         :color="statusColor(details.run.status)"
         size="small"
-        class="mr-3"
+        class="WorkflowRun__status mr-3"
         :data-testid="`workflowRun-status-${details.run.status}`"
       >{{ details.run.status }}</v-chip>
 
@@ -162,6 +162,21 @@
     flex-wrap: wrap;
     align-items: center;
     border-bottom: 1px solid rgba(133, 133, 133, 0.25);
+  }
+
+  // The status chip: a small chip of Vuetify 2 is 24 px high (`$chip-sizes`), Vuetify 4 makes it
+  // 26 px.
+  &__status.v-chip {
+    --v-chip-height: 24px;
+  }
+
+  // A variable chip: an x-small chip of Vuetify 2 is 16 px high (`.v-chip.v-size--x-small`), not
+  // 20, with the 20 px line of every chip; an outlined chip without a colour has the thin border of
+  // the theme (`.theme--light.v-chip`: rgba(0, 0, 0, .12)), not one in the text colour.
+  &__var.v-chip {
+    --v-chip-height: 16px;
+    line-height: 20px;
+    border-color: rgba(var(--v-border-color), var(--v-border-opacity));
   }
 
   &__varName {
