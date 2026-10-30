@@ -126,9 +126,16 @@ func TestViewFilterRoundTrip(t *testing.T) {
 	updated.Filter = nil
 	require.NoError(t, store.UpdateView(updated))
 
+	kept, err := store.GetView(projectID, view.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "staging", kept.NameFilter(), "a nil filter leaves the stored one")
+
+	kept.Filter = &db.MapStringAnyField{}
+	require.NoError(t, store.UpdateView(kept))
+
 	cleared, err := store.GetView(projectID, view.ID)
 	require.NoError(t, err)
-	assert.Nil(t, cleared.Filter)
+	assert.Empty(t, cleared.NameFilter())
 }
 
 // UpdateView used to write project_id from its argument, so a view could be

@@ -146,12 +146,8 @@ func UpdateView(w http.ResponseWriter, r *http.Request) {
 	// was loaded from.
 	view.ProjectID = oldView.ProjectID
 
-	// A client written before view filters existed sends none and must not
-	// clear the stored one. `"filter": {}` clears it.
-	if view.Filter == nil {
-		view.Filter = oldView.Filter
-	}
-
+	// A client written before view filters existed sends none: the store then
+	// keeps the stored one. `"filter": {}` clears it.
 	if err := view.Validate(); err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),

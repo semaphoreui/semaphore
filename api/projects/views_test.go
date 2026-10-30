@@ -73,8 +73,13 @@ func TestUpdateView(t *testing.T) {
 		})
 		require.NoError(t, err)
 
+		// Loaded before another request set the filter: the update must not write
+		// this stale copy back.
+		stale := filtered
+		stale.Filter = nil
+
 		body := fmt.Sprintf(`{"id":%d,"project_id":%d,"title":"renamed","type":"all"}`, filtered.ID, project.ID)
-		assert.Equal(t, http.StatusNoContent, updateViewRequest(t, store, &user, filtered, body).Code)
+		assert.Equal(t, http.StatusNoContent, updateViewRequest(t, store, &user, stale, body).Code)
 
 		saved, err := store.GetView(project.ID, filtered.ID)
 		require.NoError(t, err)
