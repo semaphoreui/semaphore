@@ -76,6 +76,9 @@ func (r *runtime) waitTask(cmd *cobra.Command, api *apiclient.Client, projectID,
 			}
 			if opts.follow {
 				n, err := r.printNewOutput(ctx, api, projectID, taskID, printed)
+				if err != nil && ctx.Err() == nil && task.Status.IsFinished() {
+					return last, fmt.Errorf("fetch final output for task %d: %w", taskID, err)
+				}
 				if err == nil {
 					printed = n
 				} else if !isTransient(err) {
