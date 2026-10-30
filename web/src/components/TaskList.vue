@@ -19,6 +19,18 @@
       data-testid="taskList-table"
       :data-state="loading ? 'loading' : (tasks.length === 0 ? 'empty' : 'ready')"
     >
+      <!-- the loading line of Vuetify 2 tables: 4 px on a .3 track (Vuetify 4: 2 px) -->
+      <template v-slot:loader="{ color, isActive }">
+        <v-progress-linear
+          absolute
+          :active="isActive"
+          :color="color"
+          height="4"
+          bg-opacity=".3"
+          indeterminate
+        />
+      </template>
+
       <template v-slot:item.id="{ item }">
         <TaskLink
           :task-id="item.id"
@@ -27,10 +39,16 @@
         />
         <div style="font-size: 14px;">
           <span v-if="item.message" data-testid="taskList-rowMessage">
-            <v-icon size="x-small">mdi-message-outline</v-icon> {{ item.message }}
+            <v-icon
+              size="x-small"
+              class="TaskList__rowIcon"
+            >mdi-message-outline</v-icon> {{ item.message }}
           </span>
           <span v-else-if="item.commit_hash" data-testid="taskList-rowCommit">
-            <v-icon size="x-small">mdi-source-fork</v-icon> {{ item.commit_message }}
+            <v-icon
+              size="x-small"
+              class="TaskList__rowIcon"
+            >mdi-source-fork</v-icon> {{ item.commit_message }}
           </span>
         </div>
       </template>
@@ -122,6 +140,36 @@
 <style lang="scss">
 .TaskListTable td {
   height: 60px !important;
+}
+
+// The message and commit icons of a row are icons of the theme (`.theme--light.v-icon`: .54,
+// white in the dark one); Vuetify 4 draws them in the text colour.
+.TaskList__rowIcon.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.TaskList__rowIcon.v-theme--dark {
+  color: #fff;
+}
+
+// The rows-per-page select of Vuetify 2 (dense, no details): the number 1 px and the arrow 3 px
+// higher over the same line.
+.TaskListPerPage .v-field {
+  > .v-field__field > .v-field__input {
+    padding-top: 6px;
+  }
+
+  > .v-field__append-inner {
+    padding-top: 5px;
+  }
+}
+
+// On a phone (the cards below `mobile-breakpoint` 600) the no-data line starts at the left edge,
+// as in Vuetify 2; this table has no sortable column, so no mobile header that would tell it.
+@media (max-width: 599.98px) {
+  .TaskListTable .v-data-table-rows-no-data {
+    text-align: start;
+  }
 }
 </style>
 <script>

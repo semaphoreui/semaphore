@@ -309,6 +309,14 @@
   max-width: calc((100% - var(--v-field-padding-start) - var(--v-field-padding-end)) * .9);
 }
 
+// The floating label of a regular (underlined) field of Vuetify 2 sits 3 px lower: its box began
+// under the 4 px top margin of `.v-text-field`, its 15 px line (20 px scaled by .75) is centred
+// 1.5 px lower than the 18 px line of Vuetify 4 (the line and the text are where they were).
+.v-input--density-default:not(.v-textarea) > .v-input__control > .v-field--variant-underlined
+  .v-label.v-field-label.v-field-label--floating {
+  top: calc(var(--v-input-padding-top) + 3px);
+}
+
 // Field text in the primary text colour wherever the field stands (`.theme--light.v-input input`,
 // `.v-select__selections`: .87): Vuetify 4 lets the input inherit the colour around it, the
 // secondary .6 inside a card text. The icons and the line of an underlined field take the same
@@ -455,6 +463,12 @@
 // VTable: header text in the secondary text colour (`thead > tr > th`).
 .v-table > .v-table__wrapper > table > thead > tr > th {
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+// VDataTable: the header and the rows of a loading table keep their colour (Vuetify 2 only shows
+// the progress line; Vuetify 4 dims the cells to the disabled opacity).
+.v-data-table--loading > .v-table__wrapper > table > :is(thead, tbody, tfoot) > tr > .v-data-table__td {
+  opacity: 1;
 }
 
 // VDataTable: the sort arrow of a header is an 18 px icon (`.v-data-table-header__icon`), not

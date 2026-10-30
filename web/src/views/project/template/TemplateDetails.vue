@@ -1,6 +1,6 @@
 <template>
-  <v-container fluid class="pb-0 mt-8" data-testid="template-details">
-    <v-row class="mb-2">
+  <v-container fluid class="pb-0 mt-8 TemplateDetails" data-testid="template-details">
+    <v-row class="mb-5">
       <v-col>
         <v-list>
           <v-list-item>
@@ -81,6 +81,35 @@
   </v-container>
 
 </template>
+<style lang="scss">
+// The property lists of Vuetify 2: `v-list subheader` (no padding on top), an item with the
+// padding of its content (12 px above and below, 2 px between title and subtitle: 62 px high) and
+// its icon at the top (`.v-list-item__icon`: `align-self: flex-start`, 16 px above),
+// and a column that is not narrower than its icon, title and subtitle unless the row is — the row
+// wraps instead, as the flex columns of Vuetify 2 did (Vuetify 4 lets the text shrink to 40 px).
+// Under the row the 12 px padding of the Vuetify 2 column and `mb-2` — `mb-5` on the row.
+.TemplateDetails > .v-row > .v-col {
+  min-width: fit-content;
+}
+
+.TemplateDetails > .v-row > .v-col > .v-list {
+  padding-top: 0;
+}
+
+.TemplateDetails > .v-row > .v-col > .v-list > .v-list-item {
+  > .v-list-item__prepend {
+    align-self: start;
+  }
+
+  > .v-list-item__content {
+    padding: 12px 0;
+
+    > .v-list-item-title {
+      margin-bottom: 2px;
+    }
+  }
+}
+</style>
 <script>
 import {
   TEMPLATE_TYPE_ACTION_TITLES,

@@ -739,16 +739,14 @@ def test_header_marks_runner(ui, project, api):
 @pytest.mark.sizes("mobile")
 def test_mobile_header_overflow(ui, project, api):
     """390 px: the header does not wrap — the title shrinks to a sliver (the breadcrumbs run under
-    «Stop all», JOURNAL@A2A1D76348). Vuetify 2: copy cut, edit wholly past the edge; Vuetify 3
-    (narrower buttons): copy fits, edit cut by the edge; Vuetify 4 (captions of «Stop all» and «Run»
-    not uppercased, narrower still): every button fits, the title stays a sliver."""
+    «Stop all», JOURNAL@A2A1D76348), copy is cut by the edge, edit lies past it and cannot be
+    clicked. So in Vuetify 2 and again with the look of Vuetify 2 (stage 4: uppercase captions of
+    «Stop all» and «Run»); the stock Vuetify 3/4 buttons were narrower (JOURNAL@25E3EFB246,
+    JOURNAL@5E3525AA93)."""
     page = ui("admin")
     open_tasks(page, T(api, project, "OK script"))
-    edit = tid(page, "template-edit")
-    expect(edit).to_be_in_viewport(ratio=1)
-    box = edit.bounding_box()
-    run = tid(page, "template-run").bounding_box()
-    assert abs((box["y"] + box["height"] / 2) - (run["y"] + run["height"] / 2)) < 4, (box, run)
+    expect(tid(page, "template-edit")).not_to_be_in_viewport()
+    expect(tid(page, "template-copy")).not_to_be_in_viewport(ratio=1)
     title = tid(page, "template-title").bounding_box()
     crumbs = tid(page, "template-breadcrumbTemplates").bounding_box()
     assert title["width"] < crumbs["width"], (title, crumbs)

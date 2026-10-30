@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-icon size="small" class="pr-1">mdi-message-outline</v-icon>
+    <v-icon size="small" class="pr-1 SingleLineEditable__icon">mdi-message-outline</v-icon>
 
     <span
       key="placeholder"
@@ -60,6 +60,20 @@
   </div>
 </template>
 <style lang="scss" scoped>
+  // The icon of Vuetify 2 (`.theme--light.v-icon`): 16 px of glyph plus its padding (Vuetify 4 fits
+  // the padding into the 16 px box), grey .54 in the light theme, white in the dark one.
+  .SingleLineEditable__icon {
+    box-sizing: content-box;
+
+    &.v-theme--light {
+      color: rgba(0, 0, 0, .54);
+    }
+
+    &.v-theme--dark {
+      color: #fff;
+    }
+  }
+
   .SingleLineEditable__editable {
     min-width: 50px;
     outline: none;

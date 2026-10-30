@@ -923,9 +923,17 @@ html.WorkflowEditor-html body {
   //margin-bottom: 10px;
 }
 
+// The window of a nested dialog draws the dialog shadow (24) and clips its card to the 12 px
+// corners, as `.v-dialog` of Vuetify 2 did; Vuetify 4 puts the shadow on the card and lets its
+// 4 px corners stick out of the rounded border.
 .NestedDialog {
   border: 1px solid rgb(200, 200, 200);
   border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    0 11px 15px -7px rgba(0, 0, 0, .2),
+    0 24px 38px 3px rgba(0, 0, 0, .14),
+    0 9px 46px 8px rgba(0, 0, 0, .12);
 }
 
 .v-theme--dark {
@@ -1083,7 +1091,10 @@ html.WorkflowEditor-html body {
     padding-right: 2px !important;
   }
 
-  .v-table__wrapper > table > thead > tr:last-child > th {
+  // The header row is the last one of the head; while the table loads Vuetify 4 adds its progress
+  // row after it in the same head (Vuetify 2 — in a head of its own).
+  .v-table__wrapper > table > thead > tr:last-child > th,
+  .v-table__wrapper > table > thead > tr:has(+ tr.v-data-table-progress:last-child) > th {
     text-transform: uppercase;
     white-space: nowrap;
   }

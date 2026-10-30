@@ -3,6 +3,7 @@
     <v-progress-linear
       indeterminate
       color="primary-darken-2"
+      bg-opacity=".3"
       data-testid="template-loading"
     ></v-progress-linear>
   </div>
@@ -73,7 +74,10 @@
         @click="showDrawer()"
         data-testid="template-drawerToggle"
       ></v-app-bar-nav-icon>
-      <v-toolbar-title class="breadcrumbs flex-0-1" data-testid="template-title">
+      <v-toolbar-title
+        class="breadcrumbs flex-0-1 TemplateView__title"
+        data-testid="template-title"
+      >
         <router-link
           class="breadcrumbs__item breadcrumbs__item--link"
           data-testid="template-breadcrumbTemplates"
@@ -85,7 +89,7 @@
         >
           {{ $t('taskTemplates2') }}
         </router-link>
-        <v-icon>mdi-chevron-right</v-icon>
+        <v-icon class="TemplateView__crumbIcon">mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item" data-testid="template-name">{{ item.name }}</span>
       </v-toolbar-title>
 
@@ -95,9 +99,8 @@
         <template v-slot:activator="{ props }">
           <v-btn
             v-bind="props"
-            color="grey"
             variant="elevated"
-            class="mr-3 pr-2"
+            class="mr-3 pr-2 TemplateView__stopAll"
             :disabled="stopAllTasksProgress"
             data-testid="template-stopAllMenu"
           >
@@ -229,6 +232,27 @@
 <style lang="scss">
 @use 'sass:map';
 @use '@/scss/variables' as settings;
+
+// «Stop all» is a grey button with the text of the theme, as `color="grey"` was in Vuetify 2 (only
+// the theme colours got white text there); Vuetify 4 gives a grey button white text.
+.TemplateView__stopAll:not(.v-btn--disabled) {
+  background-color: #9e9e9e;
+}
+
+// Vue 2 kept the space after the link text of the breadcrumbs (`{{ … }}` then a line break),
+// Vue 3 drops it; the chevron is an icon of the theme (`.theme--light.v-icon`: .54, white in the
+// dark one).
+.TemplateView__title .breadcrumbs__item--link {
+  margin-inline-end: .2476em; // the space of Roboto
+}
+
+.TemplateView__crumbIcon.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.TemplateView__crumbIcon.v-theme--dark {
+  color: #fff;
+}
 
 .TemplateView__description {
   font-size: 14px;
