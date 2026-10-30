@@ -625,7 +625,8 @@ def test_dialog_edit__load_error(ui, project):
 @pytest.mark.snapshot
 def test_dialog_edit__key_missing(ui, project, api):
     """The form's keys lack Seed SSH. Vuetify 2: Access Key showed nothing; Vuetify 3 shows the raw key id
-    as the selection (a value missing from the items keeps its own value as the title) — the same bug
+    as the selection (a value missing from the items keeps its own value as the title), Vuetify 4 in the
+    <input> as well — the same bug
     JOURNAL@1C462FCAA9, another look (JOURNAL@F74617D5BB). Save is not pressed: the id passes the rule and
     goes out with PUT (functional test_key_missing). The id is read through the API (a GET, nothing
     written)."""
@@ -638,7 +639,8 @@ def test_dialog_edit__key_missing(ui, project, api):
     card = open_dialog(page, repo_row(page, "Demo SSH").get_by_test_id("repositories-rowEdit"), DIALOG)
     expect(form(card)).to_have_attribute("data-state", "ready")
     expect(field_input(card, "repository-name")).to_have_value("Demo SSH")
-    expect(field_input(card, "repository-sshKeyId")).to_have_value("")
+    # Vuetify 4 also keeps the title of the selection (here the raw id) in the <input> while not focused
+    expect(field_input(card, "repository-sshKeyId")).to_have_value(str(seed_ssh["id"]))
     expect(field_selection(card, "repository-sshKeyId")).to_have_text(str(seed_ssh["id"]))
     expect(field_message(card, "repository-sshKeyId")).to_have_count(0)
     snap_dialog(page, "dialog-edit", "key-missing")

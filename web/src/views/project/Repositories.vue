@@ -65,11 +65,10 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
+      class="mt-4 RepositoriesTable"
       :items-per-page="-1"
       data-testid="repositories-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px); margin: auto;"
     >
       <template v-slot:item.git_url="{ item }">
         {{ item.git_url }}
@@ -106,6 +105,13 @@
   </div>
 
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.RepositoriesTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px);
+  margin: auto;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import RepositoryForm from '@/components/RepositoryForm.vue';
