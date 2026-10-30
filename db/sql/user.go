@@ -444,11 +444,15 @@ func (d *SqlDb) GetUserCount() (count int, err error) {
 	return
 }
 
+// escapeLike makes s match itself literally inside a LIKE pattern. The query
+// must name the escape character with `ESCAPE '!'`: SQLite has no default one,
+// so a backslash is taken literally there, and `!` is also written the same way
+// in a MySQL and a PostgreSQL string literal, unlike a backslash.
 func escapeLike(s string) string {
-	// Order matters: escape \ first
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `%`, `\%`)
-	s = strings.ReplaceAll(s, `_`, `\_`)
+	// Order matters: the escape character itself goes first.
+	s = strings.ReplaceAll(s, "!", "!!")
+	s = strings.ReplaceAll(s, "%", "!%")
+	s = strings.ReplaceAll(s, "_", "!_")
 	return s
 }
 
@@ -462,7 +466,7 @@ func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err er
 	}
 
 	if params.Filter != "" {
-		q = q.Where(squirrel.Like{"username": escapeLike(params.Filter) + "%"})
+		q = q.Where("username LIKE ? ESCAPE '!'", escapeLike(params.Filter)+"%")
 	}
 
 	query, args, err := q.ToSql()

@@ -238,6 +238,18 @@ func (d *SqlDb) SetTemplateDescription(projectID int, templateID int, descriptio
 	return
 }
 
+// whereNameContains keeps the templates whose name contains name, ignoring case;
+// an empty name keeps them all. LOWER is on both sides because LIKE is
+// case-sensitive in PostgreSQL and not in SQLite or MySQL's default collation,
+// so the same filter would otherwise find different templates per database.
+func whereNameContains(q sq.SelectBuilder, name string) sq.SelectBuilder {
+	if name == "" {
+		return q
+	}
+
+	return q.Where("LOWER(pt.name) LIKE LOWER(?) ESCAPE '!'", "%"+escapeLike(name)+"%")
+}
+
 func (d *SqlDb) getTemplates(
 	projectID int,
 	userID *int,
@@ -308,7 +320,7 @@ func (d *SqlDb) getTemplates(
 		case db.ViewTypeCustom:
 			q = q.Where("pt.view_id=?", *filter.ViewID)
 		case db.ViewTypeAll:
-			// TODO: implement filter
+			q = whereNameContains(q, view.NameFilter())
 		}
 	}
 

@@ -12,19 +12,22 @@ func (d *SqlDb) GetViews(projectID int) (views []db.View, err error) {
 	return
 }
 
+// UpdateView never moves a view: the project is part of the match, not of
+// what is written.
 func (d *SqlDb) UpdateView(view db.View) error {
 	_, err := d.exec(
-		"update project__view set title=?, position=?, project_id=?, `type`=?, sort_column=?, sort_reverse=?, "+
+		"update project__view set title=?, position=?, `type`=?, filter=?, sort_column=?, sort_reverse=?, "+
 			"hidden=? "+
-			"where id=?",
+			"where id=? and project_id=?",
 		view.Title,
 		view.Position,
-		view.ProjectID,
 		view.Type,
+		view.Filter,
 		view.SortColumn,
 		view.SortReverse,
 		view.Hidden,
-		view.ID)
+		view.ID,
+		view.ProjectID)
 
 	return err
 }
@@ -32,12 +35,13 @@ func (d *SqlDb) UpdateView(view db.View) error {
 func (d *SqlDb) CreateView(view db.View) (newView db.View, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__view (project_id, title, position, `type`, sort_column, sort_reverse, "+
-			"hidden) values (?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__view (project_id, title, position, `type`, filter, sort_column, sort_reverse, "+
+			"hidden) values (?, ?, ?, ?, ?, ?, ?, ?)",
 		view.ProjectID,
 		view.Title,
 		view.Position,
 		view.Type,
+		view.Filter,
 		view.SortColumn,
 		view.SortReverse,
 		view.Hidden,
