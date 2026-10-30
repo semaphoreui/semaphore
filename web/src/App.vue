@@ -1148,6 +1148,12 @@ html.WorkflowEditor-html body {
     color: rgba(133, 133, 133, 0.4);
   }
 
+  // The gap for the floating label opens 8 px from the left edge (the `fieldset` padding of
+  // Vuetify 2), not 12: the label stands 4 px further left, where it was.
+  .v-field__outline__start {
+    flex-basis: 8px;
+  }
+
   // The focused outline carries the `text-primary` class of the field colour (utility layer, above
   // this one): the colour goes on its parts, which draw their borders in the current colour.
   &.v-field--focused .v-field__outline {

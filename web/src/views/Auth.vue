@@ -229,7 +229,8 @@
                 v-if="loginTabs.length > 1"
                 v-model="loginTab"
                 mandatory
-                class="mb-7 d-flex"
+                variant="text"
+                class="auth__tabs mb-7 d-flex"
                 :class="$vuetify.theme.current.dark ? null : 'bg-grey-lighten-3'"
                 :style="$vuetify.theme.current.dark ? { backgroundColor: '#212121' } : null"
                 data-testid="auth-loginTabs"
@@ -380,6 +381,52 @@
     margin-left: 10px;
   }
 }
+// Sign-in / LDAP tabs as the borderless `v-btn-toggle` of Vuetify 2 with small buttons: 28 px
+// high, text in the primary text colour (.87), buttons without their own background on the grey
+// of the toggle, the inactive at .8 opacity, the active darkened by the .18 overlay of
+// `.v-btn--active`.
+.auth__tabs.v-btn-group {
+  height: 28px;
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+
+  > .v-btn {
+    opacity: .8;
+  }
+
+  > .v-btn--active {
+    opacity: 1;
+
+    > .v-btn__overlay {
+      opacity: .18;
+    }
+  }
+}
+
+.auth {
+  // The large buttons (sign in, OIDC) in the type size of Vuetify 2 (`large` .875rem, as
+  // `default`; Vuetify 4 grows it to 1rem). Only this screen has large buttons.
+  .v-btn--size-large {
+    --v-btn-size: .875rem;
+  }
+
+  // The OTP cells as in Vuetify 2: outlined fields 56 px high across the whole form width,
+  // 8 px apart, a 4 px gutter above and 12 px below, digits in the field type size (1rem, .87).
+  .v-otp-input {
+    padding: 4px 0 12px;
+  }
+
+  .v-otp-input__content {
+    max-width: none;
+    height: 56px;
+    padding: 0;
+  }
+
+  .v-otp-input__field {
+    font-size: 1rem;
+    opacity: var(--v-high-emphasis-opacity);
+  }
+}
+
 .auth {
   height: 100dvh;
   background: #80808024;

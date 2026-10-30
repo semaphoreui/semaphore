@@ -42,7 +42,9 @@
         </v-alert>
       </v-card-text>
 
-      <v-card-actions>
+      <!-- No gap: Vuetify 2 had none after the spacer (Vuetify 4: 8 px between all children), the
+           card takes the width of its content. -->
+      <v-card-actions class="ga-0">
         <v-spacer />
 
         <v-btn
@@ -55,12 +57,15 @@
           Go to project
         </v-btn>
 
+        <!-- Not slim: Vuetify 2 narrowed (0 8px) only the direct buttons of v-card-actions,
+             Vuetify 4 does it for every button inside. -->
         <div v-else-if="state === 'error'" >
           <v-btn
             variant="text"
             color="primary"
             @click="goToDashboard"
             :disabled="!token"
+            :slim="false"
             data-testid="acceptInvite-goToDashboard"
           >
             Go to dashboard
@@ -70,6 +75,7 @@
             color="primary"
             @click="retry"
             :disabled="!token"
+            :slim="false"
             data-testid="acceptInvite-retry"
           >
             Try again
