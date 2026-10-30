@@ -35,6 +35,7 @@
         @update:model-value="setTarget($event)"
         rounded="0"
         variant="text"
+        class="IntegrationForm__targetToggle"
         mandatory
         :disabled="formSaving"
         data-testid="integrationForm-targetToggle"
@@ -72,6 +73,8 @@
     </v-alert>
 
     <div v-else-if="target === 'workflow'" style="position: relative">
+      <!-- The lists of the two target autocompletes 1 px under the field and at most 304 px high,
+           as the menus of Vuetify 2 (`menu-props`; Vuetify 4: flush with the field, 310 px). -->
       <v-autocomplete
         v-model="item.workflow_id"
         :label="$t('workflowToRun')"
@@ -84,6 +87,7 @@
         variant="outlined"
         density="compact"
         class="IntegrationForm__workflow"
+        :menu-props="{ maxHeight: 304, offset: 1 }"
         data-testid="integrationForm-workflowId"
       ></v-autocomplete>
 
@@ -114,6 +118,7 @@
       :disabled="formSaving"
       variant="outlined"
       density="compact"
+      :menu-props="{ maxHeight: 304, offset: 1 }"
       data-testid="integrationForm-templateId"
     ></v-autocomplete>
 
@@ -183,6 +188,37 @@
     </HighlightedCard>
   </v-form>
 </template>
+<style lang="scss">
+// The Template / Workflow switch: the `v-btn-toggle tile group` of Vuetify 2 with `small` buttons
+// and `ma-0` — a 28 px row of 28 px buttons, each with a thin transparent border; the inactive one
+// at .8 opacity, the active one in the secondary text colour on its own .18 overlay
+// (`.v-btn-toggle--group > .v-btn.v-btn--active::before`).
+.IntegrationForm__targetToggle.v-btn-group {
+  height: 28px;
+
+  > .v-btn {
+    height: 28px;
+    min-width: auto;
+    border: thin solid transparent;
+    opacity: .8;
+
+    &.v-btn--active {
+      opacity: 1;
+      color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+
+      > .v-btn__overlay {
+        opacity: .18;
+      }
+    }
+  }
+}
+
+// The "Upgrade to PRO" chip as high as a small chip of Vuetify 2 (`.v-size--small`: 24 px);
+// Vuetify 4 makes it 26 px.
+.IntegrationForm__upgrade.v-chip {
+  --v-chip-height: 24px;
+}
+</style>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
