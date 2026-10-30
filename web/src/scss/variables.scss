@@ -27,6 +27,9 @@
     'xxl': 2560px,
   ),
 
+  // VContainer: padding 12 px (`.container`, `$container-padding-x: $grid-gutter / 2`), not 16.
+  $container-padding-x: 12px,
+
   $shadow-key: v2.$shadow-key,
   $shadow-ambient: v2.$shadow-ambient,
 
@@ -153,19 +156,20 @@
   $toolbar-prepend-btn-margin-start: 0,
   $toolbar-append-btn-margin-end: 0,
 
-  // VList (`$list-item-*`): padding 0 16px, title of `.v-list-item__title` (subtitle-1, line
-  // height 1.2), subtitle of `.v-list-item__subtitle`.
+  // VList (`$list-item-*`): padding 0 16px, title of `.v-list-item__title` (subtitle-1 size, line
+  // height 1.2, the letter-spacing `normal` of `.v-list-item`), subtitle of
+  // `.v-list-item__subtitle`.
   $list-item-padding: 0 16px,
   $list-subheader-min-height: 48px,
   $list-item-two-line-padding: 0 16px,
   $list-item-three-line-padding: 0 16px,
-  $list-item-title-letter-spacing: .009375em,
+  $list-item-title-letter-spacing: normal,
   $list-item-title-line-height: 1.2,
   $list-item-subtitle-letter-spacing: normal,
   $list-item-subtitle-line-height: 1.2,
   $list-item-nav-title-font-size: 1rem,
   $list-item-nav-title-font-weight: 400,
-  $list-item-nav-title-letter-spacing: .009375em,
+  $list-item-nav-title-letter-spacing: normal,
   $list-item-nav-title-line-height: 1.2,
   $list-item-nav-subtitle-font-size: .875rem,
   $list-item-nav-subtitle-line-height: 1.2,

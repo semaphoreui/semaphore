@@ -140,15 +140,14 @@
       :color="snackbarColor"
       :timeout="3000"
       location="top"
+      class="AppSnackbar"
       data-testid="app-snackbar"
       :data-state="snackbarColor === 'error' ? 'error' : 'ready'"
     >
       {{ snackbarText }}
-      <template v-slot:actions>
-        <v-btn variant="text" @click="snackbar = false" data-testid="app-snackbarClose">
-          {{ $t('close') }}
-        </v-btn>
-      </template>
+      <v-btn variant="text" @click="snackbar = false" data-testid="app-snackbarClose">
+        {{ $t('close') }}
+      </v-btn>
     </v-snackbar>
 
     <v-navigation-drawer
@@ -163,9 +162,12 @@
       class="NavDrawer"
       data-testid="sidebar"
     >
+      <!-- 12 px in from the window edge, where Vuetify 2 shifted the menu; Vuetify 4 would flip it
+           to the end of the drawer. -->
       <v-menu
         location="top start"
         origin="overlap"
+        :offset="[0, -12]"
         min-width="235"
         max-width="235"
         v-if="project"
@@ -413,9 +415,11 @@
 
             <v-spacer />
 
+            <!-- At the point (50, 0) of the window, as `absolute :position-x="50"` of Vuetify 2:
+                 the menu opens at the top of the window, 50 px from its left edge. -->
             <v-menu
-              location="top end"
-              :offset="12"
+              :target="[50, 0]"
+              location="bottom start"
               min-width="150"
               max-width="235"
             >
@@ -452,10 +456,11 @@
             </v-menu>
           </v-list-item>
 
+          <!-- Over the item, 12 px up and 12 px in from the window edge, as in Vuetify 2. -->
           <v-menu
             location="bottom start"
             origin="overlap"
-            :offset="-12"
+            :offset="[-12, -12]"
             min-width="235"
             max-width="235"
           >
@@ -480,6 +485,7 @@
                     variant="flat"
                     v-if="user.admin"
                     size="small"
+                    class="NavDrawer__adminChip"
                     data-testid="sidebar-userAdmin"
                   >{{ $t('admin') }}</v-chip>
                 </template>
@@ -516,7 +522,7 @@
                   data-testid="sidebar-userMenu-subscription"
                 >
                   <template v-slot:prepend>
-                    <v-icon color="#f14668" style="transform: scale(1.4)">
+                    <v-icon color="#f14668" class="opacity-100" style="transform: scale(1.4)">
                       mdi-professional-hexagon
                     </v-icon>
                   </template>
@@ -689,6 +695,7 @@
         <v-progress-circular
           :size="70"
           color="primary"
+          bg-color="transparent"
           indeterminate
           data-testid="app-loading"
         ></v-progress-circular>
@@ -773,6 +780,20 @@ html.WorkflowEditor-html body {
   // No width animation: the drawer switches between full and icon-only
   // together with a route change and must take its final width at once.
   transition-property: transform, visibility;
+  // The border of Vuetify 2 lies over the content (`.v-navigation-drawer__border`), which keeps
+  // the full width of the drawer; Vuetify 4 draws it beside the content, 1 px narrower.
+  border-right-width: 0;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 1px;
+    height: 100%;
+    background-color: rgba(var(--v-border-color), var(--v-border-opacity));
+    pointer-events: none;
+  }
 
   // The tools row lays its children out in one line (a flex row in Vuetify 2).
   .NavDrawer__toolsRow > .v-list-item__content {
@@ -791,6 +812,11 @@ html.WorkflowEditor-html body {
   // Vuetify 2 showed only the first child of every list item (the icon) and
   // hid the rest; Vuetify 3's rail hides nothing, so do it here.
   &.v-navigation-drawer--rail {
+    // The icons in the middle of the strip (18 px from the edge), as in Vuetify 2.
+    .v-list-item {
+      padding-inline: 18px;
+    }
+
     .v-list-item__prepend > .v-list-item__spacer {
       width: 0 !important;
     }
@@ -800,8 +826,8 @@ html.WorkflowEditor-html body {
       @include nav-rail-hidden;
     }
 
-    // Only the dark-mode switch survives; put its track (52 px in Vuetify 3)
-    // in the middle of the strip.
+    // Only the dark-mode switch survives; its track at 7 px from the edge of the strip, as in
+    // Vuetify 2.
     .NavDrawer__toolsRow {
       padding: 0;
 
@@ -818,10 +844,16 @@ html.WorkflowEditor-html body {
       }
 
       .DarkModeSwitchWrap {
-        margin-left: 4px;
+        margin-left: 10px;
       }
     }
   }
+}
+
+// The snackbar in the middle of the window, over the drawer, as in Vuetify 2 (without `app`);
+// Vuetify 4 pads it by the layout, into the middle of the main area.
+.AppSnackbar {
+  padding: 0;
 }
 
 // Vuetify animates the main area's padding when the drawer width changes;
@@ -919,6 +951,35 @@ html.WorkflowEditor-html body {
   .DarkModeSwitch {
     margin: 0;
     padding: 0;
+
+    // The dense inset switch of Vuetify 2: the control 48 × 24 px and 8 px after it; the track
+    // (44 × 22) 3 px out to the left, at .32; the thumb (18 px) 3 px into the track when off,
+    // 23 px when on. Vuetify 4 centres the track in a control as wide as the track and moves the
+    // thumb 9 px either side of the middle.
+    .v-selection-control__wrapper {
+      position: relative;
+      width: 48px;
+      height: 24px;
+      margin-inline-end: 8px;
+    }
+
+    .v-switch__track {
+      position: absolute;
+      top: 0;
+      left: -3px;
+      opacity: 0.32;
+    }
+
+    // The input is 30 px round the 18 px thumb.
+    .v-selection-control__input {
+      top: -4px;
+      left: -6px;
+      transform: none;
+    }
+
+    .v-selection-control--dirty .v-selection-control__input {
+      transform: translateX(20px);
+    }
   }
 
   &__icon {
@@ -928,12 +989,12 @@ html.WorkflowEditor-html body {
     pointer-events: none;
     color: #fff !important;
     transition: left 0.2s ease;
-    // Centred on the thumb of the Vuetify 3 inset switch (off: 16 px at 8 px, on: 24 px at 24 px).
-    left: 6px;
+    // On the thumb, as in Vuetify 2 (off: at 0 px, on: at 20 px).
+    left: 1px;
   }
 
   &--dark .DarkModeSwitchWrap__icon {
-    left: 26px;
+    left: 22px;
   }
 }
 
@@ -979,6 +1040,14 @@ html.WorkflowEditor-html body {
 .app__project-selector-title {
   font-size: 1.25rem !important;
   font-weight: bold;
+  // 2 px between the name and the roles (`.v-list-item__content > *:not(:last-child)` of
+  // Vuetify 2).
+  margin-bottom: 2px;
+}
+
+// The small chip of Vuetify 2 is 24 px high (Vuetify 4: 26).
+.NavDrawer__adminChip {
+  --v-chip-height: 24px;
 }
 
 // Gap between the icon (or action) in front of a list item and its text.
