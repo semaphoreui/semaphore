@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -23,7 +24,7 @@ type Prompter struct {
 // Confirm asks "<question> [y/N]". It returns nil when the action may proceed,
 // ErrAborted when the user declined, and a UsageError when no question can be
 // asked.
-func (p *Prompter) Confirm(question string) error {
+func (p *Prompter) Confirm(ctx context.Context, question string) error {
 	if p.yes {
 		return nil
 	}
@@ -31,7 +32,7 @@ func (p *Prompter) Confirm(question string) error {
 		return usage(p.cmdPath, "%s: confirmation required; pass --yes to proceed without a prompt", question)
 	}
 	_, _ = fmt.Fprintf(p.out, "%s [y/N]: ", question)
-	answer, err := p.readLine()
+	answer, err := p.readLine(ctx)
 	if err != nil {
 		return err
 	}
@@ -45,7 +46,7 @@ func (p *Prompter) Confirm(question string) error {
 // ConfirmName asks the user to type a name back, for the heaviest deletions.
 // typed is the value of --confirm when given; it skips the prompt when it
 // matches and fails when it does not.
-func (p *Prompter) ConfirmName(what, expected, typed string) error {
+func (p *Prompter) ConfirmName(ctx context.Context, what, expected, typed string) error {
 	if typed != "" {
 		if typed == expected {
 			return nil
@@ -56,7 +57,7 @@ func (p *Prompter) ConfirmName(what, expected, typed string) error {
 		return usage(p.cmdPath, "deleting %s %q requires --confirm=%q", what, expected, expected)
 	}
 	_, _ = fmt.Fprintf(p.out, "Type the %s name %q to confirm: ", what, expected)
-	answer, err := p.readLine()
+	answer, err := p.readLine(ctx)
 	if err != nil {
 		return err
 	}
@@ -104,10 +105,20 @@ func (p *Prompter) readAsync() <-chan promptAnswer {
 	return ch
 }
 
-func (p *Prompter) readLine() (string, error) {
-	line, err := p.in.ReadString('\n')
-	if err != nil && err != io.EOF {
-		return "", err
+// readLine waits for one line, or for ctx to be done. Reading stdin directly
+// would ignore the cancellation: the client traps SIGINT to end a wait
+// cleanly, so a blocking read here would swallow Ctrl+C and leave the command
+// hanging on a question.
+func (p *Prompter) readLine(ctx context.Context) (string, error) {
+	select {
+	case answer := <-p.readAsync():
+		if answer.err != nil {
+			return "", answer.err
+		}
+		return answer.text, nil
+	case <-ctx.Done():
+		// The question stays on the line the user was typing on.
+		_, _ = fmt.Fprintln(p.out)
+		return "", ctx.Err()
 	}
-	return strings.TrimSpace(line), nil
 }

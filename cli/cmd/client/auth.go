@@ -108,7 +108,7 @@ func runAuthLogin(cmd *cobra.Command, r *runtime, api *apiclient.Client, withTok
 	var token string
 	switch {
 	case withToken || !r.interactive || r.cfg.NoInput:
-		line, err := r.readLine()
+		line, err := r.readLine(cmd.Context())
 		if err != nil {
 			return err
 		}

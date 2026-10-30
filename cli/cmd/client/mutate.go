@@ -163,7 +163,7 @@ func (m mutable[T]) deleteCmd() *cobra.Command {
 				return err
 			}
 			id := m.res.id(item)
-			if err := r.prompter.Confirm(fmt.Sprintf("Delete %s %q (id %d)?", m.res.kind, m.name(item), id)); err != nil {
+			if err := r.prompter.Confirm(cmd.Context(), fmt.Sprintf("Delete %s %q (id %d)?", m.res.kind, m.name(item), id)); err != nil {
 				return err
 			}
 			ctx, cancel := r.apiCtx(cmd)
@@ -236,7 +236,7 @@ func (r *runtime) readSecretStdin(cmd *cobra.Command, what string) (string, erro
 	if r.interactive {
 		return r.promptSecret(cmd, what+": ")
 	}
-	line, err := r.readLine()
+	line, err := r.readLine(cmd.Context())
 	if err != nil {
 		return "", err
 	}

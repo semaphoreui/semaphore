@@ -150,7 +150,7 @@ for confirmation in a terminal; pass --yes to skip it.`,
 			if err != nil {
 				return err
 			}
-			if err := r.prompter.Confirm(fmt.Sprintf("Stop all running tasks of template %q?", t.Name)); err != nil {
+			if err := r.prompter.Confirm(cmd.Context(), fmt.Sprintf("Stop all running tasks of template %q?", t.Name)); err != nil {
 				return err
 			}
 			ctx, cancel := r.apiCtx(cmd)
@@ -931,7 +931,7 @@ cannot be undone, so the project name has to be typed back (or passed with
 			if err != nil {
 				return err
 			}
-			if err := r.prompter.ConfirmName("project", p.Name, confirm); err != nil {
+			if err := r.prompter.ConfirmName(cmd.Context(), "project", p.Name, confirm); err != nil {
 				return err
 			}
 			ctx, cancel := r.apiCtx(cmd)
@@ -1126,7 +1126,7 @@ Asks for confirmation in a terminal; pass --yes to skip it.`,
 			if err != nil {
 				return err
 			}
-			if err := r.prompter.Confirm(fmt.Sprintf("Remove %q from project %d?", m.Username, projectID)); err != nil {
+			if err := r.prompter.Confirm(cmd.Context(), fmt.Sprintf("Remove %q from project %d?", m.Username, projectID)); err != nil {
 				return err
 			}
 			ctx, cancel := r.apiCtx(cmd)

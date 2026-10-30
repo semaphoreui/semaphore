@@ -322,9 +322,10 @@ func (r *runtime) requireToken(cmd *cobra.Command) error {
 }
 
 // readLine reads one line from stdin through the shared buffered reader, so
-// that a prompt and a piped token never fight over the same bytes.
-func (r *runtime) readLine() (string, error) {
-	return r.prompter.readLine()
+// that a prompt and a piped token never fight over the same bytes. It gives up
+// when the command's context is cancelled (Ctrl+C).
+func (r *runtime) readLine(ctx context.Context) (string, error) {
+	return r.prompter.readLine(ctx)
 }
 
 // prompt writes a question to stderr and reads the answer. It refuses when the
@@ -334,7 +335,7 @@ func (r *runtime) prompt(cmd *cobra.Command, question string) (string, error) {
 		return "", usage(cmd.CommandPath(), "%s: input required but the session is not interactive", strings.TrimSuffix(question, ": "))
 	}
 	fmt.Fprint(r.io.Err, question)
-	return r.readLine()
+	return r.readLine(cmd.Context())
 }
 
 // promptSecret is prompt without echo. On a real terminal the characters are
@@ -345,14 +346,43 @@ func (r *runtime) promptSecret(cmd *cobra.Command, question string) (string, err
 	}
 	fmt.Fprint(r.io.Err, question)
 	if f, ok := r.io.In.(*os.File); ok && output.IsTerminal(f) {
-		b, err := term.ReadPassword(int(f.Fd()))
-		fmt.Fprintln(r.io.Err)
-		if err != nil {
-			return "", err
-		}
-		return strings.TrimSpace(string(b)), nil
+		return r.readPassword(cmd.Context(), f)
 	}
-	return r.readLine()
+	return r.readLine(cmd.Context())
+}
+
+// readPassword reads a line with echo turned off, abandoning the read when the
+// context is cancelled. The terminal is put back the way it was in that case:
+// term.ReadPassword only restores it when it returns, and the read it is stuck
+// in never will.
+func (r *runtime) readPassword(ctx context.Context, f *os.File) (string, error) {
+	fd := int(f.Fd())
+	state, stateErr := term.GetState(fd)
+
+	type result struct {
+		text string
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		b, err := term.ReadPassword(fd)
+		done <- result{strings.TrimSpace(string(b)), err}
+	}()
+
+	select {
+	case res := <-done:
+		fmt.Fprintln(r.io.Err)
+		if res.err != nil {
+			return "", res.err
+		}
+		return res.text, nil
+	case <-ctx.Done():
+		if stateErr == nil {
+			_ = term.Restore(fd, state)
+		}
+		fmt.Fprintln(r.io.Err)
+		return "", ctx.Err()
+	}
 }
 
 // saveConfig writes the configuration file with tight permissions.

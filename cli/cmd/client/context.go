@@ -188,7 +188,7 @@ Asks for confirmation in a terminal; pass --yes to skip it.`,
 			if _, ok := r.cfgFile.Contexts[name]; !ok {
 				return fmt.Errorf("%w %q; known contexts: %s", config.ErrUnknownContext, name, joinNames(r.cfgFile))
 			}
-			if err := r.prompter.Confirm(fmt.Sprintf("Delete context %q?", name)); err != nil {
+			if err := r.prompter.Confirm(cmd.Context(), fmt.Sprintf("Delete context %q?", name)); err != nil {
 				return err
 			}
 			delete(r.cfgFile.Contexts, name)

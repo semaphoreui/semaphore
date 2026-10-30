@@ -45,7 +45,7 @@ func TestConfirm(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p, out := newPrompter(tt.input, tt.interactive, tt.yes, tt.noInput)
-			err := p.Confirm("Delete template 5?")
+			err := p.Confirm(t.Context(), "Delete template 5?")
 			if tt.wantUsage {
 				var u *UsageError
 				require.ErrorAs(t, err, &u)
@@ -65,22 +65,22 @@ func TestConfirm(t *testing.T) {
 
 func TestConfirmName(t *testing.T) {
 	p, _ := newPrompter("", false, true, false)
-	assert.NoError(t, p.ConfirmName("project", "prod", "prod"), "--confirm matching wins everywhere")
+	assert.NoError(t, p.ConfirmName(t.Context(), "project", "prod", "prod"), "--confirm matching wins everywhere")
 
-	err := p.ConfirmName("project", "prod", "prodd")
+	err := p.ConfirmName(t.Context(), "project", "prod", "prodd")
 	var u *UsageError
 	require.ErrorAs(t, err, &u)
 	assert.Contains(t, err.Error(), "does not match")
 
 	p, _ = newPrompter("", false, true, false)
-	err = p.ConfirmName("project", "prod", "")
+	err = p.ConfirmName(t.Context(), "project", "prod", "")
 	require.ErrorAs(t, err, &u, "--yes is not enough for a project deletion")
 	assert.Contains(t, err.Error(), `--confirm="prod"`)
 
 	p, out := newPrompter("prod\n", true, false, false)
-	assert.NoError(t, p.ConfirmName("project", "prod", ""))
+	assert.NoError(t, p.ConfirmName(t.Context(), "project", "prod", ""))
 	assert.Contains(t, out.String(), `Type the project name "prod" to confirm: `)
 
 	p, _ = newPrompter("other\n", true, false, false)
-	assert.Equal(t, ErrAborted, p.ConfirmName("project", "prod", ""))
+	assert.Equal(t, ErrAborted, p.ConfirmName(t.Context(), "project", "prod", ""))
 }

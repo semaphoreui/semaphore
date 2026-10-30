@@ -62,6 +62,82 @@ func runReader(t *testing.T, env map[string]string, stdin io.Reader, interactive
 	return out.String(), errOut.String(), err
 }
 
+// runCancellable is runReader with a context the caller can cancel, standing
+// in for the SIGINT the signal handler turns into a cancellation.
+func runCancellable(t *testing.T, ctx context.Context, env map[string]string, stdin io.Reader, args ...string) (string, string, error) {
+	t.Helper()
+	if env == nil {
+		env = map[string]string{}
+	}
+	if _, ok := env[config.EnvConfig]; !ok {
+		env[config.EnvConfig] = filepath.Join(t.TempDir(), "client.yml")
+	}
+	var out, errOut bytes.Buffer
+	cmd := NewCommand(IO{
+		In:      stdin,
+		Out:     &out,
+		Err:     &errOut,
+		Getenv:  func(k string) string { return env[k] },
+		Version: "2.20.0-test",
+
+		forceInteractive: true,
+		pollInterval:     5 * time.Millisecond,
+	})
+	cmd.SetArgs(args)
+	cmd.SetOut(&out)
+	cmd.SetErr(&errOut)
+	err := cmd.ExecuteContext(ctx)
+	return out.String(), errOut.String(), err
+}
+
+// Ctrl+C is trapped so that a wait can end cleanly, which means a prompt that
+// reads stdin directly would swallow it and hang. Every question must give up
+// when the context does.
+func TestPrompts_GiveUpOnCancellation(t *testing.T) {
+	srv := httptest.NewServer(newAuthServer().handler(t))
+	defer srv.Close()
+
+	cfgPath := filepath.Join(t.TempDir(), "client.yml")
+	require.NoError(t, config.Save(cfgPath, &config.File{
+		Contexts: map[string]config.Context{"default": {URL: srv.URL, Token: "good-token"}},
+	}))
+	env := map[string]string{config.EnvConfig: cfgPath}
+
+	for _, tt := range []struct {
+		name string
+		args []string
+	}{
+		{"delete confirmation", []string{"context", "delete", "default"}},
+		{"token from stdin", []string{"auth", "login", "--url", srv.URL, "--with-token"}},
+		{"password", []string{"auth", "login", "--url", srv.URL, "--login", "admin"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			go func() {
+				time.Sleep(30 * time.Millisecond)
+				cancel()
+			}()
+
+			// A reader that never answers: only the cancellation can end this.
+			in, w := io.Pipe()
+			defer w.Close()
+
+			done := make(chan error, 1)
+			go func() {
+				_, _, err := runCancellable(t, ctx, env, in, tt.args...)
+				done <- err
+			}()
+
+			select {
+			case err := <-done:
+				assert.Equal(t, ExitInterrupted, ExitCode(err), "a cancelled prompt exits 130")
+			case <-time.After(5 * time.Second):
+				t.Fatal("the command is still blocked on the prompt")
+			}
+		})
+	}
+}
+
 func infoServer(t *testing.T, version string, wantToken string) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -116,7 +117,10 @@ var registerPersistentFlags = sync.OnceFunc(func() {
 func Execute() {
 	registerPersistentFlags()
 	if err := rootCmd.Execute(); err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
+		// Ctrl+C needs no explanation, and "context canceled" is not one.
+		if !errors.Is(err, context.Canceled) {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+		}
 		// `semaphore client` distinguishes usage, auth, not-found and task
 		// outcomes by exit code; every other command keeps exiting with 1.
 		os.Exit(client.ExitCode(err))
