@@ -25,7 +25,9 @@
             :class="{'task-link-with-tooltip': tooltip}"
             data-testid="taskLink-open"
         >
-          {{ label }}
+          <!-- Vue 2 kept the spaces around the label (whitespace `condense`); after the status icon
+               the dashed underline starts with the space, Vue 3 drops it. -->
+          {{ ' ' }}{{ label }}{{ ' ' }}
         </a>
       </template>
 
@@ -42,6 +44,16 @@
   text-decoration: underline !important;
   text-decoration-style: dashed !important;
   text-decoration-color: gray !important;
+}
+
+// An icon without a colour is in the icon colour of the theme, as in Vuetify 2
+// (`.theme--light.v-icon`: .54 / white); Vuetify 4 gives it the text colour.
+.task-link > .v-icon.v-theme--light:not([class*="text-"]) {
+  color: rgba(0, 0, 0, .54);
+}
+
+.task-link > .v-icon.v-theme--dark:not([class*="text-"]) {
+  color: #fff;
 }
 
 a.task-link-with-tooltip {
@@ -71,7 +83,9 @@ export default {
         case 'error':
           return 'red';
         default:
-          return 'gray';
+          // No colour of its own: the grey icon of the theme (style below), as `gray` gave in
+          // Vuetify 2, which has no such colour.
+          return undefined;
       }
     },
     statusIcon() {

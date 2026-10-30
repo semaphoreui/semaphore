@@ -2,12 +2,14 @@
   <v-chip
     v-if="status"
     style="font-weight: bold;"
+    class="task-status"
+    :class="{'task-status--no-color': !getStatusColor(status)}"
     :color="getStatusColor(status)"
-    :variant="getStatusColor(status) ? 'flat' : 'tonal'"
   >
     <v-icon
       v-if="status !== 'running'"
       start
+      size="24"
       :icon="getStatusIcon(status)"
       :data-testid="`taskStatus-${status}`"
     />
@@ -19,6 +21,23 @@
     {{ humanizeStatus(status) }}
   </v-chip>
 </template>
+<style lang="scss">
+// Vuetify 2 look: the chip is filled (VChip default `flat`; without a colour — the grey chip of
+// Vuetify 2), its icon 24 px (`$chip-icon-size`; Vuetify 4 scales it to 18/21) and, on a chip
+// without a colour, in the icon colour of the theme (`.theme--light.v-icon`: .54 / white), not in
+// the text colour. The text line is 20 px (`$chip-line-height`), not the 21 px around the chip.
+.v-chip.task-status {
+  line-height: 20px;
+}
+
+.v-chip.task-status--no-color.v-theme--light .v-icon {
+  color: rgba(0, 0, 0, .54);
+}
+
+.v-chip.task-status--no-color.v-theme--dark .v-icon {
+  color: #fff;
+}
+</style>
 <script>
 import IndeterminateProgressCircular from '@/components/IndeterminateProgressCircular.vue';
 
