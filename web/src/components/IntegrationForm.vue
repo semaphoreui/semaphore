@@ -137,9 +137,9 @@
 
         <v-select
             v-model="item.auth_secret_id"
-            :label="$t('vaultPassword2')"
+            :label="$t('integrationAuthSecret')"
             clearable
-            :items="loginPasswordKeys"
+            :items="authSecretKeys"
             item-value="id"
             item-text="name"
             :disabled="formSaving"
@@ -225,6 +225,19 @@ export default {
     }
   },
 
+  watch: {
+    // A key picked for a token method may not fit BasicAuth: drop it rather
+    // than send a pair the server rejects.
+    'item.auth_method': function onAuthMethodChange() {
+      if (this.item == null || this.item.auth_secret_id == null || this.authSecretKeys == null) {
+        return;
+      }
+      if (!this.authSecretKeys.some((key) => key.id === this.item.auth_secret_id)) {
+        this.item.auth_secret_id = null;
+      }
+    },
+  },
+
   computed: {
     isLoaded() {
       return this.item && this.keys != null;
@@ -243,11 +256,16 @@ export default {
       return !!(this.features && this.features.workflow_integrations_management);
     },
 
-    loginPasswordKeys() {
+    // Token and HMAC-style methods verify one secret string, so a String key or
+    // a login/password key fits; BasicAuth also needs a login, so only the latter.
+    authSecretKeys() {
       if (this.keys == null) {
         return null;
       }
-      return this.keys.filter((key) => key.type === 'login_password');
+      const allowed = this.item && this.item.auth_method === 'basic'
+        ? ['login_password']
+        : ['login_password', 'string'];
+      return this.keys.filter((key) => allowed.includes(key.type));
     },
 
     template() {
