@@ -6,10 +6,12 @@
     data-testid="integrationValueForm-form"
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
+    <!-- mb-3: in Vuetify 2 the 16 px under the alert took in the 4 px top margin of the Name
+         field; in Vuetify 4 those 4 px sit inside the field and add up. -->
     <v-alert
       :model-value="!!formError"
       color="error"
-      class="pb-2"
+      class="pb-2 mb-3"
       data-testid="integrationValueForm-error"
     >{{ formError }}</v-alert>
 
@@ -21,7 +23,9 @@
       required
       :disabled="formSaving"
     ></v-text-field>
-    <v-row>
+    <!-- mb-n3: the bottom −12 px of a Vuetify 2 row under a `pb-0` column (the grid of Vuetify 4
+         has no negative margins). -->
+    <v-row class="mb-n3">
       <v-col cols="12" md="12" class="pb-0">
         <div class="ml-4 mr-4 mt-6">
           <v-select

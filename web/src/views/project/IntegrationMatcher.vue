@@ -62,57 +62,65 @@
       >
     </v-toolbar>
 
-    <v-data-table
-      :headers="headers"
-      :items="items"
-      class="mt-4"
-      :items-per-page="-1"
-      data-testid="integrationMatcher-table"
-      :data-state="items.length === 0 ? 'empty' : 'ready'"
-    >
-      <template v-slot:item.name="{ item }">
-        {{ item.name }}
-      </template>
-      <template v-slot:item.match_type="{ item }">
-        <code data-testid="integrationMatcher-rowMatchType">{{ item.match_type }}</code>
-      </template>
-      <template v-slot:item.method="{ item }">
-        <code data-testid="integrationMatcher-rowMethod">{{ item.method }}</code>
-      </template>
-      <template v-slot:item.body_data_type="{ item }">
-        {{ item.body_data_type || 'N/A' }}
-      </template>
-      <template v-slot:item.key="{ item }">
-        <code data-testid="integrationMatcher-rowKey">{{ item.key }}</code>
-      </template>
-      <template v-slot:item.value="{ item }">
-        <code data-testid="integrationMatcher-rowValue">{{ item.value }}</code>
-      </template>
+    <!-- The footer of Vuetify 2: the rows-per-page select an underlined field (the footer of
+         Vuetify 4 takes the variant of its own nested VSelect defaults, else outlined), no
+         first / last page buttons, a dash for the range of an empty table. -->
+    <v-defaults-provider :defaults="{ VDataTableFooter: { VSelect: { variant: 'underlined' } } }">
+      <v-data-table
+        :headers="headers"
+        :items="items"
+        class="mt-4 IntegrationExtractorTable"
+        :items-per-page="-1"
+        :items-per-page-text="$t('rowsPerPage')"
+        :show-first-last-page="false"
+        :page-text="items.length === 0 ? '–' : undefined"
+        data-testid="integrationMatcher-table"
+        :data-state="items.length === 0 ? 'empty' : 'ready'"
+      >
+        <template v-slot:item.name="{ item }">
+          {{ item.name }}
+        </template>
+        <template v-slot:item.match_type="{ item }">
+          <code data-testid="integrationMatcher-rowMatchType">{{ item.match_type }}</code>
+        </template>
+        <template v-slot:item.method="{ item }">
+          <code data-testid="integrationMatcher-rowMethod">{{ item.method }}</code>
+        </template>
+        <template v-slot:item.body_data_type="{ item }">
+          {{ item.body_data_type || 'N/A' }}
+        </template>
+        <template v-slot:item.key="{ item }">
+          <code data-testid="integrationMatcher-rowKey">{{ item.key }}</code>
+        </template>
+        <template v-slot:item.value="{ item }">
+          <code data-testid="integrationMatcher-rowValue">{{ item.value }}</code>
+        </template>
 
-      <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap" data-testid="integrationMatcher-rowActions">
-          <v-btn
-            icon
-            variant="text"
-            class="mr-1"
-            @click="askDeleteItem(item.id)"
-            data-testid="integrationMatcher-rowDelete"
-          >
-            <v-icon>mdi-delete</v-icon>
-          </v-btn>
+        <template v-slot:item.actions="{ item }">
+          <div style="white-space: nowrap" data-testid="integrationMatcher-rowActions">
+            <v-btn
+              icon
+              variant="text"
+              class="mr-1"
+              @click="askDeleteItem(item.id)"
+              data-testid="integrationMatcher-rowDelete"
+            >
+              <v-icon>mdi-delete</v-icon>
+            </v-btn>
 
-          <v-btn
-            icon
-            variant="text"
-            class="mr-1"
-            @click="editItem(item.id)"
-            data-testid="integrationMatcher-rowEdit"
-          >
-            <v-icon>mdi-pencil</v-icon>
-          </v-btn>
-        </div>
-      </template>
-    </v-data-table>
+            <v-btn
+              icon
+              variant="text"
+              class="mr-1"
+              @click="editItem(item.id)"
+              data-testid="integrationMatcher-rowEdit"
+            >
+              <v-icon>mdi-pencil</v-icon>
+            </v-btn>
+          </div>
+        </template>
+      </v-data-table>
+    </v-defaults-provider>
   </div>
 </template>
 <script>
