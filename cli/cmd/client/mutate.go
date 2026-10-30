@@ -128,8 +128,12 @@ written back — so nothing you did not mention is lost.`, m.res.kind),
 		if err != nil {
 			return err
 		}
+		originalID := m.res.id(item)
 		if err := loadFromFile(cmd, fromFile, &item); err != nil {
 			return err
+		}
+		if m.res.id(item) != originalID {
+			return usage(cmd.CommandPath(), "--from-file must not change the object id from %d to %d", originalID, m.res.id(item))
 		}
 		if err := apply(cmd, r, api, projectID, &item); err != nil {
 			return err
