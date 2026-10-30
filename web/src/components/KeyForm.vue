@@ -3,6 +3,7 @@
     ref="form"
     v-model="formValid"
     v-if="item != null && secretStorages != null"
+    class="KeyForm"
     data-testid="key-form"
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
@@ -27,12 +28,12 @@
     <v-card
       class="mb-6"
       :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
-      style="background: #8585850f"
       data-testid="key-source"
     >
       <v-tabs
         fixed-tabs
         v-model="sourceStorageTypeIndex"
+        class="KeyForm__sourceTabs"
         data-testid="key-sourceTabs"
       >
         <v-tab
@@ -70,7 +71,7 @@
         <v-alert
           variant="tonal"
           color="hsl(348deg, 86%, 61%)"
-          class="PageAlert PageAlert--flat-top"
+          class="PageAlert PageAlert--flat-top mb-0"
           v-if="!supportStorages && sourceStorageType === 'vault'"
           data-testid="key-storageUpgradeAlert"
         >
@@ -96,6 +97,7 @@
           variant="outlined"
           density="compact"
           clearable
+          :menu-props="storageMenu"
           data-testid="key-sourceStorageId"
         />
 
@@ -214,6 +216,7 @@
           (v) => !canEditSecrets || item.generate_ssh_key || !!v || $t('private_key_required')
         ]"
       v-if="!isReadOnly && item.type === 'ssh'"
+      class="KeyForm__privateKey"
       data-testid="key-sshPrivateKey"
     />
 
@@ -278,6 +281,48 @@
     </v-alert>
   </v-form>
 </template>
+<style lang="scss">
+// The source card is white (#212121 in the dark theme) as in Vuetify 2, where the colour class
+// of `color` hid the inline grey background the card had (removed: in Vuetify 4 it won).
+
+// The source tabs share the card width equally, as `fixed-tabs` of Vuetify 2 did
+// (`.v-tabs--fixed-tabs .v-tab { flex: 1 1 auto; width: 100% }`); Vuetify 4 sizes them by text.
+.KeyForm__sourceTabs .v-tab {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+// The outlined textarea of Vuetify 2 (`.v-textarea textarea`): lines of 28 px, 10 px above the
+// text, none below — 150 px for 5 rows (Vuetify 4: 24 px lines between 16 px paddings, 152 px).
+.KeyForm__privateKey textarea.v-field__input {
+  padding-top: 10px;
+  padding-bottom: 0;
+  line-height: 28px;
+}
+
+// The message of a disabled field (the stale "Private key is required" under Generate SSH Key)
+// in the disabled text colour, not dimmed again (Vuetify 2: no error state while disabled; the
+// grey outline — App.vue).
+.KeyForm .v-input--disabled > .v-input__details {
+  opacity: 1;
+
+  .v-messages {
+    color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+  }
+}
+
+// A disabled checkbox (Generate SSH Key, Override) in the disabled text colour
+// (`.v-input--is-disabled` of Vuetify 2), not the medium emphasis dimmed to .38 again.
+.KeyForm .v-selection-control--disabled {
+  opacity: 1;
+
+  .v-label,
+  .v-selection-control__input > .v-icon {
+    color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+    opacity: 1;
+  }
+}
+</style>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
@@ -314,6 +359,9 @@ export default {
       secretStorages: null,
       isSynced: false,
       showPublicKey: false,
+      // The list of the storage autocomplete 1 px under the field and at most 304 px high, as the
+      // `offset-y` menu of Vuetify 2 (`menuProps`; Vuetify 4: flush with the field, 310 px).
+      storageMenu: { maxHeight: 304, offset: 1 },
     };
   },
 

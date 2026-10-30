@@ -156,6 +156,16 @@
   max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
   margin: auto;
 }
+
+// The chips of the name column as high as in Vuetify 2 (`.v-size--small` 24 px,
+// `.v-size--x-small` 16 px); Vuetify 4 makes them 26 and 20 px.
+.KeysTable .v-chip.v-chip--size-small {
+  --v-chip-height: 24px;
+}
+
+.KeysTable .v-chip.v-chip--size-x-small {
+  --v-chip-height: 16px;
+}
 </style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';

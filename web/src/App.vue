@@ -851,9 +851,13 @@ html.WorkflowEditor-html body {
 }
 
 // The snackbar in the middle of the window, over the drawer, as in Vuetify 2 (without `app`);
-// Vuetify 4 pads it by the layout, into the middle of the main area.
+// Vuetify 4 pads it by the layout, into the middle of the main area. The snackbar box covers the
+// whole window with the 8 px inside it (`.v-snack`: padding 8px), not 8 px in from the window
+// (Vuetify 4: margin 8px): the bar stays where it is, the box of `app-snackbar` is the window.
 .AppSnackbar {
-  padding: 0;
+  margin: 0;
+  padding: 8px;
+  padding-inline-end: calc(8px + var(--v-scrollbar-offset));
 }
 
 // Vuetify animates the main area's padding when the drawer width changes;
@@ -1177,7 +1181,9 @@ html.WorkflowEditor-html body {
   }
 
   // An error outline stays red when focused, as in Vuetify 2: its parts too, over the rule above.
-  &.v-field--error .v-field__outline {
+  // A disabled field has no error state in Vuetify 2 (`validationState` is empty): its outline
+  // stays grey, as the outline of Vuetify 4 itself (`.v-field--error:not(.v-field--disabled)`).
+  &.v-field--error:not(.v-field--disabled) .v-field__outline {
     --v-field-border-width: 2px !important;
     color: #ff5252;
 
