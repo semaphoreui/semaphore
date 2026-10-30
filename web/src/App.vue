@@ -858,6 +858,19 @@ html.WorkflowEditor-html body {
   margin: 0;
   padding: 8px;
   padding-inline-end: calc(8px + var(--v-scrollbar-offset));
+
+  // The bar is positioned absolutely, so the 8 px above do not hold a long message: it would grow
+  // to the whole window width on a phone. Vuetify 2 kept 8 px on both sides (`.v-snack__wrapper`
+  // margin 8px inside the window).
+  > .v-snackbar__wrapper {
+    max-width: min(672px, calc(100% - 16px - var(--v-scrollbar-offset)));
+  }
+
+  // Vuetify 2 always rendered the (here empty) `.v-snack__action` with margin-right 8px after the
+  // content; Vuetify 4 renders no actions without the slot: the bar is 8 px narrower.
+  .v-snackbar__content {
+    padding-inline-end: 24px;
+  }
 }
 
 // Vuetify animates the main area's padding when the drawer width changes;

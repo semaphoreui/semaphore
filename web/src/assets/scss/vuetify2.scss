@@ -178,8 +178,19 @@
     line-height: 1.375rem;
   }
 
+  // Actions start at the left edge (`.v-card__actions` had no `justify-content`; Vuetify 4 pushes
+  // them to the end) and only a button after a button is 8 px off (`.v-btn + .v-btn`
+  // margin-left), not every item (Vuetify 4 `gap`, also after the spacer): the spacer in front of
+  // the buttons right-aligns them as before, and buttons wider than the card start at its padding
+  // and run out past its right edge.
   > .v-card-actions {
+    justify-content: flex-start;
+    gap: 0;
     padding: 8px 16px;
+
+    > .v-btn + .v-btn {
+      margin-inline-start: 8px;
+    }
   }
 }
 
