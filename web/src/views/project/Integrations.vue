@@ -112,11 +112,10 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      class="mt-4"
+      class="mt-4 IntegrationsTable"
       :items-per-page="-1"
       data-testid="integrations-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.name="{ item }">
         <router-link
@@ -167,6 +166,13 @@
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.IntegrationsTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+</style>
 <script>
 import axios from 'axios';
 
