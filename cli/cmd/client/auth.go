@@ -94,12 +94,15 @@ func runAuthLogin(cmd *cobra.Command, r *runtime, api *apiclient.Client, withTok
 		return err
 	}
 
+	// Flag first, then whatever Resolve settled on (the environment, or the
+	// context named "default"). Logging in never renames or re-points a
+	// context the user did not ask for.
 	contextName := r.flags.Context
 	if contextName == "" {
 		contextName = r.cfg.ContextName
 	}
 	if contextName == "" {
-		contextName = hostOf(api.BaseURL())
+		contextName = config.DefaultContextName
 	}
 
 	var token string
@@ -130,20 +133,32 @@ func runAuthLogin(cmd *cobra.Command, r *runtime, api *apiclient.Client, withTok
 		return err
 	}
 
-	saved := r.cfgFile.Contexts[contextName]
+	saved, existed := r.cfgFile.Contexts[contextName]
+	movedTo := existed && saved.URL != "" && saved.URL != api.BaseURL()
+	if movedTo {
+		// The context now points at another server: a default project saved
+		// for the old one names an id that means something else here.
+		r.warnf("Context %q pointed at %s; replacing it with %s.", contextName, saved.URL, api.BaseURL())
+		if saved.Project != "" {
+			r.warnf("Default project %q dropped: it belonged to the previous server.", saved.Project)
+			saved.Project = ""
+		}
+	}
 	saved.URL = api.BaseURL()
 	saved.Token = token
 	saved.TokenFile = ""
 	saved.CACert = r.cfg.CACert
 	saved.Insecure = r.cfg.Insecure
 	r.cfgFile.SetContext(contextName, saved)
-	r.cfgFile.CurrentContext = contextName
 	if err := r.saveConfig(); err != nil {
 		return err
 	}
 
 	r.warnf("Logged in to %s as %s.", api.BaseURL(), me.Username)
-	r.warnf("Context %q saved to %s and selected as current.", contextName, r.cfgPath)
+	r.warnf("Context %q saved to %s.", contextName, r.cfgPath)
+	if contextName != config.DefaultContextName {
+		r.warnf("Use it with --context %s, or set %s=%s.", contextName, config.EnvContext, contextName)
+	}
 	return nil
 }
 
@@ -335,11 +350,13 @@ The context itself (URL, project, TLS settings) stays; delete it with
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			r := rt(cmd)
-			if r.cfg.ContextName == "" {
-				return usage(cmd.CommandPath(), "no context is selected; logout works on a context saved by 'auth login'")
-			}
 			saved, ok := r.cfgFile.Contexts[r.cfg.ContextName]
 			if !ok {
+				// The implicit "default" may simply not be there yet; an
+				// explicitly named context that is missing is an error.
+				if r.cfg.Sources.Context == config.SourceNone {
+					return usage(cmd.CommandPath(), "no context %q in %s; logout works on a context saved by 'auth login'", r.cfg.ContextName, r.cfgPath)
+				}
 				return fmt.Errorf("%w %q", config.ErrUnknownContext, r.cfg.ContextName)
 			}
 			if saved.Token == "" && saved.TokenFile == "" {

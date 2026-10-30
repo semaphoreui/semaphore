@@ -142,11 +142,12 @@ func TestAuthLogin_WithTokenFromStdin(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, out, "nothing on stdout")
 	assert.Contains(t, errOut, "Logged in to "+srv.URL+" as admin.")
-	assert.Contains(t, errOut, `Context "127.0.0.1" saved to `+cfgPath)
+	assert.Contains(t, errOut, `Context "default" saved to `+cfgPath)
+	assert.NotContains(t, errOut, "--context", "the default context needs no instructions")
 
 	f := loadCfg(t, cfgPath)
-	assert.Equal(t, "127.0.0.1", f.CurrentContext)
-	assert.Equal(t, config.Context{URL: srv.URL, Token: "good-token"}, f.Contexts["127.0.0.1"])
+	assert.Equal(t, []string{"default"}, f.ContextNames())
+	assert.Equal(t, config.Context{URL: srv.URL, Token: "good-token"}, f.Contexts["default"])
 	if goruntime.GOOS != "windows" {
 		info, err := os.Stat(cfgPath)
 		require.NoError(t, err)
@@ -158,7 +159,7 @@ func TestAuthLogin_WithTokenFromStdin(t *testing.T) {
 	require.NoError(t, err)
 	var st map[string]any
 	require.NoError(t, json.Unmarshal([]byte(out), &st))
-	assert.Equal(t, "127.0.0.1", st["context"])
+	assert.Equal(t, "default", st["context"])
 	assert.Equal(t, "admin", st["user"])
 	assert.Equal(t, "context:token", st["token_source"])
 	assert.Equal(t, "2.20.3", st["server_version"])
@@ -170,7 +171,7 @@ func TestAuthLogin_WithTokenFromStdin(t *testing.T) {
 
 	out, _, err = run(t, env, "", "context", "list")
 	require.NoError(t, err)
-	assert.Equal(t, "NAME\tCURRENT\tURL\tPROJECT\tTOKEN\n127.0.0.1\ttrue\t"+srv.URL+"\t\tinline\n", out)
+	assert.Equal(t, "NAME\tURL\tPROJECT\tTOKEN\ndefault\t"+srv.URL+"\t\tinline\n", out)
 	assert.NotContains(t, out, "good-token", "the token is never listed")
 }
 
@@ -224,8 +225,8 @@ func TestAuthLogin_Password(t *testing.T) {
 	assert.Equal(t, 1, s.loggedOut, "the web session is closed")
 
 	f := loadCfg(t, cfgPath)
-	assert.Equal(t, "work", f.CurrentContext)
 	assert.Equal(t, createdToken, f.Contexts["work"].Token)
+	assert.Contains(t, errOut, "Use it with --context work", "a named context is not picked up on its own")
 
 	// --login skips the first prompt; a default token name is used.
 	_, errOut, err = runWith(t, env, "pw\n", true, "auth", "login", "--url", srv.URL, "--login", "admin")
@@ -288,19 +289,18 @@ func TestAuthLogin_KeepsProjectAndTLSOfExistingContext(t *testing.T) {
 	defer srv.Close()
 	cfgPath := filepath.Join(t.TempDir(), "client.yml")
 	require.NoError(t, config.Save(cfgPath, &config.File{
-		CurrentContext: "old",
-		Contexts:       map[string]config.Context{"old": {URL: srv.URL, Token: "stale", Project: "7", TokenFile: ""}},
+		Contexts: map[string]config.Context{"default": {URL: srv.URL, Token: "stale", Project: "7", TokenFile: ""}},
 	}))
 	env := map[string]string{config.EnvConfig: cfgPath}
 
-	// Re-login into the current context without --url: the context's URL is used.
+	// Re-login into the same server without --url: the context's URL is used
+	// and its default project survives.
 	_, _, err := run(t, env, "good-token\n", "auth", "login", "--insecure")
 	require.NoError(t, err)
 	f := loadCfg(t, cfgPath)
-	assert.Equal(t, "old", f.CurrentContext)
-	assert.Equal(t, config.Context{URL: srv.URL, Token: "good-token", Project: "7", Insecure: true}, f.Contexts["old"])
+	assert.Equal(t, config.Context{URL: srv.URL, Token: "good-token", Project: "7", Insecure: true}, f.Contexts["default"])
 
-	// A new named context must get its URL from --url, not from the current one.
+	// A new named context must get its URL from --url, not from the default one.
 	_, _, err = run(t, env, "good-token\n", "auth", "login", "--context", "fresh")
 	var u *UsageError
 	require.ErrorAs(t, err, &u)
@@ -309,8 +309,53 @@ func TestAuthLogin_KeepsProjectAndTLSOfExistingContext(t *testing.T) {
 	_, _, err = run(t, env, "good-token\n", "auth", "login", "--context", "fresh", "--url", srv.URL)
 	require.NoError(t, err)
 	f = loadCfg(t, cfgPath)
-	assert.Equal(t, "fresh", f.CurrentContext)
-	assert.Equal(t, []string{"fresh", "old"}, f.ContextNames())
+	assert.Equal(t, []string{"default", "fresh"}, f.ContextNames())
+
+	// SEMAPHORE_CLIENT_CONTEXT names a context that does not exist yet: it is
+	// created, exactly like --context.
+	envNamed := map[string]string{config.EnvConfig: cfgPath, config.EnvContext: "from-env"}
+	_, _, err = run(t, envNamed, "good-token\n", "auth", "login", "--url", srv.URL)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"default", "fresh", "from-env"}, loadCfg(t, cfgPath).ContextNames())
+}
+
+// The defect this guards: with a saved "current context", logging in to
+// another server replaced that context's URL and token in place, and left its
+// default project pointing at a project id on the old server.
+func TestAuthLogin_DoesNotTakeOverANamedContext(t *testing.T) {
+	s := newAuthServer()
+	srv := httptest.NewServer(s.handler(t))
+	defer srv.Close()
+	other := httptest.NewServer(s.handler(t))
+	defer other.Close()
+
+	cfgPath := filepath.Join(t.TempDir(), "client.yml")
+	prod := config.Context{URL: srv.URL, Token: "good-token", Project: "3"}
+	require.NoError(t, config.Save(cfgPath, &config.File{Contexts: map[string]config.Context{"prod": prod}}))
+	env := map[string]string{config.EnvConfig: cfgPath}
+
+	_, errOut, err := run(t, env, "good-token\n", "auth", "login", "--url", other.URL)
+	require.NoError(t, err)
+	assert.Contains(t, errOut, `Context "default" saved`)
+
+	f := loadCfg(t, cfgPath)
+	assert.Equal(t, prod, f.Contexts["prod"], "the named context keeps its server, token and project")
+	assert.Equal(t, config.Context{URL: other.URL, Token: "good-token"}, f.Contexts["default"])
+
+	// Pointing an existing context at another server drops the project saved
+	// for the old one: the id means something else there.
+	_, errOut, err = run(t, env, "good-token\n", "auth", "login", "--url", other.URL, "--context", "prod")
+	require.NoError(t, err)
+	assert.Contains(t, errOut, "pointed at "+srv.URL)
+	assert.Contains(t, errOut, `Default project "3" dropped`)
+	assert.Equal(t, config.Context{URL: other.URL, Token: "good-token"}, loadCfg(t, cfgPath).Contexts["prod"])
+
+	// Logging in again to the same server keeps everything else.
+	require.NoError(t, config.Save(cfgPath, &config.File{Contexts: map[string]config.Context{"prod": {URL: srv.URL, Token: "old", Project: "3"}}}))
+	_, errOut, err = run(t, env, "good-token\n", "auth", "login", "--context", "prod")
+	require.NoError(t, err)
+	assert.NotContains(t, errOut, "dropped")
+	assert.Equal(t, "3", loadCfg(t, cfgPath).Contexts["prod"].Project)
 }
 
 func TestAuthLogout(t *testing.T) {
@@ -319,9 +364,8 @@ func TestAuthLogout(t *testing.T) {
 	defer srv.Close()
 	cfgPath := filepath.Join(t.TempDir(), "client.yml")
 	require.NoError(t, config.Save(cfgPath, &config.File{
-		CurrentContext: "prod",
 		Contexts: map[string]config.Context{
-			"prod":    {URL: srv.URL, Token: "good-token", Project: "3"},
+			"default": {URL: srv.URL, Token: "good-token", Project: "3"},
 			"staging": {URL: srv.URL, Token: "good-token"},
 		},
 	}))
@@ -331,9 +375,9 @@ func TestAuthLogout(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"good-tok"}, s.deleted, "revoked by the 8-character prefix the server lists")
 	assert.Contains(t, errOut, "Token revoked")
-	assert.Contains(t, errOut, `Token removed from context "prod"`)
+	assert.Contains(t, errOut, `Token removed from context "default"`)
 	f := loadCfg(t, cfgPath)
-	assert.Equal(t, config.Context{URL: srv.URL, Project: "3"}, f.Contexts["prod"], "URL and project survive")
+	assert.Equal(t, config.Context{URL: srv.URL, Project: "3"}, f.Contexts["default"], "URL and project survive")
 	assert.Equal(t, "good-token", f.Contexts["staging"].Token, "other contexts untouched")
 
 	// Logging out again is a no-op.
@@ -348,7 +392,7 @@ func TestAuthLogout(t *testing.T) {
 	assert.Empty(t, loadCfg(t, cfgPath).Contexts["staging"].Token)
 
 	// --revoke with the token coming from the environment is refused.
-	require.NoError(t, config.Save(cfgPath, &config.File{CurrentContext: "prod", Contexts: map[string]config.Context{"prod": {URL: srv.URL, Token: "good-token"}}}))
+	require.NoError(t, config.Save(cfgPath, &config.File{Contexts: map[string]config.Context{"default": {URL: srv.URL, Token: "good-token"}}}))
 	_, _, err = run(t, map[string]string{config.EnvConfig: cfgPath, config.EnvURL: srv.URL, config.EnvToken: "good-token"}, "", "auth", "logout", "--revoke")
 	var u *UsageError
 	require.ErrorAs(t, err, &u)

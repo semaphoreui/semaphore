@@ -112,20 +112,19 @@ func TestInfo_ContextFile(t *testing.T) {
 
 	cfgPath := filepath.Join(t.TempDir(), "client.yml")
 	require.NoError(t, config.Save(cfgPath, &config.File{
-		CurrentContext: "lab",
-		Contexts:       map[string]config.Context{"lab": {URL: srv.URL, Token: "ctx-token"}, "other": {URL: "http://127.0.0.1:1", Token: "x"}},
-		Defaults:       config.Defaults{Output: "yaml"},
+		Contexts: map[string]config.Context{"default": {URL: srv.URL, Token: "ctx-token"}, "other": {URL: "http://127.0.0.1:1", Token: "x"}},
+		Defaults: config.Defaults{Output: "yaml"},
 	}))
 
 	out, _, err := run(t, map[string]string{config.EnvConfig: cfgPath}, "", "info")
 	require.NoError(t, err)
 	assert.Contains(t, out, "server_version: 2.20.3\n", "defaults.output from the file applies")
-	assert.Contains(t, out, "context: lab\n")
+	assert.Contains(t, out, "context: default\n")
 
 	// Flag beats file.
 	out, _, err = run(t, map[string]string{config.EnvConfig: cfgPath}, "", "info", "-o", "json", "--fields", "context")
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"context":"lab"}`, out)
+	assert.JSONEq(t, `{"context":"default"}`, out)
 
 	// An env token must not ride along to a context's URL.
 	_, _, err = run(t, map[string]string{config.EnvConfig: cfgPath, config.EnvToken: "ci"}, "", "info")

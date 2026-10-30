@@ -91,23 +91,26 @@ func Resolve(flags Flags, getenv func(string) string, file *File) (Effective, er
 	}
 	var eff Effective
 
-	// Context: flag > env > current_context. An explicitly named context must
-	// exist; a missing current_context is fine (environment-only setups).
+	// Context: flag > env > the one named "default". A context named on the
+	// command line or in the environment must exist; the implicit default may
+	// be absent, which is the normal state of an environment-only setup.
 	var ctx Context
+	named := true
 	switch {
 	case flags.Context != "":
 		eff.ContextName, eff.Sources.Context = flags.Context, SourceFlag
 	case getenv(EnvContext) != "":
 		eff.ContextName, eff.Sources.Context = getenv(EnvContext), SourceEnv
-	case file.CurrentContext != "":
-		eff.ContextName, eff.Sources.Context = file.CurrentContext, SourceContext
+	default:
+		eff.ContextName, eff.Sources.Context, named = DefaultContextName, SourceDefault, false
 	}
-	if eff.ContextName != "" {
-		var ok bool
-		ctx, ok = file.Contexts[eff.ContextName]
-		if !ok {
+	var ok bool
+	ctx, ok = file.Contexts[eff.ContextName]
+	if !ok {
+		if named {
 			return eff, fmt.Errorf("%w %q; known contexts: %s", ErrUnknownContext, eff.ContextName, joinOrNone(file.ContextNames()))
 		}
+		eff.Sources.Context = SourceNone
 	}
 
 	// URL.

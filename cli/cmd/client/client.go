@@ -5,6 +5,7 @@ package client
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -79,6 +80,25 @@ type ctxKey struct{}
 // exist yet (auth login); for every other command an unknown --context is an
 // error.
 const annotationNewContext = "client.newContext"
+
+// usageOnBadArgs makes cobra's own argument complaints — a wrong number of
+// them, or an unknown subcommand — exit 2 like every other usage error,
+// instead of 1 which means "the command ran and failed".
+func usageOnBadArgs(cmd *cobra.Command) {
+	for _, c := range cmd.Commands() {
+		usageOnBadArgs(c)
+	}
+	inner := cmd.Args
+	if inner == nil {
+		return
+	}
+	cmd.Args = func(c *cobra.Command, args []string) error {
+		if err := inner(c, args); err != nil {
+			return usage(c.CommandPath(), "%v", err)
+		}
+		return nil
+	}
+}
 
 // rt returns the runtime stored by the pre-run hook.
 func rt(cmd *cobra.Command) *runtime {
@@ -163,6 +183,7 @@ stopped, 124 wait timeout, 130 interrupted.`,
 	cmd.AddCommand(newInfoCmd(), newAuthCmd(), newContextCmd())
 	cmd.AddCommand(resourceCommands()...)
 	silence(cmd)
+	usageOnBadArgs(cmd)
 	return cmd
 }
 
@@ -198,12 +219,24 @@ func newRuntime(cmd *cobra.Command, stdio IO, f *flags) (*runtime, error) {
 	}
 
 	cfg, err := config.Resolve(f.Flags, stdio.Getenv, cfgFile)
-	if errors.Is(err, config.ErrUnknownContext) && f.Context != "" && cmd.Annotations[annotationNewContext] == "true" {
+	namedContext := f.Context != "" || stdio.Getenv(config.EnvContext) != ""
+	if errors.Is(err, config.ErrUnknownContext) && namedContext && cmd.Annotations[annotationNewContext] == "true" {
 		// `auth login --context NAME` creates NAME: resolve without any
 		// context so that the URL must come from --url or the environment.
 		noCtx := f.Flags
 		noCtx.Context = ""
-		cfg, err = config.Resolve(noCtx, stdio.Getenv, &config.File{Contexts: cfgFile.Contexts, Defaults: cfgFile.Defaults})
+		getenv := func(k string) string {
+			if k == config.EnvContext {
+				return ""
+			}
+			return stdio.Getenv(k)
+		}
+		// No contexts at all in the copy: creating a context must take its URL
+		// from --url or the environment, never from the one named "default".
+		cfg, err = config.Resolve(noCtx, getenv, &config.File{Defaults: cfgFile.Defaults})
+		if err == nil {
+			cfg.ContextName = cmp.Or(f.Context, stdio.Getenv(config.EnvContext))
+		}
 	}
 	if err != nil {
 		return nil, err

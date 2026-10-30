@@ -17,10 +17,9 @@ func env(m map[string]string) func(string) string {
 
 func twoContexts() *File {
 	return &File{
-		CurrentContext: "prod",
 		Contexts: map[string]Context{
-			"prod":    {URL: "https://prod.example.com", Token: "prod-token\n", Project: "3"},
-			"staging": {URL: "https://staging.example.com", Token: "staging-token", CACert: "~/ca.pem", Insecure: true},
+			DefaultContextName: {URL: "https://prod.example.com", Token: "prod-token\n", Project: "3"},
+			"staging":          {URL: "https://staging.example.com", Token: "staging-token", CACert: "~/ca.pem", Insecure: true},
 		},
 		Defaults: Defaults{Output: "json", Timeout: "45"},
 	}
@@ -49,10 +48,10 @@ func TestResolve_Precedence(t *testing.T) {
 		check func(t *testing.T, e Effective)
 	}{
 		{
-			name: "file only: current context wins",
+			name: "file only: the context named default wins",
 			check: func(t *testing.T, e Effective) {
-				assert.Equal(t, "prod", e.ContextName)
-				assert.Equal(t, SourceContext, e.Sources.Context)
+				assert.Equal(t, DefaultContextName, e.ContextName)
+				assert.Equal(t, SourceDefault, e.Sources.Context)
 				assert.Equal(t, "https://prod.example.com", e.URL)
 				assert.Equal(t, SourceContext, e.Sources.URL)
 				assert.Equal(t, "prod-token", e.Token, "token is trimmed")
@@ -65,7 +64,7 @@ func TestResolve_Precedence(t *testing.T) {
 			},
 		},
 		{
-			name: "env context overrides current_context",
+			name: "env context overrides the default one",
 			env:  map[string]string{EnvContext: "staging", "HOME": "/home/u"},
 			check: func(t *testing.T, e Effective) {
 				assert.Equal(t, "staging", e.ContextName)
@@ -79,10 +78,10 @@ func TestResolve_Precedence(t *testing.T) {
 		},
 		{
 			name:  "flag context overrides env context",
-			flags: Flags{Context: "prod"},
+			flags: Flags{Context: DefaultContextName},
 			env:   map[string]string{EnvContext: "staging"},
 			check: func(t *testing.T, e Effective) {
-				assert.Equal(t, "prod", e.ContextName)
+				assert.Equal(t, DefaultContextName, e.ContextName)
 				assert.Equal(t, SourceFlag, e.Sources.Context)
 			},
 		},
@@ -206,7 +205,8 @@ func TestResolve_Precedence(t *testing.T) {
 func TestResolve_NoFile(t *testing.T) {
 	e, err := Resolve(Flags{}, env(map[string]string{EnvURL: "https://x", EnvToken: "t"}), nil)
 	require.NoError(t, err)
-	assert.Empty(t, e.ContextName)
+	assert.Equal(t, DefaultContextName, e.ContextName)
+	assert.Equal(t, SourceNone, e.Sources.Context, "no file, so nothing was taken from a context")
 	assert.Equal(t, "https://x", e.URL)
 	assert.Equal(t, "t", e.Token)
 	assert.Equal(t, OutputTable, e.Output)
@@ -224,7 +224,7 @@ func TestResolve_EnvTokenRequiresEnvOrFlagURL(t *testing.T) {
 
 	_, err := Resolve(Flags{}, env(map[string]string{EnvToken: "ci-token"}), file)
 	assert.ErrorIs(t, err, ErrTokenWithoutURL)
-	assert.ErrorContains(t, err, `context "prod"`)
+	assert.ErrorContains(t, err, `context "default"`)
 
 	_, err = Resolve(Flags{Context: "staging"}, env(map[string]string{EnvToken: "ci-token"}), file)
 	assert.ErrorIs(t, err, ErrTokenWithoutURL, "a token from CI must not follow --context to another server")
@@ -249,7 +249,7 @@ func TestResolve_TokenAndTokenFileConflict(t *testing.T) {
 func TestResolve_ContextTokenFile(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "tok"), []byte("  ctx-file-token\n\n"), 0o600))
-	file := &File{CurrentContext: "a", Contexts: map[string]Context{"a": {URL: "https://a", TokenFile: "~/tok"}}}
+	file := &File{Contexts: map[string]Context{DefaultContextName: {URL: "https://a", TokenFile: "~/tok"}}}
 
 	e, err := Resolve(Flags{}, env(map[string]string{"HOME": dir}), file)
 	require.NoError(t, err)
@@ -259,14 +259,14 @@ func TestResolve_ContextTokenFile(t *testing.T) {
 
 	// A broken token file is reported through TokenError, not as a failure of
 	// Resolve: commands that need no token must still run.
-	file.Contexts["a"] = Context{URL: "https://a", TokenFile: filepath.Join(dir, "missing")}
+	file.Contexts[DefaultContextName] = Context{URL: "https://a", TokenFile: filepath.Join(dir, "missing")}
 	e, err = Resolve(Flags{}, env(map[string]string{}), file)
 	require.NoError(t, err)
 	assert.Empty(t, e.Token)
 	assert.ErrorContains(t, e.TokenError, "read token file")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "empty"), []byte("\n"), 0o600))
-	file.Contexts["a"] = Context{URL: "https://a", TokenFile: filepath.Join(dir, "empty")}
+	file.Contexts[DefaultContextName] = Context{URL: "https://a", TokenFile: filepath.Join(dir, "empty")}
 	e, err = Resolve(Flags{}, env(map[string]string{}), file)
 	require.NoError(t, err)
 	assert.ErrorContains(t, e.TokenError, "is empty")
@@ -275,11 +275,19 @@ func TestResolve_ContextTokenFile(t *testing.T) {
 func TestResolve_UnknownContext(t *testing.T) {
 	_, err := Resolve(Flags{Context: "nope"}, env(map[string]string{}), twoContexts())
 	assert.ErrorIs(t, err, ErrUnknownContext)
-	assert.ErrorContains(t, err, "prod, staging")
+	assert.ErrorContains(t, err, "default, staging")
 
-	_, err = Resolve(Flags{}, env(map[string]string{}), &File{CurrentContext: "gone"})
+	_, err = Resolve(Flags{}, env(map[string]string{EnvContext: "gone"}), &File{})
 	assert.ErrorIs(t, err, ErrUnknownContext)
 	assert.ErrorContains(t, err, "(none)")
+
+	// The implicit default is allowed to be absent: that is how a setup made
+	// of environment variables alone looks.
+	e, err := Resolve(Flags{}, env(map[string]string{EnvURL: "https://env", EnvToken: "t"}), &File{})
+	require.NoError(t, err)
+	assert.Equal(t, DefaultContextName, e.ContextName)
+	assert.Equal(t, SourceNone, e.Sources.Context)
+	assert.Equal(t, "https://env", e.URL)
 }
 
 func TestResolve_BadValues(t *testing.T) {
@@ -342,7 +350,6 @@ func TestLoad_MissingFileIsEmpty(t *testing.T) {
 func TestLoad_ParsesYAML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "client.yml")
 	require.NoError(t, os.WriteFile(path, []byte(`
-current_context: prod
 contexts:
   prod:
     url: https://prod.example.com
@@ -361,7 +368,6 @@ defaults:
 	f, warnings, err := Load(path)
 	require.NoError(t, err)
 	assert.Empty(t, warnings)
-	assert.Equal(t, "prod", f.CurrentContext)
 	assert.Equal(t, []string{"prod", "staging"}, f.ContextNames())
 	assert.Equal(t, Context{URL: "https://prod.example.com", Token: "abc", Project: "3"}, f.Contexts["prod"])
 	assert.Equal(t, Context{URL: "https://staging.example.com", TokenFile: "~/.semaphore/staging.token", CACert: "~/.semaphore/staging-ca.pem", Insecure: true}, f.Contexts["staging"])
@@ -424,7 +430,7 @@ func TestSave_CreatesDirAndFileWithTightPermissions(t *testing.T) {
 		t.Skip("POSIX permissions")
 	}
 	path := filepath.Join(t.TempDir(), "nested", ".semaphore", "client.yml")
-	f := &File{CurrentContext: "prod"}
+	f := &File{}
 	f.SetContext("prod", Context{URL: "https://prod.example.com", Token: "secret"})
 
 	require.NoError(t, Save(path, f))
@@ -459,9 +465,9 @@ func TestSave_CreatesDirAndFileWithTightPermissions(t *testing.T) {
 
 func TestSave_YAMLShape(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "client.yml")
-	f := &File{CurrentContext: "prod", Contexts: map[string]Context{"prod": {URL: "https://p", Token: "t"}}}
+	f := &File{Contexts: map[string]Context{"prod": {URL: "https://p", Token: "t"}}}
 	require.NoError(t, Save(path, f))
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
-	assert.Equal(t, "current_context: prod\ncontexts:\n    prod:\n        url: https://p\n        token: t\n", string(data))
+	assert.Equal(t, "contexts:\n    prod:\n        url: https://p\n        token: t\n", string(data))
 }

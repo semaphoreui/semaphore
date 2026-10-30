@@ -49,6 +49,12 @@ const (
 // DefaultTimeout bounds one HTTP request when nothing else says otherwise.
 const DefaultTimeout = 30 * time.Second
 
+// DefaultContextName is the context a command uses when neither --context nor
+// SEMAPHORE_CLIENT_CONTEXT names one. The name is fixed on purpose: a config
+// file carries no "current" marker, so logging in to another server cannot
+// quietly take over the context someone named and trusts.
+const DefaultContextName = "default"
+
 // Context is one saved server: where it is and how to authenticate.
 type Context struct {
 	URL string `yaml:"url"`
@@ -73,9 +79,8 @@ type Defaults struct {
 
 // File is the content of ~/.semaphore/client.yml.
 type File struct {
-	CurrentContext string             `yaml:"current_context,omitempty"`
-	Contexts       map[string]Context `yaml:"contexts,omitempty"`
-	Defaults       Defaults           `yaml:"defaults,omitempty"`
+	Contexts map[string]Context `yaml:"contexts,omitempty"`
+	Defaults Defaults           `yaml:"defaults,omitempty"`
 }
 
 // ContextNames returns the context names sorted, for messages and listings.

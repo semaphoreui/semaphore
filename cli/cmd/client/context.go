@@ -13,7 +13,6 @@ import (
 // where it is kept.
 type contextRow struct {
 	Name      string `json:"name"`
-	Current   bool   `json:"current"`
 	URL       string `json:"url"`
 	Project   string `json:"project,omitempty"`
 	Token     string `json:"token"`
@@ -22,7 +21,7 @@ type contextRow struct {
 	Insecure  bool   `json:"insecure_skip_tls_verify"`
 }
 
-func toContextRow(name string, c config.Context, current bool) contextRow {
+func toContextRow(name string, c config.Context) contextRow {
 	tok := "none"
 	switch {
 	case c.TokenFile != "":
@@ -30,10 +29,10 @@ func toContextRow(name string, c config.Context, current bool) contextRow {
 	case c.Token != "":
 		tok = "inline"
 	}
-	return contextRow{Name: name, Current: current, URL: c.URL, Project: c.Project, Token: tok, TokenFile: c.TokenFile, CACert: c.CACert, Insecure: c.Insecure}
+	return contextRow{Name: name, URL: c.URL, Project: c.Project, Token: tok, TokenFile: c.TokenFile, CACert: c.CACert, Insecure: c.Insecure}
 }
 
-var contextColumns = output.Columns("name", "current", "url", "project", "token")
+var contextColumns = output.Columns("name", "url", "project", "token")
 
 func newContextCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -41,15 +40,19 @@ func newContextCmd() *cobra.Command {
 		Aliases: []string{"contexts", "ctx"},
 		Short:   "Manage saved servers (contexts)",
 		Long: `Manage the contexts saved in ~/.semaphore/client.yml. A context is a server
-URL with its token, an optional default project and TLS settings. One context is
-current; --context or SEMAPHORE_CLIENT_CONTEXT selects another one per call.`,
+URL with its token, an optional default project and TLS settings.
+
+The context named "default" is the one commands use when nothing says
+otherwise; --context or SEMAPHORE_CLIENT_CONTEXT picks another one per call.
+There is no "current context" to set: a file that remembered a choice made
+'auth login' against another server overwrite whichever context was selected.`,
 		Example: `  semaphore client context list
-  semaphore client context use staging
-  semaphore client context set prod --url https://semaphore.example.com --project 3`,
+  semaphore client context set prod --url https://semaphore.example.com --project 3
+  semaphore client project list --context prod`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(newContextListCmd(), newContextGetCmd(), newContextUseCmd(), newContextSetCmd(), newContextDeleteCmd())
+	cmd.AddCommand(newContextListCmd(), newContextGetCmd(), newContextSetCmd(), newContextDeleteCmd())
 	return cmd
 }
 
@@ -58,16 +61,17 @@ func newContextListCmd() *cobra.Command {
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List saved contexts",
-		Long: `List the contexts of the configuration file: name, whether it is current,
-server URL, default project and where its token comes from (inline, file or
-none). Token values are never shown. Works without a server connection.`,
+		Long: `List the contexts of the configuration file: name, server URL, default
+project and where its token comes from (inline, file or none). Token values are
+never shown. The context named "default" is the one used when --context and
+SEMAPHORE_CLIENT_CONTEXT are absent. Works without a server connection.`,
 		Example: `  semaphore client context list`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			r := rt(cmd)
 			rows := make([]contextRow, 0, len(r.cfgFile.Contexts))
 			for _, name := range r.cfgFile.ContextNames() {
-				rows = append(rows, toContextRow(name, r.cfgFile.Contexts[name], name == r.cfgFile.CurrentContext))
+				rows = append(rows, toContextRow(name, r.cfgFile.Contexts[name]))
 			}
 			return r.printer.Print(rows, contextColumns)
 		},
@@ -78,49 +82,22 @@ func newContextGetCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "get [NAME]",
 		Aliases: []string{"show"},
-		Short:   "Show one context (the current one by default)",
-		Long:    `Show one saved context without its token. Without a name the current context is shown.`,
+		Short:   "Show one context (\"default\" when no name is given)",
+		Long:    `Show one saved context without its token. Without a name the context "default" is shown.`,
 		Example: `  semaphore client context get
   semaphore client context get staging -o yaml`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r := rt(cmd)
-			name := r.cfgFile.CurrentContext
+			name := config.DefaultContextName
 			if len(args) == 1 {
 				name = args[0]
-			}
-			if name == "" {
-				return usage(cmd.CommandPath(), "no current context; pass a name or run 'semaphore client auth login'")
 			}
 			c, ok := r.cfgFile.Contexts[name]
 			if !ok {
 				return fmt.Errorf("%w %q; known contexts: %s", config.ErrUnknownContext, name, joinNames(r.cfgFile))
 			}
-			return r.printer.Print(toContextRow(name, c, name == r.cfgFile.CurrentContext), contextColumns)
-		},
-	}
-}
-
-func newContextUseCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "use NAME",
-		Short: "Make a context the current one",
-		Long: `Make a saved context the current one, so later commands use its server, token
-and default project unless --context or SEMAPHORE_CLIENT_CONTEXT say otherwise.`,
-		Example: `  semaphore client context use staging`,
-		Args:    cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			r := rt(cmd)
-			name := args[0]
-			if _, ok := r.cfgFile.Contexts[name]; !ok {
-				return fmt.Errorf("%w %q; known contexts: %s", config.ErrUnknownContext, name, joinNames(r.cfgFile))
-			}
-			r.cfgFile.CurrentContext = name
-			if err := r.saveConfig(); err != nil {
-				return err
-			}
-			r.warnf("Current context is now %q.", name)
-			return nil
+			return r.printer.Print(toContextRow(name, c), contextColumns)
 		},
 	}
 }
@@ -178,9 +155,6 @@ The token comes from --token-file (a file holding the token) or from
 			}
 
 			r.cfgFile.SetContext(name, c)
-			if r.cfgFile.CurrentContext == "" {
-				r.cfgFile.CurrentContext = name
-			}
 			if err := r.saveConfig(); err != nil {
 				return err
 			}
@@ -218,9 +192,6 @@ Asks for confirmation in a terminal; pass --yes to skip it.`,
 				return err
 			}
 			delete(r.cfgFile.Contexts, name)
-			if r.cfgFile.CurrentContext == name {
-				r.cfgFile.CurrentContext = ""
-			}
 			if err := r.saveConfig(); err != nil {
 				return err
 			}
