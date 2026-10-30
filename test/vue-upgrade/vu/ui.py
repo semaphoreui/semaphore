@@ -1167,6 +1167,18 @@ def queued_timers_run(page: Page):
     page.evaluate("() => new Promise(r => setTimeout(r))")
 
 
+VUETIFY_MENU_REOPEN_LOCK_MS = 50  # Vuetify 4.3 useActivator: `reopenLock` after a menu closes
+
+
+def menu_reopen_unlocked(page: Page):
+    """Wait out the reopen lock of a v-menu that has just closed: Vuetify (4.3.1) ignores a click on its
+    activator while `reopenLock` is set — a setTimeout of 50 ms from the close (useActivator). Under the
+    suite's fake clock that timer fires 20–100 ms late (JOURNAL@C559E533D7), so a test that reopens a menu
+    right after picking an item clicks into the lock and the menu stays shut. A timer queued now for longer
+    than the lock is due after it (the clock fires timers in the order they are due), as in a browser."""
+    page.evaluate(f"() => new Promise(r => setTimeout(r, {VUETIFY_MENU_REOPEN_LOCK_MS + 1}))")
+
+
 def settle(page: Page, ms=0):
     """Let the page run its pending work (timers, rendering) without depending on wall time.
     Prefer wait_state(); this is for a step that has no observable state."""

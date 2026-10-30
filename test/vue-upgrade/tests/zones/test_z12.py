@@ -19,8 +19,9 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from vu.ui import (active_menu, answer_api, badge_dot, dialog, expect_no_snackbar, expect_snackbar, fail_api,
-                   field_input, field_message, field_selection, goto, hold_api, hold_snackbar, only_names, open_menu,
-                   patch_api, press, queued_timers_run, settle, snap, tid, toggle, wait_state, wait_until)
+                   field_input, field_message, field_selection, goto, hold_api, hold_snackbar, menu_reopen_unlocked,
+                   only_names, open_menu, patch_api, press, queued_timers_run, settle, snap, tid, toggle, wait_state,
+                   wait_until)
 from vu.ui import DRAWFLOW_NODE, DRAWFLOW_INPUT, DRAWFLOW_OUTPUT, DRAWFLOW_EDGE_PATH, VUETIFY_BTN_LOADING
 
 ZONE = "z12"
@@ -164,7 +165,13 @@ def select_edge(page, src, dst):
 
 
 def open_problems(page):
-    press(tid(page, "workflowEditor-problemsMenu"))
+    """Open the problems menu. Reopened right after an item closed it, the click waits out the reopen
+    lock of the menu (menu_reopen_unlocked); open means the chip reports aria-expanded — the list of the
+    last opening is still visible while it fades out."""
+    chip = tid(page, "workflowEditor-problemsMenu")
+    menu_reopen_unlocked(page)
+    press(chip)
+    expect(chip).to_have_attribute("aria-expanded", "true")
     lst = tid(page, "workflowEditor-problemsMenu-list")
     expect(lst).to_be_visible()
     return lst
