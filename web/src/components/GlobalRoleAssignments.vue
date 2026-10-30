@@ -51,7 +51,11 @@
       </v-col>
     </v-row>
 
-    <v-list v-if="assignments.length > 0" class="px-0" data-testid="globalRoleAssign-list">
+    <v-list
+      v-if="assignments.length > 0"
+      class="px-0 GlobalRoleAssign__list"
+      data-testid="globalRoleAssign-list"
+    >
       <v-list-item
         v-for="assignment in assignments"
         :key="assignment.id"
@@ -96,7 +100,11 @@
       class="px-0 mt-4"
       data-testid="globalRoleAssign-effectiveTitle"
     >{{ $t('effectiveGlobalPermissions') }}</v-list-subheader>
-    <v-list density="compact" class="px-0" data-testid="globalRoleAssign-effective">
+    <v-list
+      density="compact"
+      class="px-0 GlobalRoleAssign__list"
+      data-testid="globalRoleAssign-effective"
+    >
       <v-list-item
         v-for="decision in effective.decisions || []"
         :key="decision.permission"
@@ -123,6 +131,44 @@
     </v-list>
   </div>
 </template>
+
+<style lang="scss" scoped>
+// Items of Vuetify 2 (`.v-list-item__content`): the text 12 px from the item edges, 8 px in a
+// dense list, the title 2 px above what follows it; so the held role is 73 px high and an
+// effective permission 50 px (Vuetify 4: 48 and 40, the text centred).
+.GlobalRoleAssign__list > .v-list-item {
+  > :deep(.v-list-item__content) {
+    padding-block: 12px;
+
+    > .v-list-item-title:not(:last-child) {
+      margin-bottom: 2px;
+    }
+  }
+
+  // The icon in front of an item stays at the top, 8 px down (`.v-list-item__icon`).
+  > :deep(.v-list-item__prepend) {
+    align-self: flex-start;
+  }
+
+  &.v-list-item--density-compact > :deep(.v-list-item__content) {
+    padding-block: 8px;
+
+    // The dense title and subtitle (`.v-list--dense .v-list-item .v-list-item__subtitle`): 16 px
+    // lines, the subtitle 13 px medium in the secondary text colour.
+    > .v-list-item-title {
+      line-height: 1rem;
+    }
+
+    > .v-list-item-subtitle {
+      font-size: .8125rem;
+      font-weight: 500;
+      line-height: 1rem;
+      opacity: 1;
+      color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    }
+  }
+}
+</style>
 
 <script>
 import axios from 'axios';

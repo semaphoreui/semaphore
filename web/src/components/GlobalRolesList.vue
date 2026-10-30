@@ -83,9 +83,11 @@
       :headers="headers"
       :items="items"
       item-value="id"
-      class="mt-4 FixedPageSizeTable"
+      class="mt-4 FixedPageSizeTable UsersTable"
       :items-per-page-options="[20]"
       :items-per-page="20"
+      :show-first-last-page="false"
+      :page-text="items.length === 0 ? '–' : undefined"
       data-testid="globalRoles-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >

@@ -117,7 +117,7 @@
             density="compact"
           ></v-text-field>
 
-          <v-row class="pb-5 pt-2">
+          <v-row class="pb-5 pt-2 UserForm__checks">
             <v-col cols="6">
               <v-checkbox
                 density="compact"
@@ -228,7 +228,7 @@
                 data-testid="user-recovery"
               >
                 <div
-                  class="text-body-large mb-2"
+                  class="mb-2 UserForm__subtitle"
                   data-testid="user-recoveryTitle"
                 >Recovery code</div>
                 <div style="position: relative">
@@ -273,7 +273,7 @@
                 :key="identity.id"
                 :color="identityProvider(identity).color"
                 :title="identity.external_uid"
-                class="mr-2 mb-2"
+                class="mr-2 mb-2 UserForm__identity"
                 :model-value="true"
                 @update:model-value="() => {}"
                 closable
@@ -313,7 +313,7 @@
                   <v-btn-toggle
                     v-model="ldapLinkProvider"
                     mandatory="force"
-                    class="mb-7 d-flex"
+                    class="mb-7 d-flex UserForm__ldapProviders"
                     :class="$vuetify.theme.current.dark ? '' : 'bg-grey-lighten-3'"
                     :style="$vuetify.theme.current.dark ? { backgroundColor: '#212121' } : null"
                     data-testid="user-ldapProvider"
@@ -622,3 +622,56 @@ export default {
   },
 };
 </script>
+<style lang="scss" scoped>
+// `subtitle-1` of Vuetify 2 (the codemod made it `text-body-large`, the body-1 of Vuetify 2,
+// whose utility would win over this layer): 16 px on a 28 px line, letter-spacing .009375em.
+.UserForm__subtitle {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.75rem;
+  letter-spacing: .009375em;
+}
+
+// The dense check boxes of the settings (`v-checkbox dense`): a 20 px box icon in the 24 px
+// control; a disabled one in the disabled text colour (.38), icon and label, under the .5 of a
+// disabled input (App.vue), as in Vuetify 2 — not the extra .38 of the Vuetify 4 control.
+.UserForm__checks :deep(.v-input--density-compact) {
+  .v-selection-control__input > .v-icon {
+    font-size: 20px;
+  }
+
+  &.v-input--disabled {
+    .v-selection-control--disabled {
+      opacity: 1;
+    }
+
+    .v-selection-control__input > .v-icon,
+    .v-label {
+      color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+    }
+  }
+}
+
+// The provider icon of a linked account is a 24 px icon (`.v-chip .v-icon`), not scaled down to
+// the chip text as in Vuetify 4.
+.UserForm__identity .v-icon--start {
+  font-size: 24px;
+}
+
+// The LDAP provider switch of Vuetify 2 (`v-btn-toggle borderless` with a background colour and
+// small buttons): as high as its 28 px buttons, the buttons without a frame or a background of
+// their own (the grey of the group shows through), the selected one darkened by the active
+// overlay (`.v-btn--active::before`: .18).
+.UserForm__ldapProviders {
+  height: 28px;
+
+  > .v-btn:not(.v-btn--variant-text):not(.v-btn--variant-plain) {
+    border-width: 0;
+    background-color: transparent;
+
+    &.v-btn--active > :deep(.v-btn__overlay) {
+      opacity: .18;
+    }
+  }
+}
+</style>
