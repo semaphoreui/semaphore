@@ -85,9 +85,11 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      class="mt-4 FixedPageSizeTable"
+      class="mt-4 FixedPageSizeTable RoleMappingsTable"
       :items-per-page-options="[20]"
       :items-per-page="20"
+      :show-first-last-page="false"
+      :page-text="items.length === 0 ? '–' : undefined"
       data-testid="roleMappings-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -123,6 +125,62 @@
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// The mappings table as Vuetify 2 drew it.
+.RoleMappingsTable {
+  // The small "Provider not configured" chip of Vuetify 2 is 24 px high (`.v-size--small`);
+  // Vuetify 4 makes it 26 px.
+  .v-chip.v-chip--size-small {
+    --v-chip-height: 24px;
+  }
+
+  // The line over the footer: the top border of `.v-data-footer` in Vuetify 2 — as wide as the
+  // footer (16 px in from both sides, App.vue) and in the border colour (.12), not a divider over
+  // the whole table at .12 of the text colour.
+  > .v-divider {
+    margin: 0 16px;
+    border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+    opacity: 1;
+  }
+
+  // The footer of Vuetify 2 (`.v-data-footer`): 8 px padding, the range 24 px from the left and
+  // 32 px before the arrows (no rows-per-page select pushes them right), 36 px round arrow buttons
+  // 14 px apart, in the icon colour of the theme (.54) when enabled; no first/last buttons
+  // (`showFirstLastPage: false`).
+  > .v-data-table-footer {
+    justify-content: flex-start;
+    padding: 0 8px;
+
+    > .v-data-table-footer__info {
+      min-width: 0;
+      margin: 0 32px 0 24px;
+      padding: 0;
+    }
+
+    .v-pagination__list > li {
+      margin: 0;
+
+      &.v-pagination__prev {
+        margin-inline-end: 7px;
+      }
+
+      &.v-pagination__next {
+        margin-inline-start: 7px;
+      }
+    }
+
+    .v-pagination .v-btn {
+      width: 36px;
+      height: 36px;
+    }
+
+    .v-pagination .v-btn.v-theme--light:not(.v-btn--disabled) {
+      color: rgba(0, 0, 0, .54);
+      opacity: 1;
+    }
+  }
+}
+</style>
 <script>
 import axios from 'axios';
 import EventBus from '@/event-bus';

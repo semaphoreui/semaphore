@@ -65,6 +65,9 @@
       :disabled="formSaving || item.project_id == null"
       variant="outlined"
       density="compact"
+      :menu-props="{
+        location: 'top', origin: 'top', contentClass: 'RoleMappingRoleMenu', maxHeight: 304,
+      }"
     >
       <template v-slot:item="{ props, item: role }">
         <v-list-item
@@ -76,6 +79,38 @@
     </v-select>
   </v-form>
 </template>
+<style lang="scss">
+// The role list: the dense list of a dense select of Vuetify 2 (`.v-list--dense`), at most 304 px
+// high (`menuProps.maxHeight`) — group headers 40 px with the text 8 px in (`.v-subheader`,
+// 12 px), two-line items 50 px: the name on a 16 px line, the slug 2 px under it at 13 px medium
+// in the secondary text colour (`.v-list-item__subtitle`).
+.RoleMappingRoleMenu {
+  .v-list-subheader {
+    min-height: 40px;
+    padding-inline: 8px;
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  .v-list-item {
+    min-height: 50px;
+    padding-block: 8px;
+  }
+
+  .v-list-item-title {
+    line-height: 16px;
+  }
+
+  .v-list-item-subtitle {
+    margin-top: 2px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 16px;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    opacity: 1;
+  }
+}
+</style>
 <script>
 import axios from 'axios';
 import ItemFormBase from '@/components/ItemFormBase';
