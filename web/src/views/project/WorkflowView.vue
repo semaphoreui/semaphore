@@ -54,6 +54,7 @@
 
       <v-btn
         icon
+        variant="text"
         color="error"
         @click="deleteDialog = true"
         v-if="canUpdate"
@@ -64,6 +65,7 @@
 
       <v-btn
         icon
+        variant="text"
         :to="`/project/${projectId}/workflows/${itemId}/edit`"
         v-if="canUpdate"
         data-testid="workflow-edit"

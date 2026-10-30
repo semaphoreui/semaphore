@@ -3,6 +3,7 @@
     <template v-slot:activator="{ props }">
       <v-btn
         icon
+        variant="text"
         size="small"
         :title="$t('workflowNodeSurveyInputsAssign')"
         class="WorkflowVarAssign__btn"

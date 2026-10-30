@@ -40,12 +40,13 @@
     />
 
     <v-toolbar flat>
-      <v-btn icon class="mr-4" @click="returnToProjects()" data-testid="users-back">
+      <v-btn icon variant="text" class="mr-4" @click="returnToProjects()" data-testid="users-back">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
       <v-toolbar-title data-testid="users-title">{{ $t('users') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        variant="elevated"
         v-if="tab === 'users' && canManageUsers"
         color="primary"
         @click="editItem('new')"
@@ -55,6 +56,7 @@
       </v-btn>
 
       <v-btn
+        variant="elevated"
         v-if="tab === 'global-roles' && canManageGlobalRoles"
         :disabled="!(features || {}).global_roles_management"
         color="primary"
@@ -112,11 +114,23 @@
 
       <template v-slot:item.actions="{ item }">
         <div style="white-space: nowrap" data-testid="users-rowActions">
-          <v-btn icon class="mr-1" @click="askDeleteItem(item.id)" data-testid="users-rowDelete">
+          <v-btn
+            icon
+            variant="text"
+            class="mr-1"
+            @click="askDeleteItem(item.id)"
+            data-testid="users-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn icon class="mr-1" @click="editItem(item.id)" data-testid="users-rowEdit">
+          <v-btn
+            icon
+            variant="text"
+            class="mr-1"
+            @click="editItem(item.id)"
+            data-testid="users-rowEdit"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>

@@ -52,6 +52,10 @@ const colors = {
     info: '#2196F3',
     success: '#4CAF50',
     warning: '#FB8C00',
+    // `amber darken-3` of the palette with white text: Vuetify 2 drew coloured buttons and alerts
+    // dark (white text), Vuetify 4 picks black for this colour.
+    'amber-darken-3': '#FF8F00',
+    'on-amber-darken-3': '#FFFFFF',
   },
   dark: {
     background: '#1E1E1E',
@@ -62,6 +66,8 @@ const colors = {
     info: '#2196F3',
     success: '#4CAF50',
     warning: '#FB8C00',
+    'amber-darken-3': '#FF8F00',
+    'on-amber-darken-3': '#FFFFFF',
   },
 };
 
@@ -80,12 +86,68 @@ export default createVuetify({
   theme: {
     // Vuetify 4 follows the theme of the system by default; App.vue switches it.
     defaultTheme: 'light',
+    // Variations of the theme colours, as Vuetify 2 generated them (`primary darken-2`, the same
+    // CIELAB steps): lighten-1…5, darken-1…4.
+    variations: {
+      colors: ['primary', 'secondary', 'accent', 'error', 'info', 'success', 'warning'],
+      lighten: 5,
+      darken: 4,
+    },
     themes: {
-      light: { dark: false, colors: colors.light },
-      dark: { dark: true, colors: colors.dark },
+      // States of Vuetify 2 (`$material-light.states`, `$material-dark.states`): the dark theme
+      // has twice the opacities of the light one; Vuetify 4 uses the light ones for both.
+      light: {
+        dark: false,
+        colors: colors.light,
+        variables: {
+          'pressed-opacity': 0.16,
+        },
+      },
+      dark: {
+        dark: true,
+        colors: colors.dark,
+        variables: {
+          'hover-opacity': 0.08,
+          'focus-opacity': 0.24,
+          'selected-opacity': 0.16,
+          'activated-opacity': 0.24,
+          'pressed-opacity': 0.32,
+          'dragged-opacity': 0.16,
+        },
+      },
     },
   },
+  // Defaults of Vuetify 2 that Vuetify 4 changed (the rest of the Vuetify 2 look is in
+  // scss/variables.scss and assets/scss/vuetify2.scss).
   defaults: {
+    // The selected tab and its slider in the primary colour.
+    VTabs: { color: 'primary' },
+    // A chip without a colour is grey, a coloured one is filled (Vuetify 4: tonal).
+    VChip: { variant: 'flat' },
+    VChipGroup: { variant: 'flat' },
+    // Selection controls and focused fields in the primary colour (Vuetify 4: the text colour).
+    VCheckbox: { color: 'primary' },
+    VCheckboxBtn: { color: 'primary' },
+    VSwitch: { color: 'primary', thumbColor: 'primary' },
+    VRadioGroup: { color: 'primary' },
+    VRadio: { color: 'primary' },
+    // A field without a variant is underlined, as in Vuetify 2 (Vuetify 4: filled).
+    VTextField: { color: 'primary', variant: 'underlined' },
+    VTextarea: { color: 'primary', variant: 'underlined' },
+    // The list of a select opens over the field, from its top edge (Vuetify 2 `v-select` menu
+    // without `offset-y`; autocomplete and combobox open below, as there).
+    VSelect: {
+      color: 'primary',
+      variant: 'underlined',
+      menuProps: { location: 'top', origin: 'top' },
+    },
+    VAutocomplete: { color: 'primary', variant: 'underlined' },
+    VCombobox: { color: 'primary', variant: 'underlined' },
+    VFileInput: { color: 'primary', variant: 'underlined' },
+    // Progress bars (and the loading bars of tables and fields) in the primary colour.
+    VProgressLinear: { color: 'primary' },
+    // The close button of an alert: a circled cross (`$cancel`).
+    VAlert: { closeIcon: '$cancel' },
     VDataTable: {
       // Vuetify 2 defaults of `v-data-table`: rows as cards below 600 px (Vuetify 3 never
       // switches without a breakpoint) and the rows-per-page options of the footer.

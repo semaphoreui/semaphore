@@ -83,7 +83,13 @@
     </v-dialog>
 
     <v-toolbar flat>
-      <v-btn icon class="mr-4" @click="returnToProjects()" data-testid="cluster-back">
+      <v-btn
+        icon
+        variant="text"
+        class="mr-4"
+        @click="returnToProjects()"
+        data-testid="cluster-back"
+      >
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
       <v-toolbar-title data-testid="cluster-title">{{ $t('clusterDashboard') }}</v-toolbar-title>

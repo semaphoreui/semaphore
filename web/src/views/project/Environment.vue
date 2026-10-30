@@ -55,6 +55,7 @@
       </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        variant="elevated"
         color="primary"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"

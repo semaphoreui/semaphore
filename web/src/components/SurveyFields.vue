@@ -18,6 +18,7 @@
         <template v-slot:append>
           <v-btn
             icon
+            variant="text"
             size="small"
             :title="$t('workflowNodeSurveyInputsUnbind')"
             class="SurveyFields__unbind"

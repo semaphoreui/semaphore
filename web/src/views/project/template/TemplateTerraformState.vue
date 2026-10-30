@@ -191,6 +191,7 @@
 
             <v-btn
               icon
+              variant="text"
               class="mr-2"
               color="error"
               :disabled="inventoryId === template.inventory_id"
@@ -202,6 +203,7 @@
 
             <v-btn
               icon
+              variant="text"
               @click="itemId = inventoryId; inventoryDialog = true;"
               data-testid="templateState-edit"
             >
@@ -252,10 +254,20 @@
               :success-message="$t('aliasUrlCopied')"
               test-id="templateState-aliasCopy"
             />
-            <v-btn icon @click="editAlias(alias.id)" data-testid="templateState-aliasEdit">
+            <v-btn
+              icon
+              variant="text"
+              @click="editAlias(alias.id)"
+              data-testid="templateState-aliasEdit"
+            >
               <v-icon>mdi-pencil</v-icon>
             </v-btn>
-            <v-btn icon @click="deleteAlias(alias.id)" data-testid="templateState-aliasDelete">
+            <v-btn
+              icon
+              variant="text"
+              @click="deleteAlias(alias.id)"
+              data-testid="templateState-aliasDelete"
+            >
               <v-icon>mdi-delete</v-icon>
             </v-btn>
           </div>

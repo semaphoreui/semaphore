@@ -116,6 +116,7 @@
       <v-btn
         :disabled="loading || pageIndex === 0"
         icon
+        variant="text"
         @click="goPrev()"
         data-testid="history-prevPage"
       >
@@ -130,6 +131,7 @@
       <v-btn
         :disabled="loading || !hasNext"
         icon
+        variant="text"
         @click="goNext()"
         data-testid="history-nextPage"
       >

@@ -108,6 +108,7 @@
         <div style="white-space: nowrap" data-testid="globalRoles-rowActions">
           <v-btn
             icon
+            variant="text"
             class="mr-1"
             @click="askDeleteItem(item.id)"
             data-testid="globalRoles-rowDelete"
@@ -115,7 +116,13 @@
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn icon class="mr-1" @click="editItem(item.id)" data-testid="globalRoles-rowEdit">
+          <v-btn
+            icon
+            variant="text"
+            class="mr-1"
+            @click="editItem(item.id)"
+            data-testid="globalRoles-rowEdit"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>

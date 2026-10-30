@@ -37,6 +37,7 @@
       <v-spacer></v-spacer>
 
       <v-btn
+        variant="elevated"
         color="primary"
         class="mr-1"
         @click="openEditor('new')"
@@ -46,7 +47,12 @@
         {{ $t('newWorkflow') }}
       </v-btn>
 
-      <v-btn icon @click="settingsSheet = true" data-testid="workflows-tableSettings">
+      <v-btn
+        icon
+        variant="text"
+        @click="settingsSheet = true"
+        data-testid="workflows-tableSettings"
+      >
         <v-icon>mdi-cog</v-icon>
       </v-btn>
     </v-toolbar>

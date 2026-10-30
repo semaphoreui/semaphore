@@ -414,7 +414,13 @@ semaphore runner start --config ./config.runner.json</pre
     />
 
     <v-toolbar flat v-if="!projectId" data-testid="runners-toolbar">
-      <v-btn icon class="mr-4" @click="returnToProjects()" data-testid="runners-back">
+      <v-btn
+        icon
+        variant="text"
+        class="mr-4"
+        @click="returnToProjects()"
+        data-testid="runners-back"
+      >
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
 

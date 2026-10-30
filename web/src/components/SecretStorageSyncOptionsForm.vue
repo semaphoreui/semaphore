@@ -51,6 +51,7 @@
 
       <v-btn
         icon
+        variant="text"
         class="ml-1 mt-1"
         @click="removePath(i)"
         data-testid="secretStorageSync-removePath"

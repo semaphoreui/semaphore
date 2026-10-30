@@ -43,6 +43,7 @@
             class="mt-1"
             size="small"
             icon
+            variant="text"
             @click="saveView(view.id)"
             v-if="view.active"
             :disabled="view.disabled"
@@ -54,6 +55,7 @@
             class="mt-1"
             size="small"
             icon
+            variant="text"
             @click="resetView(view.id)"
             v-if="view.active && view.id > 0"
             :disabled="view.disabled"
@@ -65,6 +67,7 @@
           <v-btn
             class="ml-4"
             icon
+            variant="text"
             @click="activeViewId = (activeViewId === view.id ? null : view.id)"
             data-testid="viewsForm-viewSettings"
           >
@@ -74,6 +77,7 @@
           <v-btn
             class="ml-1"
             icon
+            variant="text"
             @click="removeView(view.id)"
             data-testid="viewsForm-viewDelete"
           >

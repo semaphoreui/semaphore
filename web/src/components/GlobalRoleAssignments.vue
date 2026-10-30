@@ -70,6 +70,7 @@
         <template v-slot:append>
           <v-btn
             icon
+            variant="text"
             :disabled="loading"
             :aria-label="$t('removeGlobalRole', { role: assignment.role_name })"
             @click="remove(assignment)"

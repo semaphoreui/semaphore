@@ -33,6 +33,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         <div class="item-dialog__title-actions">
           <v-btn
             icon
+            variant="text"
             @click="toggleHelp()"
             class="mr-3"
             :style="{opacity: needHelp ? 1 : 0.3}"
@@ -44,6 +45,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
 
           <v-btn
             icon
+            variant="text"
             @click="toggleFullscreen()"
             class="mr-3"
             v-if="expandable"
@@ -52,7 +54,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
             <v-icon>mdi-arrow-{{ fullscreen ? 'collapse' : 'expand' }}</v-icon>
           </v-btn>
 
-          <v-btn icon @click="close()" data-testid="editDialog-close">
+          <v-btn icon variant="text" @click="close()" data-testid="editDialog-close">
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </div>

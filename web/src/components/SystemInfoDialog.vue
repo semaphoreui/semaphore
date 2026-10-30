@@ -9,7 +9,7 @@
         data-testid="systemInfoDialog-title">
         {{ $t('systemInfo') }}
         <v-spacer />
-        <v-btn icon @click="dialog = false" data-testid="systemInfoDialog-close">
+        <v-btn icon variant="text" @click="dialog = false" data-testid="systemInfoDialog-close">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>

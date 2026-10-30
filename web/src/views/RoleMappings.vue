@@ -32,7 +32,13 @@
     />
 
     <v-toolbar flat>
-      <v-btn icon class="mr-4" @click="returnToProjects()" data-testid="roleMappings-back">
+      <v-btn
+        icon
+        variant="text"
+        class="mr-4"
+        @click="returnToProjects()"
+        data-testid="roleMappings-back"
+      >
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
       <v-toolbar-title

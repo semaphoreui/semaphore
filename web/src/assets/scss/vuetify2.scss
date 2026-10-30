@@ -1,0 +1,341 @@
+// The look of Vuetify 2 where a Sass variable of Vuetify 4 (src/scss/variables.scss) cannot bring
+// it back: the element reset, toolbars, tabs, dialogs, list icons, field details, selection
+// controls, table headers, chips. Each block names the Vuetify 2 rule it repeats (vuetify 2.7,
+// `src/components/*/*.sass`).
+//
+// Layers (vite.config.mjs): this file goes to `semaphore`, above the Vuetify components and
+// below the utilities, so `mt-0`, `pa-2` and the like on an element still win, as the
+// `!important` utilities of Vuetify 2 did. The reset goes to `semaphore-base`, under the
+// components, as the reset of Vuetify 2 was under its components.
+
+// Reset of Vuetify 2 (ress: `* { margin: 0; padding: 0 }`, `.v-application ul, ol`, monospace of
+// code elements). Vuetify 4 keeps the browser margins of p, h1–h6, ul, pre, figure. Overlays are
+// teleported outside `.v-application`, into `.v-overlay-container`.
+@layer semaphore-base {
+  * {
+    margin: 0;
+    padding: 0;
+  }
+
+  :where(.v-application, .v-overlay-container) :where(ul, ol) {
+    padding-left: 24px;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: monospace, monospace;
+  }
+
+  pre {
+    font-size: 1em;
+  }
+}
+
+// Theme values Vuetify 2 had and Vuetify 4 has not (variables.scss uses them).
+.v-theme--light {
+  --v2-btn-background: #f5f5f5;
+  --v2-chip-background: #e0e0e0;
+  --v2-switch-thumb: #fafafa;
+  --v2-switch-track: rgba(0, 0, 0, .38);
+}
+
+.v-theme--dark {
+  --v2-btn-background: #272727;
+  --v2-chip-background: #555;
+  --v2-switch-thumb: #bdbdbd;
+  --v2-switch-track: rgba(255, 255, 255, .3);
+}
+
+// VToolbar: 56 px high below md (`$vuetify.breakpoint.smAndDown`); App.vue keeps the content
+// 64 px, as it did over the 56 px toolbar of Vuetify 2.
+@media (max-width: 959.98px) {
+  .v-toolbar:not(.v-toolbar--density-compact):not(.v-toolbar--density-prominent) {
+    height: 56px;
+  }
+}
+
+// VToolbar: content padding 4px 16px; icon buttons 48 px pulled 12 px to the edges
+// (`$toolbar-btn-icon-size`); the title takes the width of its text (`.v-toolbar__title`), as
+// Vuetify 2 laid the toolbar out with `v-spacer`.
+.v-toolbar__content {
+  padding: 4px 16px;
+
+  .v-btn--icon.v-btn--size-default.v-btn--density-default {
+    width: 48px;
+    height: 48px;
+  }
+
+  > .v-btn--icon:first-child:not(.v-app-bar-nav-icon) {
+    margin-inline-start: -12px;
+  }
+
+  > .v-btn--icon:first-child + .v-toolbar-title {
+    padding-inline-start: 20px;
+  }
+
+  > .v-btn--icon:last-child {
+    margin-inline-end: -12px;
+  }
+}
+
+.v-toolbar-title {
+  flex: 0 1 auto;
+}
+
+// Icons in buttons at their own size (`.v-btn .v-icon`), 18 px beside the text
+// (`.v-icon--left`, `.v-icon--right`: `$btn-icon-font-size`). Vuetify 4 scales every icon of a
+// text button to 18/21.
+.v-btn .v-icon {
+  --v-icon-size-multiplier: 1;
+}
+
+.v-btn .v-icon--start,
+.v-btn .v-icon--end,
+.v-btn__prepend > .v-icon,
+.v-btn__append > .v-icon {
+  --v-icon-size-multiplier: .75;
+}
+
+// Icon colour of Vuetify 2 (`.theme--light.v-icon`, `.theme--light.v-btn--icon`): an icon button
+// without a colour is grey (.54) in the light theme and white in the dark one; so is the icon in
+// front of a list item in the dark theme (the light one keeps the medium emphasis of Vuetify 4,
+// .6 × .87); the theme of the list itself counts (a menu of the dark sidebar is a light list in
+// a dark overlay). A coloured button has its colour class in the utility layer, above this one; the
+// close button of an alert keeps the colour of the alert.
+.v-btn--icon.v-btn--variant-text:not(.v-alert__close > .v-btn) {
+  &.v-theme--light {
+    color: rgba(0, 0, 0, .54);
+  }
+
+  &.v-theme--dark {
+    color: #fff;
+  }
+}
+
+.v-list.v-theme--dark .v-list-item__prepend > .v-icon {
+  opacity: 1;
+}
+
+.v-list.v-theme--light .v-list-item__prepend > .v-icon {
+  opacity: var(--v-medium-emphasis-opacity);
+}
+
+// VTabs: an inactive tab in the secondary text colour (`.v-tab:not(.v-tab--active)`). A disabled
+// tab is grey as every disabled button (variables.scss), selected or not.
+.v-tab.v-theme--light:not(.v-tab--selected) {
+  color: rgba(0, 0, 0, .54);
+}
+
+.v-tab.v-theme--dark:not(.v-tab--selected) {
+  color: rgba(255, 255, 255, .6);
+}
+
+// VCard: the text and the subtitle in the secondary text colour (`.v-card > .v-card__text`).
+.v-theme--light.v-card > .v-card-text,
+.v-theme--light.v-card > .v-card-subtitle {
+  color: rgba(0, 0, 0, .6);
+}
+
+.v-theme--dark.v-card > .v-card-text,
+.v-theme--dark.v-card > .v-card-subtitle {
+  color: rgba(255, 255, 255, .7);
+}
+
+// VDialog: title, text and actions of a card in a dialog (`.v-dialog > .v-card > .v-card__*`);
+// the text keeps the size of the card text (Vuetify 4 inherits 16 px); the dialog is
+// at most 90 % of the window high (`$dialog-max-height`; Vuetify 4: the window less 48 px).
+.v-dialog:not(.v-dialog--fullscreen) > .v-overlay__content {
+  max-height: 90%;
+}
+
+.v-dialog > .v-overlay__content > .v-card {
+  > .v-card-title {
+    padding: 16px 24px 10px;
+  }
+
+  > .v-card-text {
+    font-size: .875rem;
+    line-height: 1.375rem;
+  }
+
+  > .v-card-actions {
+    padding: 8px 16px;
+  }
+}
+
+// VList: the icon (or the small avatar) in front of an item has 16 px above and below
+// (`.v-list-item__icon`), 8 px in a dense list, so a one-line item with an icon is 56 px (40 px
+// dense).
+.v-list-item__prepend > .v-icon,
+.v-list-item__prepend > .v-avatar {
+  margin-block: 16px;
+}
+
+.v-list-item--density-compact .v-list-item__prepend > .v-icon,
+.v-list-item--density-compact .v-list-item__prepend > .v-avatar {
+  margin-block: 8px;
+}
+
+// Fields under the input (`.v-input__slot` margin 8 px, 4 px dense, then the messages line of
+// 14 px). A field with a box (outlined, filled, solo: `.v-text-field--enclosed`) has 8 px more
+// under the messages and its messages 12 px in from the box edge.
+.v-text-field,
+.v-select,
+.v-autocomplete,
+.v-combobox,
+.v-textarea,
+.v-file-input {
+  > .v-input__details {
+    align-items: flex-start;
+    min-height: 22px;
+    padding-top: 8px;
+    padding-inline: 0;
+  }
+
+  &.v-input--density-compact > .v-input__details {
+    min-height: 18px;
+    padding-top: 4px;
+  }
+
+  &:not(:has(> .v-input__control > .v-field--variant-underlined, > .v-input__control > .v-field--variant-plain)) {
+    > .v-input__details {
+      min-height: 30px;
+      padding-inline: 12px;
+    }
+
+    &.v-input--density-compact > .v-input__details {
+      min-height: 26px;
+    }
+  }
+}
+
+// Field labels in the secondary text colour, the primary colour on focus, the error colour on an
+// error (`.v-label`, `.v-input--is-focused`, `.v-input--has-state`). Vuetify 4 dims the label to
+// the medium emphasis of the colour it inherits: the outline colour (App.vue) for a floating one.
+.v-field-label {
+  opacity: 1;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.v-field--focused .v-field-label {
+  color: rgb(var(--v-theme-primary));
+}
+
+.v-field--error .v-field-label {
+  color: rgb(var(--v-theme-error));
+}
+
+// VAlert: text 16 px (`$alert-font-size`); the close button is a small icon button with a 24 px
+// circled cross (`.v-alert__dismissible`).
+.v-alert {
+  font-size: 16px;
+}
+
+.v-alert__close > .v-btn {
+  width: 28px;
+  height: 28px;
+
+  .v-icon {
+    font-size: 24px;
+  }
+}
+
+// Checkbox, switch, radio group (`.v-input--selection-controls`): 16 px above, 4 px padding, the
+// control as high as its icon (24 px), 8 px to the label; the messages line under it.
+.v-checkbox,
+.v-switch,
+.v-radio-group {
+  margin-top: 16px;
+  padding-top: 4px;
+
+  .v-selection-control {
+    min-height: 0;
+  }
+
+  // The label is 20 px a line (`$input-label-height`).
+  .v-selection-control .v-label {
+    line-height: 20px;
+  }
+
+  > .v-input__details {
+    align-items: flex-start;
+    min-height: 22px;
+    padding-top: 8px;
+  }
+
+  &.v-input--density-compact > .v-input__details {
+    min-height: 18px;
+    padding-top: 4px;
+  }
+}
+
+// A dense checkbox has 4 px above (`$checkbox-dense-margin-top`).
+.v-checkbox.v-input--density-compact {
+  margin-top: 4px;
+}
+
+.v-checkbox,
+.v-radio-group {
+  .v-selection-control__wrapper {
+    width: 24px;
+    height: 24px;
+    margin-inline-end: 8px;
+  }
+}
+
+// The switch is 38 px wide (`.v-input--switch .v-input--selection-controls__input`).
+.v-switch:not(.v-switch--inset) .v-selection-control__wrapper {
+  width: 38px;
+  height: 24px;
+  margin-inline-end: 8px;
+
+  + .v-label {
+    padding-inline-start: 0;
+  }
+}
+
+// A dense inset switch: track 44 × 22, thumb 18 px (`$switch-track-dense-inset-*`).
+.v-switch--inset.v-input--density-compact {
+  --v-switch-scale: .9166666667;
+  --v-switch-track-height: 22px;
+  --v-switch-thumb-height: 18px;
+  --v-switch-thumb-width: 18px;
+}
+
+// VTable: header text in the secondary text colour (`thead > tr > th`).
+.v-table > .v-table__wrapper > table > thead > tr > th {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+// VChip: small and x-small chips keep the padding of the default size (`.v-chip`).
+.v-chip.v-chip--size-small,
+.v-chip.v-chip--size-x-small {
+  padding: 0 12px;
+}
+
+// Button groups (`v-btn-toggle` of Vuetify 2, the row actions of the tables): every button framed
+// by a thin border on the card colour, flat, at .8 opacity unless active
+// (`.v-btn-toggle > .v-btn.v-btn`).
+.v-btn-group > .v-btn:not(.v-btn--variant-text):not(.v-btn--variant-plain) {
+  border: thin solid rgba(var(--v-theme-on-surface), .12);
+  background-color: rgb(var(--v-theme-surface));
+  opacity: .8;
+
+  &.v-btn--active {
+    opacity: 1;
+  }
+}
+
+// VDataTable: the no-data line in the disabled text colour (`.v-data-table__empty-wrapper`).
+.v-data-table-rows-no-data {
+  color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+}
+
+// The sort select of a table on a phone: 8 px under it, no messages line
+// (`.v-data-table-header-mobile`).
+.v-data-table__td-sort-select > .v-input__details {
+  min-height: 8px;
+  padding-top: 0;
+}

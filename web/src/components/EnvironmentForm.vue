@@ -110,7 +110,7 @@
             > YAML </v-btn>
           </v-btn-toggle>
 
-          <v-btn icon @click="addExtraVar()" data-testid="varGroup-addVar">
+          <v-btn icon variant="text" @click="addExtraVar()" data-testid="varGroup-addVar">
             <v-icon> mdi-plus </v-icon>
           </v-btn>
         </div>
@@ -243,7 +243,7 @@
 
             <v-spacer />
 
-            <v-btn icon @click="addEnvVar()" data-testid="varGroup-addEnv">
+            <v-btn icon variant="text" @click="addEnvVar()" data-testid="varGroup-addEnv">
               <v-icon> mdi-plus </v-icon>
             </v-btn>
           </div>
@@ -410,7 +410,12 @@
             </v-tooltip>
 
             <v-spacer />
-            <v-btn icon @click="addSecret('var')" data-testid="varGroup-addSecretVar">
+            <v-btn
+              icon
+              variant="text"
+              @click="addSecret('var')"
+              data-testid="varGroup-addSecretVar"
+            >
               <v-icon> mdi-plus </v-icon>
             </v-btn>
           </div>
@@ -482,7 +487,12 @@
 
             <v-spacer />
 
-            <v-btn icon @click="addSecret('env')" data-testid="varGroup-addSecretEnv">
+            <v-btn
+              icon
+              variant="text"
+              @click="addSecret('env')"
+              data-testid="varGroup-addSecretEnv"
+            >
               <v-icon> mdi-plus </v-icon>
             </v-btn>
           </div>

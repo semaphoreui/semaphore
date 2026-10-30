@@ -24,7 +24,8 @@
     >{{ modelValue }}</span>
 
     <v-btn
-      icon @click="edit()"
+      icon
+      variant="text" @click="edit()"
       size="small"
       v-if="canEdit && !editable"
       class="ml-1 SingleLineEditable__button"
@@ -35,6 +36,7 @@
 
     <v-btn
       icon
+      variant="text"
       @click="save()"
       v-if="editable"
       class="ml-2 SingleLineEditable__button"
@@ -46,6 +48,7 @@
 
     <v-btn
       icon
+      variant="text"
       @click="cancel()"
       v-if="editable"
       class="SingleLineEditable__button"

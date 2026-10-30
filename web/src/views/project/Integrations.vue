@@ -90,6 +90,7 @@
         <v-btn
           v-if="can(USER_PERMISSIONS.manageProjectResources)"
           icon
+          variant="text"
           @click="deleteAlias(alias.id)"
           data-testid="integrations-aliasDelete"
         >

@@ -58,6 +58,7 @@
 
       <v-btn
         icon
+        variant="text"
         @click="loadData()"
         :title="$t('refresh')"
         data-testid="workflowRun-refresh"

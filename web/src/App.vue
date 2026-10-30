@@ -317,6 +317,7 @@
             <div class="nav-pin-wrap" v-if="navEditMode && navItems.length > 1">
               <v-btn
                 icon
+                variant="text"
                 @click.stop.prevent="togglePin(item.key)"
                 :title="$t('unpin')"
                 data-testid="sidebar-unpin"
@@ -361,6 +362,7 @@
                 <div class="nav-pin-wrap" v-if="navEditMode">
                   <v-btn
                     icon
+                    variant="text"
                     @click.stop.prevent="togglePin(item.key)"
                     :title="$t('pin')"
                     data-testid="sidebar-pin"
@@ -396,6 +398,7 @@
 
             <v-btn
               icon
+              variant="text"
               style="margin-left: -15px"
               class="mr-1"
               :color="navEditMode ? 'primary' : undefined"
@@ -417,7 +420,7 @@
               max-width="235"
             >
               <template v-slot:activator="{ props }">
-                <v-btn icon v-bind="props" data-testid="sidebar-langMenu">
+                <v-btn icon variant="text" v-bind="props" data-testid="sidebar-langMenu">
                   <img
                     style="border-radius: 30px; max-width: 100%"
                     :src="`flags/${lang.flag}.svg`"
@@ -1056,11 +1059,11 @@ html.WorkflowEditor-html body {
     display: none !important;
   }
 
-  // With the nav icon hidden the title starts the toolbar: the offset Vuetify 3 gives a
-  // leading title (`.v-toolbar__content > .v-toolbar-title`).
+  // With the nav icon hidden the title starts the toolbar, at the content padding
+  // (assets/scss/vuetify2.scss).
   .v-toolbar-title:not(:first-child) {
     padding-left: 0 !important;
-    margin-left: 20px !important;
+    margin-left: 0 !important;
   }
 }
 

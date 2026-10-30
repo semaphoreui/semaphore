@@ -2,8 +2,20 @@
 // loads this file before every Vuetify style. Component styles reach the configured values with
 // `@use '@/scss/variables' as settings`. Emits no CSS.
 //
+// The values bring back the look of Vuetify 2 (Material Design 2) that the interface was drawn
+// with: Vuetify 4 draws Material Design 3 (no capitals on buttons, other type scale, flat icon
+// buttons 48 px, lower shadows). Each value names the Vuetify 2 variable it repeats
+// (vuetify 2.7, `src/components/*/_variables.scss`, `src/styles/settings/*`). What a variable
+// cannot express is in assets/scss/vuetify2.scss.
+//
 // Breakpoints of Vuetify 2 (Vuetify 4 has md 840, lg 1145, xl 1545, xxl 2138), the same as
 // `display.thresholds` in plugins/vuetify.js.
+
+// Shadows of Vuetify 2 (styles/settings/_elevations.scss): three layers, levels 0–24. Vuetify 4
+// draws two layers and only levels 0–5; its `elevation()` takes the key layer and the ambient
+// layer of a level, so the umbra goes to the key layer, the penumbra and the ambient to the
+// ambient layer. Component elevations below are the Vuetify 2 levels.
+@use './v2-shadows' as v2;
 
 @forward 'vuetify/settings' with (
   $grid-breakpoints: (
@@ -14,4 +26,202 @@
     'xl': 1904px,
     'xxl': 2560px,
   ),
+
+  $shadow-key: v2.$shadow-key,
+  $shadow-ambient: v2.$shadow-ambient,
+
+  // Type scale: the classes the Vuetify 2 classes of the templates were renamed to
+  // (eslint-plugin-vuetify) take the sizes of those Vuetify 2 classes (`$headings`):
+  // headline-medium ← `headline` / text-h5, headline-small ← `title` / text-h6,
+  // body-large ← text-body-1 / text-subtitle-1, body-medium ← text-body-2,
+  // body-small ← text-caption, label-large ← text-subtitle-2, label-small ← text-overline.
+  $typography: (
+    'headline-medium': (
+      'size': 1.5rem,
+      'weight': 400,
+      'line-height': 1.3333333333,
+      'letter-spacing': normal,
+    ),
+    'headline-small': (
+      'size': 1.25rem,
+      'weight': 500,
+      'line-height': 1.6,
+      'letter-spacing': .0125em,
+    ),
+    'body-large': (
+      'size': 1rem,
+      'weight': 400,
+      'line-height': 1.5,
+      'letter-spacing': .03125em,
+    ),
+    'body-medium': (
+      'size': .875rem,
+      'weight': 400,
+      'line-height': 1.4285714286,
+      'letter-spacing': .0178571429em,
+    ),
+    'body-small': (
+      'size': .75rem,
+      'weight': 400,
+      'line-height': 1.6666666667,
+      'letter-spacing': .0333333333em,
+    ),
+    'label-large': (
+      'size': .875rem,
+      'weight': 500,
+      'line-height': 1.5714285714,
+      'letter-spacing': .0071428571em,
+    ),
+    'label-small': (
+      'size': .75rem,
+      'weight': 500,
+      'line-height': 2.6666666667,
+      'letter-spacing': .1666666667em,
+    ),
+  ),
+
+  // Icons of Vuetify 2 (`$icon-sizes`): x-small 12, small 16, default 24, large 36, x-large 40 px,
+  // whatever the font size around (Vuetify 4 sizes them in em). Icons in buttons:
+  // assets/scss/vuetify2.scss.
+  $icon-sizes: (
+    'x-small': 12px,
+    'small': 16px,
+    'default': 24px,
+    'large': 36px,
+    'x-large': 40px,
+  ),
+
+  // VBtn: capitals, letter-spacing and shadows of Vuetify 2 (`$btn-*`). Icon buttons are 36 px
+  // (`small` 28, `x-small` 20), not 48: the density of an icon button is that of a text button
+  // of the same size.
+  $button-text-transform: uppercase,
+  $button-text-letter-spacing: .0892857143em,
+  $button-elevation: ('default': 2, 'hover': 4, 'active': 8),
+  $button-icon-density: ('default': 0, 'comfortable': -1, 'compact': -2),
+  // A button without a colour on the light grey of `.v-btn--has-bg` (#f5f5f5; #272727 dark).
+  $button-background: var(--v2-btn-background),
+  // A disabled button is grey whatever its colour (`.v-btn--disabled`: text .26, background .12).
+  $button-colored-disabled: false,
+
+  // VCard (`$card-*`, typography of `.v-card__title` and `.v-card__text`).
+  $card-elevation: 2,
+  $card-hover-elevation: 8,
+  $card-title-font-size: 1.25rem,
+  $card-title-font-weight: 500,
+  $card-title-letter-spacing: .0125em,
+  $card-title-line-height: 2rem,
+  $card-title-padding: 16px,
+  $card-subtitle-font-size: .875rem,
+  $card-subtitle-font-weight: 400,
+  $card-subtitle-letter-spacing: normal,
+  $card-subtitle-line-height: 1.375rem,
+  $card-text-font-size: .875rem,
+  $card-text-font-weight: 400,
+  $card-text-letter-spacing: .0071428571em,
+  $card-text-line-height: 1.375rem,
+  $card-text-padding: 16px,
+  $card-actions-padding: 8px,
+  $card-actions-min-height: 0,
+
+  // VDialog (`$dialog-*`): the title and text paddings are set for `.v-card-title` and
+  // `.v-card-text` in vuetify2.scss (Vuetify 4 sets them for `.v-card-item` only).
+  $dialog-elevation: 24,
+  $dialog-card-header-padding: 16px 24px 10px,
+  $dialog-card-text-padding: 0 24px 20px,
+  $dialog-card-text-letter-spacing: .0071428571em,
+
+  // Menus and the lists of selects (`$menu-content-elevation`).
+  $menu-elevation: 8,
+  $select-content-elevation: 8,
+  $autocomplete-content-elevation: 8,
+  $combobox-content-elevation: 8,
+
+  $snackbar-elevation: 6,
+  $navigation-drawer-temporary-elevation: 16,
+  // The scrim of a temporary drawer: #212121 at .46 of Vuetify 2 is black at .4 on white.
+  $navigation-drawer-scrim-opacity: .4,
+  $bottom-sheet-elevation: 16,
+
+  // VToolbar: the background of a card (white), as `.theme--light.v-toolbar.v-sheet`; title of
+  // `.v-toolbar__title`. The content padding and the icon buttons are in vuetify2.scss.
+  $toolbar-background: rgb(var(--v-theme-surface)),
+  $toolbar-color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity)),
+  $toolbar-elevation: 4,
+  $toolbar-title-margin: 0,
+  $toolbar-title-letter-spacing: normal,
+  $toolbar-title-line-height: 1.5,
+  $toolbar-prepend-btn-margin-start: 0,
+  $toolbar-append-btn-margin-end: 0,
+
+  // VList (`$list-item-*`): padding 0 16px, title of `.v-list-item__title` (subtitle-1, line
+  // height 1.2), subtitle of `.v-list-item__subtitle`.
+  $list-item-padding: 0 16px,
+  $list-subheader-min-height: 48px,
+  $list-item-two-line-padding: 0 16px,
+  $list-item-three-line-padding: 0 16px,
+  $list-item-title-letter-spacing: .009375em,
+  $list-item-title-line-height: 1.2,
+  $list-item-subtitle-letter-spacing: normal,
+  $list-item-subtitle-line-height: 1.2,
+  $list-item-nav-title-font-size: 1rem,
+  $list-item-nav-title-font-weight: 400,
+  $list-item-nav-title-letter-spacing: .009375em,
+  $list-item-nav-title-line-height: 1.2,
+  $list-item-nav-subtitle-font-size: .875rem,
+  $list-item-nav-subtitle-line-height: 1.2,
+
+  // VTabs (`$tabs-*`): uppercase and letter-spacing come from the button.
+
+  // VTable (`$data-table-*`): rows and headers 48 px, the header text of `th` (bold, secondary
+  // colour: vuetify2.scss).
+  $table-header-height: 48px,
+  $table-row-height: 48px,
+  $table-header-font-weight: 700,
+  $table-density: ('default': 0, 'comfortable': -2, 'compact': -4),
+
+  // VChip (`$chip-*`): a flat grey chip; a coloured one is filled (defaults in plugins/vuetify.js).
+  $chip-background: var(--v2-chip-background),
+  $chip-color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity)),
+  $chip-elevation: 0,
+  $chip-disabled-opacity: .4,
+
+  // VAlert (`$alert-*`): no shadow, icon 24 px, a border of 4 px at .26.
+  $alert-elevation: 0,
+  $alert-prepend-icon-size: 24px,
+  $alert-border-thin-width: 4px,
+  $alert-border-opacity: .26,
+
+  // VSnackbar (`$snackbar-*`): dark grey with white text in both themes.
+  $snackbar-background: #333,
+  $snackbar-color: rgba(255, 255, 255, .87),
+
+  // VTooltip (`.v-tooltip__content`).
+  $tooltip-background-color: rgba(97, 97, 97, .9),
+  $tooltip-text-color: #fff,
+
+  // VOverlay: the scrim of `v-overlay` (#212121 at .46).
+  $overlay-opacity: .46,
+  $overlay-scrim-background: #212121,
+
+  // Fields: letter-spacing of the input and the label (`$input-letter-spacing`,
+  // `$input-label-letter-spacing`).
+  $field-letter-spacing: normal,
+  // Text 12 px in from the edge of a box (`.v-text-field--enclosed .v-input__slot`).
+  $field-control-padding-start: 12px,
+  $field-control-padding-end: 12px,
+  $label-letter-spacing: normal,
+
+  // VSwitch (`$switch-*`): track and thumb colours of Vuetify 2 when off (vuetify2.scss), the
+  // track at .6, the thumb shadow.
+  $switch-track-background: var(--v2-switch-track),
+  $switch-thumb-background: var(--v2-switch-thumb),
+  $switch-track-opacity: .6,
+  $switch-thumb-elevation: 4,
+  // Inset switch: track 48 × 28 at .32, thumb 20 px on and off (`$switch-track-inset-*`).
+  $switch-inset-track-width: 48px,
+  $switch-inset-track-height: 28px,
+  $switch-inset-track-opacity: .32,
+  $switch-inset-thumb-width: 20px,
+  $switch-inset-thumb-height: 20px,
+  $switch-inset-thumb-off-height: 20px,
 );

@@ -140,6 +140,7 @@
 
       <v-btn
         icon
+        variant="text"
         color="error"
         @click="askDelete()"
         v-if="canUpdate"
@@ -148,11 +149,23 @@
         <v-icon>mdi-delete</v-icon>
       </v-btn>
 
-      <v-btn icon @click="copyDialog = true" v-if="canUpdate" data-testid="template-copy">
+      <v-btn
+        icon
+        variant="text"
+        @click="copyDialog = true"
+        v-if="canUpdate"
+        data-testid="template-copy"
+      >
         <v-icon>mdi-content-copy</v-icon>
       </v-btn>
 
-      <v-btn icon @click="editDialog = true" v-if="canUpdate" data-testid="template-edit">
+      <v-btn
+        icon
+        variant="text"
+        @click="editDialog = true"
+        v-if="canUpdate"
+        data-testid="template-edit"
+      >
         <v-icon>mdi-pencil</v-icon>
       </v-btn>
     </v-toolbar>

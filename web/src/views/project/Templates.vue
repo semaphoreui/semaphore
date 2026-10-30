@@ -26,6 +26,7 @@
           <v-spacer></v-spacer>
           <v-btn
             icon
+            variant="text"
             @click="closeEditViewDialog()"
             data-testid="templatesViewsDialog-close"
           >
@@ -120,6 +121,7 @@
 
       <v-btn
         icon
+        variant="text"
         @click="settingsSheet = true"
         data-testid="templates-tableSettings"
       >
@@ -152,6 +154,7 @@
 
       <v-btn
         icon
+        variant="text"
         class="mt-2 ml-4"
         @click="editViewsDialog = true"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"

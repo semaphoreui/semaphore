@@ -34,6 +34,7 @@
     <v-toolbar flat>
       <v-btn
           icon
+          variant="text"
           class="mr-4"
           @click="returnToProjects()"
           data-testid="apps-back"
