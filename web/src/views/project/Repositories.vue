@@ -111,6 +111,19 @@
   max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px);
   margin: auto;
 }
+
+// Mobile rows: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between, the header
+// 16 px from the value), not the two grid columns of Vuetify 4; a long URL starts right after
+// the header and runs past the window, as it did.
+.RepositoriesTable .v-data-table__tr--mobile > td {
+  display: flex;
+  justify-content: space-between;
+  column-gap: 0;
+
+  > .v-data-table__td-title {
+    padding-right: 16px;
+  }
+}
 </style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
