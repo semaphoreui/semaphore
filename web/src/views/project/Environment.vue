@@ -69,11 +69,10 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4 CenterToScreen"
+      class="mt-4 CenterToScreen EnvironmentTable"
       :items-per-page="-1"
       data-testid="varGroup-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
-      style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.name="{ item }">
         <a @click="editItem(item.id)" data-testid="varGroup-rowName">{{ item.name }}</a>
@@ -102,6 +101,13 @@
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.EnvironmentTable {
+  max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EnvironmentForm from '@/components/EnvironmentForm.vue';
