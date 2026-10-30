@@ -5,7 +5,7 @@
       :data-state="loading ? 'loading' : error ? 'error' : info ? 'ready' : 'empty'"
     >
       <v-card-title
-        class="text-headline-medium d-flex align-center"
+        class="text-headline-medium font-weight-medium d-flex align-center"
         data-testid="systemInfoDialog-title">
         {{ $t('systemInfo') }}
         <v-spacer />
@@ -15,7 +15,7 @@
       </v-card-title>
 
       <v-card-text v-if="loading" class="text-center py-8" data-testid="systemInfo-loading">
-        <v-progress-circular indeterminate color="primary" />
+        <v-progress-circular indeterminate color="primary" bg-color="transparent" />
       </v-card-text>
 
       <v-card-text v-else-if="error" class="py-4">

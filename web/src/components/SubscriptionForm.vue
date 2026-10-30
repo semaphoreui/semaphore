@@ -69,7 +69,7 @@
       </div>
 
       <v-textarea
-        class="mt-4"
+        class="SubscriptionForm__key mt-4"
         rows="4"
         auto-grow
         v-model="item.key"
@@ -89,7 +89,8 @@
             v-bind="props"
             icon
             data-testid="subscription-actionsMenu"
-            size="small"
+            size="40"
+            class="SubscriptionForm__fab"
             style="position: absolute; top: 15px; right: -15px"
           >
             <v-icon>mdi-dots-horizontal</v-icon>
@@ -122,7 +123,8 @@
         v-else
         color="primary"
         icon
-        size="small"
+        size="40"
+        class="SubscriptionForm__fab"
         style="position: absolute; top: 30px; right: -15px"
         @click="uploadKeyFile()"
         data-testid="subscription-upload"
@@ -143,6 +145,7 @@
               v-if="formSaving"
               indeterminate
               color="white"
+              bg-color="transparent"
               :size="24"
               data-testid="subscription-activateSaving"
             ></v-progress-circular>
@@ -179,7 +182,7 @@
 
     <v-card
       v-if="item.plan"
-      class="mb-3"
+      class="SubscriptionForm__plan mb-3"
       style="background: var(--highlighted-card-bg-color)"
       data-testid="subscription-plan"
     >
@@ -194,28 +197,28 @@
           </v-list-item>
         </v-list>
 
-        <v-row>
+        <v-row class="SubscriptionForm__planRow">
           <v-col class="py-0">
             <v-list class="py-0" style="background: unset">
-              <v-list-item class="pa-0">
+              <v-list-item class="px-0 py-3">
                 <v-list-item-title>Plan</v-list-item-title>
                 <v-list-item-subtitle
                   data-testid="subscription-planName"
                 >{{ item.plan }}</v-list-item-subtitle>
               </v-list-item>
-              <v-list-item class="pa-0">
+              <v-list-item class="px-0 py-3">
                 <v-list-item-title>Expires at</v-list-item-title>
                 <v-list-item-subtitle
                   data-testid="subscription-planExpiresAt"
                 >{{ item.expiresAt }}</v-list-item-subtitle>
               </v-list-item>
-              <v-list-item class="pa-0" v-if="item.nodes">
+              <v-list-item class="px-0 py-3" v-if="item.nodes">
                 <v-list-item-title>Nodes</v-list-item-title>
                 <v-list-item-subtitle data-testid="subscription-planNodes">
                   {{ item.nodes_used }} / {{ item.nodes }}
                 </v-list-item-subtitle>
               </v-list-item>
-              <v-list-item class="pa-0" v-if="item.runners < 100000">
+              <v-list-item class="px-0 py-3" v-if="item.runners < 100000">
                 <v-list-item-title>Project runners</v-list-item-title>
                 <v-list-item-subtitle data-testid="subscription-planRunners">
                   {{ item.runners_used }} / {{ item.runners }}
@@ -225,7 +228,7 @@
           </v-col>
           <v-col class="py-0">
             <v-list class="py-0" style="background: unset">
-              <v-list-item class="pa-0">
+              <v-list-item class="px-0 py-3">
                 <v-list-item-title>Status</v-list-item-title>
                 <v-list-item-subtitle
                   style="display: flex; align-items: center"
@@ -246,19 +249,19 @@
                   <div>{{ item.state }}</div>
                 </v-list-item-subtitle>
               </v-list-item>
-              <v-list-item class="pa-0" v-if="item.users < 100000">
+              <v-list-item class="px-0 py-3" v-if="item.users < 100000">
                 <v-list-item-title>Pro users</v-list-item-title>
                 <v-list-item-subtitle
                   data-testid="subscription-planUsers"
                 >{{ item.used }} / {{ item.users }}</v-list-item-subtitle>
               </v-list-item>
-              <v-list-item class="pa-0" v-if="item.terraform_states < 100000">
+              <v-list-item class="px-0 py-3" v-if="item.terraform_states < 100000">
                 <v-list-item-title>Terraform backends</v-list-item-title>
                 <v-list-item-subtitle data-testid="subscription-planTerraformStates">
                   {{ item.terraform_states_used }} / {{ item.terraform_states }}
                 </v-list-item-subtitle>
               </v-list-item>
-              <v-list-item class="pa-0" v-if="item.uis">
+              <v-list-item class="px-0 py-3" v-if="item.uis">
                 <v-list-item-title>UIs</v-list-item-title>
                 <v-list-item-subtitle data-testid="subscription-planUis">
                   {{ item.uis_used }} / {{ item.uis }}
@@ -304,6 +307,48 @@
   text-decoration: none;
   &:hover {
     text-decoration: underline;
+  }
+}
+
+// The key field: the dense outlined auto-grow textarea of Vuetify 2 (`.v-textarea textarea`) —
+// lines of 28 px, 6 px above the text, none below, at least rows × 24 px high (its `rowHeight`):
+// a 102 px box for four rows, not 112 px.
+.SubscriptionForm__key.v-textarea--field-sizing textarea.v-field__input {
+  line-height: 28px;
+  padding-top: 6px;
+  padding-bottom: 0;
+  min-height: calc(4 * 24px + 6px);
+}
+
+// The round buttons at the top right of the key field: `fab small` of Vuetify 2 — 40 px
+// (`size="40"`), shadow of elevation 6 (`.v-btn--fab`; Vuetify 4 has elevation classes up to 5).
+.v-btn.SubscriptionForm__fab {
+  box-shadow: 0 3px 5px -1px rgba(0, 0, 0, .2), 0 6px 10px 0 rgba(0, 0, 0, .14),
+    0 1px 18px 0 rgba(0, 0, 0, .12);
+}
+
+// The lines of the plan card as `v-list-item-content` of Vuetify 2 laid them out: the title 2 px
+// above the subtitle (`.v-list-item__content > *:not(:last-child)`), both on one line
+// (`white-space: nowrap`).
+.SubscriptionForm__plan .v-list-item-title {
+  margin-bottom: 2px;
+}
+
+// The two columns of the plan: the gutters of the Vuetify 2 grid (`.row` margin -12 px, the
+// columns `py-0`), so the lists start 12 px higher and nothing is between the columns when they
+// wrap; a column is as wide as its longest line (`.col`: flex-basis 0, min-width auto), so on a
+// phone the columns go one under the other instead of cutting the values with an ellipsis.
+.SubscriptionForm__planRow {
+  margin-block: -12px;
+  row-gap: 0;
+
+  .v-list-item__content {
+    min-width: auto;
+    overflow: visible;
+  }
+
+  .v-list-item-subtitle {
+    white-space: nowrap;
   }
 }
 </style>
