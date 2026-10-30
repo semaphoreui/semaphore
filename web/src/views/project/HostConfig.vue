@@ -57,8 +57,7 @@
       v-if="items.length === 0"
       type="info"
       variant="tonal"
-      class="mt-4"
-      style="max-width: 800px; margin: auto;"
+      class="mt-4 HostConfigEmpty"
       data-testid="hostConfig-empty"
     >{{ $t('hostConfigEmpty') }}</v-alert>
 
@@ -67,10 +66,9 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
+      class="mt-4 HostConfigTable"
       :items-per-page="-1"
       data-testid="hostConfig-table"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px); margin: auto;"
     >
       <template v-slot:item.type="{ item }">
         <v-chip
@@ -107,6 +105,19 @@
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// Not inline styles: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to them.
+// `.v-alert` too, as the inline style was: it beats the `margin-bottom` of `.v-alert` in components.scss.
+.v-alert.HostConfigEmpty {
+  max-width: 800px;
+  margin: auto;
+}
+
+.HostConfigTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px);
+  margin: auto;
+}
+</style>
 <script>
 import axios from 'axios';
 import ItemListPageBase from '@/components/ItemListPageBase';
