@@ -58,9 +58,8 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
+      class="mt-4 TeamTable"
       :items-per-page="-1"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.roles="{ item }">
         <div class="d-flex align-center" data-testid="team-rowRoles">
@@ -96,7 +95,7 @@
             @update:model-value="updateProjectUser(item)"
             data-testid="team-rowRolesSelect"
           >
-            <template v-slot:item="{ props, item: { raw: role } }">
+            <template v-slot:item="{ props, item: role }">
               <v-list-item
                 v-bind="props"
                 :title="role.name"
@@ -130,6 +129,13 @@
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.TeamTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EditTeamMemberDialog from '@/components/EditTeamMemberDialog.vue';

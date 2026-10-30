@@ -80,7 +80,7 @@
       variant="outlined"
       density="compact"
     >
-      <template v-slot:item="{ props, item: { raw: role } }">
+      <template v-slot:item="{ props, item: role }">
         <v-list-item
           v-bind="props"
           :title="role.name"

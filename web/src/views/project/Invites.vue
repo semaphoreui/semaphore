@@ -53,9 +53,8 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
+      class="mt-4 InvitesTable"
       :items-per-page="-1"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
     >
       <template v-slot:item.name="{ item }">
         {{ item.user ? item.user.name : item.email }}
@@ -83,6 +82,13 @@
   </div>
 
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.InvitesTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import axios from 'axios';
