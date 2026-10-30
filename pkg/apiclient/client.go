@@ -236,6 +236,19 @@ func (c *Client) DoRaw(ctx context.Context, method, apiPath string, in any) (*ht
 	return resp, nil
 }
 
+// NormalizeURL returns the canonical form of a server address — the one the
+// client really talks to, without a trailing slash, an "/api" suffix, a query
+// or a fragment — so that two spellings of the same server compare equal. An
+// address it cannot parse is returned trimmed, so that comparing two of them
+// still says whether they are the same text.
+func NormalizeURL(raw string) string {
+	u, err := normalizeBaseURL(raw)
+	if err != nil {
+		return strings.TrimSpace(raw)
+	}
+	return u.String()
+}
+
 func normalizeBaseURL(raw string) (*url.URL, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

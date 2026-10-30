@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -329,6 +330,13 @@ func TestAuthLogin_DoesNotTakeOverANamedContext(t *testing.T) {
 	other := httptest.NewServer(s.handler(t))
 	defer other.Close()
 
+	// A CA file the client can really load, so that a context carrying one
+	// gets as far as the login itself.
+	tls := httptest.NewTLSServer(s.handler(t))
+	defer tls.Close()
+	caFile := filepath.Join(t.TempDir(), "ca.pem")
+	require.NoError(t, os.WriteFile(caFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: tls.Certificate().Raw}), 0o600))
+
 	cfgPath := filepath.Join(t.TempDir(), "client.yml")
 	prod := config.Context{URL: srv.URL, Token: "good-token", Project: "3"}
 	require.NoError(t, config.Save(cfgPath, &config.File{Contexts: map[string]config.Context{"prod": prod}}))
@@ -351,11 +359,31 @@ func TestAuthLogin_DoesNotTakeOverANamedContext(t *testing.T) {
 	assert.Equal(t, config.Context{URL: other.URL, Token: "good-token"}, loadCfg(t, cfgPath).Contexts["prod"])
 
 	// Logging in again to the same server keeps everything else.
-	require.NoError(t, config.Save(cfgPath, &config.File{Contexts: map[string]config.Context{"prod": {URL: srv.URL, Token: "old", Project: "3"}}}))
+	require.NoError(t, config.Save(cfgPath, &config.File{Contexts: map[string]config.Context{"prod": {URL: srv.URL, Token: "old", Project: "3", CACert: caFile}}}))
 	_, errOut, err = run(t, env, "good-token\n", "auth", "login", "--context", "prod")
 	require.NoError(t, err)
 	assert.NotContains(t, errOut, "dropped")
-	assert.Equal(t, "3", loadCfg(t, cfgPath).Contexts["prod"].Project)
+	saved := loadCfg(t, cfgPath).Contexts["prod"]
+	assert.Equal(t, "3", saved.Project)
+	assert.Equal(t, caFile, saved.CACert)
+
+	// Moving it elsewhere leaves the old server's TLS settings behind, even
+	// though they were resolved from this very context.
+	require.NoError(t, config.Save(cfgPath, &config.File{Contexts: map[string]config.Context{
+		"prod": {URL: srv.URL, Token: "old", Project: "3", CACert: caFile, Insecure: true},
+	}}))
+	_, errOut, err = run(t, env, "good-token\n", "auth", "login", "--context", "prod", "--url", other.URL)
+	require.NoError(t, err)
+	assert.Contains(t, errOut, "TLS settings dropped")
+	assert.Equal(t, config.Context{URL: other.URL, Token: "good-token"}, loadCfg(t, cfgPath).Contexts["prod"])
+
+	// ...but what this invocation asks for still applies.
+	require.NoError(t, config.Save(cfgPath, &config.File{Contexts: map[string]config.Context{
+		"prod": {URL: srv.URL, Token: "old", CACert: caFile},
+	}}))
+	_, _, err = run(t, env, "good-token\n", "auth", "login", "--context", "prod", "--url", other.URL, "--insecure")
+	require.NoError(t, err)
+	assert.Equal(t, config.Context{URL: other.URL, Token: "good-token", Insecure: true}, loadCfg(t, cfgPath).Contexts["prod"])
 }
 
 func TestAuthLogout(t *testing.T) {

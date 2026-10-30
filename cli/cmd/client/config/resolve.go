@@ -65,6 +65,10 @@ type Sources struct {
 	Token   Source
 	Project Source
 	Output  Source
+	// CACert and Insecure say whether the TLS settings came from the context.
+	// Pointing that context at another server has to leave them behind.
+	CACert   Source
+	Insecure Source
 }
 
 // Errors a caller may want to tell apart.
@@ -162,13 +166,20 @@ func Resolve(flags Flags, getenv func(string) string, file *File) (Effective, er
 	// TLS.
 	switch {
 	case flags.CACert != "":
-		eff.CACert = expandHome(flags.CACert, getenv)
+		eff.CACert, eff.Sources.CACert = expandHome(flags.CACert, getenv), SourceFlag
 	case getenv(EnvCACert) != "":
-		eff.CACert = expandHome(getenv(EnvCACert), getenv)
+		eff.CACert, eff.Sources.CACert = expandHome(getenv(EnvCACert), getenv), SourceEnv
 	case ctx.CACert != "":
-		eff.CACert = expandHome(ctx.CACert, getenv)
+		eff.CACert, eff.Sources.CACert = expandHome(ctx.CACert, getenv), SourceContext
 	}
-	eff.Insecure = flags.Insecure || truthy(getenv(EnvInsecure)) || ctx.Insecure
+	switch {
+	case flags.Insecure:
+		eff.Insecure, eff.Sources.Insecure = true, SourceFlag
+	case truthy(getenv(EnvInsecure)):
+		eff.Insecure, eff.Sources.Insecure = true, SourceEnv
+	case ctx.Insecure:
+		eff.Insecure, eff.Sources.Insecure = true, SourceContext
+	}
 
 	// Output.
 	switch {

@@ -133,22 +133,22 @@ func runAuthLogin(cmd *cobra.Command, r *runtime, api *apiclient.Client, withTok
 		return err
 	}
 
-	saved, existed := r.cfgFile.Contexts[contextName]
-	movedTo := existed && saved.URL != "" && saved.URL != api.BaseURL()
-	if movedTo {
-		// The context now points at another server: a default project saved
-		// for the old one names an id that means something else here.
-		r.warnf("Context %q pointed at %s; replacing it with %s.", contextName, saved.URL, api.BaseURL())
-		if saved.Project != "" {
-			r.warnf("Default project %q dropped: it belonged to the previous server.", saved.Project)
-			saved.Project = ""
-		}
-	}
+	saved := r.cfgFile.Contexts[contextName]
+	moved := r.repointContext(contextName, &saved, api.BaseURL())
 	saved.URL = api.BaseURL()
 	saved.Token = token
 	saved.TokenFile = ""
-	saved.CACert = r.cfg.CACert
-	saved.Insecure = r.cfg.Insecure
+	// The resolved TLS settings may be the old server's, read from this very
+	// context; after a move only what this invocation asked for applies.
+	saved.CACert, saved.Insecure = r.cfg.CACert, r.cfg.Insecure
+	if moved {
+		if r.cfg.Sources.CACert == config.SourceContext {
+			saved.CACert = ""
+		}
+		if r.cfg.Sources.Insecure == config.SourceContext {
+			saved.Insecure = false
+		}
+	}
 	r.cfgFile.SetContext(contextName, saved)
 	if err := r.saveConfig(); err != nil {
 		return err

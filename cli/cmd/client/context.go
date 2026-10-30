@@ -6,6 +6,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/cli/cmd/client/config"
 	"github.com/semaphoreui/semaphore/cli/cmd/client/output"
+	"github.com/semaphoreui/semaphore/pkg/apiclient"
 	"github.com/spf13/cobra"
 )
 
@@ -114,7 +115,12 @@ func newContextSetCmd() *cobra.Command {
 		Long: `Create or change a context field by field. The global flags --url, --project,
 --ca-cert and --insecure give the new values; only the flags you pass change.
 The token comes from --token-file (a file holding the token) or from
-'semaphore client auth login'; there is no flag that takes the token itself.`,
+'semaphore client auth login'; there is no flag that takes the token itself.
+
+Aiming an existing context at another server drops what belonged to the old
+one — its token, its default project and its TLS settings — so that a
+production credential is never handed to a stranger. Values passed in the same
+command are applied afterwards and survive.`,
 		Example: `  semaphore client context set staging --url https://staging.example.com --token-file ~/.semaphore/staging.token
   semaphore client context set prod -p 3
   semaphore client context set lab --insecure`,
@@ -126,7 +132,11 @@ The token comes from --token-file (a file holding the token) or from
 			changed := false
 
 			if cmd.Flags().Changed("url") {
-				c.URL, changed = r.flags.URL, true
+				// Stored in the canonical form the client talks to, like the
+				// one `auth login` saves, so the file says what is really used.
+				url := apiclient.NormalizeURL(r.flags.URL)
+				r.repointContext(name, &c, url)
+				c.URL, changed = url, true
 			}
 			if cmd.Flags().Changed("project") {
 				c.Project, changed = r.flags.Project, true
@@ -199,6 +209,38 @@ Asks for confirmation in a terminal; pass --yes to skip it.`,
 			return nil
 		},
 	}
+}
+
+// sameServer says whether two spellings address the same Semaphore, so that a
+// cosmetic change (a trailing slash, an "/api" suffix) is not mistaken for a
+// move to another server.
+func sameServer(a, b string) bool {
+	return apiclient.NormalizeURL(a) == apiclient.NormalizeURL(b)
+}
+
+// repointContext drops what belonged to the server a context used to address.
+// A token, a default project and the TLS settings are all per-server: carried
+// over, the token is handed to a stranger, the project id names something else
+// there, and "insecure" silently stops verifying a server nobody said that
+// about. Anything the same command passes explicitly is applied afterwards.
+func (r *runtime) repointContext(name string, c *config.Context, newURL string) bool {
+	if c.URL == "" || sameServer(c.URL, newURL) {
+		return false
+	}
+	r.warnf("Context %q pointed at %s; replacing it with %s.", name, c.URL, newURL)
+	if c.Token != "" || c.TokenFile != "" {
+		r.warnf("Its token is dropped: it belonged to the previous server.")
+		c.Token, c.TokenFile = "", ""
+	}
+	if c.Project != "" {
+		r.warnf("Default project %q dropped: it belonged to the previous server.", c.Project)
+		c.Project = ""
+	}
+	if c.CACert != "" || c.Insecure {
+		r.warnf("TLS settings dropped: they belonged to the previous server.")
+		c.CACert, c.Insecure = "", false
+	}
+	return true
 }
 
 func joinNames(f *config.File) string {

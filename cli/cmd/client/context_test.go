@@ -124,6 +124,43 @@ func TestContextSet(t *testing.T) {
 	assert.Equal(t, []string{"first"}, loadCfg(t, env2[config.EnvConfig]).ContextNames())
 }
 
+// Pointing a context at another server must not hand that server the old
+// one's token, project or TLS settings.
+func TestContextSet_ClearsCredentialsOnServerChange(t *testing.T) {
+	cfgPath, env := seededContexts(t)
+
+	_, errOut, err := run(t, env, "", "context", "set", "default", "--url", "https://other.example.com")
+	require.NoError(t, err)
+	assert.Contains(t, errOut, `Context "default" pointed at https://prod.example.com`)
+	assert.Contains(t, errOut, "Its token is dropped")
+	assert.Contains(t, errOut, `Default project "3" dropped`)
+	assert.Equal(t, config.Context{URL: "https://other.example.com"}, loadCfg(t, cfgPath).Contexts["default"])
+
+	// TLS settings are per-server too.
+	_, errOut, err = run(t, env, "", "context", "set", "staging", "--url", "https://elsewhere.example.com")
+	require.NoError(t, err)
+	assert.Contains(t, errOut, "TLS settings dropped")
+	assert.Equal(t, config.Context{URL: "https://elsewhere.example.com"}, loadCfg(t, cfgPath).Contexts["staging"])
+
+	// Replacements passed in the same command win over the clearing.
+	cfgPath, env = seededContexts(t)
+	_, _, err = run(t, env, "", "context", "set", "default",
+		"--url", "https://other.example.com", "--token-file", "/tmp/other.token", "-p", "9", "--insecure")
+	require.NoError(t, err)
+	assert.Equal(t, config.Context{URL: "https://other.example.com", TokenFile: "/tmp/other.token", Project: "9", Insecure: true},
+		loadCfg(t, cfgPath).Contexts["default"])
+
+	// A cosmetic change of the same address keeps everything.
+	cfgPath, env = seededContexts(t)
+	_, errOut, err = run(t, env, "", "context", "set", "default", "--url", "https://prod.example.com/api/")
+	require.NoError(t, err)
+	assert.NotContains(t, errOut, "dropped")
+	saved := loadCfg(t, cfgPath).Contexts["default"]
+	assert.Equal(t, "t1", saved.Token)
+	assert.Equal(t, "3", saved.Project)
+	assert.Equal(t, "https://prod.example.com", saved.URL, "stored in the canonical form")
+}
+
 func TestContextDelete(t *testing.T) {
 	cfgPath, env := seededContexts(t)
 
