@@ -6,6 +6,7 @@
   >
     <v-dialog v-model="newTokenDialog" max-width="480" persistent>
       <v-card
+        class="TokensNewDialog"
         data-testid="tokensNewDialog"
         :data-state="creatingToken ? 'loading' : 'ready'"
       >
@@ -94,9 +95,11 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      class="mt-4 FixedPageSizeTable"
+      class="mt-4 FixedPageSizeTable TokensTable"
       :items-per-page-options="[20]"
       :items-per-page="20"
+      :show-first-last-page="false"
+      :page-text="items.length === 0 ? '–' : undefined"
       data-testid="tokens-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -194,6 +197,81 @@
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// «Expiration date»: the calendar button at the right end of the input and the field 40 px high,
+// as in Vuetify 2. The input of Vuetify 4 is a flex box, which leaves the button right after the
+// date, and its 24 px line makes a date input 42 px high.
+.TokensNewDialog input[type="datetime-local"].v-field__input {
+  display: block;
+  line-height: 20px;
+}
+
+// The tokens table as Vuetify 2 drew it.
+.TokensTable {
+  // Mobile rows: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between, the header
+  // 16 px from the value, the value at the right end), not the two equal grid columns of
+  // Vuetify 4 (a long token then stood 6 px closer to its header).
+  .v-data-table__tr--mobile > td {
+    display: flex;
+    justify-content: space-between;
+    column-gap: 0;
+
+    > .v-data-table__td-title {
+      padding-right: 16px;
+    }
+
+    > .v-data-table__td-value {
+      text-align: right;
+    }
+  }
+
+  // The line over the footer: the top border of `.v-data-footer` in Vuetify 2 — as wide as the
+  // footer (16 px in from both sides, App.vue) and in the border colour (.12), not a divider over
+  // the whole table at .12 of the text colour.
+  > .v-divider {
+    margin: 0 16px;
+    border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+    opacity: 1;
+  }
+
+  // The footer of Vuetify 2 (`.v-data-footer`): 8 px padding, the range 24 px from the left and
+  // 32 px before the arrows (no rows-per-page select pushes them right), 36 px round arrow buttons
+  // 14 px apart, in the icon colour of the theme (.54) when enabled; no first/last buttons
+  // (`showFirstLastPage: false`).
+  > .v-data-table-footer {
+    justify-content: flex-start;
+    padding: 0 8px;
+
+    > .v-data-table-footer__info {
+      min-width: 0;
+      margin: 0 32px 0 24px;
+      padding: 0;
+    }
+
+    .v-pagination__list > li {
+      margin: 0;
+
+      &.v-pagination__prev {
+        margin-inline-end: 7px;
+      }
+
+      &.v-pagination__next {
+        margin-inline-start: 7px;
+      }
+    }
+
+    .v-pagination .v-btn {
+      width: 36px;
+      height: 36px;
+    }
+
+    .v-pagination .v-btn.v-theme--light:not(.v-btn--disabled) {
+      color: rgba(0, 0, 0, .54);
+      opacity: 1;
+    }
+  }
+}
+</style>
 <script>
 import EventBus from '@/event-bus';
 import ItemListPageBase from '@/components/ItemListPageBase';

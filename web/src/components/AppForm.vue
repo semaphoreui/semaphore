@@ -6,10 +6,12 @@
       data-testid="appForm-form"
       :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
+    <!-- mb-3: in Vuetify 2 the 16 px under the alert collapsed with the 4 px over the first
+         field; Vuetify 4 adds the two, so 12 + 4 keeps the field where it was. -->
     <v-alert
         :model-value="!!formError"
         color="error"
-        class="pb-2"
+        class="pb-2 mb-3"
         data-testid="appForm-error"
     >{{ formError }}
     </v-alert>

@@ -58,21 +58,19 @@
     <v-data-table
         :headers="headers"
         :items="items"
-        class="mt-4 FixedPageSizeTable"
+        class="mt-4 FixedPageSizeTable AppsTable"
         :items-per-page-options="[20]"
         :items-per-page="20"
+        :show-first-last-page="false"
+        :page-text="items.length === 0 ? '–' : undefined"
         data-testid="apps-table"
         :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.active="{ item }">
-        <!-- min-width: the grid of a Vuetify 3 v-input is 0 px at its narrowest, and the column
-             of the switch (beside the 100 % wide «ID») shrank to it: the switch covered
-             the names -->
         <v-switch
             :disabled="!canManageSystem"
             v-model="item.active"
             inset
-            style="min-width: max-content"
             @update:model-value="setActive(item.id, $event)"
             data-testid="apps-rowActive"
         ></v-switch>
@@ -122,6 +120,109 @@
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// The applications table as Vuetify 2 drew it.
+.AppsTable {
+  // The inset switch of Vuetify 2 (`.v-input--switch--inset`): the control 48 × 24 px and 8 px
+  // after it, the track (48 × 28) 4 px out to the left at .32, a white thumb when off. Vuetify 4
+  // makes the control 40 px high (a row 16 px higher) and starts the track at the control.
+  // The column of the switch keeps its width: a Vuetify 4 `v-input` may shrink to 0 px beside the
+  // 100 % wide ID column (the switch then covered the names on a tablet).
+  .v-switch--inset {
+    min-width: max-content;
+
+    .v-selection-control__wrapper {
+      height: 24px;
+      margin-inline: -4px 12px;
+    }
+
+    .v-switch__track {
+      opacity: .32;
+    }
+  }
+
+  .v-switch--inset.v-theme--light
+    .v-selection-control:not(.v-selection-control--dirty) .v-switch__thumb {
+    background-color: #fff;
+  }
+
+  // The icon in front of the name is an icon of the theme (`.theme--light.v-icon`: .54, white in
+  // the dark theme), not the text colour.
+  > .v-table__wrapper > table > tbody > tr > td > .v-icon,
+  > .v-table__wrapper > table > tbody > tr > td > .v-data-table__td-value > .v-icon {
+    &.v-theme--light {
+      color: rgba(0, 0, 0, .54);
+    }
+
+    &.v-theme--dark {
+      color: #fff;
+    }
+  }
+
+  // Mobile rows: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between, the header
+  // 16 px from the value, the value at the right end), not the two equal grid columns of
+  // Vuetify 4.
+  .v-data-table__tr--mobile > td {
+    display: flex;
+    justify-content: space-between;
+    column-gap: 0;
+
+    > .v-data-table__td-title {
+      padding-right: 16px;
+    }
+
+    > .v-data-table__td-value {
+      text-align: right;
+    }
+  }
+
+  // The line over the footer: the top border of `.v-data-footer` in Vuetify 2 — as wide as the
+  // footer (16 px in from both sides, App.vue) and in the border colour (.12), not a divider over
+  // the whole table at .12 of the text colour.
+  > .v-divider {
+    margin: 0 16px;
+    border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+    opacity: 1;
+  }
+
+  // The footer of Vuetify 2 (`.v-data-footer`): 8 px padding, the range 24 px from the left and
+  // 32 px before the arrows (no rows-per-page select pushes them right), 36 px round arrow buttons
+  // 14 px apart, in the icon colour of the theme (.54) when enabled; no first/last buttons
+  // (`showFirstLastPage: false`).
+  > .v-data-table-footer {
+    justify-content: flex-start;
+    padding: 0 8px;
+
+    > .v-data-table-footer__info {
+      min-width: 0;
+      margin: 0 32px 0 24px;
+      padding: 0;
+    }
+
+    .v-pagination__list > li {
+      margin: 0;
+
+      &.v-pagination__prev {
+        margin-inline-end: 7px;
+      }
+
+      &.v-pagination__next {
+        margin-inline-start: 7px;
+      }
+    }
+
+    .v-pagination .v-btn {
+      width: 36px;
+      height: 36px;
+    }
+
+    .v-pagination .v-btn.v-theme--light:not(.v-btn--disabled) {
+      color: rgba(0, 0, 0, .54);
+      opacity: 1;
+    }
+  }
+}
+</style>
 <script>
 import axios from 'axios';
 import EventBus from '@/event-bus';
