@@ -14,7 +14,7 @@
       test-id="workflowEditorLeaveDialog"
     />
 
-    <v-toolbar flat>
+    <v-toolbar flat class="WorkflowEditor__toolbar">
       <v-app-bar-nav-icon
         @click="showDrawer()"
         data-testid="workflowEditor-drawerToggle"
@@ -52,7 +52,7 @@
           v-if="item != null && item.revision"
           size="x-small"
           variant="outlined"
-          class="ml-3"
+          class="WorkflowEditor__chip ml-3"
           :title="$t('workflowRevisionHint')"
           data-testid="workflowEditor-revision"
         >{{ $t('workflowRevisionLabel', { number: item.revision }) }}</v-chip>
@@ -62,7 +62,7 @@
               size="x-small"
               variant="outlined"
               color="warning"
-              class="ml-2"
+              class="WorkflowEditor__chip ml-2"
               v-bind="props"
               data-testid="workflowEditor-activeRuns"
             >
@@ -100,13 +100,25 @@
         <v-icon>mdi-redo</v-icon>
       </v-btn>
 
-      <v-menu v-if="problems.length > 0" location="bottom" :close-on-content-click="true">
+      <!-- Vuetify 2 opened the menu under the chip and pushed it in to 12 px from the right edge
+           of the window (always so next to Save); Vuetify 4 flips it to end at the chip instead.
+           Placed at the end of Save (16 px from the edge) 4 px further right and 6 px up, at the
+           bottom of the chip. At most 80 % of the window wide (`.v-menu__content` of
+           Vuetify 2). -->
+      <v-menu
+        v-if="problems.length > 0"
+        location="bottom end"
+        target=".WorkflowEditor__save"
+        :offset="[-6, 4]"
+        max-width="80%"
+        :close-on-content-click="true"
+      >
         <template v-slot:activator="{ props }">
           <v-chip
             size="small"
             variant="outlined"
             color="warning"
-            class="mr-4"
+            class="WorkflowEditor__chip mr-4"
             v-bind="props"
             data-testid="workflowEditor-problemsMenu"
           >
@@ -114,7 +126,11 @@
             {{ $t('workflowProblemsCount', { count: problems.length }, problems.length) }}
           </v-chip>
         </template>
-        <v-list density="compact" data-testid="workflowEditor-problemsMenu-list">
+        <v-list
+          density="compact"
+          class="WorkflowEditor__problems"
+          data-testid="workflowEditor-problemsMenu-list"
+        >
           <v-list-item
             v-for="(p, i) in problems"
             :key="`problem-${i}`"
@@ -133,7 +149,7 @@
         size="small"
         variant="outlined"
         color="success"
-        class="mr-4"
+        class="WorkflowEditor__chip mr-4"
         data-testid="workflowEditor-validationPassed"
       >
         <v-icon start size="small">mdi-check</v-icon>
@@ -144,13 +160,14 @@
         :model-value="dirty"
         dot
         color="warning"
-        offset-x="8"
-        offset-y="8"
+        offset-x="0"
+        offset-y="0"
         data-testid="workflowEditor-unsavedBadge"
       >
         <v-btn
           color="primary"
           variant="flat"
+          class="WorkflowEditor__save"
           :disabled="!canManage || saving || problems.length > 0"
           :loading="saving"
           @click="save()"
@@ -295,7 +312,8 @@
     </div>
 
     <div v-else class="pa-4 text-center" data-testid="workflowEditor-loading">
-      <v-progress-circular indeterminate color="primary" />
+      <!-- No track under the spinning arc: Vuetify 2 drew none for an indeterminate one -->
+      <v-progress-circular indeterminate color="primary" bg-color="transparent" />
     </div>
   </div>
 </template>
@@ -874,6 +892,59 @@ $worklow_pallete_width_collapsed: 60px;
     }
   }
 
+  // The toolbar does not clip what does not fit (a phone: the chips and Save past the right edge),
+  // as in Vuetify 2 (`.v-toolbar__content` without overflow); the toolbar has the layout
+  // containment of Vuetify 2 (`.v-toolbar { contain: layout }`), so what sticks out is painted but
+  // does not widen the page.
+  &__toolbar {
+    contain: layout;
+
+    :deep(.v-toolbar__content) {
+      overflow: visible;
+    }
+  }
+
+  // The chips of the toolbar as in Vuetify 2 (`.v-chip`): x-small 16 px high, small 24 px, a
+  // 20 px line, the weight of the text around them (the revision chip sits in the bold title); the
+  // icon at its own size (x-small 12 px, small 16 px), 6 px out to the left and 6 px to the text
+  // (`$chip-icon-margin-*`); an outlined chip without a colour has the thin border of the theme
+  // (`.theme--light.v-chip`: dividers), not one in the text colour.
+  &__chip.v-chip {
+    line-height: 20px;
+    font-weight: inherit;
+
+    &.v-chip--size-x-small {
+      --v-chip-height: 16px;
+    }
+
+    &.v-chip--size-small {
+      --v-chip-height: 24px;
+    }
+
+    :deep(.v-icon--start) {
+      --v-icon-size-multiplier: 1;
+      margin-inline: -6px 6px;
+    }
+
+    &.v-chip--variant-outlined:not([class*="text-"]) {
+      border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+    }
+  }
+
+  // The problems menu: the text 24 px after the icon (`v-list-item-icon` of Vuetify 2), not 16.
+  &__problems {
+    --v-list-prepend-gap: 24px;
+  }
+
+  // Icons without a colour of their own in the icon colour of Vuetify 2 (`.theme--light.v-icon`:
+  // .54, white in the dark theme), not in the text colour; a coloured one keeps its colour (an
+  // inline style).
+  &__nameIcon,
+  &__paletteTile > .v-icon,
+  &__sideToggle > .v-icon {
+    color: rgba(0, 0, 0, .54);
+  }
+
   // Inline name editor: looks like a title, but the pencil + hover/focus
   // affordances make it clear it is editable. The field auto-sizes to the
   // width of its text via the grid-sizer trick below.
@@ -1077,6 +1148,12 @@ $worklow_pallete_width_collapsed: 60px;
 .v-theme--dark {
   .WorkflowEditor__sideToggle {
     background: #1e1e1e;
+  }
+
+  .WorkflowEditor__nameIcon,
+  .WorkflowEditor__paletteTile > .v-icon,
+  .WorkflowEditor__sideToggle > .v-icon {
+    color: #fff;
   }
 }
 

@@ -61,6 +61,7 @@
           hide-details="auto"
           class="mb-5"
           @update:model-value="onKindChanged"
+          :menu-props="selectMenuProps"
           data-testid="workflowNodeProps-kind"
         />
 
@@ -77,6 +78,7 @@
           hide-details="auto"
           class="mb-5"
           @update:model-value="onTemplateChanged"
+          :menu-props="{ contentClass: 'WorkflowNodeProperties__menu' }"
           data-testid="workflowNodeProps-templateId"
         />
 
@@ -156,6 +158,7 @@
           density="compact"
           hide-details="auto"
           @update:model-value="emitChange"
+          :menu-props="selectMenuProps"
           data-testid="workflowNodeProps-convergenceMode"
         />
       </template>
@@ -169,6 +172,7 @@
         size="small"
         block
         color="error"
+        class="WorkflowNodeProperties__delete"
         :disabled="!canManage"
         @click="$emit('delete')"
         data-testid="workflowNodeProps-delete"
@@ -202,7 +206,12 @@ export default {
   emits: ['close', 'delete', 'update:modelValue'],
 
   data() {
-    return { node: this.modelValue };
+    return {
+      node: this.modelValue,
+      // The menu of a select over its field (the defaults of VSelect, plugins/vuetify.js) with the
+      // class of the zone's menus.
+      selectMenuProps: { location: 'top', origin: 'top', contentClass: 'WorkflowNodeProperties__menu' },
+    };
   },
 
   watch: {
@@ -366,5 +375,31 @@ export default {
   &__params {
     background: rgba(133, 133, 133, 0.06) !important;
   }
+
+  // `<v-icon left small>` of Vuetify 2 in the Delete button: a 16 px glyph in an 18 px box, 4 px
+  // out to the left and 8 px to the text.
+  &__delete.v-btn .v-icon--start {
+    --v-icon-size-multiplier: 1;
+    width: 18px;
+    height: 18px;
+    margin-inline: -4px 8px;
+  }
+}
+
+// The selected option of a menu as Vuetify 2 showed it on opening: active and highlighted
+// (`.v-list-item--highlighted`, the list index of `v-menu` starts at the active item), the pressed
+// overlay (.16), not the activated one (.12).
+.WorkflowNodeProperties__menu .v-list-item--active > .v-list-item__overlay {
+  opacity: calc(var(--v-pressed-opacity) * var(--v-theme-overlay-multiplier));
+}
+
+// The icon of a task or note tile has no colour of its own: the icon colour of Vuetify 2
+// (`.theme--light.v-icon`: .54, white in the dark theme), not the text colour.
+.v-theme--light .WorkflowNodeProperties__tile > .v-icon {
+  color: rgba(0, 0, 0, .54);
+}
+
+.v-theme--dark .WorkflowNodeProperties__tile > .v-icon {
+  color: #fff;
 }
 </style>

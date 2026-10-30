@@ -243,33 +243,35 @@
 // Fields under the input (`.v-input__slot` margin 8 px, 4 px dense, then the messages line of
 // 14 px). A field with a box (outlined, filled, solo: `.v-text-field--enclosed`) has 8 px more
 // under the messages (`.v-text-field__details` margin-bottom, so also under a message of two
-// lines) and its messages 12 px in from the box edge.
+// lines) and its messages 12 px in from the box edge. A field with `hide-details="auto"` and no
+// message has no details line at all (Vuetify 4: `.v-input__details--hidden`, height 0); the
+// rules leave it alone.
 .v-text-field,
 .v-select,
 .v-autocomplete,
 .v-combobox,
 .v-textarea,
 .v-file-input {
-  > .v-input__details {
+  > .v-input__details:not(.v-input__details--hidden) {
     align-items: flex-start;
     min-height: 22px;
     padding-top: 8px;
     padding-inline: 0;
   }
 
-  &.v-input--density-compact > .v-input__details {
+  &.v-input--density-compact > .v-input__details:not(.v-input__details--hidden) {
     min-height: 18px;
     padding-top: 4px;
   }
 
   &:not(:has(> .v-input__control > .v-field--variant-underlined, > .v-input__control > .v-field--variant-plain)) {
-    > .v-input__details {
+    > .v-input__details:not(.v-input__details--hidden) {
       min-height: 30px;
       padding-inline: 12px;
       padding-bottom: 8px;
     }
 
-    &.v-input--density-compact > .v-input__details {
+    &.v-input--density-compact > .v-input__details:not(.v-input__details--hidden) {
       min-height: 26px;
     }
   }
@@ -514,12 +516,13 @@
 }
 
 // Their icons in black (white in the dark theme), not in the text colour
-// (`.theme--light.v-btn-toggle:not(.v-btn-toggle--group) .v-btn.v-btn .v-icon`).
-.v-btn-group.v-theme--light > .v-btn:not(.v-btn--variant-text):not(.v-btn--variant-plain) .v-icon {
+// (`.theme--light.v-btn-toggle:not(.v-btn-toggle--group) .v-btn.v-btn .v-icon`). A disabled
+// button keeps the grey of a disabled button (`.v-btn--disabled .v-icon`, !important in v2).
+.v-btn-group.v-theme--light > .v-btn:not(.v-btn--variant-text):not(.v-btn--variant-plain):not(.v-btn--disabled) .v-icon {
   color: #000;
 }
 
-.v-btn-group.v-theme--dark > .v-btn:not(.v-btn--variant-text):not(.v-btn--variant-plain) .v-icon {
+.v-btn-group.v-theme--dark > .v-btn:not(.v-btn--variant-text):not(.v-btn--variant-plain):not(.v-btn--disabled) .v-icon {
   color: #fff;
 }
 

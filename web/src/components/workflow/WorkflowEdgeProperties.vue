@@ -38,12 +38,17 @@
         density="compact"
         hide-details="auto"
         @update:model-value="emitChange"
+        :menu-props="conditionMenuProps"
         data-testid="workflowEdgeProps-condition"
       >
         <!-- The item slot draws the whole list item; in Vuetify 4 `item` is the option
              itself (internalItem the wrapper) -->
         <template v-slot:item="{ item, props }">
-          <v-list-item v-bind="props">
+          <v-list-item
+            v-bind="props"
+            density="compact"
+            class="WorkflowEdgeProperties__conditionItem"
+          >
             <template v-slot:prepend>
               <v-icon
                 size="small"
@@ -107,6 +112,7 @@
                 size="x-small"
                 label
                 variant="outlined"
+                class="WorkflowEdgeProperties__varChip"
                 :color="hintHas(v.name) ? 'success' : null"
                 :title="hintHas(v.name)
                   ? $t('workflowEdgeInputsMatched', { run: hints.runId }) : null"
@@ -165,7 +171,17 @@
                 class="WorkflowEdgeProperties__key"
                 @update:model-value="setMapping(v.name, $event)"
                 :data-testid="`workflowEdgeProps-key-${v.name}`"
-              />
+              >
+                <!-- Vuetify 2 drew the arrow of a combobox without suggestions too; Vuetify 4
+                     drops its menu icon when there is nothing to list -->
+                <template v-if="hintKeys.length === 0" v-slot:append-inner="{ iconColor }">
+                  <v-icon
+                    class="WorkflowEdgeProperties__keyArrow"
+                    :color="iconColor.value"
+                    icon="$dropdown"
+                  />
+                </template>
+              </v-combobox>
             </div>
           </template>
         </template>
@@ -185,6 +201,7 @@
         size="small"
         block
         color="error"
+        class="WorkflowEdgeProperties__delete"
         :disabled="!canManage"
         @click="$emit('delete')"
         data-testid="workflowEdgeProps-delete"
@@ -222,6 +239,11 @@ export default {
     return {
       edge: this.normalize(this.modelValue),
       explicit: this.modelValue.input_mode === 'explicit',
+      // The menu of the select over its field (the defaults of VSelect, plugins/vuetify.js) with
+      // the class of the zone's menus.
+      conditionMenuProps: {
+        location: 'top', origin: 'top', contentClass: 'WorkflowEdgeProperties__menu',
+      },
     };
   },
 
@@ -404,5 +426,66 @@ export default {
     flex: 1 1 auto;
     min-width: 0;
   }
+
+  // The label of the explicit checkbox in the secondary text colour, as every `.v-label` of
+  // Vuetify 2 (`.theme--light.v-label`: .6, .7 dark); Vuetify 4 writes it in the text colour.
+  .v-checkbox .v-label {
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    opacity: 1;
+  }
+
+  // A variable chip as an x-small chip of Vuetify 2 (`.v-chip.v-size--x-small`): 16 px high, not
+  // 20, with the 20 px line of every chip; the check icon at its own 12 px, 6 px out to the left
+  // and 6 px to the text; without a colour the thin border of the theme (`.theme--light.v-chip`:
+  // dividers), not one in the text colour.
+  &__varChip.v-chip {
+    --v-chip-height: 16px;
+    line-height: 20px;
+
+    .v-icon--start {
+      --v-icon-size-multiplier: 1;
+      margin-inline: -6px 6px;
+    }
+
+    &:not([class*="text-"]) {
+      border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+    }
+  }
+
+  // The arrow of a key field without suggestions: where the menu icon of a combobox stands.
+  &__keyArrow {
+    margin-inline-start: 4px;
+  }
+
+  // `<v-icon left small>` of Vuetify 2 in the Delete button: a 16 px glyph in an 18 px box, 4 px
+  // out to the left and 8 px to the text.
+  &__delete.v-btn .v-icon--start {
+    --v-icon-size-multiplier: 1;
+    width: 18px;
+    height: 18px;
+    margin-inline: -4px 8px;
+  }
+}
+
+// An option of the condition menu is a dense item of Vuetify 2 (40 px, the list of a dense
+// select) with the icon 8 px before the text (`.v-icon--left`), not 32 px.
+.WorkflowEdgeProperties__conditionItem {
+  --v-list-prepend-gap: 8px;
+}
+
+// The selected option as Vuetify 2 showed it on opening: active and highlighted
+// (`.v-list-item--highlighted`), the pressed overlay (.16), not the activated one (.12).
+.WorkflowEdgeProperties__menu .v-list-item--active > .v-list-item__overlay {
+  opacity: calc(var(--v-pressed-opacity) * var(--v-theme-overlay-multiplier));
+}
+
+// The icon of the tile has no colour of its own: the icon colour of Vuetify 2
+// (`.theme--light.v-icon`: .54, white in the dark theme), not the text colour.
+.v-theme--light .WorkflowEdgeProperties__tile > .v-icon {
+  color: rgba(0, 0, 0, .54);
+}
+
+.v-theme--dark .WorkflowEdgeProperties__tile > .v-icon {
+  color: #fff;
 }
 </style>
