@@ -331,7 +331,7 @@
         <v-icon start>mdi-cog-sync</v-icon>
         Sync paths
         <v-chip
-          class="ml-2"
+          class="ml-2 SecretStorageSyncPathsCount"
           variant="outlined"
           style="transform: translateY(-1px)"
           color="primary"
@@ -356,6 +356,7 @@
             persistent-hint
             :disabled="formSaving"
             suffix="minutes"
+            class="SecretStorageSyncInterval"
             data-testid="secretStorageSync-syncInterval"
             variant="outlined"
             density="compact"
@@ -503,6 +504,17 @@ export default {
     bottom: 0;
     opacity: 0.65;
   }
+}
+
+// The path counter: the small chip of Vuetify 2 is 24 px high (`$chip-sizes` small), not 26.
+.SecretStorageSyncPathsCount.v-chip {
+  --v-chip-height: 24px;
+}
+
+// The "minutes" suffix in the field text colour (`.theme--light.v-input input`: .87), not the
+// secondary colour of Vuetify 4.
+.SecretStorageSyncInterval :deep(.v-field:not(.v-field--disabled) .v-text-field__suffix) {
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
 }
 
 .v-theme--dark {

@@ -51,7 +51,9 @@
       </v-toolbar-title>
       <v-spacer></v-spacer>
 
-      <v-menu location="bottom">
+      <!-- The menu is wider than the button: Vuetify 2 pushed it against the 12 px margin of the
+           window, Vuetify 4 lines it up with the end of the button, 4 px further left. -->
+      <v-menu location="bottom" :offset="[0, 4]">
         <template v-slot:activator="{ props }">
           <v-btn
             class="pr-2"
@@ -65,7 +67,7 @@
             <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
-        <v-list data-testid="secretStorages-newMenu">
+        <v-list class="SecretStoragesNewMenu" data-testid="secretStorages-newMenu">
           <v-list-item
             link
             @click="
@@ -230,6 +232,7 @@
 
         <v-chip
           v-if="item.readonly"
+          class="SecretStoragesReadonly"
           style="transform: translateY(-1px)"
           color="info"
           size="small"
@@ -273,6 +276,25 @@
 .SecretStoragesTable {
   max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
   margin: auto;
+}
+
+// The storage logos of the menu in their own colours, as the SVG icons of Vuetify 2 were (the
+// grey of `.v-list-item__icon` does not touch an SVG fill); Vuetify 4 dims the icon in front of an
+// item to the medium emphasis.
+.v-list.SecretStoragesNewMenu :deep(.v-list-item__prepend > .v-icon) {
+  opacity: 1;
+}
+
+// A disabled item (no licence) has its text in the disabled text colour and its logo as it is
+// (`.theme--light.v-list-item--disabled`: color .38); Vuetify 4 fades the whole item to .6.
+.v-list.SecretStoragesNewMenu :deep(.v-list-item--disabled) {
+  opacity: 1;
+  color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+}
+
+// The small chip of Vuetify 2 is 24 px high (`$chip-sizes` small), not 26.
+.SecretStoragesReadonly.v-chip {
+  --v-chip-height: 24px;
 }
 
 .SecretStoragesEnterpriseMenu {

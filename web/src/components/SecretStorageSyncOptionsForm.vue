@@ -2,6 +2,7 @@
   <div>
     <v-alert
       variant="tonal"
+      class="SyncPathsEmpty"
       v-if="!paths || paths.length === 0"
       data-testid="secretStorageSync-empty"
     >
@@ -124,3 +125,15 @@ export default {
   },
 };
 </script>
+<style lang="scss" scoped>
+// The `v-alert text` of Vuetify 2 without a colour is a sheet of the theme: its text and its tint
+// in the primary text colour (`.theme--light.v-sheet`: .87), not in the secondary text colour of
+// the card around it, which a tonal alert of Vuetify 4 inherits.
+.SyncPathsEmpty.v-theme--light {
+  color: rgba(0, 0, 0, .87);
+}
+
+.SyncPathsEmpty.v-theme--dark {
+  color: #fff;
+}
+</style>
