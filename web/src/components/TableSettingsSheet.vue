@@ -97,3 +97,12 @@ export default {
   },
 };
 </script>
+
+<style lang="scss">
+// Column labels in the secondary text colour, as every `.v-label` of Vuetify 2 (.6 light, .7 dark);
+// Vuetify 4 writes a checkbox label in the colour around it (.87 on the sheet).
+.page-bottom-sheet .v-checkbox .v-label {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  opacity: 1;
+}
+</style>

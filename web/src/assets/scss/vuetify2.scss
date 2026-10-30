@@ -203,9 +203,41 @@
   min-height: 40px;
 }
 
+// The checkbox in front of an item of a multiple select (`.v-list-item__action` with a
+// `v-simple-checkbox`): 24 px wide, 25 px high, 12 px above and below, 16 px to the text, so the
+// item is 49 px high; not the 40 px selection control of Vuetify 4.
+:is(.v-select__content, .v-autocomplete__content, .v-combobox__content)
+  .v-list-item__prepend > .v-selection-control {
+  align-items: flex-start;
+  width: 24px;
+  height: 25px;
+  min-height: 0;
+  margin-block: 12px;
+
+  .v-selection-control__wrapper,
+  .v-selection-control__input {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+// The item of a select list that has the focus (Vuetify 4 focuses the selected item when the menu
+// opens) is the highlighted item of Vuetify 2 (`.v-list-item--highlighted::before`: the pressed
+// state .16, not activated + focus .24) and has no focus ring (`.v-list-item { outline: none }`).
+:is(.v-select__content, .v-autocomplete__content, .v-combobox__content) .v-list-item {
+  &::after {
+    display: none;
+  }
+
+  &:is(:focus-visible, .v-list-item--focus-visible) > .v-list-item__overlay {
+    opacity: calc(var(--v-pressed-opacity) * var(--v-theme-overlay-multiplier));
+  }
+}
+
 // Fields under the input (`.v-input__slot` margin 8 px, 4 px dense, then the messages line of
 // 14 px). A field with a box (outlined, filled, solo: `.v-text-field--enclosed`) has 8 px more
-// under the messages and its messages 12 px in from the box edge.
+// under the messages (`.v-text-field__details` margin-bottom, so also under a message of two
+// lines) and its messages 12 px in from the box edge.
 .v-text-field,
 .v-select,
 .v-autocomplete,
@@ -228,12 +260,25 @@
     > .v-input__details {
       min-height: 30px;
       padding-inline: 12px;
+      padding-bottom: 8px;
     }
 
     &.v-input--density-compact > .v-input__details {
       min-height: 26px;
     }
   }
+}
+
+// The messages (`.theme--light.v-messages`): the secondary text colour, not dimmed again by the
+// medium emphasis of Vuetify 4, without the letter spacing of the details (the field's own). An
+// error message keeps the error colour of its field.
+.v-messages {
+  opacity: 1;
+  letter-spacing: normal;
+}
+
+.v-input:not(.v-input--error) .v-messages {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 // Field labels in the secondary text colour, the primary colour on focus, the error colour on an
@@ -268,6 +313,18 @@
   > .v-field__clearable > .v-icon {
     opacity: .54;
   }
+}
+
+// The icons of a focused field take its colour (`glow`, plugins/vuetify.js); the clear icon is
+// not given the field colour by Vuetify 4, Vuetify 2 coloured it as the others.
+.v-field--focused:not(.v-field--error):not(.v-field--disabled) > .v-field__clearable > .v-icon {
+  color: rgb(var(--v-theme-primary));
+}
+
+// The text after an inner icon starts 4 px from it (`.v-input__prepend-inner` padding-right),
+// not 6 px.
+.v-field.v-field--prepended {
+  --v-field-padding-start: 4px;
 }
 
 .v-field--disabled {
@@ -348,6 +405,22 @@
   }
 }
 
+// The box of an unchecked checkbox or radio is an icon of the theme (`.theme--light.v-icon`: .54,
+// white in the dark theme), not the medium emphasis twice (.6 colour × .6 opacity) of Vuetify 4.
+// A checked one is in its colour, a disabled one dimmed as a whole.
+.v-selection-control:not(.v-selection-control--dirty):not(.v-selection-control--disabled)
+  .v-selection-control__input > .v-icon {
+  opacity: 1;
+
+  &.v-theme--light {
+    color: rgba(0, 0, 0, .54);
+  }
+
+  &.v-theme--dark {
+    color: #fff;
+  }
+}
+
 // The switch is 38 px wide (`.v-input--switch .v-input--selection-controls__input`).
 .v-switch:not(.v-switch--inset) .v-selection-control__wrapper {
   width: 38px;
@@ -376,6 +449,23 @@
 .v-chip.v-chip--size-small,
 .v-chip.v-chip--size-x-small {
   padding: 0 12px;
+}
+
+// The close button of a chip: 6 px from the text, 4 px into the padding
+// (`.v-chip .v-icon--right`); on a chip without a colour the cross is an icon of the theme
+// (`.theme--light.v-icon`: .54, white in the dark theme), on a coloured one the chip's text colour.
+.v-chip__close {
+  margin-inline: 6px -4px;
+}
+
+.v-chip:not([class*="bg-"]):not([class*="text-"]):not([style*="color"]) {
+  &.v-theme--light > .v-chip__close {
+    color: rgba(0, 0, 0, .54);
+  }
+
+  &.v-theme--dark > .v-chip__close {
+    color: #fff;
+  }
 }
 
 // Button groups (`v-btn-toggle` of Vuetify 2, the row actions of the tables): every button framed

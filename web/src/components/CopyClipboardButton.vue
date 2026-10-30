@@ -16,7 +16,8 @@
       :size="large ? 'large' : undefined"
       :data-testid="testId"
     >
-      <v-icon :color="color">mdi-content-copy</v-icon>
+      <!-- a large icon button of Vuetify 2: a 28 px icon (`.v-btn--icon.v-size--large .v-icon`) -->
+      <v-icon :color="color" :size="large ? 28 : undefined">mdi-content-copy</v-icon>
     </v-btn>
   </span>
 </template>

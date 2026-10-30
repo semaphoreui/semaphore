@@ -44,4 +44,9 @@ export default {
   flex-wrap: wrap;
   gap: 4px;
 }
+
+/* A small chip of Vuetify 2 is 24 px high (`$chip-sizes`), Vuetify 4 makes it 26 px. */
+.v-chip.v-chip--size-small {
+  --v-chip-height: 24px;
+}
 </style>

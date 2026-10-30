@@ -19,10 +19,12 @@
             :data-testid="`${testId}-code`"
         />
 
+        <!-- `fab small` of Vuetify 2: a round button of 40 px (shadow: .rich-editor-fab) -->
         <v-btn
             v-if="validatable"
             icon
-            size="small"
+            size="40"
+            class="rich-editor-fab"
             color="success"
             style="
             position: absolute;
@@ -38,7 +40,8 @@
 
         <v-btn
             icon
-            size="small"
+            size="40"
+            class="rich-editor-fab"
             color="blue-grey"
             style="
             position: absolute;
@@ -56,6 +59,7 @@
             v-model="showAlert"
             :color="errorMessage ? 'error' : 'success'"
             closable
+            class="rich-editor-result"
             :data-testid="`${testId}-result`"
             :data-state="errorMessage ? 'error' : 'ready'"
             style="
@@ -71,7 +75,8 @@
 
     <v-btn
         icon
-        size="small"
+        size="40"
+        class="rich-editor-fab"
         color="blue-grey"
         @click="envEditorDialog = true"
         :data-testid="`${testId}-expand`"
@@ -208,6 +213,37 @@ export default {
 };
 </script>
 <style lang="scss">
+// The shadow of a Vuetify 2 fab: elevation 6 (`.v-btn--fab`); Vuetify 4 has elevation classes up
+// to 5 only, and the elevated variant draws level 2.
+// A focused button (after a click, too) is lightened by its overlay at .24
+// (`.v-btn:focus::before`); Vuetify 4 shows the overlay on `:focus-visible` only.
+.v-btn.rich-editor-fab {
+  box-shadow: 0 3px 5px -1px rgba(0, 0, 0, .2), 0 6px 10px 0 rgba(0, 0, 0, .14),
+    0 1px 18px 0 rgba(0, 0, 0, .12);
+
+  &:focus > .v-btn__overlay {
+    opacity: .24;
+  }
+}
+
+// The verdict of Vuetify 2 (`v-alert` with a colour and no type is in the light theme): the text
+// in the primary text colour, the close button a grey icon button pulled 8 px into the padding
+// (`.v-alert__dismissible`: margin -16px -8px -16px 8px). Vuetify 4 writes on a coloured alert in
+// its `on-` colour (white) and puts the close button 16 px from the text.
+.rich-editor-result {
+  .v-alert__content {
+    color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+  }
+
+  .v-alert__close {
+    margin-inline: 8px -8px;
+  }
+
+  &.v-theme--light .v-alert__close > .v-btn {
+    color: rgba(0, 0, 0, .54);
+  }
+}
+
 .vue-codemirror.EnvironmentMaximizedEditor {
   height: 100% !important;
   border-radius: 0 !important;

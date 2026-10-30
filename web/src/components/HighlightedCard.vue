@@ -1,6 +1,8 @@
 <template>
+  <!-- max-width: a Vuetify 2 card never grows past its container (`.v-card { max-width: 100% }`);
+       the runner dialog gives this card 350 px, wider than the dialog on a phone -->
   <v-card
-      style="background: var(--highlighted-card-bg-color); overflow: visible"
+      style="background: var(--highlighted-card-bg-color); overflow: visible; max-width: 100%"
       class="mb-6 pt-3"
   >
     <div
