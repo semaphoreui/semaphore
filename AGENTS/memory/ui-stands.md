@@ -48,6 +48,13 @@
   and templates `cli-ok` (5), `cli-fail` (6), `cli-slow` (7) built for exit-code checks (0/3/6).
   Admin API token for scripts: `/tmp/semaphore-stand/cli-stage8.token` (0600); client config
   `client-stage8.yml` with context `127.0.0.1` — run `SEMAPHORE_CLIENT_CONFIG=… semaphore client …`.
+  Since 2026-10-30 it also reproduces `waiting_confirmation`: `apps.terraform` enabled in
+  `config-vg.json`, `wf-repo/tf` holds a `local_file` resource, template `tf-apply` (8) with
+  inventory `tf-default` (type `terraform-workspace`, workspace `default`) and the empty
+  environment `tf-empty` — the default inventory/environment break terraform (the inventory
+  becomes the workspace name, every env var becomes a `-var`). To answer a prompt from a script,
+  drive the binary through a pty (`python3 -c` with the `pty` module); the client asks only when
+  stdin and stdout are terminals.
 - Global-roles stand: `config-gr.json` + `database-gr.sqlite`, port `:3101`, binary `semaphore-gr`
   (built from this worktree), users `admin`/`admin123`, `manager`/`manager123` (holds the global
   role `user_manager`), `plain`/`plain1234`; roles were inserted with `sqlite3` because the community
