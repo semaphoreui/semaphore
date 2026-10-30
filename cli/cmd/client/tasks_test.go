@@ -374,6 +374,79 @@ func TestWait_ConfirmationPrompt(t *testing.T) {
 	})
 }
 
+// --auto-reject is for an unattended run: a task that asks for approval is
+// turned down instead of standing there until something kills the job.
+func TestWait_AutoReject(t *testing.T) {
+	t.Run("rejects and ends as error", func(t *testing.T) {
+		s := newTaskServer(task_logger.TaskWaitingConfirmation)
+		s.afterReject = []task_logger.TaskStatus{task_logger.TaskFailStatus}
+		srv := httptest.NewServer(s.handler(t))
+		defer srv.Close()
+
+		_, errOut, err := run(t, taskEnv(srv), "", "template", "run", "Deploy", "--wait", "--auto-reject")
+		assert.Equal(t, ExitTaskFailed, ExitCode(err))
+		assert.Contains(t, errOut, "Task 42 is waiting for confirmation before it continues.")
+		assert.Contains(t, errOut, "Rejecting it: --auto-reject was given.")
+		assert.Equal(t, 1, s.rejects)
+		assert.Zero(t, s.confirms)
+		assert.NotContains(t, errOut, "task confirm 42", "nothing for a human to do")
+	})
+
+	t.Run("rejected once while the server catches up", func(t *testing.T) {
+		// The task stays in waiting_confirmation for several polls after the
+		// reject; the request must not be repeated.
+		s := newTaskServer(task_logger.TaskWaitingConfirmation, task_logger.TaskWaitingConfirmation,
+			task_logger.TaskWaitingConfirmation, task_logger.TaskStoppedStatus)
+		srv := httptest.NewServer(s.handler(t))
+		defer srv.Close()
+
+		_, _, err := run(t, taskEnv(srv), "", "task", "wait", "42", "--auto-reject")
+		assert.Equal(t, ExitTaskStopped, ExitCode(err))
+		assert.Equal(t, 1, s.rejects)
+	})
+
+	t.Run("beats the question in a terminal", func(t *testing.T) {
+		s := newTaskServer(task_logger.TaskWaitingConfirmation)
+		s.afterReject = []task_logger.TaskStatus{task_logger.TaskFailStatus}
+		srv := httptest.NewServer(s.handler(t))
+		defer srv.Close()
+
+		_, errOut, err := runWith(t, taskEnv(srv), "yes\n", true, "task", "wait", "42", "--auto-reject")
+		assert.Equal(t, ExitTaskFailed, ExitCode(err))
+		assert.NotContains(t, errOut, "[yes/no]", "no question when the answer is already decided")
+		assert.Equal(t, 1, s.rejects)
+	})
+
+	t.Run("available on every waiting command", func(t *testing.T) {
+		for _, args := range [][]string{
+			{"template", "run", "Deploy", "--wait", "--auto-reject"},
+			{"task", "wait", "42", "--auto-reject"},
+			{"task", "watch", "42", "--auto-reject"},
+			{"task", "logs", "42", "-f", "--auto-reject"},
+		} {
+			s := newTaskServer(task_logger.TaskWaitingConfirmation)
+			s.afterReject = []task_logger.TaskStatus{task_logger.TaskFailStatus}
+			srv := httptest.NewServer(s.handler(t))
+
+			_, _, err := run(t, taskEnv(srv), "", args...)
+			assert.NotEqual(t, ExitUsage, ExitCode(err), "%v knows the flag", args)
+			assert.Equal(t, 1, s.rejects, "%v rejected the task", args)
+			srv.Close()
+		}
+	})
+
+	t.Run("contradicts --auto-approve", func(t *testing.T) {
+		s := newTaskServer(task_logger.TaskWaitingStatus)
+		srv := httptest.NewServer(s.handler(t))
+		defer srv.Close()
+
+		_, _, err := run(t, taskEnv(srv), "", "template", "run", "Deploy", "--auto-approve", "--auto-reject")
+		assert.Equal(t, ExitUsage, ExitCode(err))
+		assert.ErrorContains(t, err, "--auto-approve and --auto-reject contradict each other")
+		assert.Empty(t, s.created, "no task started")
+	})
+}
+
 func TestTaskWatchAndWait(t *testing.T) {
 	s := newTaskServer(task_logger.TaskWaitingStatus, task_logger.TaskRunningStatus, task_logger.TaskRunningStatus, task_logger.TaskFailStatus)
 	srv := httptest.NewServer(s.handler(t))

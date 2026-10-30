@@ -29,6 +29,10 @@ type waitOptions struct {
 	timeout time.Duration
 	// stopOnInterrupt sends a stop request when the wait is interrupted.
 	stopOnInterrupt bool
+	// autoReject rejects the task instead of waiting for an approval, so that
+	// an unattended run ends on its own rather than hanging on a gate nobody
+	// is there to open.
+	autoReject bool
 	// onStatus is called on every status change (watch uses it to print).
 	onStatus func(task db.TaskWithTpl)
 }
@@ -80,7 +84,9 @@ func (r *runtime) waitTask(cmd *cobra.Command, api *apiclient.Client, projectID,
 			}
 			// After the log, so that a Terraform plan is on screen before the
 			// question about applying it.
-			r.handleApproval(task, taskID, &approval)
+			if err := r.handleApproval(ctx, api, projectID, taskID, task, opts, &approval); err != nil {
+				return last, err
+			}
 			if task.Status.IsFinished() {
 				return last, nil
 			}
@@ -122,35 +128,49 @@ type approvalState struct {
 	// silent stops the client from asking again: there is no terminal, or
 	// stdin ended without an answer.
 	silent bool
+	// sent says an answer already went to the server, so it is not repeated
+	// on every poll while the task moves on.
+	sent bool
 }
 
-// handleApproval reacts to the task's status: it explains the stop, asks the
-// user to approve or reject, and notices when somebody else answered instead
-// (in the web UI, or with 'task confirm' from another terminal).
-func (r *runtime) handleApproval(task db.TaskWithTpl, taskID int, st *approvalState) {
+// handleApproval reacts to the task's status: it explains the stop, rejects
+// the task outright when asked to, asks the user to approve or reject, and
+// notices when somebody else answered instead (in the web UI, or with
+// 'task confirm' from another terminal).
+func (r *runtime) handleApproval(ctx context.Context, api *apiclient.Client, projectID, taskID int, task db.TaskWithTpl, opts waitOptions, st *approvalState) error {
 	if task.Status != task_logger.TaskWaitingConfirmation {
 		if st.answers != nil {
 			r.warnf("Task %d is no longer waiting for confirmation (status: %s).", taskID, task.Status)
 			st.answers = nil
 		}
-		return
+		return nil
 	}
 
 	if !st.told {
 		st.told = true
 		r.warnf("Task %d is waiting for confirmation before it continues.", taskID)
 	}
+	if opts.autoReject {
+		if st.sent {
+			// Already rejected; the server has not moved the task on yet.
+			return nil
+		}
+		st.sent = true
+		r.warnf("Rejecting it: --auto-reject was given.")
+		return r.decide(ctx, api, projectID, taskID, false)
+	}
 	if st.silent || !r.prompter.canAsk() {
 		if !st.silent {
 			st.silent = true
 			r.warnf("Run 'semaphore client task confirm %d' to continue, or 'semaphore client task reject %d' to cancel it.", taskID, taskID)
 		}
-		return
+		return nil
 	}
 	if st.answers == nil {
 		fmt.Fprintf(r.io.Err, "Apply task %d? [yes/no]: ", taskID)
 		st.answers = r.prompter.readAsync()
 	}
+	return nil
 }
 
 // applyApproval turns the typed line into a confirm or a reject request. An

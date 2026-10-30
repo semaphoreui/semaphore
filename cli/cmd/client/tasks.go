@@ -20,6 +20,7 @@ type runFlags struct {
 	follow          bool
 	waitTimeout     time.Duration
 	stopOnInterrupt bool
+	autoReject      bool
 
 	message   string
 	branch    string
@@ -50,6 +51,7 @@ func (f *runFlags) bindWait(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&f.follow, "follow", false, "Print the task log while waiting (implies --wait)")
 	cmd.Flags().DurationVar(&f.waitTimeout, "wait-timeout", 0, "Give up waiting after this long, exit 124; the task keeps running (default: no limit)")
 	cmd.Flags().BoolVar(&f.stopOnInterrupt, "stop-on-interrupt", false, "On Ctrl+C ask the server to stop the task (by default only the client disconnects)")
+	cmd.Flags().BoolVar(&f.autoReject, "auto-reject", false, "Reject the task instead of waiting if it asks for approval (it ends as error, exit 3)")
 }
 
 func (f *runFlags) bindOverrides(cmd *cobra.Command) {
@@ -81,6 +83,9 @@ func (f *runFlags) bindOverrides(cmd *cobra.Command) {
 // template defaults stay in force for everything else.
 func (f *runFlags) apply(cmd *cobra.Command, r *runtime, api *apiclient.Client, projectID int, task *db.Task) error {
 	fl := cmd.Flags()
+	if f.autoApprove && f.autoReject {
+		return usage(cmd.CommandPath(), "--auto-approve and --auto-reject contradict each other")
+	}
 	if f.message != "" {
 		task.Message = f.message
 	}
@@ -198,6 +203,7 @@ func (f *runFlags) startAndMaybeWait(cmd *cobra.Command, r *runtime, api *apicli
 
 	final, err := r.waitTask(cmd, api, projectID, created.ID, waitOptions{
 		follow: f.follow, timeout: f.waitTimeout, stopOnInterrupt: f.stopOnInterrupt,
+		autoReject: f.autoReject,
 	})
 	if err != nil {
 		return err
@@ -399,8 +405,9 @@ func newTaskGetCmd() *cobra.Command {
 
 func newTaskLogsCmd() *cobra.Command {
 	var (
-		follow bool
-		raw    bool
+		follow     bool
+		raw        bool
+		autoReject bool
 	)
 	cmd := &cobra.Command{
 		Use:   "logs <id>",
@@ -424,7 +431,7 @@ is answered right here when the session is interactive.`,
 				return err
 			}
 			if follow {
-				final, err := r.waitTask(cmd, api, projectID, id, waitOptions{follow: true})
+				final, err := r.waitTask(cmd, api, projectID, id, waitOptions{follow: true, autoReject: autoReject})
 				if err != nil {
 					return err
 				}
@@ -450,6 +457,7 @@ is answered right here when the session is interactive.`,
 	}
 	cmd.Flags().BoolVarP(&follow, "follow", "f", false, "Keep printing new lines until the task finishes")
 	cmd.Flags().BoolVar(&raw, "raw", false, "Stream the plain-text log as the server stores it")
+	cmd.Flags().BoolVar(&autoReject, "auto-reject", false, "With --follow: reject the task instead of waiting if it asks for approval")
 	return cmd
 }
 
@@ -457,6 +465,7 @@ func newTaskWatchCmd() *cobra.Command {
 	var (
 		timeout    time.Duration
 		exitStatus bool
+		autoReject bool
 	)
 	cmd := &cobra.Command{
 		Use:   "watch <id>",
@@ -477,7 +486,8 @@ the exit code is 0 whatever the outcome; with --exit-status it follows the task
 				return err
 			}
 			final, err := r.waitTask(cmd, api, projectID, id, waitOptions{
-				timeout: timeout,
+				timeout:    timeout,
+				autoReject: autoReject,
 				onStatus: func(t db.TaskWithTpl) {
 					r.printer.Printf("%s\ttask %d\t%s\n", time.Now().Format(time.TimeOnly), t.ID, t.Status)
 				},
@@ -493,11 +503,15 @@ the exit code is 0 whatever the outcome; with --exit-status it follows the task
 	}
 	cmd.Flags().DurationVar(&timeout, "wait-timeout", 0, "Give up after this long, exit 124 (default: no limit)")
 	cmd.Flags().BoolVar(&exitStatus, "exit-status", false, "Exit with 3 or 6 when the task failed or was stopped")
+	cmd.Flags().BoolVar(&autoReject, "auto-reject", false, "Reject the task instead of waiting if it asks for approval")
 	return cmd
 }
 
 func newTaskWaitCmd() *cobra.Command {
-	var timeout time.Duration
+	var (
+		timeout    time.Duration
+		autoReject bool
+	)
 	cmd := &cobra.Command{
 		Use:   "wait <id>",
 		Short: "Wait silently until a task finishes; exit code follows its status",
@@ -518,7 +532,7 @@ is asked here, in a script run 'task confirm' or 'task reject' elsewhere.`,
 			if err != nil {
 				return err
 			}
-			final, err := r.waitTask(cmd, api, projectID, id, waitOptions{timeout: timeout})
+			final, err := r.waitTask(cmd, api, projectID, id, waitOptions{timeout: timeout, autoReject: autoReject})
 			if err != nil {
 				return err
 			}
@@ -526,6 +540,7 @@ is asked here, in a script run 'task confirm' or 'task reject' elsewhere.`,
 		},
 	}
 	cmd.Flags().DurationVar(&timeout, "wait-timeout", 0, "Give up after this long, exit 124 (default: no limit)")
+	cmd.Flags().BoolVar(&autoReject, "auto-reject", false, "Reject the task instead of waiting if it asks for approval")
 	return cmd
 }
 
