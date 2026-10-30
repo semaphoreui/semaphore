@@ -76,8 +76,12 @@
       >{{ $t('inventory') }}</v-toolbar-title>
       <v-spacer></v-spacer>
 
+      <!-- `offset-y` of Vuetify 2: the menu, wider than the button, is pushed back into the
+        window up to 12 px from its edge, 4 px past the end of the button (16 px from the edge);
+        Vuetify 4 flips it to the end of the button instead -->
       <v-menu
-        location="bottom"
+        location="bottom end"
+        :offset="[0, 4]"
       >
         <template v-slot:activator="{ props }">
           <v-btn
@@ -123,7 +127,7 @@
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.name="{ item }">
-        <v-icon class="mr-3" size="small" data-testid="inventory-rowIcon">
+        <v-icon class="mr-3 InventoryTable__appIcon" size="small" data-testid="inventory-rowIcon">
           {{ getAppIcon(getAppByType(item.type)) }}
         </v-icon>
 
@@ -176,6 +180,16 @@
 .InventoryTable {
   max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
   margin: auto;
+}
+
+// The app icon in front of the name: an icon without a colour is grey (.54) in the light theme and
+// white in the dark one (`.theme--light.v-icon`), not the text colour of the cell (as Templates).
+.InventoryTable__appIcon.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.InventoryTable__appIcon.v-theme--dark {
+  color: #fff;
 }
 </style>
 <script>
