@@ -495,19 +495,10 @@ export default {
     },
 
     canRun(item) {
-      if (this.isAdmin) {
-        return true;
-      }
-
       const perm = this.USER_PERMISSIONS.runProjectTasks;
-
-      if (item.permissions != null) {
-        // eslint-disable-next-line no-bitwise
-        return (item.permissions & perm) === perm;
-      }
-
+      // A template grant adds to the project role, as on the server.
       // eslint-disable-next-line no-bitwise
-      return (this.userPermissions & perm) === perm;
+      return this.isAdmin || (((item.permissions || 0) | this.userPermissions) & perm) === perm;
     },
 
     createTask(itemId) {
