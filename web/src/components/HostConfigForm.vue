@@ -17,7 +17,7 @@
     <v-radio-group
       v-model="item.type"
       inline
-      class="mt-0"
+      class="mt-0 HostConfigFormType"
       :disabled="formSaving"
       data-testid="hostConfigForm-type"
     >
@@ -65,6 +65,13 @@
     ></v-autocomplete>
   </v-form>
 </template>
+<style lang="scss">
+// The radios of a row group 16 px apart, as in Vuetify 2 (`.v-input--radio-group--row .v-radio`:
+// margin-right 16px); Vuetify 4 puts them side by side.
+.HostConfigFormType .v-radio {
+  margin-inline-end: 16px;
+}
+</style>
 <script>
 import axios from 'axios';
 import ItemFormBase from '@/components/ItemFormBase';

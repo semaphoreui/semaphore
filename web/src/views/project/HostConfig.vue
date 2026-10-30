@@ -107,7 +107,8 @@
 </template>
 <style lang="scss">
 // Not inline styles: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to them.
-// `.v-alert` too, as the inline style was: it beats the `margin-bottom` of `.v-alert` in components.scss.
+// `.v-alert` too, as the inline style was: it beats the `margin-bottom` of `.v-alert` in
+// components.scss.
 .v-alert.HostConfigEmpty {
   max-width: 800px;
   margin: auto;
@@ -116,6 +117,24 @@
 .HostConfigTable {
   max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px);
   margin: auto;
+}
+
+// The type chips as high as in Vuetify 2 (`.v-size--small`: 24 px); Vuetify 4 makes them 26 px.
+.HostConfigTable .v-chip.v-chip--size-small {
+  --v-chip-height: 24px;
+}
+
+// Mobile rows: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between, the header
+// 16 px from the value), not the two grid columns of Vuetify 4; a long URL starts right after
+// the header and runs past the window, as it did.
+.HostConfigTable .v-data-table__tr--mobile > td {
+  display: flex;
+  justify-content: space-between;
+  column-gap: 0;
+
+  > .v-data-table__td-title {
+    padding-right: 16px;
+  }
 }
 </style>
 <script>
