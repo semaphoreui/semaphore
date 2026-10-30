@@ -6,6 +6,7 @@
           v-model="text.from"
           :label="$t('audit_filter_from')"
           type="datetime-local"
+          class="AuditFilters__date"
           :disabled="disabled"
           variant="outlined"
           density="compact"
@@ -20,6 +21,7 @@
           v-model="text.to"
           :label="$t('audit_filter_to')"
           type="datetime-local"
+          class="AuditFilters__date"
           :disabled="disabled"
           variant="outlined"
           density="compact"
@@ -36,6 +38,7 @@
           item-title="text"
           :label="$t('audit_filter_user')"
           :disabled="disabled"
+          :menu-props="{ contentClass: 'AuditFilters__menu', maxHeight: 304 }"
           clearable
           variant="outlined"
           density="compact"
@@ -51,6 +54,7 @@
           item-title="text"
           :label="$t('audit_filter_project')"
           :disabled="disabled"
+          :menu-props="{ contentClass: 'AuditFilters__menu', maxHeight: 304 }"
           clearable
           variant="outlined"
           density="compact"
@@ -61,11 +65,14 @@
       </v-col>
       <v-col cols="12" md="6">
         <v-autocomplete
+          v-model:search="kindSearch"
           :model-value="modelValue.kind"
           :items="kindItems"
           item-title="text"
           :label="$t('audit_filter_kinds')"
           :disabled="disabled"
+          :menu-props="{ contentClass: 'AuditFilters__menu', maxHeight: 304 }"
+          class="AuditFilters__kinds"
           multiple
           chips
           closable-chips
@@ -162,6 +169,7 @@ export default {
     return {
       text: { from: this.modelValue.from, to: this.modelValue.to, ip: this.modelValue.ip },
       initial: {},
+      kindSearch: '',
     };
   },
 
@@ -197,9 +205,11 @@ export default {
       ];
     },
 
+    // The group headers are left out while a search is typed, as Vuetify 2 filtered them out.
     kindItems() {
+      const searching = Boolean(this.kindSearch);
       return GROUPS.flatMap(([header, categories]) => [
-        { type: 'subheader', text: this.$t(header) },
+        ...(searching ? [] : [{ type: 'subheader', text: this.$t(header) }]),
         ...AUDIT_KINDS.filter((kind) => categories.includes(kind.split('.')[0])).map((kind) => {
           const [code, action] = kind.split('/');
           return {
@@ -242,3 +252,46 @@ export default {
   },
 };
 </script>
+<style lang="scss">
+// From and To: the calendar button at the right end of the input and the field 40 px high, as in
+// Vuetify 2. The input of Vuetify 4 is a flex box, which leaves the button right after the date,
+// and its 24 px line makes a date input 42 px high.
+.AuditFilters__date input[type="datetime-local"].v-field__input {
+  display: block;
+  line-height: 20px;
+}
+
+// The chips of the chosen kinds 4 px from the field and 8 px apart (`.v-chip--select`: margin 4px);
+// the input of Vuetify 4 adds a column gap of 2 px.
+.AuditFilters__kinds .v-autocomplete__selection {
+  margin-inline: 4px 2px;
+}
+
+// The chips at full colour: Vuetify 4 draws the field text at .87 by the opacity of the whole
+// input, chips included; Vuetify 2 coloured the text (.87) and left the chips alone.
+.AuditFilters__kinds .v-field:not(.v-field--disabled) .v-field__input {
+  opacity: 1;
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+}
+
+.AuditFilters__menu {
+  // The group header of a dense select list of Vuetify 2 (`.v-list--dense .v-subheader`): 40 px
+  // high, 12 px text, 8 px in.
+  .v-list-subheader {
+    min-height: 40px;
+    padding-inline: 8px;
+    font-size: .75rem;
+  }
+
+  // The matched part of an item while searching (`.v-list-item__mask`): grey text on a light grey.
+  .v-list.v-theme--light .v-autocomplete__mask {
+    color: rgba(0, 0, 0, .38);
+    background: #eee;
+  }
+
+  .v-list.v-theme--dark .v-autocomplete__mask {
+    color: rgba(255, 255, 255, .5);
+    background: #494949;
+  }
+}
+</style>

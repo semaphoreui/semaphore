@@ -43,7 +43,9 @@
       class="mt-4"
       :data-testid="`audit-cardSection-${section.key.replace('audit_card_', '')}`"
     >
-      <div class="text-label-small" data-testid="audit-cardSectionTitle">{{ $t(section.key) }}</div>
+      <div class="text-label-small text-uppercase" data-testid="audit-cardSectionTitle">{{
+        $t(section.key)
+      }}</div>
       <table class="AuditEventCard__fields">
         <tr v-for="row in section.rows" :key="row.label" data-testid="audit-cardRow">
           <th data-testid="audit-cardRowLabel">{{ row.label }}</th>

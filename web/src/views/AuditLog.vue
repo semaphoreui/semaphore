@@ -45,7 +45,7 @@
       v-if="!features.audit_log_filters"
       variant="tonal"
       color="hsl(348deg, 86%, 61%)"
-      class="PageAlert"
+      class="PageAlert flex-0-0"
       data-testid="audit-pro-notice"
     >
       <span v-html="$t('audit_filters_only_pro')"></span>
@@ -113,6 +113,7 @@
       hide-default-footer
       disable-sort
       class="mt-2 AuditLog__table"
+      :class="{ 'AuditLog__table--mobile': $vuetify.display.xs }"
       data-testid="audit-table"
       :data-state="loading ? 'loading' : failed ? 'error' : events.length ? 'ready' : 'empty'"
       @click:row="(e, { item }) => { selected = item; }"
@@ -142,6 +143,29 @@
         </span>
       </template>
 
+      <!-- The loading bar of Vuetify 2: 4 px, its track at .3 of the colour. -->
+      <template v-slot:loader>
+        <v-progress-linear absolute indeterminate height="4" bg-opacity="0.3" color="primary" />
+      </template>
+
+      <!-- On a phone (rows as cards) Vuetify 4 renders no header row, and the loading bar with
+           it; Vuetify 2 kept the bar over the rows. -->
+      <template v-if="loading && $vuetify.display.xs" v-slot:body.prepend>
+        <tr class="v-data-table-progress">
+          <th :colspan="headers.length">
+            <div class="v-data-table-progress__loader">
+              <v-progress-linear
+                absolute
+                indeterminate
+                height="4"
+                bg-opacity="0.3"
+                color="primary"
+              />
+            </div>
+          </th>
+        </tr>
+      </template>
+
       <template v-if="searching" v-slot:loading>
         <span class="d-inline-flex align-center" data-testid="audit-searching">
           <v-progress-circular indeterminate size="16" width="2" class="mr-2" />
@@ -169,7 +193,9 @@
 
       <template v-slot:item.actor="{ item }">
         <span style="white-space: nowrap" data-testid="audit-rowActor">
-          <v-icon size="small" class="mr-1">{{ actorIcon(item.actor) }}</v-icon>
+          <v-icon size="small" class="mr-1 AuditLog__actorIcon">{{
+            actorIcon(item.actor)
+          }}</v-icon>
           {{ actorLabel(item.actor) }}
         </span>
       </template>
@@ -262,6 +288,7 @@
       location="right"
       temporary
       width="480"
+      class="AuditLog__drawer"
       data-testid="audit-drawer"
       @update:model-value="onDrawer"
     >
@@ -524,5 +551,46 @@ export default {
 
 .AuditLog__table tbody tr {
   cursor: pointer;
+}
+
+// An icon without a colour in the secondary text colour of the theme (`.theme--light.v-icon`).
+.v-theme--light .AuditLog__actorIcon {
+  color: rgba(0, 0, 0, .54);
+}
+
+.v-theme--dark .AuditLog__actorIcon {
+  color: #fff;
+}
+
+// The loading line («Searching older events…») in the disabled text colour, as the no-data line
+// (both are `.v-data-table__empty-wrapper` of Vuetify 2).
+.AuditLog__table .v-data-table-rows-loading {
+  color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+}
+
+// The loading bar over the whole width of the table, as in Vuetify 2: App.vue gives the first and
+// last cell of every row 2 px of padding, the bar cell included.
+.AuditLog__table .v-data-table-progress__loader {
+  margin-inline: -2px;
+}
+
+// On a phone (rows as cards) the no-data and loading lines start at the left edge, as the cards
+// do. The table has no header row there, so the rule of assets/scss/vuetify2.scss (by the mobile
+// header) does not reach it.
+.AuditLog__table--mobile :is(.v-data-table-rows-no-data, .v-data-table-rows-loading) {
+  text-align: start;
+}
+
+// The event drawer: its border over the content, not beside it (`.v-navigation-drawer__border`,
+// 1 px wide, absolute), so the card starts at the edge as in Vuetify 2.
+.AuditLog__drawer.v-navigation-drawer--right {
+  border-left-width: 0;
+  background-image: linear-gradient(to right,
+    rgba(var(--v-border-color), var(--v-border-opacity)) 1px, transparent 1px);
+}
+
+// The scrim of the drawer covers the window (`.v-overlay`, fixed), not the whole page.
+.AuditLog__drawer ~ .v-navigation-drawer__scrim {
+  position: fixed;
 }
 </style>
