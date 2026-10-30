@@ -90,7 +90,7 @@ func (r *runtime) waitTask(cmd *cobra.Command, api *apiclient.Client, projectID,
 			if task.Status.IsFinished() {
 				return last, nil
 			}
-		case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		case ctx.Err() != nil:
 			return last, r.waitEnded(ctx, parent, api, projectID, taskID, opts)
 		case isTransient(err):
 			failures++
