@@ -8,7 +8,7 @@
       <v-col cols="12" md="6">
         <v-card
           v-if="template"
-          :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
+          :color="cardColor"
           :style="cardStyle"
           data-testid="taskDetails-templateCard"
         >
@@ -45,7 +45,7 @@
       <v-col cols="12" md="6">
         <v-card
           v-if="item.commit_hash"
-          :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
+          :color="cardColor"
           :style="cardStyle"
           data-testid="taskDetails-commitCard"
         >
@@ -77,7 +77,7 @@
     <v-row>
       <v-col cols="12" md="6">
         <v-card
-          :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
+          :color="cardColor"
           :style="cardStyle"
           class="mb-5"
           data-testid="taskDetails-runningCard"
@@ -158,7 +158,7 @@
       <v-col cols="12" md="6">
         <v-card
           v-if="item?.params"
-          :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
+          :color="cardColor"
           :style="cardStyle"
           class="mb-5"
           data-testid="taskDetails-paramsCard"
@@ -220,7 +220,7 @@
     <v-row v-if="outputs">
       <v-col cols="12">
         <v-card
-          :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
+          :color="cardColor"
           :style="cardStyle"
           class="mb-5"
           data-testid="taskDetails-outputsCard"
@@ -231,7 +231,7 @@
               <template v-slot:activator="{ props }">
                 <v-icon
                   size="small"
-                  class="ml-2"
+                  class="TaskDetails__hint ml-2"
                   v-bind="props"
                   data-testid="taskDetails-outputsHint"
                 >
@@ -299,6 +299,26 @@
     padding-left: 0 !important;
     padding-right: 0 !important;
   }
+
+  // Links of a table are not underlined until hovered (App.vue `.v-data-table a`: in Vuetify 2
+  // the simple table was a `.v-data-table` too, in Vuetify 4 `v-table` is not).
+  a {
+    text-decoration-line: none;
+
+    &:hover {
+      text-decoration-line: underline;
+    }
+  }
+}
+
+// The hint icon in the icon colour of Vuetify 2 (`.theme--light.v-icon`: .54, white in the dark
+// theme), not the colour of the card title.
+.TaskDetails__hint.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.TaskDetails__hint.v-theme--dark {
+  color: #fff;
 }
 
 .TaskDetails__artifacts {
@@ -351,9 +371,16 @@ export default {
   },
 
   computed: {
+    // The light card is the white surface of the theme with its text colour (.87), as the
+    // `color="white"` card of Vuetify 2 was; the class `bg-white` of Vuetify 4 would make the
+    // card titles pure black.
+    cardColor() {
+      return this.$vuetify.theme.current.dark ? '#212121' : undefined;
+    },
+
     // The tinted background of the cards shows in the dark theme only: in the light theme the
-    // card is white (`color="white"`, class `bg-white`). Up to Vuetify 3 that class carried
-    // `!important` and beat the inline background; the Vuetify 4 utilities do not.
+    // card is white. Up to Vuetify 3 the class `bg-white` of `color="white"` carried `!important`
+    // and beat the inline background; the Vuetify 4 utilities do not.
     cardStyle() {
       return this.$vuetify.theme.current.dark ? { background: '#8585850f' } : undefined;
     },

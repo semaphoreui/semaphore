@@ -7,7 +7,7 @@
     <div class="px-5 task-log-view__message" data-testid="taskLog-messageBar">
       <span
         v-if="item.message"
-        class="mr-3"
+        class="task-log-view__messageText"
         data-testid="taskLog-message"
       >
         <v-icon size="small">mdi-message-outline</v-icon>
@@ -122,11 +122,15 @@
         {{ item.status === 'stopping' ? $t('forceStop') : $t('stop') }}
       </v-btn>
 
+      <!-- A palette colour (not a theme one) kept the text colour of the light theme in Vuetify 2
+           (.87); Vuetify 4 writes white text on `bg-blue-grey`, a utility only an inline colour
+           overrides. -->
       <v-btn
         v-if="isTaskStopped"
         color="blue-grey"
         :href="rawLogURL"
         class="task-log-action-button"
+        :style="$vuetify.theme.current.dark ? undefined : { color: 'rgba(0, 0, 0, .87)' }"
         style="right: 20px; width: 150px;"
         target="_blank"
         data-testid="task-rawLog"
@@ -185,6 +189,25 @@ $task-log-status-tab-height:
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+// `mr-3` and the space Vue 2 kept after the message text (the whitespace before `</span>`; the
+// Vue 3 compiler drops it), so the commit message starts where it did.
+.task-log-view__messageText {
+  margin-right: calc(12px + .25em + .1px);
+}
+
+// Icons without a colour in the icon colour of Vuetify 2 (`.theme--light.v-icon`: .54, white in
+// the dark theme), not the text colour around them.
+.task-log-view__message,
+.task-log-view__status_part {
+  .v-icon.v-theme--light {
+    color: rgba(0, 0, 0, .54);
+  }
+
+  .v-icon.v-theme--dark {
+    color: #fff;
+  }
 }
 
 .task-log-view__status {

@@ -8,7 +8,7 @@
     <v-alert
       variant="tonal"
       color="hsl(348deg, 86%, 61%)"
-      class="PageAlert"
+      class="AnsibleStageView__demo PageAlert"
       v-if="!features.task_summary"
       data-testid="taskSummary-demoAlert"
     >
@@ -45,7 +45,7 @@
     </div>
 
     <v-btn-toggle
-      class="pl-5 mt-8 mb-3"
+      class="AnsibleStageView__filter pl-5 mt-8 mb-3"
       density="compact"
       v-model="tab"
       mandatory
@@ -67,7 +67,7 @@
       :headers="notOkServersHeaders"
       :items="failedTasks"
       :items-per-page="-1"
-      class="w-100"
+      class="AnsibleStageView__errors w-100"
       data-testid="taskSummary-errorsTable"
       :data-state="hosts == null ? 'loading' : (failedTasks.length === 0 ? 'empty' : 'ready')"
     >
@@ -81,7 +81,7 @@
       </template>
       <!-- the slot draws the whole row: Vuetify 3 does not wrap it in a <tr> -->
       <template v-slot:expanded-row="{ columns, item }">
-        <tr>
+        <tr class="AnsibleStageView__expandedRow">
           <td :colspan="columns.length">
             <pre
               style="
@@ -200,6 +200,79 @@
   </div>
 </template>
 <style lang="scss">
+// The active filter button under the .18 overlay of Vuetify 2 (`$btn-states` activated), not the
+// .12 of Vuetify 4.
+.AnsibleStageView__filter > .v-btn--active > .v-btn__overlay {
+  opacity: calc(.18 * var(--v-theme-overlay-multiplier));
+}
+
+// The shadow of the Upgrade button is not cut by the alert content (Vuetify 4 clips
+// `.v-alert__content`, Vuetify 2 did not).
+.AnsibleStageView__demo > .v-alert__content {
+  overflow: visible;
+}
+
+// One thin line between the buttons: every button but the first has no left border
+// (`.v-btn-toggle > .v-btn.v-btn:not(:first-child)`).
+.AnsibleStageView__filter.v-btn-group > .v-btn:not(:first-child):not(.v-btn--variant-text) {
+  border-inline-start-width: 0;
+}
+
+// The expand column of Vuetify 2: a 24 px icon (`.v-data-table__expand-icon`), 16 px to the next
+// column; Vuetify 4 has a 28 px button and 8 px. A focused icon (the one just clicked) has the
+// circle of `.v-icon--link:focus::after`: the icon colour at .12, 1.3 times the icon.
+.AnsibleStageView__errors thead th:first-child {
+  padding-right: 16px;
+}
+
+.AnsibleStageView__errors .v-data-table__td--expanded-row {
+  padding-right: 16px;
+
+  > .v-btn {
+    width: 24px;
+    height: 24px;
+    // the circle is wider than the icon
+    overflow: visible;
+
+    &:focus > .v-btn__overlay {
+      border-radius: 50%;
+      opacity: .12;
+      transform: scale(1.3);
+    }
+  }
+}
+
+// Rows as cards on a phone: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between,
+// the header 16 px from the value), not the two equal grid columns of Vuetify 4; the expand icon at
+// the right end. The value takes the width of its content, so a long error widens the table as it
+// did.
+.AnsibleStageView__errors .v-data-table__tr--mobile > td {
+  display: flex;
+  justify-content: space-between;
+  column-gap: 0;
+
+  > .v-data-table__td-title {
+    padding-right: 16px;
+  }
+
+  &.v-data-table__td--expanded-row {
+    justify-content: flex-end;
+  }
+}
+
+// "No data available" on a phone at the left edge, as the rows (see History.vue).
+@media (max-width: 599.98px) {
+  .AnsibleStageView__errors .v-data-table-rows-no-data {
+    text-align: start;
+  }
+}
+
+// The opened error on a phone is as wide as its text (Vuetify 2: the rows are blocks of a flex
+// column, `.v-data-table--mobile tbody`, so the lone cell of this row shrinks to its content).
+.AnsibleStageView__errors .v-data-table__tr--mobile + .AnsibleStageView__expandedRow {
+  display: block;
+}
+
 .AnsibleServerStatus {
   text-align: center;
   width: 250px;
@@ -254,6 +327,9 @@ export default {
       notOkServersHeaders: [
         {
           key: 'data-table-expand',
+          // as narrow as its content: the 24 px icon with 2 px before it (App.vue) and 16 px
+          // after (Vuetify 2: `width: 1px`; Vuetify 4: 48 px)
+          width: 1,
         },
         {
           title: 'Server',

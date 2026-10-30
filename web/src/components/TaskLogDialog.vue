@@ -15,13 +15,14 @@
         data-testid="taskLog-title"
         :data-state="item == null || template == null ? 'loading' : 'ready'"
       >
-        <!-- Vuetify 3: the button bone fills the loader (max 64 px + 16 px margins);
-             an inline-block loader without a width shrinks it to nothing -->
+        <!-- The button bone fills the loader; an inline-block loader without a width shrinks it
+             to nothing. The bone is 64 × 36 without margins, as in Vuetify 2 (style below). -->
         <v-skeleton-loader
           v-if="template == null"
+          class="task-log-dialog__titleLoader"
           data-testid="taskLog-titleLoading"
           type="button"
-          width="96"
+          width="64"
           style="display: inline-block; margin-right: 10px; vertical-align: middle;"
         ></v-skeleton-loader>
         <router-link
@@ -30,7 +31,7 @@
           :to="`/project/${projectId}/templates/${template ? template.id : null}`"
           data-testid="taskLog-templateLink"
         >{{ template ? template.name : null }}</router-link>
-        <v-icon>mdi-chevron-right</v-icon>
+        <v-icon class="task-log-dialog__chevron">mdi-chevron-right</v-icon>
         <span
           class="breadcrumbs__item"
           data-testid="taskLog-taskTitle"
@@ -70,6 +71,79 @@
   margin-left: 24px;
   margin-right: 24px;
   height: calc(100dvh - 208px);
+}
+
+// The chevron in the icon colour of Vuetify 2 (`.theme--light.v-icon`: .54, white in the dark
+// theme), not the colour of the title.
+.task-log-dialog__chevron.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.task-log-dialog__chevron.v-theme--dark {
+  color: #fff;
+}
+
+// The skeleton of the title: the button bone of Vuetify 2 (`$skeleton-loader-button-*`: 64 × 36,
+// no margin); Vuetify 4 puts 16 px around it, the title row grew by 32 px.
+.task-log-dialog__titleLoader .v-skeleton-loader__button {
+  max-width: none;
+  margin: 0;
+}
+
+// The skeleton of the body as Vuetify 2 drew it (`VSkeletonLoader.sass`): bones in blocks, a table
+// heading of 16 px padding with a 24 px heading, a 200 px image, two-line items 72 px high; texts
+// 12 px with 6 px under each.
+.task-log-view__placeholder.v-skeleton-loader {
+  display: block;
+
+  .v-skeleton-loader__text {
+    flex: 1 0 auto;
+    height: 12px;
+    margin: 0 0 6px;
+    max-width: none;
+  }
+
+  .v-skeleton-loader__table-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+
+    > .v-skeleton-loader__heading {
+      height: 24px;
+      margin: 0;
+      width: 45%;
+      max-width: 15%;
+    }
+
+    > .v-skeleton-loader__text {
+      max-width: 40%;
+    }
+  }
+
+  .v-skeleton-loader__image {
+    height: 200px;
+  }
+
+  .v-skeleton-loader__list-item-two-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    align-items: center;
+    height: 72px;
+    margin: 0;
+    padding: 0 16px;
+  }
+
+  .v-skeleton-loader__sentences {
+    display: block;
+    flex: 1 0 auto;
+
+    > .v-skeleton-loader__text:nth-child(2) {
+      max-width: 70%;
+      margin-bottom: 0;
+    }
+  }
 }
 </style>
 <script>
