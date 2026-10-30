@@ -35,6 +35,7 @@ type authServer struct {
 	created         []map[string]any // bodies of POST /api/user/tokens
 	deleted         []string         // ids of DELETE /api/user/tokens/{id}
 	loggedOut       int
+	meCalls         int // GET /api/user, i.e. requests that carried a token
 }
 
 func newAuthServer() *authServer {
@@ -88,6 +89,7 @@ func (s *authServer) handler(t *testing.T) http.Handler {
 			s.sessionOpen = false
 			w.WriteHeader(http.StatusNoContent)
 		case "GET /api/user":
+			s.meCalls++
 			if !s.authorized(r) {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
@@ -384,6 +386,45 @@ func TestAuthLogin_DoesNotTakeOverANamedContext(t *testing.T) {
 	_, _, err = run(t, env, "good-token\n", "auth", "login", "--context", "prod", "--url", other.URL, "--insecure")
 	require.NoError(t, err)
 	assert.Equal(t, config.Context{URL: other.URL, Token: "good-token", Insecure: true}, loadCfg(t, cfgPath).Contexts["prod"])
+}
+
+// A token saved for one server must not follow --url to another: that would
+// make --url a way to hand a production credential to any host.
+func TestToken_DoesNotFollowURLToAnotherServer(t *testing.T) {
+	s := newAuthServer()
+	srv := httptest.NewServer(s.handler(t))
+	defer srv.Close()
+	other := httptest.NewServer(s.handler(t))
+	defer other.Close()
+
+	cfgPath := filepath.Join(t.TempDir(), "client.yml")
+	require.NoError(t, config.Save(cfgPath, &config.File{
+		Contexts: map[string]config.Context{"default": {URL: srv.URL, Token: "good-token"}},
+	}))
+	env := map[string]string{config.EnvConfig: cfgPath}
+
+	_, _, err := run(t, env, "", "auth", "status", "--url", other.URL)
+	assert.ErrorIs(t, err, config.ErrTokenForOtherServer)
+	assert.Equal(t, ExitUsage, ExitCode(err))
+	assert.Zero(t, s.meCalls, "no request carried the token")
+
+	// The environment overriding the URL is the same hole.
+	_, _, err = run(t, map[string]string{config.EnvConfig: cfgPath, config.EnvURL: other.URL}, "", "auth", "status")
+	assert.ErrorIs(t, err, config.ErrTokenForOtherServer)
+
+	// Its own server, spelled with the /api suffix the client strips.
+	_, _, err = run(t, env, "", "auth", "status", "--url", srv.URL+"/api/")
+	require.NoError(t, err)
+
+	// Commands that need no token are unaffected, and auth login can still
+	// point the context somewhere else.
+	out, _, err := run(t, env, "", "context", "list", "-o", "json")
+	require.NoError(t, err)
+	assert.Contains(t, out, srv.URL)
+
+	_, _, err = run(t, env, "good-token\n", "auth", "login", "--url", other.URL, "--with-token")
+	require.NoError(t, err)
+	assert.Equal(t, other.URL, loadCfg(t, cfgPath).Contexts["default"].URL)
 }
 
 func TestAuthLogout(t *testing.T) {

@@ -112,7 +112,7 @@ func ExitCode(err error) int {
 		return ExitInterrupted
 	case errors.Is(err, config.ErrNoURL), errors.Is(err, config.ErrUnknownContext),
 		errors.Is(err, config.ErrTokenWithoutURL), errors.Is(err, config.ErrTokenAndTokenFile),
-		errors.Is(err, config.ErrBadOutput):
+		errors.Is(err, config.ErrTokenForOtherServer), errors.Is(err, config.ErrBadOutput):
 		return ExitUsage
 	}
 	return ExitError

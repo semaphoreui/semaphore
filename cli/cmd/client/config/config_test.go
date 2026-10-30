@@ -86,13 +86,22 @@ func TestResolve_Precedence(t *testing.T) {
 			},
 		},
 		{
-			name: "env URL overrides context URL, token still from context",
+			name: "env URL overrides context URL; the context token stays behind",
 			env:  map[string]string{EnvURL: "https://env.example.com"},
 			check: func(t *testing.T, e Effective) {
 				assert.Equal(t, "https://env.example.com", e.URL)
 				assert.Equal(t, SourceEnv, e.Sources.URL)
+				assert.Empty(t, e.Token, "the token was issued by the context's server")
+				assert.ErrorIs(t, e.TokenError, ErrTokenForOtherServer)
+			},
+		},
+		{
+			name: "the same server spelled differently keeps the context token",
+			env:  map[string]string{EnvURL: "https://prod.example.com/api/"},
+			check: func(t *testing.T, e Effective) {
 				assert.Equal(t, "prod-token", e.Token)
 				assert.Equal(t, SourceContext, e.Sources.Token)
+				assert.NoError(t, e.TokenError)
 			},
 		},
 		{

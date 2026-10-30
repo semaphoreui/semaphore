@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/apiclient"
 )
 
 // Source says where an effective value came from.
@@ -83,6 +85,10 @@ var (
 	ErrTokenWithoutURL = errors.New(EnvToken + " is set but the server URL comes from the configuration file")
 	// ErrTokenAndTokenFile means both variables are set and it is unclear which wins.
 	ErrTokenAndTokenFile = errors.New(EnvToken + " and " + EnvTokenFile + " are both set; use one")
+	// ErrTokenForOtherServer means the context holds a token saved for one
+	// server while --url or SEMAPHORE_CLIENT_URL points at another. The token
+	// is the credential of the first server and is not sent to the second.
+	ErrTokenForOtherServer = errors.New("the saved token belongs to another server")
 	// ErrBadOutput means the output format is not table, json or yaml.
 	ErrBadOutput = errors.New("output format must be table, json or yaml")
 )
@@ -145,12 +151,24 @@ func Resolve(flags Flags, getenv func(string) string, file *File) (Effective, er
 			eff.TokenFile = expandHome(envTokenFile, getenv)
 			eff.Token, eff.TokenError = readTokenFile(eff.TokenFile)
 		}
-	case ctx.Token != "":
-		eff.Token, eff.Sources.Token = strings.TrimSpace(ctx.Token), SourceContext
-	case ctx.TokenFile != "":
-		eff.TokenFile = expandHome(ctx.TokenFile, getenv)
-		eff.Token, eff.TokenError = readTokenFile(eff.TokenFile)
+	case ctx.Token != "" || ctx.TokenFile != "":
+		// The context's token was issued by the context's server. When the
+		// address is overridden it must stay behind, or `--url` turns into a
+		// way to hand a production credential to any host that asks.
+		if ctx.URL != "" && eff.Sources.URL != SourceContext && !sameServer(ctx.URL, eff.URL) {
+			// Deferred, like an unreadable token file: a command that needs no
+			// token (context list, auth login) still runs.
+			eff.TokenError = fmt.Errorf("%w: context %q holds the token of %s, not of %s; use --context for that server or set %s",
+				ErrTokenForOtherServer, eff.ContextName, ctx.URL, eff.URL, EnvToken)
+			break
+		}
 		eff.Sources.Token = SourceContext
+		if ctx.Token != "" {
+			eff.Token = strings.TrimSpace(ctx.Token)
+		} else {
+			eff.TokenFile = expandHome(ctx.TokenFile, getenv)
+			eff.Token, eff.TokenError = readTokenFile(eff.TokenFile)
+		}
 	}
 
 	// Project.
@@ -267,6 +285,12 @@ func parseDuration(s string) (time.Duration, error) {
 }
 
 // truthy reads an environment boolean: 1, true, yes, on (any case).
+// sameServer compares two addresses the way the client sees them, so that a
+// trailing slash or an "/api" suffix is not read as a different server.
+func sameServer(a, b string) bool {
+	return apiclient.NormalizeURL(a) == apiclient.NormalizeURL(b)
+}
+
 func truthy(s string) bool {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "1", "true", "yes", "on", "y":
