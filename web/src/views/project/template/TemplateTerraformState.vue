@@ -92,7 +92,7 @@
           v-if="inventories.length > 0"
           mandatory="force"
           style="overflow: auto"
-          class="mb-2"
+          class="TerraformState__workspaces mb-2"
           data-testid="templateState-workspaces"
         >
           <v-btn
@@ -117,11 +117,12 @@
 
         <v-menu location="bottom">
           <template v-slot:activator="{ props }">
+            <!-- `fab small` of Vuetify 2: a round 40 px button (shadow: .TerraformState__fab) -->
             <v-btn
               color="primary"
               icon
-              size="small"
-              class="ml-3"
+              size="40"
+              class="TerraformState__fab ml-3"
               v-bind="props"
               data-testid="templateState-new"
             >
@@ -301,6 +302,7 @@
             :items-per-page-options="[20]"
             :items-per-page="20"
             show-expand
+            :show-first-last-page="false"
             v-model:expanded="expanded"
             expand-strategy="single"
             class="mt-4 TaskListTable TaskListTable TerraformStateTable FixedPageSizeTable"
@@ -371,6 +373,96 @@
     margin-left: 0 !important;
     margin-right: 0 !important;
   }
+
+  // The expand column of Vuetify 2: the 24 px chevron icon (`.v-data-table__expand-icon`) in a
+  // cell padded 2 px (App.vue) and 16 px, not a small icon button of 28 px in a 48 px cell.
+  > .v-table__wrapper > table > thead > tr > th:first-child,
+  .v-data-table__td--expanded-row {
+    padding-right: 16px;
+  }
+
+  .v-data-table__td--expanded-row > .v-btn {
+    width: 24px;
+    height: 24px;
+
+    // A focused toggle (after a click, too) in a circle 1.3 times its size at .12, as the link
+    // icon of Vuetify 2 (`.v-icon--link::after`); Vuetify 4 shows the overlay on
+    // `:focus-visible` only.
+    &:focus > .v-btn__overlay {
+      border-radius: 50%;
+      opacity: .12;
+      transform: scale(1.3);
+    }
+  }
+
+  // The footer of Vuetify 2 (`.v-data-footer`): 8 px padding, the range 24 px from the left and
+  // 32 px before the arrows (no rows-per-page select pushes them right), 36 px round arrow buttons
+  // 14 px apart, in the icon colour of the theme (.54) when enabled.
+  > .v-data-table-footer {
+    justify-content: flex-start;
+    padding: 0 8px;
+
+    > .v-data-table-footer__info {
+      min-width: 0;
+      margin: 0 32px 0 24px;
+      padding: 0;
+    }
+
+    .v-pagination__list > li {
+      margin: 0;
+
+      &.v-pagination__prev {
+        margin-inline-end: 7px;
+      }
+
+      &.v-pagination__next {
+        margin-inline-start: 7px;
+      }
+    }
+
+    .v-pagination .v-btn {
+      width: 36px;
+      height: 36px;
+    }
+
+    .v-pagination .v-btn.v-theme--light:not(.v-btn--disabled) {
+      color: rgba(0, 0, 0, .54);
+      opacity: 1;
+    }
+  }
+
+  // Rows as cards on a phone: the value at the right end of the row, as the shrink-to-fit
+  // `.v-data-table__mobile-row__cell` of Vuetify 2 (the expand chevron, too); Vuetify 4 stretches
+  // it over the second grid column.
+  @media (max-width: 599.98px) {
+    .v-data-table__tr--mobile > td > .v-data-table__td-value {
+      justify-self: end;
+    }
+
+    .v-data-table__tr--mobile > .v-data-table__td--expanded-row {
+      justify-content: end;
+    }
+  }
+}
+
+// The workspace toggle on the text baseline of its line, as `.v-item-group` of Vuetify 2
+// (Vuetify 4: `vertical-align: middle`): the line is 45 px high and the "+" sits 1 px over the
+// toggle's top.
+.TerraformState__workspaces {
+  vertical-align: baseline;
+
+  // Neighbouring buttons share one border (`.v-btn-toggle > .v-btn.v-btn:not(:first-child)` of
+  // Vuetify 2: no left border), the frame itself — assets/scss/vuetify2.scss.
+  &.v-btn-group > .v-btn.v-btn:not(:first-child) {
+    border-left-width: 0;
+  }
+}
+
+// The shadow of a Vuetify 2 fab: elevation 6 (`.v-btn--fab`); Vuetify 4 has elevation classes up
+// to 5 only, and the elevated variant draws level 2.
+.v-btn.TerraformState__fab {
+  box-shadow: 0 3px 5px -1px rgba(0, 0, 0, .2), 0 6px 10px 0 rgba(0, 0, 0, .14),
+    0 1px 18px 0 rgba(0, 0, 0, .12);
 }
 </style>
 <script>
@@ -438,9 +530,11 @@ export default {
       // single-expand of Vuetify 2 (expand-strategy="single"): one expanded row at a time
       expanded: [],
       headers: [
-        // the expand column first, as Vuetify 2 drew it (Vuetify 3 adds it last)
+        // the expand column first, as Vuetify 2 drew it (Vuetify 3 adds it last), and as narrow
+        // as its toggle (`width: '1px'` of the Vuetify 2 expand header)
         {
           key: 'data-table-expand',
+          width: '1px',
         },
         {
           title: 'ID',
