@@ -1,7 +1,7 @@
 <template>
   <v-menu
     :model-value="modelValue"
-    :target="[x, y]"
+    :target="target"
     location="bottom start"
     :close-on-content-click="false"
     max-width="300"
@@ -10,8 +10,11 @@
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <!-- min-width on the card: a menu opened at a point caps its own min-width at the target's
-         width (0 px) in Vuetify 3 -->
-    <v-card min-width="260" data-testid="workflowCanvas-quickAddMenu">
+         width (0 px) in Vuetify 3. 270, not 260: in Vuetify 2 the search input (20 characters
+         wide) made the menu 270 px. As in Vuetify 2, the menu has the shadow of a menu and the
+         card its own (2), 8 px below the top of the menu: there the top margin of the search
+         field went through the card. -->
+    <v-card min-width="270" elevation="2" class="mt-2" data-testid="workflowCanvas-quickAddMenu">
       <v-text-field
         ref="search"
         data-testid="workflowCanvas-quickAddSearch"
@@ -22,7 +25,7 @@
         autofocus
         prepend-inner-icon="mdi-magnify"
         :placeholder="$t('workflowQuickAddSearch')"
-        class="ma-2"
+        class="mx-2 mb-2"
         @keydown.esc="$emit('update:modelValue', false)"
         @keydown.enter="pickFirst"
       />
@@ -102,6 +105,10 @@
 <script>
 import { APP_ICONS } from '@/lib/constants';
 
+// Width of the menu (the card's min-width) and the gap Vuetify 2 kept to the window's right edge.
+const MENU_WIDTH = 270;
+const WINDOW_MARGIN = 12;
+
 // "Add node" popup: opened from a node's "+" handle, the canvas "+" button or
 // a right click on empty canvas. Emits `add` with { kind, template_id }.
 export default {
@@ -120,6 +127,12 @@ export default {
   },
 
   computed: {
+    // Vuetify 2 moved a menu that did not fit to the left, up to 12 px from the window's edge;
+    // Vuetify 4 flips it to the left of the point instead.
+    target() {
+      const maxX = document.documentElement.clientWidth - MENU_WIDTH - WINDOW_MARGIN;
+      return [Math.max(0, Math.min(this.x, maxX)), this.y];
+    },
     kinds() {
       return [
         {
@@ -213,11 +226,19 @@ export default {
     }
   }
 
+  // The subheader of a dense list of Vuetify 2 (`.v-list--dense .v-subheader`: 12 px, 0 8 px),
+  // which overrode the size here.
   &__subheader {
-    height: 28px;
-    font-size: 11px;
+    padding-inline: 8px;
+    font-size: .75rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
+  }
+
+  // Elevation 8 of Vuetify 2 (`.v-menu__content`).
+  &.v-overlay__content {
+    box-shadow: 0 5px 5px -3px rgba(0, 0, 0, 0.2), 0 8px 10px 1px rgba(0, 0, 0, 0.14),
+      0 3px 14px 2px rgba(0, 0, 0, 0.12);
   }
 
   &__tile {
@@ -238,6 +259,21 @@ export default {
     &--delay {
       background: rgba(255, 152, 0, 0.16);
     }
+
+    // An icon without a colour: `.theme--light.v-icon` / `.theme--dark.v-icon` of Vuetify 2.
+    > .v-icon:not([style*="color"]) {
+      color: rgba(0, 0, 0, 0.54);
+    }
+
+    .v-theme--dark & > .v-icon:not([style*="color"]) {
+      color: #fff;
+    }
+  }
+
+  // The "no templates" line: Vuetify 2 did not fade a disabled list item (its text here is the
+  // secondary colour of `text--secondary`); Vuetify 4 dims it to .6.
+  .v-list-item--disabled {
+    opacity: 1;
   }
 
   &__hint {

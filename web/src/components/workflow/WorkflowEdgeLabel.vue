@@ -47,7 +47,7 @@
           :key="opt.value"
           :data-testid="`workflowCanvas-edgeMenu-${opt.value}`"
           :active="opt.value === label.condition"
-          prepend-gap="8"
+          prepend-gap="24"
           @click="$emit('change', opt.value)"
         >
           <template v-slot:prepend>
@@ -155,9 +155,15 @@ export default {
     border: 0;
     border-left: 1px solid var(--wf-divider);
     background: transparent;
-    color: var(--wf-text2);
+    // Vuetify 2: the reset (`[type="button"] { color: inherit }`) won over a colour here, and the
+    // cross was an icon of the theme (`.theme--light.v-icon`).
+    color: inherit;
     cursor: pointer;
     line-height: 1;
+
+    .v-icon {
+      color: var(--wf-icon);
+    }
   }
 
   &__pill:hover &__del {

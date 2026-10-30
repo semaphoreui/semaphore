@@ -63,6 +63,8 @@
       size="small"
       variant="flat"
       color="primary"
+      width="40"
+      height="40"
       class="WorkflowGraph__fab"
       data-testid="workflowCanvas-quickAdd"
       :title="$t('workflowQuickAdd')"
@@ -74,7 +76,7 @@
     <div v-if="editable && isEmpty" class="WorkflowGraph__empty" data-testid="workflowCanvas-empty">
       <v-icon size="40" class="WorkflowGraph__emptyIcon">mdi-sitemap-outline</v-icon>
       <div
-        class="text-body-large"
+        class="WorkflowGraph__emptyTitle"
         data-testid="workflowCanvas-emptyTitle"
       >{{ $t('workflowEmptyTitle') }}</div>
       <div
@@ -1086,6 +1088,7 @@ export default {
   --wf-surface: #{$wf-surface};
   --wf-text: #{$wf-text};
   --wf-text2: #{$wf-text2};
+  --wf-icon: #{$wf-icon};
   --wf-divider: #{$wf-divider};
   --wf-divider-strong: #{$wf-divider-strong};
   --wf-dot: #{$wf-dot};
@@ -1112,6 +1115,7 @@ export default {
     --wf-surface: #{$wf-surface-dark};
     --wf-text: #{$wf-text-dark};
     --wf-text2: #{$wf-text2-dark};
+    --wf-icon: #{$wf-icon-dark};
     --wf-divider: #{$wf-divider-dark};
     --wf-divider-strong: #{$wf-divider-strong-dark};
     --wf-dot: #{$wf-dot-dark};
@@ -1177,11 +1181,30 @@ export default {
     .v-btn {
       pointer-events: auto;
     }
+
+    // `<v-icon left small>` of Vuetify 2: a 16 px glyph in an 18 px box, 4 px out to the left and
+    // 8 px to the text.
+    .v-btn .v-icon--start {
+      --v-icon-size-multiplier: 1;
+      width: 18px;
+      height: 18px;
+      margin-inline: -4px 8px;
+    }
   }
 
   &__emptyIcon {
     opacity: 0.5;
     margin-bottom: 4px;
+    color: var(--wf-icon);
+  }
+
+  // `text-subtitle-1` of Vuetify 2 (the template's class before the rename; Vuetify 4 has no
+  // 16 px class with a 28 px line).
+  &__emptyTitle {
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.75rem;
+    letter-spacing: .009375em;
   }
 
   // ---- Drawflow overrides ----------------------------------------------------

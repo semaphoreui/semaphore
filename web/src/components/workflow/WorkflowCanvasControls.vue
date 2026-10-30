@@ -74,15 +74,14 @@ export default {
     height: 32px;
     border: 0;
     background: transparent;
-    color: var(--wf-text2);
+    // The text colour of the canvas, as in Vuetify 2, whose reset (`[type="button"] { color:
+    // inherit }`, unlayered, after this file) won over a colour here. No line between the buttons:
+    // each sat in a `span.v-tooltip` there, so a `& + &` border never matched.
+    color: inherit;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-
-    & + & {
-      border-top: 1px solid var(--wf-divider);
-    }
 
     &:hover {
       background: var(--wf-tile-bg);

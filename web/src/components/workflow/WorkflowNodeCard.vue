@@ -550,11 +550,13 @@ export default {
     border-radius: 10px;
     background: var(--wf-note-bg);
     border-color: var(--wf-note-border);
-    color: var(--wf-note-text);
+    // No note colour on the text: the card is a `[role="button"]`, and the reset of Vuetify 2
+    // (`color: inherit`, unlayered, after this file) gave it the text colour of the canvas.
   }
 
   &__noteIcon {
     opacity: 0.55;
+    color: var(--wf-icon);
   }
 
   &__noteText {
