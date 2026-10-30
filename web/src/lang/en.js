@@ -468,6 +468,7 @@ export default {
   mcp_assign_pro_seat: 'Assign a seat',
   mcp_contact_admin_for_seat: 'Contact your admin to get a PRO seat.',
   mcp_disabled_banner: 'The MCP server is switched off. An administrator switches it on with the <code>mcp.enabled</code> option.',
+  mcp_tokens_without_mcp: 'Your MCP tokens still sign in to the REST API. Revoke the ones you no longer need.',
   mcp_tokens: 'MCP tokens',
   mcp_connection: 'Connection',
   mcp_endpoint: 'Endpoint',

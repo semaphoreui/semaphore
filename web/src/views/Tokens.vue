@@ -1,5 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div v-if="shown">
     <v-dialog v-model="newTokenDialog" max-width="480" persistent>
       <v-card>
         <v-card-title>{{ $t('New Token') }}</v-card-title>
@@ -53,6 +53,8 @@
     </v-toolbar>
 
     <v-divider v-if="!embedded" />
+
+    <slot />
 
     <v-data-table
       :headers="headers"
@@ -137,9 +139,16 @@ export default {
     // A page that shows the list inside its own layout draws the toolbar
     // itself and opens the new token dialog with newToken().
     embedded: Boolean,
+    // Draw nothing while the user has no tokens: a page that lets them only
+    // revoke the tokens they still hold has no list to show without any.
+    hideEmpty: Boolean,
   },
 
   computed: {
+    shown() {
+      return this.items != null && !(this.hideEmpty && this.items.length === 0);
+    },
+
     expiryOptions() {
       return [
         { text: this.$i18n.t('Never'), value: 0 },

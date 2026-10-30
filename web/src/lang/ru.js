@@ -338,6 +338,7 @@ export default {
   mcp_assign_pro_seat: 'Выдать место',
   mcp_contact_admin_for_seat: 'Обратитесь к администратору, чтобы получить PRO-место.',
   mcp_disabled_banner: 'MCP сервер выключен. Администратор включает его настройкой <code>mcp.enabled</code>.',
+  mcp_tokens_without_mcp: 'Ваши MCP-токены по-прежнему дают вход в REST API. Отзовите те, что больше не нужны.',
   mcp_tokens: 'MCP-токены',
   mcp_connection: 'Подключение',
   mcp_endpoint: 'Адрес',

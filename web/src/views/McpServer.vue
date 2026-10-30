@@ -127,6 +127,21 @@
     <v-alert v-else text color="grey darken-1" class="PageAlert" data-testid="mcp-disabled">
       <span v-html="$t('mcp_disabled_banner')"></span>
     </v-alert>
+
+    <!-- The REST API accepts MCP tokens whatever the license, so the tokens the user still holds
+         are listed for revoking under the banner that says why MCP is not available. -->
+    <Tokens
+      v-if="!available"
+      v-bind="$attrs"
+      :systemInfo="systemInfo"
+      :user="user"
+      kind="mcp"
+      embedded
+      hide-empty
+      data-testid="mcp-revoke-only"
+    >
+      <div class="px-4 pt-4">{{ $t('mcp_tokens_without_mcp') }}</div>
+    </Tokens>
   </div>
 </template>
 
@@ -157,8 +172,9 @@ export default {
   },
 
   computed: {
-    // The page talks to the MCP token routes only when the user may use MCP
-    // and the administrator has switched it on; otherwise it explains why not.
+    // The page issues MCP tokens and shows how to connect only when the user may use MCP and the
+    // administrator has switched it on; otherwise it explains why not and lists the tokens the
+    // user still holds, for revoking.
     available() {
       return !!this.features.mcp && !!this.systemInfo?.mcp?.enabled;
     },

@@ -113,6 +113,14 @@ describe('Tokens.vue kinds', () => {
     expect(Tokens.methods.allowActions.call({ can: () => false, isAdmin: false })).to.equal(true);
   });
 
+  it('draws nothing for a page that hides an empty list', () => {
+    const shown = (items, hideEmpty) => Tokens.computed.shown.call({ items, hideEmpty });
+    expect(shown(null, false), 'not loaded yet').to.equal(false);
+    expect(shown([], false), 'an empty list on the tokens page').to.equal(true);
+    expect(shown([], true), 'no tokens to revoke').to.equal(false);
+    expect(shown([{ id: 'abcdefgh' }], true), 'tokens to revoke').to.equal(true);
+  });
+
   it('refuses an unknown kind', () => {
     expect(Tokens.props.kind.validator('api')).to.equal(true);
     expect(Tokens.props.kind.validator('mcp')).to.equal(true);
