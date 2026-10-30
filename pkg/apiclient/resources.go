@@ -40,7 +40,10 @@ func (c *Client) DeleteTemplate(ctx context.Context, projectID, templateID int) 
 
 // StopAllTemplateTasks stops every active task of a template.
 func (c *Client) StopAllTemplateTasks(ctx context.Context, projectID, templateID int) error {
-	return c.Do(ctx, http.MethodPost, projectPath(projectID, "/templates/%d/stop_all_tasks", templateID), nil, nil)
+	body := struct {
+		Force bool `json:"force"`
+	}{Force: false}
+	return c.Do(ctx, http.MethodPost, projectPath(projectID, "/templates/%d/stop_all_tasks", templateID), body, nil)
 }
 
 // Inventories.
