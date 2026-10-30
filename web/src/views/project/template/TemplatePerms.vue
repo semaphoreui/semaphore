@@ -63,7 +63,7 @@
       :items="items"
       item-value="role_slug"
       hide-default-footer
-      class="mt-4"
+      class="mt-4 template-perms__table"
       :items-per-page="Number.MAX_VALUE"
       data-testid="templatePerms-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
@@ -81,7 +81,7 @@
             v-if="getRole(item.role_slug)"
             size="x-small"
             label
-            class="ml-2"
+            class="ml-2 template-perms__scope"
             data-testid="templatePerms-rowScope"
           >
             {{ $t(roleScope(getRole(item.role_slug))) }}
@@ -113,6 +113,29 @@
     </v-data-table>
   </div>
 </template>
+
+<style lang="scss">
+// Mobile rows: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between, the header
+// 16 px from the value), not the two equal grid columns of Vuetify 4. The value takes the width its
+// content needs at the right end of the row, so a single chip or the dash of no permissions ends
+// at the right edge, and wrapped permission chips start right after the header.
+.template-perms__table .v-data-table__tr--mobile > td {
+  display: flex;
+  justify-content: space-between;
+  column-gap: 0;
+
+  > .v-data-table__td-title {
+    padding-right: 16px;
+  }
+}
+
+// The scope chip: an x-small chip of Vuetify 2 is 16 px high (`.v-chip.v-size--x-small`), not 20,
+// with the 20 px line of every chip (`.v-chip`), so its text sits as high as there.
+.template-perms__scope.v-chip {
+  --v-chip-height: 16px;
+  line-height: 20px;
+}
+</style>
 
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';

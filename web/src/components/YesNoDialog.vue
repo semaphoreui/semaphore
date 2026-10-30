@@ -6,7 +6,7 @@
   >
     <v-card :data-testid="testId">
       <v-card-title
-        class="text-headline-medium font-weight-medium"
+        class="text-headline-medium font-weight-medium yes-no-dialog__title"
         data-testid="yesNoDialog-title"
       >{{ title }}</v-card-title>
 
@@ -39,6 +39,16 @@
     </v-card>
   </v-dialog>
 </template>
+
+<style lang="scss">
+// A long title wraps and breaks anywhere, as `.v-card__title` of Vuetify 2 did
+// (`flex-wrap: wrap; word-break: break-all`); Vuetify 4 keeps it on one line with an ellipsis.
+.yes-no-dialog__title.v-card-title {
+  white-space: normal;
+  word-break: break-all;
+}
+</style>
+
 <script>
 
 export default {

@@ -25,6 +25,8 @@
       variant="outlined"
       density="compact"
       :disabled="formSaving"
+      :menu-props="{ location: 'top', origin: 'top', maxHeight: 304 }"
+      :list-props="{ class: 'template-perm-form__roles' }"
       data-testid="templatePerm-roleSlug"
     >
       <template v-slot:item="{ item: role, props }">
@@ -175,5 +177,48 @@ export default {
 .v-list-subheader {
   font-weight: 500;
   font-size: 14px;
+}
+</style>
+
+<style lang="scss">
+// The role list of the dense select is a dense list of Vuetify 2 (`.v-list--dense`): headers
+// 40 px high, 12 px, 8 px from the edge; two-line items 50 px (content padding 8 px, a title of
+// 16 px on a 16 px line — App.vue of Vuetify 2 kept the dense title at 1rem and normal weight —,
+// 2 px, then a subtitle of 13 px, weight 500, in the secondary text colour). The menu is at most
+// 304 px high (`menu-props` of the Vuetify 2 `v-select`; Vuetify 4: 310), opening over the field
+// as the VSelect defaults in plugins/vuetify.js say (a `menu-props` prop replaces them).
+.template-perm-form__roles {
+  > .v-list-subheader {
+    min-height: 40px;
+    padding-inline: 8px;
+    font-size: .75rem;
+  }
+
+  > .v-list-item .v-list-item__content {
+    padding-block: 8px;
+  }
+
+  > .v-list-item .v-list-item-title {
+    line-height: 1rem;
+
+    &:not(:last-child) {
+      margin-bottom: 2px;
+    }
+  }
+
+  > .v-list-item .v-list-item-subtitle {
+    font-size: .8125rem;
+    font-weight: 500;
+    line-height: 1rem;
+    opacity: 1;
+  }
+
+  > .v-list-item.v-theme--light .v-list-item-subtitle {
+    color: rgba(0, 0, 0, .6);
+  }
+
+  > .v-list-item.v-theme--dark .v-list-item-subtitle {
+    color: rgba(255, 255, 255, .7);
+  }
 }
 </style>
