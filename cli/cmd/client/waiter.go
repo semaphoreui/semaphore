@@ -167,7 +167,7 @@ func (r *runtime) handleApproval(ctx context.Context, api *apiclient.Client, pro
 		return nil
 	}
 	if st.answers == nil {
-		fmt.Fprintf(r.io.Err, "Apply task %d? [yes/no]: ", taskID)
+		fmt.Fprintf(r.io.Err, "\nApply task %d? [yes/no]: ", taskID)
 		st.answers = r.prompter.readAsync()
 	}
 	return nil
