@@ -2,7 +2,7 @@
   <div
     v-if="!isLoaded"
     :style="{ height: `${loaderHeight}px` }"
-    class="mt-1"
+    class="TemplateForm__loader"
     data-testid="templateForm-loading"
     :data-state="formError ? 'error' : 'loading'"
   >
@@ -53,8 +53,7 @@
         border-color="info"
         type="info"
         color="surface"
-        elevation="1"
-        class="mb-0 pb-0"
+        class="mb-0 pb-0 pt-4 TemplateForm__help"
         data-testid="templateHelpDialog"
       >
         <!-- colored-border of Vuetify 2 coloured the icon along with the border -->
@@ -110,8 +109,9 @@
       data-testid="templateForm-error"
     >{{ formError }}</v-alert>
 
-    <v-row class="mb-0">
-      <v-col class="TemplateForm__column">
+    <!-- pb-3: the 12 px bottom padding of the Vuetify 2 columns (the row had mb-0, not -12px) -->
+    <v-row class="pb-3">
+      <v-col>
         <h2
           class="mb-4"
           data-testid="templateForm-commonTitle"
@@ -119,11 +119,15 @@
 
         <v-card
           class="mb-6"
-          :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
-          style="background: #8585850f"
+          :style="{ backgroundColor: $vuetify.theme.current.dark ? '#212121' : '#fff' }"
           data-testid="templateForm-typeCard"
         >
-          <v-tabs fixed-tabs v-model="itemTypeIndex" data-testid="templateForm-typeTabs">
+          <v-tabs
+            fixed-tabs
+            v-model="itemTypeIndex"
+            class="TemplateForm__typeTabs"
+            data-testid="templateForm-typeTabs"
+          >
             <v-tab
               style="padding: 0"
               v-for="key in Object.keys(TEMPLATE_TYPE_ICONS)"
@@ -135,7 +139,7 @@
             </v-tab>
           </v-tabs>
 
-          <div class="ml-4 mr-4 mt-6" v-if="item.type">
+          <div class="ml-4 mr-4 mt-6 TemplateForm__typeFields" v-if="item.type">
             <v-text-field
               v-if="item.type === 'build'"
               v-model="item.start_version"
@@ -220,6 +224,7 @@
                   v-if="gitBranch"
                   size="small"
                   label
+                  class="TemplateForm__smallChip"
                   :class="{ 'text-disabled': isMonorepo }"
                   data-testid="templateForm-branchChip"
                   v-on="isMonorepo ? {} : { click: () => { setBranch = !setBranch; } }"
@@ -306,6 +311,15 @@
             data-testid="templateForm-playbook"
             :data-state="playbooksLoading ? 'loading' : 'ready'"
           >
+            <!-- The arrow Vuetify 2 drew on every combobox; Vuetify 4 draws it only with items -->
+            <template v-slot:append-inner>
+              <v-icon
+                v-if="!(playbooks || []).length"
+                icon="$dropdown"
+                class="TemplateForm__comboArrow"
+                aria-hidden="true"
+              />
+            </template>
             <template v-slot:append>
               <v-btn
                 variant="flat"
@@ -373,6 +387,7 @@
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
           v-if="needField('environment')"
+          class="TemplateForm__chips"
           data-testid="templateForm-environmentIds"
         ></v-autocomplete>
 
@@ -392,7 +407,7 @@
         ></v-autocomplete>
       </v-col>
 
-      <v-col class="TemplateForm__column">
+      <v-col>
         <h2 class="mb-4" data-testid="templateForm-advancedTitle">{{ $t('template_advanced') }}</h2>
 
         <div class="mb-4">
@@ -429,7 +444,7 @@
               v-if="!isExecutorImageAvailable"
               color="hsl(348deg, 86%, 61%)"
               variant="flat"
-              class="text-white"
+              class="text-white TemplateForm__smallChip"
               size="small"
               label
               style="position: absolute; top: -10px; right: 15px"
@@ -461,7 +476,7 @@
               <template v-slot:label>
                 {{ $t('jwt_enabled') }}
                 <v-chip
-                  class="ml-2"
+                  class="ml-2 TemplateForm__smallChip"
                   size="small"
                   color="error"
                   data-testid="templateForm-jwtNew"
@@ -485,8 +500,14 @@
                 variant="outlined"
                 density="compact"
                 :disabled="formSaving"
+                class="TemplateForm__chips"
                 data-testid="templateForm-jwtAudience"
-              ></v-combobox>
+              >
+                <!-- The arrow Vuetify 2 drew on every combobox (Vuetify 4: only with items) -->
+                <template v-slot:append-inner>
+                  <v-icon icon="$dropdown" class="TemplateForm__comboArrow" aria-hidden="true" />
+                </template>
+              </v-combobox>
 
               <v-text-field
                 class="mt-4"
@@ -613,7 +634,7 @@
         </div>
       </v-col>
 
-      <v-col v-if="needAppBlock" class="TemplateForm__column">
+      <v-col v-if="needAppBlock">
         <div class="mb-3">
           <h2 class="mb-4" data-testid="templateForm-appTitle">
             {{ $t('template_app_options', { app: getAppTitle(app, true) }) }}
@@ -802,12 +823,145 @@
   </v-form>
 </template>
 <style lang="scss">
-// The columns of the form have no breakpoints: they wrap when their content stops fitting.
-// The narrower MD3 type of Vuetify 4 lets a column shrink to ~130px before that happens
-// (two squeezed columns on a phone, truncated fields on a tablet); this basis keeps the wrap
-// points of Vuetify 3: one column on a phone, the app block below on a tablet when it is wide.
-.TemplateForm__column {
-  flex-basis: 160px;
+// The help: the coloured border of `colored-border` at full opacity over the 16 px top padding,
+// 16 px under each paragraph (`.v-application p`); the shadow and the 12 px corners are those of
+// `.NestedDialog` around it (App.vue).
+.TemplateForm__help {
+  .v-alert__border {
+    opacity: 1;
+  }
+
+  // The text colour of the theme, not the colour on the `surface` background.
+  .v-alert__content {
+    color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+  }
+
+  p {
+    margin-bottom: 16px;
+  }
+}
+
+// The first field of the type card: the 4 px top margin of a Vuetify 2 field folded into the 24 px
+// above it, so the field stood 4 px higher than a field in the flow (and the card was 4 px lower).
+.TemplateForm__typeFields > .v-input:first-child {
+  margin-top: -4px;
+}
+
+// The arrow of a combobox without items, where the menu icon would be (`.v-combobox__menu-icon`).
+.TemplateForm__comboArrow {
+  margin-inline-start: 4px;
+}
+
+// A small chip of Vuetify 2 is 24 px high (`$chip-sizes`), Vuetify 4 makes it 26 px.
+.TemplateForm__smallChip.v-chip {
+  --v-chip-height: 24px;
+}
+
+// Chips of a multiple select 4 px apart from each other and from the field edge (`.v-select--chips
+// .v-chip`: margin 4px), not the 2 px of Vuetify 4.
+.TemplateForm__chips :is(.v-autocomplete__selection, .v-combobox__selection) {
+  margin-inline: 4px;
+}
+
+// The type tabs share the card width equally, as `fixed-tabs` of Vuetify 2 did
+// (`.v-tabs--fixed-tabs .v-tab { flex: 1 1 auto; width: 100% }`); Vuetify 4 sizes them by text.
+.TemplateForm__typeTabs .v-tab {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+// The loader box of Vuetify 2: its 4 px top margin folded with the -12 px of the row inside it,
+// so the box began 8 px above the dialog body and the skeletons 12 px below its top (the column
+// padding); the dialog stays 12 px lower than a plain 4 px margin would make it.
+.TemplateForm__loader {
+  margin-top: -8px;
+  padding-top: 12px;
+}
+
+// The loading skeleton of Vuetify 2 (`VSkeletonLoader.sass`): bones in blocks, a table heading
+// of 16 px padding, a 200 px image, two-line items 72 px high, an article with padded paragraph;
+// texts 12 px with 6 px under each.
+.TemplateForm__loader .v-skeleton-loader {
+  display: block;
+
+  .v-skeleton-loader__text {
+    flex: 1 0 auto;
+    height: 12px;
+    margin: 0 0 6px;
+    max-width: none;
+  }
+
+  .v-skeleton-loader__heading {
+    height: 24px;
+    margin: 0;
+    width: 45%;
+  }
+
+  .v-skeleton-loader__table-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+
+    > .v-skeleton-loader__heading {
+      height: 24px;
+      max-width: 15%;
+    }
+
+    > .v-skeleton-loader__text {
+      max-width: 40%;
+    }
+  }
+
+  .v-skeleton-loader__image {
+    height: 200px;
+  }
+
+  .v-skeleton-loader__list-item-two-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    align-items: center;
+    height: 72px;
+    margin: 0;
+    padding: 0 16px;
+  }
+
+  .v-skeleton-loader__sentences,
+  .v-skeleton-loader__paragraph {
+    display: block;
+    flex: 1 0 auto;
+  }
+
+  .v-skeleton-loader__sentences > .v-skeleton-loader__text:nth-child(2) {
+    max-width: 70%;
+  }
+
+  .v-skeleton-loader__list-item-two-line .v-skeleton-loader__text:last-child {
+    margin-bottom: 0;
+  }
+
+  .v-skeleton-loader__article {
+    display: block;
+
+    > .v-skeleton-loader__heading {
+      margin: 16px 0 16px 16px;
+    }
+
+    > .v-skeleton-loader__paragraph {
+      padding: 16px;
+    }
+  }
+
+  .v-skeleton-loader__paragraph {
+    > .v-skeleton-loader__text:nth-child(2) {
+      max-width: 50%;
+    }
+
+    > .v-skeleton-loader__text:nth-child(3) {
+      max-width: 70%;
+    }
+  }
 }
 
 .cm-placeholder {

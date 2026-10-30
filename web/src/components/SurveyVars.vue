@@ -7,7 +7,7 @@
       width="440"
     >
       <v-card
-        :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
+        :style="{ backgroundColor: $vuetify.theme.current.dark ? '#212121' : '#fff' }"
         @keydown.enter.prevent
         data-testid="surveyVarDialog"
       >
@@ -119,10 +119,12 @@
                         <v-text-field
                           variant="solo-inverted"
                           flat
+                          single-line
+                          density="comfortable"
                           hide-details
                           v-model="props.item.name"
                           :label="$t('matchKey')"
-                          class="v-text-field--solo--no-min-height"
+                          class="v-text-field--solo--no-min-height SurveyVars__valueField"
                           data-testid="surveyVarDialog-valueName"
                         ></v-text-field>
                       </td>
@@ -130,17 +132,19 @@
                         <v-text-field
                           variant="solo-inverted"
                           flat
+                          single-line
+                          density="comfortable"
                           hide-details
                           v-model="props.item.value"
                           :label="$t('matchValue')"
-                          class="v-text-field--solo--no-min-height"
+                          class="v-text-field--solo--no-min-height SurveyVars__valueField"
                           data-testid="surveyVarDialog-valueValue"
                         ></v-text-field>
                       </td>
                       <td style="width: 38px">
                         <v-icon
                           size="small"
-                          class="pa-1"
+                          class="pa-1 SurveyVars__valueDelete"
                           @click="removeEditedVarValue(props.item)"
                           data-testid="surveyVarDialog-valueDelete"
                         >
@@ -171,6 +175,7 @@
                   hide-details
                   :multiple="editedVar.type === 'select'"
                   :chips="editedVar.type === 'select'"
+                  class="SurveyVars__chips"
                   data-testid="surveyVarDialog-defaultValue"
                 >
                   <template
@@ -179,6 +184,7 @@
                     <v-chip
                       size="small"
                       closable
+                      class="SurveyVars__smallChip"
                       data-testid="surveyVarDialog-defaultChip"
                       @click:close="removeDefaultItem(index)"
                       >{{ selectedItemLabel(item) }}
@@ -206,6 +212,7 @@
               auto-grow
               density="compact"
               variant="outlined"
+              class="SurveyVars__defaultText"
               data-testid="surveyVarDialog-defaultValue"
             />
 
@@ -224,7 +231,7 @@
             :label="$t('required')"
             v-model="editedVar.required"
             v-if="editedVar != null"
-            class="ml-1"
+            class="ml-1 SurveyVars__required"
             data-testid="surveyVarDialog-required"
           />
           <v-spacer></v-spacer>
@@ -285,7 +292,7 @@
             {{ v.title }}
           </v-chip>
         </draggable>
-        <v-chip @click="editVar(null)" data-testid="surveyVars-add">
+        <v-chip @click="editVar(null)" class="SurveyVars__add" data-testid="surveyVars-add">
           + <span class="ml-1" v-if="modifiedVars.length === 0">{{ $t('addVariable') }}</span>
         </v-chip>
       </v-chip-group>
@@ -293,6 +300,87 @@
   </div>
 </template>
 <style lang="scss">
+// The key / value fields of Vuetify 2 (`.v-text-field--solo-inverted`, single-line, 48 px):
+// grey at rest, dark with white text in focus (light theme); the dark theme inverts it.
+.SurveyVars__valueField {
+  .v-field.v-theme--light {
+    background: rgba(0, 0, 0, .06);
+
+    &.v-field--focused {
+      background: #424242;
+      color: #fff;
+
+      .v-label {
+        color: rgba(255, 255, 255, .7);
+      }
+    }
+  }
+
+  .v-field.v-theme--dark {
+    background: rgba(255, 255, 255, .16);
+
+    &.v-field--focused {
+      background: #fff;
+      color: rgba(0, 0, 0, .87);
+
+      .v-label {
+        color: rgba(0, 0, 0, .6);
+      }
+    }
+  }
+}
+
+// The delete icon of a value in the icon colour of the theme (`.theme--light.v-icon`: .54); its
+// padding goes around the 16 px glyph (a 24 px box), as on the content-box icon of Vuetify 2.
+.SurveyVars__valueDelete {
+  box-sizing: content-box;
+}
+
+.SurveyVars__valueDelete.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.SurveyVars__valueDelete.v-theme--dark {
+  color: #fff;
+}
+
+// The text default value: the dense outlined textarea of Vuetify 2 — 6 px above the text, none
+// below: three rows of 24 px make a 78 px box (auto-grow counts these paddings).
+.SurveyVars__defaultText .v-field {
+  --v-field-padding-top: 6px;
+  --v-field-padding-bottom: 0px;
+  --v-input-padding-top: 0px;
+}
+
+// The resting label stays where it was (8 px down, `--v-input-padding-top` of the field).
+.SurveyVars__defaultText .v-field-label:not(.v-field-label--floating) {
+  top: 8px;
+}
+
+// A small chip of Vuetify 2 is 24 px high (`$chip-sizes`), Vuetify 4 makes it 26 px.
+.SurveyVars__smallChip.v-chip {
+  --v-chip-height: 24px;
+}
+
+// Chips of the default values 4 px apart from each other and from the field edge (`.v-select--chips
+// .v-chip`: margin 4px), not the 2 px of Vuetify 4.
+.SurveyVars__chips.v-select--chips .v-select__selection {
+  margin-inline: 4px;
+}
+
+// The label of "Required" in the card actions: the secondary text colour of a Vuetify 2 label
+// (`.theme--light.v-label`), not the text colour of the card it inherits in Vuetify 4.
+.SurveyVars__required .v-label {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+// A chip never wraps its text (`.v-chip`: nowrap). The build puts `.v-slide-group__content > *`
+// (white-space: initial) after the chip styles, so the add chip straight in the group would wrap
+// and let its column shrink.
+.SurveyVars__add.v-chip {
+  white-space: nowrap;
+}
+
 .draggable-chip {
   cursor: grab;
 

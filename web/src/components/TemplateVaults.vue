@@ -7,7 +7,7 @@
       width="300"
     >
       <v-card
-        :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
+        :style="{ backgroundColor: $vuetify.theme.current.dark ? '#212121' : '#fff' }"
         data-testid="templateVaultDialog"
       >
         <v-card-title data-testid="templateVaultDialog-heading"></v-card-title>
@@ -40,6 +40,7 @@
               item-title="name"
               required
               :rules="[v => !!v  || $t('type_required')]"
+              :menu-props="underlinedMenu"
               @update:model-value="updateType"
               data-testid="templateVaultDialog-type"
             />
@@ -53,6 +54,7 @@
               item-title="name"
               required
               :rules="[(v) => !!v || $t('vaultRequired')]"
+              :menu-props="underlinedMenu"
               data-testid="templateVaultDialog-vaultKeyId"
               :data-state="keys == null ? 'loading' : 'ready'"
             ></v-select>
@@ -97,18 +99,25 @@
     >
       <legend style="padding: 0 3px;" data-testid="templateVaults-title">{{ $t('vaults') }}</legend>
       <v-chip-group column style="margin-top: -4px;">
+        <!-- base-color: inside a v-chip-group Vuetify 4 shows `color` on a selected chip only;
+             the "coloured" chip of Vuetify 2 had its cross in the text colour -->
         <v-chip
           v-for="(v, i) in modifiedVaults"
           closable
           @click:close="deleteVault(i)"
           :key="v.name"
           @click="editVault(i)"
-          color="gray"
+          base-color="gray"
+          class="TemplateVaults__chip"
           :data-testid="`templateVaults-chip-${v.name || 'default'}`"
         >
           {{ v.name || 'default' }}
         </v-chip>
-        <v-chip @click="editVault(null)" data-testid="templateVaults-add">
+        <v-chip
+          @click="editVault(null)"
+          class="TemplateVaults__chip"
+          data-testid="templateVaults-add"
+        >
           + <span class="ml-1" v-if="modifiedVaults.length === 0">{{ $t('vaultAdd') }}</span>
         </v-chip>
       </v-chip-group>
@@ -116,7 +125,11 @@
   </div>
 </template>
 <style lang="scss">
-
+// A chip never wraps its text (`.v-chip`: nowrap). The build puts `.v-slide-group__content > *`
+// (white-space: initial) after the chip styles, so a chip straight in the group would wrap.
+.TemplateVaults__chip.v-chip {
+  white-space: nowrap;
+}
 </style>
 <script>
 import axios from 'axios';
@@ -144,6 +157,9 @@ export default {
 
   data() {
     return {
+      // The list of an underlined select opens over the input, below the label (Vuetify 2: the
+      // menu covers `.v-input__slot`, 16 px under the top of the field), not over the label.
+      underlinedMenu: { location: 'top', origin: 'top', offset: -16 },
       editDialog: null,
       editedVault: null,
       editedVaultIndex: null,
