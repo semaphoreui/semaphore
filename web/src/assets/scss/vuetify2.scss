@@ -122,6 +122,12 @@
   opacity: var(--v-medium-emphasis-opacity);
 }
 
+// An icon with its own colour (`color` → a `text-*` class or an inline colour) is not dimmed, as
+// in Vuetify 2 (the coloured app icons of the New menus).
+.v-list.v-theme--light .v-list-item__prepend > .v-icon:is([class*="text-"], [style*="color"]) {
+  opacity: 1;
+}
+
 // VTabs: an inactive tab in the secondary text colour (`.v-tab:not(.v-tab--active)`). A disabled
 // tab is grey as every disabled button (variables.scss), selected or not.
 .v-tab.v-theme--light:not(.v-tab--selected) {
@@ -130,6 +136,12 @@
 
 .v-tab.v-theme--dark:not(.v-tab--selected) {
   color: rgba(255, 255, 255, .6);
+}
+
+// The slider of a selected disabled tab keeps the colour of the tabs (`.v-tabs-slider` is not
+// part of the disabled tab in Vuetify 2); Vuetify 4 draws it in the grey of a disabled button.
+.v-tab.v-btn--disabled.text-primary .v-tab__slider {
+  background: rgb(var(--v-theme-primary));
 }
 
 // VCard: the text and the subtitle in the secondary text colour (`.v-card > .v-card__text`).
@@ -176,6 +188,19 @@
 .v-list-item--density-compact .v-list-item__prepend > .v-icon,
 .v-list-item--density-compact .v-list-item__prepend > .v-avatar {
   margin-block: 8px;
+}
+
+// A dense select, autocomplete or combobox opens a dense list (`.v-list--dense`: one-line items
+// 40 px, not 48). Vuetify 4 does not pass the density of the field to the list of its menu, and the
+// menu is teleported away from the field; the field with the open menu (`--active-menu`, one at a
+// time) tells it.
+:root:has(
+  .v-select.v-input--density-compact.v-select--active-menu,
+  .v-autocomplete.v-input--density-compact.v-autocomplete--active-menu,
+  .v-combobox.v-input--density-compact.v-combobox--active-menu
+) :is(.v-select__content, .v-autocomplete__content, .v-combobox__content)
+  .v-list-item--density-default.v-list-item--one-line {
+  min-height: 40px;
 }
 
 // Fields under the input (`.v-input__slot` margin 8 px, 4 px dense, then the messages line of
@@ -227,10 +252,48 @@
   color: rgb(var(--v-theme-error));
 }
 
+// Field text in the primary text colour wherever the field stands (`.theme--light.v-input input`,
+// `.v-select__selections`: .87): Vuetify 4 lets the input inherit the colour around it, the
+// secondary .6 inside a card text. The icons and the line of an underlined field take the same
+// base colour. A disabled field is not dimmed as a whole (Vuetify 4: .38 on the field): its text,
+// label and icons are in the disabled text colour (`.v-input--is-disabled`), its box stays.
+.v-field {
+  color: rgb(var(--v-theme-on-surface));
+}
+
+// Icons of a field at rest: .54 in the light theme (`.theme--light.v-icon`).
+.v-field.v-theme--light:not(.v-field--focused):not(.v-field--error):not(.v-field--disabled) {
+  > .v-field__prepend-inner > .v-icon,
+  > .v-field__append-inner > .v-icon,
+  > .v-field__clearable > .v-icon {
+    opacity: .54;
+  }
+}
+
+.v-field--disabled {
+  opacity: 1;
+  color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+
+  .v-field__input {
+    opacity: 1;
+  }
+
+  .v-field-label {
+    color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+  }
+}
+
 // VAlert: text 16 px (`$alert-font-size`); the close button is a small icon button with a 24 px
 // circled cross (`.v-alert__dismissible`).
 .v-alert {
   font-size: 16px;
+}
+
+// An alert with a `color` and no `type` (the error alerts of the forms) is not dark in Vuetify 2:
+// its text is in the text colour of the light theme, not in the colour on the background
+// (`v-alert` is dark only with a `type`). A typed alert has the icon in front.
+.v-alert.v-theme--light.v-alert--variant-flat:not(:has(> .v-alert__prepend)) > .v-alert__content {
+  color: rgba(0, 0, 0, .87);
 }
 
 .v-alert__close > .v-btn {
@@ -328,14 +391,38 @@
   }
 }
 
+// Their icons in black (white in the dark theme), not in the text colour
+// (`.theme--light.v-btn-toggle:not(.v-btn-toggle--group) .v-btn.v-btn .v-icon`).
+.v-btn-group.v-theme--light > .v-btn:not(.v-btn--variant-text):not(.v-btn--variant-plain) .v-icon {
+  color: #000;
+}
+
+.v-btn-group.v-theme--dark > .v-btn:not(.v-btn--variant-text):not(.v-btn--variant-plain) .v-icon {
+  color: #fff;
+}
+
 // VDataTable: the no-data line in the disabled text colour (`.v-data-table__empty-wrapper`).
 .v-data-table-rows-no-data {
   color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 
-// The sort select of a table on a phone: 8 px under it, no messages line
-// (`.v-data-table-header-mobile`).
-.v-data-table__td-sort-select > .v-input__details {
-  min-height: 8px;
-  padding-top: 0;
+// On a phone (the table with the mobile header) the no-data line starts at the left edge, as the
+// rows of the cards do.
+.v-table:has(.v-data-table-headers--mobile) .v-data-table-rows-no-data {
+  text-align: start;
+}
+
+// The sort select of a table on a phone: 8 px under it, no messages line, the label in the bold of
+// the header (`.v-data-table-header-mobile`).
+.v-data-table__td-sort-select {
+  padding-bottom: 8px;
+
+  > .v-input__details {
+    display: none;
+  }
+
+  // The header weight (`$table-header-font-weight`); the field resets the weight of the header.
+  .v-field-label {
+    font-weight: 700;
+  }
 }

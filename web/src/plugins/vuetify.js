@@ -76,6 +76,11 @@ export default createVuetify({
     defaultSet: 'mdi',
     aliases: {
       ...aliases,
+      // Icons of Vuetify 2 where Vuetify 4 changed them: the alert icons of `type="warning"` and
+      // `type="error"`, the clear button of a field.
+      warning: 'mdi-exclamation',
+      error: 'mdi-alert',
+      clear: 'mdi-close',
       ...semaphoreAliases,
     },
     sets: {
