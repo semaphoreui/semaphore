@@ -183,7 +183,7 @@
     >
       <template v-slot:item.name="{ item }">
         <v-icon
-          class="mr-3"
+          class="mr-3 templates-table__app-icon"
           size="small"
           data-testid="templates-rowApp"
         >
@@ -315,6 +315,30 @@
   padding-right: 0 !important;
 }
 
+// The expand toggle: the 24 px chevron icon of Vuetify 2 (`.v-data-table__expand-icon`), not a
+// small icon button of 28 px, so the column is 26 px wide.
+.templates-table .v-data-table__td--expanded-row > .v-btn {
+  width: 24px;
+  height: 24px;
+}
+
+// The app icon in front of the name: an icon without a colour is grey (.54) in the light theme and
+// white in the dark one (`.theme--light.v-icon`), not the text colour of the cell.
+.templates-table__app-icon.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.templates-table__app-icon.v-theme--dark {
+  color: #fff;
+}
+
+// Mobile rows: the value sits at the right end of the row (`.v-data-table__mobile-row__cell`, a
+// shrink-to-fit flex item); Vuetify 4 stretches it over the second grid column, so a block value
+// (the "Not launched" line, the status chip) started at the middle of the row.
+.templates-table .v-data-table__tr--mobile > td > .v-data-table__td-value {
+  justify-self: end;
+}
+
 // Mobile rows: no expand cell (Vuetify 2 hid the first mobile row, the same cell).
 @media #{map.get(settings.$display-breakpoints, 'sm-and-down')} {
   .templates-table .v-data-table__tr--mobile > .v-data-table__td--expanded-row {
@@ -388,9 +412,10 @@ export default {
       return this.items.find((x) => x.id === this.itemId);
     },
 
-    // The expand column first, as Vuetify 2 drew it.
+    // The expand column first and as narrow as its toggle (`width: '1px'` of the Vuetify 2
+    // default header), as Vuetify 2 drew it.
     tableHeaders() {
-      return [{ key: 'data-table-expand' }, ...this.filteredHeaders];
+      return [{ key: 'data-table-expand', width: '1px' }, ...this.filteredHeaders];
     },
 
     isLoaded() {

@@ -22,13 +22,13 @@
         <div class="d-flex">
 
           <v-icon
-            class="handle6785"
+            class="handle6785 align-self-center"
             style="cursor: move;"
             data-testid="viewsForm-viewHandle"
           >mdi-menu</v-icon>
 
           <v-text-field
-            class="ml-2 mr-1"
+            class="ml-2 mr-1 edit-views-form__title"
             hide-details
             density="compact"
             variant="solo"
@@ -173,6 +173,17 @@
     >{{ $t('addView') }}</v-btn>
   </div>
 </template>
+
+<style lang="scss">
+// The view title: a dense solo field of Vuetify 2 is 38 px high
+// (`.v-text-field--solo.v-input--dense` control), not the 40 px of a compact field; its text line
+// (20 px, padding 4/2 in a 26 px input 6 px from the top) has its middle 20 px from the top.
+.edit-views-form__title .v-field {
+  --v-input-control-height: 38px;
+  --v-input-padding-top: 8px;
+  --v-field-padding-bottom: 6px;
+}
+</style>
 
 <script>
 import { VueDraggable as draggable } from 'vue-draggable-plus';
