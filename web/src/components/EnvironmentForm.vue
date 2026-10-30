@@ -58,7 +58,7 @@
 
     <v-window v-model="tab">
       <v-window-item value="variables" data-testid="varGroup-tabPanel-variables">
-        <div class="EnvSubheader d-flex align-center text-body-medium text-medium-emphasis">
+        <div class="EnvSubheader d-flex align-center text-medium-emphasis">
           {{ $t('extraVariables') }}
 
           <v-tooltip
@@ -84,7 +84,7 @@
             v-model="extraVarsEditMode"
             rounded="0"
             variant="text"
-            class="flex-shrink-0"
+            class="flex-shrink-0 EnvModeToggle"
             data-testid="varGroup-extraVarsMode"
           >
             <v-btn
@@ -164,7 +164,7 @@
             v-if="extraVars != null"
             :items="extraVars"
             :items-per-page="-1"
-            class="elevation-1 FieldTable"
+            class="elevation-1 FieldTable EnvTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -179,9 +179,10 @@
                   <v-text-field
                     variant="solo-inverted"
                     flat
+                    density="comfortable"
                     hide-details
                     v-model="props.item.name"
-                    class="v-text-field--solo--no-min-height"
+                    class="v-text-field--solo--no-min-height EnvField"
                     :placeholder="$t('name')"
                     data-testid="varGroup-varName"
                   ></v-text-field>
@@ -190,11 +191,12 @@
                   <v-select
                     variant="solo-inverted"
                     flat
+                    density="comfortable"
                     hide-details
                     v-model="props.item.type"
                     :items="extraVarTypes"
                     item-title="text"
-                    class="v-text-field--solo--no-min-height"
+                    class="v-text-field--solo--no-min-height EnvField"
                     data-testid="varGroup-varType"
                   ></v-select>
                 </td>
@@ -203,9 +205,10 @@
                     <v-text-field
                       variant="solo-inverted"
                       flat
+                      density="comfortable"
                       hide-details
                       v-model="props.item.value"
-                      class="v-text-field--solo--no-min-height"
+                      class="v-text-field--solo--no-min-height EnvField"
                       :placeholder="extraVarValuePlaceholder(props.item.type)"
                       data-testid="varGroup-varValue"
                     ></v-text-field>
@@ -221,7 +224,7 @@
                 <td style="width: 38px">
                   <v-icon
                     size="small"
-                    class="pa-1"
+                    class="pa-1 EnvRemove"
                     @click="removeExtraVar(props.item)"
                     data-testid="varGroup-varRemove"
                   >
@@ -238,7 +241,7 @@
         </div>
 
         <div>
-          <div class="EnvSubheader d-flex align-center text-body-medium text-medium-emphasis mt-4">
+          <div class="EnvSubheader d-flex align-center text-medium-emphasis mt-4">
             {{ $t('environmentVariables') }}
 
             <v-spacer />
@@ -250,7 +253,7 @@
           <v-data-table
             :items="env"
             :items-per-page="-1"
-            class="elevation-1 FieldTable"
+            class="elevation-1 FieldTable EnvTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -265,9 +268,10 @@
                   <v-text-field
                     variant="solo-inverted"
                     flat
+                    density="comfortable"
                     hide-details
                     v-model="props.item.name"
-                    class="v-text-field--solo--no-min-height"
+                    class="v-text-field--solo--no-min-height EnvField"
                     :placeholder="$t('name')"
                     data-testid="varGroup-envName"
                   ></v-text-field>
@@ -276,9 +280,10 @@
                   <v-text-field
                     variant="solo-inverted"
                     flat
+                    density="comfortable"
                     hide-details
                     v-model="props.item.value"
-                    class="v-text-field--solo--no-min-height"
+                    class="v-text-field--solo--no-min-height EnvField"
                     :placeholder="$t('Value')"
                     data-testid="varGroup-envValue"
                   ></v-text-field>
@@ -286,7 +291,7 @@
                 <td style="width: 38px">
                   <v-icon
                     size="small"
-                    class="pa-1"
+                    class="pa-1 EnvRemove"
                     @click="removeEnvVar(props.item)"
                     data-testid="varGroup-envRemove"
                   > mdi-delete </v-icon>
@@ -318,7 +323,7 @@
 
           <div class="d-flex items-center justify-space-between mt-2">
             <v-checkbox
-              class="mt-0 mb-2"
+              class="mt-0 mb-2 EnvSyncEnabled"
               v-model="item.sync_enabled"
               :label="$t('Sync keys enabled')"
               :disabled="formSaving"
@@ -329,6 +334,7 @@
             <div class="d-flex align-center">
               <v-btn
                 style="margin-right: -10px"
+                class="EnvSyncPaths"
                 variant="text"
                 color="primary"
                 @click="syncSettingsDialog = true"
@@ -339,7 +345,7 @@
                 <v-icon start>mdi-cog-sync</v-icon>
                 Sync paths
                 <v-chip
-                  class="ml-2"
+                  class="ml-2 EnvSyncPathsCount"
                   variant="outlined"
                   style="transform: translateY(-1px)"
                   color="primary"
@@ -367,6 +373,7 @@
                 suffix="minutes"
                 variant="outlined"
                 density="compact"
+                class="EnvSyncInterval"
                 data-testid="varGroupSync-syncInterval"
               ></v-text-field>
 
@@ -390,7 +397,7 @@
         </v-dialog>
 
         <div>
-          <div class="EnvSubheader d-flex align-center text-body-medium text-medium-emphasis">
+          <div class="EnvSubheader d-flex align-center text-medium-emphasis">
             {{ $t('extraVariables') }}
             <v-tooltip
               v-if="needHelp"
@@ -432,7 +439,7 @@
           <v-data-table
             :items="secrets.filter((s) => !s.remove && s.type === 'var')"
             :items-per-page="-1"
-            class="elevation-1 FieldTable"
+            class="elevation-1 FieldTable EnvTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -448,9 +455,10 @@
                   <v-text-field
                     variant="solo-inverted"
                     flat
+                    density="comfortable"
                     hide-details
                     v-model="props.item.name"
-                    class="v-text-field--solo--no-min-height"
+                    class="v-text-field--solo--no-min-height EnvField"
                     :placeholder="$t('name')"
                     data-testid="varGroup-secretVarName"
                   ></v-text-field>
@@ -460,10 +468,11 @@
                   <v-text-field
                     variant="solo-inverted"
                     flat
+                    density="comfortable"
                     hide-details
                     v-model="props.item.value"
                     placeholder="*******"
-                    class="v-text-field--solo--no-min-height"
+                    class="v-text-field--solo--no-min-height EnvField"
                     data-testid="varGroup-secretVarValue"
                   ></v-text-field>
                 </td>
@@ -471,7 +480,7 @@
                 <td style="width: 38px">
                   <v-icon
                     size="small"
-                    class="pa-1"
+                    class="pa-1 EnvRemove"
                     @click="removeSecret(props.item)"
                     data-testid="varGroup-secretVarRemove"
                   > mdi-delete </v-icon>
@@ -482,7 +491,7 @@
         </div>
 
         <div>
-          <div class="EnvSubheader d-flex align-center text-body-medium text-medium-emphasis mt-4">
+          <div class="EnvSubheader d-flex align-center text-medium-emphasis mt-4">
             {{ $t('environmentVariables') }}
 
             <v-spacer />
@@ -500,7 +509,7 @@
           <v-data-table
             :items="secrets.filter((s) => !s.remove && s.type === 'env')"
             :items-per-page="-1"
-            class="elevation-1 FieldTable"
+            class="elevation-1 FieldTable EnvTable"
             hide-default-footer
             :no-data-text="$t('noValues')"
             style="background: #8585850f"
@@ -516,9 +525,10 @@
                   <v-text-field
                     variant="solo-inverted"
                     flat
+                    density="comfortable"
                     hide-details
                     v-model="props.item.name"
-                    class="v-text-field--solo--no-min-height"
+                    class="v-text-field--solo--no-min-height EnvField"
                     :placeholder="$t('name')"
                     data-testid="varGroup-secretEnvName"
                   ></v-text-field>
@@ -528,10 +538,11 @@
                   <v-text-field
                     variant="solo-inverted"
                     flat
+                    density="comfortable"
                     hide-details
                     v-model="props.item.value"
                     placeholder="*******"
-                    class="v-text-field--solo--no-min-height"
+                    class="v-text-field--solo--no-min-height EnvField"
                     data-testid="varGroup-secretEnvValue"
                   ></v-text-field>
                 </td>
@@ -539,7 +550,7 @@
                 <td style="width: 38px">
                   <v-icon
                     size="small"
-                    class="pa-1"
+                    class="pa-1 EnvRemove"
                     @click="removeSecret(props.item)"
                     data-testid="varGroup-secretEnvRemove"
                   > mdi-delete </v-icon>
@@ -553,9 +564,121 @@
   </v-form>
 </template>
 <style lang="scss">
-// v-subheader of Vuetify 2: a 48 px row.
+@use 'sass:map';
+@use '@/scss/variables' as settings;
+
+// v-subheader of Vuetify 2: a 48 px row, 14 px text in the letter spacing of the card text.
 .EnvSubheader {
   height: 48px;
+  font-size: .875rem;
+  font-weight: 400;
+  letter-spacing: .0071428571em;
+}
+
+// The Table / JSON / YAML switch: the `v-btn-toggle group` of Vuetify 2 — a 36 px row of small
+// 28 px buttons, 4 px apart, each with a thin transparent border; the inactive ones at .8 opacity,
+// the active one in the secondary text colour on its own .18 overlay.
+.EnvModeToggle.v-btn-group {
+  height: 36px;
+}
+
+.EnvModeToggle > .v-btn {
+  height: 28px;
+  min-width: auto;
+  margin: 4px 0 4px 4px;
+  border: thin solid transparent;
+  opacity: .8;
+
+  &.v-btn--active {
+    opacity: 1;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+
+    > .v-btn__overlay {
+      opacity: .18;
+    }
+  }
+}
+
+// The rows of the four tables: the `solo-inverted` fields of Vuetify 2 (48 px) — grey at rest,
+// dark with white text in focus (light theme); the dark theme inverts it.
+.EnvField {
+  .v-field.v-theme--light {
+    background: rgba(0, 0, 0, .06);
+
+    &:not(.v-field--focused) > .v-field__field > .v-field__input {
+      color: rgba(0, 0, 0, .87);
+    }
+
+    &.v-field--focused {
+      background: #424242;
+      color: #fff;
+    }
+  }
+
+  .v-field.v-theme--dark {
+    background: rgba(255, 255, 255, .16);
+
+    &.v-field--focused {
+      background: #fff;
+      color: rgba(0, 0, 0, .87);
+    }
+  }
+}
+
+// The storage row on a phone: the label of "Sync keys enabled" wraps between words only and the
+// "Sync paths" button keeps its full width, running past the block as in Vuetify 2 (Vuetify 4
+// breaks the label inside a word and clips the button to its column).
+.EnvSyncEnabled.v-input {
+  grid-template-columns: max-content auto max-content;
+
+  .v-label {
+    min-width: auto;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+}
+
+.EnvSyncPaths.v-btn {
+  max-width: none;
+  overflow: visible;
+}
+
+// The path counter: the small chip of Vuetify 2 is 24 px high, not 26.
+.EnvSyncPathsCount.v-chip {
+  --v-chip-height: 24px;
+}
+
+// The "minutes" suffix in the field text colour (`.theme--light.v-input input`: .87), not the
+// secondary colour of Vuetify 4.
+.EnvSyncInterval .v-field:not(.v-field--disabled) .v-text-field__suffix {
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+}
+
+// The tables keep the rounded corners of the Vuetify 2 sheet.
+.EnvTable {
+  border-radius: 4px;
+}
+
+// Below 600 px Vuetify 2 drew the tables in their mobile form: the no-data line starts at the left
+// edge of the row instead of the middle.
+@media #{map.get(settings.$display-breakpoints, 'xs')} {
+  .EnvTable .v-data-table-rows-no-data {
+    text-align: start;
+  }
+}
+
+// The delete icon of a row in the icon colour of the theme (`.theme--light.v-icon`: .54); its
+// padding goes around the 16 px glyph (a 24 px box), as on the content-box icon of Vuetify 2.
+.EnvRemove {
+  box-sizing: content-box;
+}
+
+.EnvRemove.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.EnvRemove.v-theme--dark {
+  color: #fff;
 }
 
 .EnvironmentEditor {
@@ -564,11 +687,13 @@
   }
 }
 
-// Compact the RichEditor "expand" fab so it fits inside a variables table row.
+// Compact the RichEditor "expand" fab so it fits inside a variables table row: 30 px, as the
+// `fab small` of Vuetify 2 was cut here. The size of the button is an inline style (`size="40"`
+// of RichEditor), so the box is capped by max-width / max-height.
 .EnvVarExpandBtn {
-  .v-btn--icon.v-btn--size-small {
-    height: 30px;
-    width: 30px;
+  .v-btn--icon {
+    max-height: 30px;
+    max-width: 30px;
   }
 
   .v-btn__content .v-icon {
@@ -583,7 +708,9 @@
 
 import ItemFormBase from '@/components/ItemFormBase';
 
+import { markRaw } from 'vue';
 import CodeMirror from 'vue-codemirror6';
+import { EditorView } from '@codemirror/view';
 import {
   load as loadYaml, dump as dumpYaml, JSON_SCHEMA,
 } from 'js-yaml';
@@ -600,6 +727,30 @@ import codeEditorExtensions from '@/lib/codeEditor';
 import { getErrorMessage } from '@/lib/error';
 import RichEditor from '@/components/RichEditor.vue';
 import SecretStorageSyncOptionsForm from '@/components/SecretStorageSyncOptionsForm.vue';
+
+// The editor as CodeMirror 5 drew it in Vuetify 2 (`codemirror.css`): black text on white in the
+// line height of the card text (22 px, not 1.4), lines padded 4 px, a 30 px gutter of #f7f7f7 with
+// numbers in #999. A theme, not a style block: CodeMirror 6 mounts its own styles outside the CSS
+// layers, where they win over any layered rule. The same look as the inventory editor (Z14).
+const CODEMIRROR5_LOOK = EditorView.theme({
+  '&': {
+    color: '#000',
+    backgroundColor: '#fff',
+  },
+  '.cm-scroller': {
+    lineHeight: 'inherit',
+  },
+  '.cm-line': {
+    padding: '0 4px',
+  },
+  '.cm-gutters': {
+    backgroundColor: '#f7f7f7',
+    color: '#999',
+  },
+  '.cm-lineNumbers .cm-gutterElement': {
+    minWidth: '29px',
+  },
+});
 
 export default {
   mixins: [ItemFormBase],
@@ -789,9 +940,9 @@ export default {
 
       tab: 'variables',
 
-      cmExtensions: codeEditorExtensions({ language: 'json' }),
+      cmExtensions: markRaw([...codeEditorExtensions({ language: 'json' }), CODEMIRROR5_LOOK]),
 
-      cmYamlExtensions: codeEditorExtensions({ language: 'yaml' }),
+      cmYamlExtensions: markRaw([...codeEditorExtensions({ language: 'yaml' }), CODEMIRROR5_LOOK]),
 
       extraVarsEditMode: 'json',
       suppressExtraVarsConversion: false,

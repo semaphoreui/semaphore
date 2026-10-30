@@ -6,7 +6,7 @@
   >
     <v-card :data-testid="testId">
       <v-card-title
-        class="text-headline-medium font-weight-medium"
+        class="text-headline-medium font-weight-medium ObjectRefsDialog__title"
         data-testid="objectRefsDialog-title"
       >{{ $t('cantDeleteThe', {objectTitle: objectTitle}) }}
       </v-card-title>
@@ -32,6 +32,14 @@
     </v-card>
   </v-dialog>
 </template>
+<style lang="scss">
+// A long title wraps, breaking a word if needed (`.v-card__title` of Vuetify 2: flex-wrap,
+// word-break: break-all), instead of the one ellipsised line of Vuetify 4.
+.ObjectRefsDialog__title {
+  white-space: normal;
+  word-break: break-all;
+}
+</style>
 <script>
 import ObjectRefsView from '@/components/ObjectRefsView.vue';
 
