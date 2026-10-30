@@ -224,7 +224,13 @@ from its status (0 success, 3 error, 6 stopped); --follow also streams the log.
 Overrides (--limit, --tags, --check, --branch, --inventory, …) apply only when
 the template allows them; otherwise the server rejects the task. Ctrl+C while
 waiting only disconnects the client — the task goes on — unless
---stop-on-interrupt is given.`,
+--stop-on-interrupt is given.
+
+A task may stop halfway and wait for approval: a Terraform plan before it is
+applied, or any template whose app asks first. While waiting in a terminal the
+client asks "Apply task N? [yes/no]" and answers the server for you; without a
+terminal it says which 'task confirm' to run and keeps waiting. Use
+--auto-approve to skip the question altogether when the template allows it.`,
 		Example: `  # Fire and forget: prints the task id
   semaphore client template run deploy -p 1
 
@@ -402,7 +408,8 @@ func newTaskLogsCmd() *cobra.Command {
 		Long: `Print the log of a task. --raw streams the plain-text log the server keeps
 (ANSI codes stripped); otherwise the stored lines are printed, or listed as
 records with -o json. With --follow new lines are printed until the task
-finishes and the exit code follows its status.`,
+finishes and the exit code follows its status; a task that stops for approval
+is answered right here when the session is interactive.`,
 		Example: `  semaphore client task logs 42
   semaphore client task logs 42 -f
   semaphore client task logs 42 --raw > task-42.log`,
@@ -496,7 +503,10 @@ func newTaskWaitCmd() *cobra.Command {
 		Short: "Wait silently until a task finishes; exit code follows its status",
 		Long: `Wait until a task finishes without printing anything, for scripts. Exit code
 0 on success, 3 on error, 6 when the task was stopped, 124 when --wait-timeout
-runs out (the task keeps running on the server).`,
+runs out (the task keeps running on the server).
+
+A task waiting for approval is reported on stderr: in a terminal the question
+is asked here, in a script run 'task confirm' or 'task reject' elsewhere.`,
 		Example: `  semaphore client task wait 42; case $? in 0) echo ok;; 3) echo failed;; 6) echo stopped;; 124) echo timeout;; esac`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

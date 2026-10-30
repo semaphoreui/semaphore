@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/cli/cmd/client/config"
 	"github.com/semaphoreui/semaphore/db"
@@ -23,11 +25,17 @@ type taskServer struct {
 	mu       sync.Mutex
 	statuses []task_logger.TaskStatus
 	polls    int
+	// taskGets counts every GET of the task; unlike polls it is never reset.
+	taskGets int
 	lines    []string
 	created  []db.Task
 	stops    []bool
 	confirms int
 	rejects  int
+	// afterConfirm and afterReject replace the status sequence once the task
+	// has been answered, the way the server moves it on.
+	afterConfirm []task_logger.TaskStatus
+	afterReject  []task_logger.TaskStatus
 	// failPolls makes the first n GET task calls answer 502.
 	failPolls int
 	nextID    int
@@ -88,6 +96,7 @@ func (s *taskServer) handler(t *testing.T) http.Handler {
 			}
 			st := s.status()
 			s.polls++
+			s.taskGets++
 			inv := 9
 			enc(db.TaskWithTpl{Task: db.Task{ID: 42, TemplateID: 3, Status: st, InventoryID: &inv, Environment: `{"a":"1"}`, Params: db.MapStringAnyField{"dry_run": true}, Message: "orig"}, TemplateAlias: "Deploy"})
 		case p == "/api/project/7/tasks/42/output":
@@ -106,9 +115,15 @@ func (s *taskServer) handler(t *testing.T) http.Handler {
 			w.WriteHeader(http.StatusNoContent)
 		case p == "/api/project/7/tasks/42/confirm":
 			s.confirms++
+			if s.afterConfirm != nil {
+				s.statuses, s.polls = s.afterConfirm, 0
+			}
 			w.WriteHeader(http.StatusNoContent)
 		case p == "/api/project/7/tasks/42/reject":
 			s.rejects++
+			if s.afterReject != nil {
+				s.statuses, s.polls = s.afterReject, 0
+			}
 			w.WriteHeader(http.StatusNoContent)
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -260,7 +275,103 @@ func TestWait_ConfirmationHint(t *testing.T) {
 
 	_, errOut, err := run(t, taskEnv(srv), "", "task", "wait", "42")
 	require.NoError(t, err)
+	assert.Contains(t, errOut, "Task 42 is waiting for confirmation before it continues.")
 	assert.Equal(t, 1, strings.Count(errOut, "task confirm 42"), "the hint is printed once")
+	assert.NotContains(t, errOut, "[yes/no]", "no question without a terminal")
+	assert.Zero(t, s.confirms)
+}
+
+// A task that stops in waiting_confirmation — a Terraform plan before apply —
+// is answered in the terminal that is already following it.
+func TestWait_ConfirmationPrompt(t *testing.T) {
+	waiting := []task_logger.TaskStatus{task_logger.TaskWaitingConfirmation}
+
+	t.Run("yes applies", func(t *testing.T) {
+		s := newTaskServer(waiting...)
+		s.afterConfirm = []task_logger.TaskStatus{task_logger.TaskRunningStatus, task_logger.TaskSuccessStatus}
+		srv := httptest.NewServer(s.handler(t))
+		defer srv.Close()
+
+		_, errOut, err := runWith(t, taskEnv(srv), "yes\n", true, "task", "wait", "42")
+		require.NoError(t, err, "the task succeeded after the apply")
+		assert.Contains(t, errOut, "Task 42 is waiting for confirmation before it continues.")
+		assert.Contains(t, errOut, "Apply task 42? [yes/no]: ")
+		assert.Contains(t, errOut, "Task 42 confirmed.")
+		assert.NotContains(t, errOut, "task confirm 42", "no need to point at another terminal")
+		assert.Equal(t, 1, s.confirms)
+		assert.Zero(t, s.rejects)
+	})
+
+	t.Run("no rejects and the task ends as error", func(t *testing.T) {
+		s := newTaskServer(waiting...)
+		s.afterReject = []task_logger.TaskStatus{task_logger.TaskFailStatus}
+		srv := httptest.NewServer(s.handler(t))
+		defer srv.Close()
+
+		_, errOut, err := runWith(t, taskEnv(srv), "no\n", true, "task", "wait", "42")
+		assert.Equal(t, ExitTaskFailed, ExitCode(err), "the server fails a rejected task")
+		assert.Contains(t, errOut, "Task 42 rejected; the server ends a rejected task as failed (exit 3).")
+		assert.Equal(t, 1, s.rejects)
+		assert.Zero(t, s.confirms)
+	})
+
+	t.Run("anything else is asked again", func(t *testing.T) {
+		s := newTaskServer(waiting...)
+		s.afterConfirm = []task_logger.TaskStatus{task_logger.TaskSuccessStatus}
+		srv := httptest.NewServer(s.handler(t))
+		defer srv.Close()
+
+		_, errOut, err := runWith(t, taskEnv(srv), "maybe\ny\n", true, "task", "wait", "42")
+		require.NoError(t, err)
+		assert.Contains(t, errOut, "Please answer yes or no.")
+		assert.Equal(t, 2, strings.Count(errOut, "Apply task 42? [yes/no]: "))
+		assert.Equal(t, 1, s.confirms)
+	})
+
+	t.Run("the explanation and the question are printed once", func(t *testing.T) {
+		s := newTaskServer(waiting...)
+		s.afterConfirm = []task_logger.TaskStatus{task_logger.TaskSuccessStatus}
+		srv := httptest.NewServer(s.handler(t))
+		defer srv.Close()
+
+		// Nothing is typed for a while: the client keeps polling and must not
+		// repeat itself on every poll.
+		in, w := io.Pipe()
+		go func() {
+			time.Sleep(60 * time.Millisecond)
+			_, _ = w.Write([]byte("yes\n"))
+		}()
+		_, errOut, err := runReader(t, taskEnv(srv), in, true, "task", "wait", "42")
+		require.NoError(t, err)
+		assert.Equal(t, 1, strings.Count(errOut, "is waiting for confirmation"))
+		assert.Equal(t, 1, strings.Count(errOut, "Apply task 42? [yes/no]: "))
+		assert.Greater(t, s.taskGets, 2, "polling went on while the question was open")
+	})
+
+	t.Run("stdin ends without an answer", func(t *testing.T) {
+		s := newTaskServer(waiting...)
+		srv := httptest.NewServer(s.handler(t))
+		defer srv.Close()
+
+		_, errOut, err := runWith(t, taskEnv(srv), "", true, "task", "wait", "42", "--wait-timeout", "150ms")
+		assert.Equal(t, ExitTimeout, ExitCode(err), "the task keeps waiting on the server")
+		assert.Equal(t, 1, strings.Count(errOut, "Apply task 42? [yes/no]: "), "asked once, then gave up")
+		assert.Contains(t, errOut, "task confirm 42")
+		assert.Zero(t, s.confirms)
+	})
+
+	t.Run("somebody else answers", func(t *testing.T) {
+		s := newTaskServer(task_logger.TaskWaitingConfirmation, task_logger.TaskWaitingConfirmation, task_logger.TaskRunningStatus, task_logger.TaskSuccessStatus)
+		srv := httptest.NewServer(s.handler(t))
+		defer srv.Close()
+
+		in, w := io.Pipe()
+		defer w.Close()
+		_, errOut, err := runReader(t, taskEnv(srv), in, true, "task", "wait", "42")
+		require.NoError(t, err)
+		assert.Contains(t, errOut, "Task 42 is no longer waiting for confirmation (status: running).")
+		assert.Zero(t, s.confirms, "the answer came from elsewhere")
+	})
 }
 
 func TestTaskWatchAndWait(t *testing.T) {

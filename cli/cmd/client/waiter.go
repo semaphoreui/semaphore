@@ -55,7 +55,7 @@ func (r *runtime) waitTask(cmd *cobra.Command, api *apiclient.Client, projectID,
 		lastStatus task_logger.TaskStatus
 		printed    int
 		failures   int
-		hinted     bool
+		approval   approvalState
 	)
 
 	for {
@@ -69,10 +69,6 @@ func (r *runtime) waitTask(cmd *cobra.Command, api *apiclient.Client, projectID,
 				if opts.onStatus != nil {
 					opts.onStatus(task)
 				}
-				if task.Status == task_logger.TaskWaitingConfirmation && !hinted {
-					hinted = true
-					r.warnf("Task %d waits for confirmation: run 'semaphore client task confirm %d' (or reject).", taskID, taskID)
-				}
 			}
 			if opts.follow {
 				n, err := r.printNewOutput(ctx, api, projectID, taskID, printed)
@@ -82,6 +78,9 @@ func (r *runtime) waitTask(cmd *cobra.Command, api *apiclient.Client, projectID,
 					return last, err
 				}
 			}
+			// After the log, so that a Terraform plan is on screen before the
+			// question about applying it.
+			r.handleApproval(task, taskID, &approval)
 			if task.Status.IsFinished() {
 				return last, nil
 			}
@@ -100,9 +99,107 @@ func (r *runtime) waitTask(cmd *cobra.Command, api *apiclient.Client, projectID,
 		select {
 		case <-ctx.Done():
 			return last, r.waitEnded(ctx, parent, api, projectID, taskID, opts)
+		case answer := <-approval.answers:
+			// A decision was typed: act on it and poll again at once, so the
+			// new status shows up without waiting out the interval.
+			if err := r.applyApproval(ctx, api, projectID, taskID, answer, &approval); err != nil {
+				return last, err
+			}
 		case <-time.After(interval):
 		}
 	}
+}
+
+// approvalState tracks the conversation about a task that stopped in
+// waiting_confirmation: a Terraform plan awaiting "apply", or any template
+// whose app asks before it changes anything.
+type approvalState struct {
+	// answers delivers the line typed at the prompt. It is nil while no
+	// question is outstanding, which in a select means "never ready".
+	answers <-chan promptAnswer
+	// told says the explanation was printed; it is printed once per wait.
+	told bool
+	// silent stops the client from asking again: there is no terminal, or
+	// stdin ended without an answer.
+	silent bool
+}
+
+// handleApproval reacts to the task's status: it explains the stop, asks the
+// user to approve or reject, and notices when somebody else answered instead
+// (in the web UI, or with 'task confirm' from another terminal).
+func (r *runtime) handleApproval(task db.TaskWithTpl, taskID int, st *approvalState) {
+	if task.Status != task_logger.TaskWaitingConfirmation {
+		if st.answers != nil {
+			r.warnf("Task %d is no longer waiting for confirmation (status: %s).", taskID, task.Status)
+			st.answers = nil
+		}
+		return
+	}
+
+	if !st.told {
+		st.told = true
+		r.warnf("Task %d is waiting for confirmation before it continues.", taskID)
+	}
+	if st.silent || !r.prompter.canAsk() {
+		if !st.silent {
+			st.silent = true
+			r.warnf("Run 'semaphore client task confirm %d' to continue, or 'semaphore client task reject %d' to cancel it.", taskID, taskID)
+		}
+		return
+	}
+	if st.answers == nil {
+		fmt.Fprintf(r.io.Err, "Apply task %d? [yes/no]: ", taskID)
+		st.answers = r.prompter.readAsync()
+	}
+}
+
+// applyApproval turns the typed line into a confirm or a reject request. An
+// unusable answer only re-asks: the task is still waiting either way.
+func (r *runtime) applyApproval(ctx context.Context, api *apiclient.Client, projectID, taskID int, answer promptAnswer, st *approvalState) error {
+	st.answers = nil
+
+	switch {
+	case answer.err != nil:
+		st.silent = true
+		r.warnf("warning: cannot read the answer: %v", answer.err)
+	case answer.eof:
+		st.silent = true
+	default:
+		switch strings.ToLower(answer.text) {
+		case "yes", "y":
+			return r.decide(ctx, api, projectID, taskID, true)
+		case "no", "n":
+			return r.decide(ctx, api, projectID, taskID, false)
+		default:
+			r.warnf("Please answer yes or no.")
+			return nil
+		}
+	}
+
+	r.warnf("Run 'semaphore client task confirm %d' to continue, or 'semaphore client task reject %d' to cancel it.", taskID, taskID)
+	return nil
+}
+
+// decide sends the answer to the server. A rejected task ends as "error" on
+// the server side, so the wait finishes with exit code 3.
+func (r *runtime) decide(ctx context.Context, api *apiclient.Client, projectID, taskID int, approve bool) error {
+	reqCtx, cancel := context.WithTimeout(ctx, r.cfg.Timeout)
+	defer cancel()
+
+	if approve {
+		if err := api.ConfirmTask(reqCtx, projectID, taskID); err != nil {
+			return err
+		}
+		r.warnf("Task %d confirmed.", taskID)
+		return nil
+	}
+	if err := api.RejectTask(reqCtx, projectID, taskID); err != nil {
+		return err
+	}
+	// Said here rather than left to the final line: the server ends a rejected
+	// task as "error", which exits 3 and reads like a failure otherwise.
+	r.warnf("Task %d rejected; the server ends a rejected task as failed (exit 3).", taskID)
+	return nil
 }
 
 // pollOnce reads the task with the per-request timeout on top of ctx.

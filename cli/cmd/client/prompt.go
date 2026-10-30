@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -63,6 +64,44 @@ func (p *Prompter) ConfirmName(what, expected, typed string) error {
 		return ErrAborted
 	}
 	return nil
+}
+
+// canAsk says whether a question can be put to a human right now. --yes is
+// deliberately not consulted: it waives the client's own confirmations, and
+// approving a task that is about to change infrastructure is the server's
+// gate, not one of them.
+func (p *Prompter) canAsk() bool {
+	return p.interactive && !p.noInput
+}
+
+// promptAnswer is one line typed in answer to a question asked while
+// something else is going on.
+type promptAnswer struct {
+	text string
+	// eof is set when the input ended before an answer was given.
+	eof bool
+	err error
+}
+
+// readAsync reads one line in the background, so that a caller can keep
+// working — polling a task, printing its log — while nobody has answered yet.
+// It writes nothing itself: the question and every reply belong to the caller's
+// goroutine, which keeps the output of a concurrent reader free of races.
+func (p *Prompter) readAsync() <-chan promptAnswer {
+	ch := make(chan promptAnswer, 1)
+	go func() {
+		line, err := p.in.ReadString('\n')
+		line = strings.TrimSpace(line)
+		switch {
+		case err == nil || (errors.Is(err, io.EOF) && line != ""):
+			ch <- promptAnswer{text: line}
+		case errors.Is(err, io.EOF):
+			ch <- promptAnswer{eof: true}
+		default:
+			ch <- promptAnswer{err: err}
+		}
+	}()
+	return ch
 }
 
 func (p *Prompter) readLine() (string, error) {

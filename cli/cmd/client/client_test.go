@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -29,6 +30,13 @@ func run(t *testing.T, env map[string]string, stdin string, args ...string) (str
 // runtime treat the buffers as terminals so that prompts are exercised.
 func runWith(t *testing.T, env map[string]string, stdin string, interactive bool, args ...string) (string, string, error) {
 	t.Helper()
+	return runReader(t, env, strings.NewReader(stdin), interactive, args...)
+}
+
+// runReader is runWith over an arbitrary stdin, for a test that needs the
+// input to stay open instead of ending at once.
+func runReader(t *testing.T, env map[string]string, stdin io.Reader, interactive bool, args ...string) (string, string, error) {
+	t.Helper()
 	if env == nil {
 		env = map[string]string{}
 	}
@@ -38,7 +46,7 @@ func runWith(t *testing.T, env map[string]string, stdin string, interactive bool
 	}
 	var out, errOut bytes.Buffer
 	cmd := NewCommand(IO{
-		In:      strings.NewReader(stdin),
+		In:      stdin,
 		Out:     &out,
 		Err:     &errOut,
 		Getenv:  func(k string) string { return env[k] },
