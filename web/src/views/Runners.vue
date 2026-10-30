@@ -1,6 +1,7 @@
 <template>
   <div
     v-if="items != null"
+    class="RunnersPage"
     data-testid="runners-page"
     :data-state="items.length === 0 ? 'empty' : 'ready'"
   >
@@ -103,7 +104,12 @@
             />
           </HighlightedCard>
 
-          <v-tabs v-model="registerTab" :show-arrows="false" data-testid="runnerToken-registerTabs">
+          <v-tabs
+            v-model="registerTab"
+            :show-arrows="false"
+            class="RunnerTokenTabs"
+            data-testid="runnerToken-registerTabs"
+          >
             <v-tab value="env" data-testid="runnerToken-tab-env">Env Vars</v-tab>
             <v-tab value="config" data-testid="runnerToken-tab-config">Config file</v-tab>
             <v-tab value="docker" data-testid="runnerToken-tab-docker">Docker</v-tab>
@@ -255,7 +261,12 @@
 
           <h2 class="mt-11 mb-4" data-testid="runnerToken-variantsOfUsage">Variants of usage</h2>
 
-          <v-tabs v-model="usageTab" :show-arrows="false" data-testid="runnerToken-usageTabs">
+          <v-tabs
+            v-model="usageTab"
+            :show-arrows="false"
+            class="RunnerTokenTabs"
+            data-testid="runnerToken-usageTabs"
+          >
             <v-tab value="config" data-testid="runnerToken-tab-config">Config file</v-tab>
             <v-tab value="setup" data-testid="runnerToken-tab-setup">Setup</v-tab>
             <v-tab value="env" data-testid="runnerToken-tab-env">Env Vars</v-tab>
@@ -545,10 +556,12 @@ semaphore runner start --config ./config.runner.json</pre
     <v-data-table
       :headers="headers"
       :items="filteredItems"
-      class="mt-4 FixedPageSizeTable"
+      class="mt-4 FixedPageSizeTable RunnersTable"
       :style="projectId && !features.project_runners ? 'opacity: 0.4' : ''"
       :items-per-page-options="[20]"
       :items-per-page="20"
+      :show-first-last-page="false"
+      :page-text="filteredItems.length === 0 ? '–' : undefined"
       data-testid="runners-table"
       :data-state="filteredItems.length === 0 ? 'empty' : 'ready'"
     >
@@ -747,6 +760,115 @@ semaphore runner start --config ./config.runner.json</pre
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// The tabs of the token dialog: a focused tab of Vuetify 2 is only tinted (`.v-tab:focus::before`),
+// without the 2 px ring Vuetify 4 draws around a button focused from the keyboard.
+.RunnerTokenTabs .v-tab::after {
+  display: none;
+}
+
+// The chips of the page (filters and rows) as high as in Vuetify 2: small 24 px, x-small 16 px
+// (`.v-size--small`, `.v-size--x-small`); Vuetify 4 makes them 26 and 20 px.
+.RunnersPage .v-chip {
+  &.v-chip--size-small {
+    --v-chip-height: 24px;
+  }
+
+  &.v-chip--size-x-small {
+    --v-chip-height: 16px;
+  }
+}
+
+// The runners table as Vuetify 2 drew it.
+.RunnersTable {
+  // The inset switch of Vuetify 2 (`.v-input--switch--inset`): the control 48 × 24 px and 8 px
+  // after it, the track (48 × 28) 4 px out to the left at .32, a white thumb when off. Vuetify 4
+  // makes the control 40 px high (a row 16 px higher) and starts the track at the control.
+  // The column of the switch keeps its width: a Vuetify 4 `v-input` may shrink to 0 px beside the
+  // 50 % wide name column (the switch then covered the names on a tablet).
+  .v-switch--inset {
+    min-width: max-content;
+
+    .v-selection-control__wrapper {
+      height: 24px;
+      margin-inline: -4px 12px;
+    }
+
+    .v-switch__track {
+      opacity: .32;
+    }
+  }
+
+  .v-switch--inset.v-theme--light
+    .v-selection-control:not(.v-selection-control--dirty) .v-switch__thumb {
+    background-color: #fff;
+  }
+
+  // Mobile rows: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between, the header
+  // 16 px from the value, the value at the right end), not the two equal grid columns of
+  // Vuetify 4. The cells do not wrap (App.vue), so the widest row sets the table width, as in
+  // Vuetify 2.
+  .v-data-table__tr--mobile > td {
+    display: flex;
+    justify-content: space-between;
+    column-gap: 0;
+
+    > .v-data-table__td-title {
+      padding-right: 16px;
+    }
+
+    > .v-data-table__td-value {
+      text-align: right;
+    }
+  }
+
+  // The line over the footer: the top border of `.v-data-footer` in Vuetify 2 — as wide as the
+  // footer (16 px in from both sides, App.vue) and in the border colour (.12), not a divider over
+  // the whole table at .12 of the text colour.
+  > .v-divider {
+    margin: 0 16px;
+    border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+    opacity: 1;
+  }
+
+  // The footer of Vuetify 2 (`.v-data-footer`): 8 px padding, the range 24 px from the left and
+  // 32 px before the arrows (no rows-per-page select pushes them right), 36 px round arrow buttons
+  // 14 px apart, in the icon colour of the theme (.54) when enabled; no first/last buttons
+  // (`showFirstLastPage: false`).
+  > .v-data-table-footer {
+    justify-content: flex-start;
+    padding: 0 8px;
+
+    > .v-data-table-footer__info {
+      min-width: 0;
+      margin: 0 32px 0 24px;
+      padding: 0;
+    }
+
+    .v-pagination__list > li {
+      margin: 0;
+
+      &.v-pagination__prev {
+        margin-inline-end: 7px;
+      }
+
+      &.v-pagination__next {
+        margin-inline-start: 7px;
+      }
+    }
+
+    .v-pagination .v-btn {
+      width: 36px;
+      height: 36px;
+    }
+
+    .v-pagination .v-btn.v-theme--light:not(.v-btn--disabled) {
+      color: rgba(0, 0, 0, .54);
+      opacity: 1;
+    }
+  }
+}
+</style>
 <script>
 import EventBus from '@/event-bus';
 import YesNoDialog from '@/components/YesNoDialog.vue';
