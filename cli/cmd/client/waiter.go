@@ -81,6 +81,8 @@ func (r *runtime) waitTask(cmd *cobra.Command, api *apiclient.Client, projectID,
 				}
 				if err == nil {
 					printed = n
+				} else if ctx.Err() != nil {
+					return last, r.waitEnded(ctx, parent, api, projectID, taskID, opts)
 				} else if !isTransient(err) {
 					return last, err
 				}
