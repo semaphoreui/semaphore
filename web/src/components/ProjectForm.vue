@@ -3,6 +3,7 @@
     ref="form"
     v-model="formValid"
     v-if="item != null"
+    class="project-form"
     data-testid="newProject-form"
     :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
@@ -93,3 +94,13 @@ export default {
   },
 };
 </script>
+
+<style lang="scss">
+// The label of the alerts checkbox in the secondary text colour, as every `.v-label` of Vuetify 2
+// (`.theme--light.v-label`: .6, .7 dark); Vuetify 4 writes it in the colour around it, .87 on the
+// New Project page.
+.project-form .v-checkbox .v-label {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  opacity: 1;
+}
+</style>

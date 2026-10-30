@@ -99,7 +99,9 @@
   // of the same size.
   $button-text-transform: uppercase,
   $button-text-letter-spacing: .0892857143em,
-  $button-elevation: ('default': 2, 'hover': 4, 'active': 8),
+  // A hovered or focused button keeps elevation 2: Vuetify 2 raised it only while pressed
+  // (`.v-btn--is-elevated:active`; its elevation 4 is on `::after`, which has no content).
+  $button-elevation: ('default': 2, 'hover': 2, 'active': 8),
   $button-icon-density: ('default': 0, 'comfortable': -1, 'compact': -2),
   // A button without a colour on the light grey of `.v-btn--has-bg` (#f5f5f5; #272727 dark).
   $button-background: var(--v2-btn-background),

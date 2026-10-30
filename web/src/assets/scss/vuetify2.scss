@@ -144,6 +144,12 @@
   background: rgb(var(--v-theme-primary));
 }
 
+// A tab is not a button in Vuetify 2 (`.v-tab`): no text indent of the button letter spacing, so
+// each tab with a label wider than its minimum width is 1.25 px narrower than a Vuetify 4 tab.
+.v-tab {
+  text-indent: 0;
+}
+
 // VCard: the text and the subtitle in the secondary text colour (`.v-card > .v-card__text`).
 .v-theme--light.v-card > .v-card-text,
 .v-theme--light.v-card > .v-card-subtitle {
@@ -297,6 +303,12 @@
   color: rgb(var(--v-theme-error));
 }
 
+// A resting label is cut with an ellipsis at 90 % of the text width (`.v-text-field .v-label`
+// max-width), not at its full width: a long label of a narrow field ends where it did.
+.v-field-label:not(.v-field-label--floating) {
+  max-width: calc((100% - var(--v-field-padding-start) - var(--v-field-padding-end)) * .9);
+}
+
 // Field text in the primary text colour wherever the field stands (`.theme--light.v-input input`,
 // `.v-select__selections`: .87): Vuetify 4 lets the input inherit the colour around it, the
 // secondary .6 inside a card text. The icons and the line of an underlined field take the same
@@ -443,6 +455,12 @@
 // VTable: header text in the secondary text colour (`thead > tr > th`).
 .v-table > .v-table__wrapper > table > thead > tr > th {
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+// VDataTable: the sort arrow of a header is an 18 px icon (`.v-data-table-header__icon`), not
+// 24 px, so a sortable column whose header is its widest cell is 6 px narrower.
+.v-data-table-header__sort-icon {
+  font-size: 18px;
 }
 
 // VChip: small and x-small chips keep the padding of the default size (`.v-chip`).
