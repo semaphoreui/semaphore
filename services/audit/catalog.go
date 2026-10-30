@@ -81,11 +81,11 @@ func Catalog() []Entry {
 		{Kind: IAMTemplatePermissionUpdate, Type: TypeChange, Metadata: TemplatePermissionMetadata{}},
 		{Kind: IAMTemplatePermissionDelete, Type: TypeDeletion, Metadata: TemplatePermissionMetadata{}},
 
-		{Kind: ResourceProjectCreate, Type: TypeCreation, Metadata: ProjectCreateMetadata{}, Partial: []Reason{ReasonSetupFailed}},
+		{Kind: ResourceProjectCreate, Type: TypeCreation, Metadata: ProjectCreateMetadata{}},
 		{Kind: ResourceProjectUpdate, Type: TypeChange},
 		{Kind: ResourceProjectDelete, Type: TypeDeletion},
 		{Kind: ResourceProjectBackupExport, Type: TypeAccess},
-		{Kind: ResourceProjectBackupRestore, Type: TypeCreation, Metadata: BackupRestoreMetadata{}, Partial: []Reason{ReasonRestoreFailed}},
+		{Kind: ResourceProjectBackupRestore, Type: TypeCreation, Metadata: BackupRestoreMetadata{}},
 		{Kind: ResourceInventoryCreate, Type: TypeCreation},
 		{Kind: ResourceInventoryUpdate, Type: TypeChange},
 		{Kind: ResourceInventoryDelete, Type: TypeDeletion},

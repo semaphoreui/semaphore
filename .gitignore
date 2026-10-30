@@ -62,3 +62,4 @@ __debug_bin*
 /*-config.config
 /*.sqlite*
 /pro_impl/
+/AGENTS/tmp/*

@@ -179,6 +179,7 @@ func TestRestore_WorkflowIntegrationIsProOnly(t *testing.T) {
 		pro:           proFeatureGate{subscription: noLicense{}, getFeatures: noFeatures},
 	}
 	backup := projectService.BackupFormat{
+		Version:     projectService.BackupFormatVersion,
 		Meta:        projectService.BackupMeta{Project: db.Project{Name: "restored"}},
 		Workflows:   []projectService.BackupWorkflow{{WorkflowTemplate: db.WorkflowTemplate{Name: "wf"}}},
 		Integration: []projectService.BackupIntegration{{Integration: db.Integration{Name: "hook"}, Workflow: new("wf")}},

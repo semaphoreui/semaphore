@@ -606,6 +606,15 @@ func (d *SqlDb) CreateTemplateRole(role db.TemplateRolePerm) (newRole db.Templat
 		err = &common_errors.ValidationError{Message: "Role is not available in this project"}
 		return
 	}
+	granted, err := d.Sql().SelectInt(d.PrepareQuery(
+		"select count(*) from project__template_role where template_id=? and role_id=?"), role.TemplateID, role.RoleID)
+	if err != nil {
+		return
+	}
+	if granted > 0 {
+		err = &common_errors.ValidationError{Message: "Role already has permissions on this template"}
+		return
+	}
 
 	insertID, err := d.insert(
 		"id",

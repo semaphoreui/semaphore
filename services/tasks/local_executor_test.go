@@ -626,3 +626,46 @@ func TestTaskIdentityEnv(t *testing.T) {
 		})
 	}
 }
+
+// A string key can be forced into an inventory through the API; the executor
+// must refuse it with a readable error instead of running ansible without
+// credentials or panicking on an empty installation.
+func TestGetPlaybookArgs_StringKeyInInventoryIsRejected(t *testing.T) {
+	setupExecutorConfig(t)
+	keyID := 7
+	stringKey := db.AccessKey{ID: keyID, Name: "token", Type: db.AccessKeyString}
+
+	tests := []struct {
+		name      string
+		inventory db.Inventory
+		wantErr   string
+	}{
+		{
+			name:      "as ssh key",
+			inventory: db.Inventory{ID: 1, Type: db.InventoryStatic, SSHKeyID: &keyID, SSHKey: stringKey},
+			wantErr:   "access key does not suite for inventory's user credentials",
+		},
+		{
+			name:      "as become key",
+			inventory: db.Inventory{ID: 1, Type: db.InventoryStatic, BecomeKeyID: &keyID, BecomeKey: stringKey},
+			wantErr:   "access key does not suite for inventory's sudo user credentials",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			executor := &LocalExecutor{
+				Template:  db.Template{App: db.AppAnsible, Playbook: "site.yml"},
+				Inventory: tt.inventory,
+			}
+
+			args, inputs, err := executor.getPlaybookArgs("admin", nil)
+
+			require.EqualError(t, err, tt.wantErr)
+			// getPlaybookArgs returns the partial args it built before failing;
+			// what matters is that no password prompt or value was wired in.
+			assert.NotContains(t, args, "--ask-pass")
+			assert.NotContains(t, args, "--ask-become-pass")
+			assert.Empty(t, inputs)
+		})
+	}
+}
