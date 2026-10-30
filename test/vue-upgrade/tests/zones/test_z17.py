@@ -132,6 +132,11 @@ def open_menu(page: Page) -> Locator:
     tid(page, "secretStorages-new").click()
     menu = tid(page, "secretStorages-newMenu")
     expect(menu).to_be_visible()
+    # Vuetify 4 keeps `pointer-events: none` on the overlay content until the enter ends (afterEnter,
+    # a few frames after it shows). A hover() in that window fails the hit test, and Playwright then
+    # scrolls the page to retry: the menu stays where the scroll put it (shot 98 px too low on mobile).
+    expect(menu.locator("xpath=ancestor::div[contains(@class, 'v-overlay__content')]")).not_to_have_css(
+        "pointer-events", "none")
     return menu
 
 
@@ -1024,16 +1029,17 @@ def test_create_edit_delete(ui, project, api, cleanup):
 
 @pytest.mark.functional
 @pytest.mark.sizes("mobile")
-def test_source_toggle_overflows_on_mobile(ui, project):
-    """390 px: the source toggle is wider than the dialog — «From File» sticks out of the card by
-    ~20 px and is cut (current behaviour, the mobile shots of dialog-new / dialog-edit show it); the
-    visible part still switches the source."""
+def test_source_toggle_fits_on_mobile(ui, project):
+    """390 px: the whole source toggle lies inside the dialog and switches the source. Vuetify 2 and
+    3 drew «From File» ~20 px past the edge of the card, cut (JOURNAL@C1D0689BA2); the buttons of
+    Vuetify 4, without the capitals and the letter spacing, are narrower and fit — the defect is
+    gone by itself, not by a change of the zone."""
     page = ui("admin")
     open_list(page, project)
     for typ in TYPES:
         card = new_storage(page, typ)
         box, btn = card.bounding_box(), tid(card, "secretSource-file").bounding_box()
-        assert btn["x"] + btn["width"] > box["x"] + box["width"] + 10, (typ, box, btn)
+        assert btn["x"] + btn["width"] <= box["x"] + box["width"], (typ, box, btn)
         button(card, "editDialog-cancel").click()
         expect(card).to_be_hidden()
     card = new_storage(page, "vault")

@@ -216,11 +216,10 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
+      class="mt-4 SecretStoragesTable"
       :items-per-page="-1"
       data-testid="secretStorages-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
       <template v-slot:item.name="{ item }">
         <v-icon class="mr-3" size="small" :data-testid="`secretStorages-rowIcon-${item.type}`">
@@ -270,6 +269,12 @@
 </template>
 
 <style scoped lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.SecretStoragesTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+
 .SecretStoragesEnterpriseMenu {
   position: relative;
   cursor: not-allowed;
