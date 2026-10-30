@@ -25,7 +25,7 @@
       density="compact"
       @update:model-value="item.commit_hash=null"
       v-model="hasCommit"
-      class="overflow-hidden mt-2"
+      class="overflow-hidden mt-2 TaskForm__commit"
       data-testid="newTask-commit"
     >
       <div
@@ -111,6 +111,7 @@
         density="compact"
         :multiple="v.type === 'select'"
         :chips="v.type === 'select'"
+        class="TaskForm__select"
         :data-testid="`newTask-survey-${v.name}`"
       >
       <template v-if="v.type === 'select'" v-slot:chip="{ item, index }">
@@ -138,6 +139,7 @@
         auto-grow
         variant="outlined"
         density="compact"
+        class="TaskForm__text"
         :data-testid="`newTask-survey-${v.name}`"
       />
 
@@ -504,3 +506,45 @@ export default {
   },
 };
 </script>
+<style lang="scss">
+// The close button of the commit alert, as `.v-alert__dismissible` of Vuetify 2: centred on the
+// alert's height and pulled 8 px into its padding (margin -16px -8px -16px 8px). Vuetify 4 puts it
+// in the first row of the alert grid, 16 px from the text.
+.TaskForm__commit > .v-alert__close {
+  grid-row: 1 / -1;
+  align-self: center;
+  margin-inline: 8px -8px;
+}
+
+.TaskForm__commit > .v-alert__close > .v-btn {
+  margin-block: 0;
+}
+
+// The text survey variable: the dense outlined auto-grow textarea of Vuetify 2 (`.v-textarea
+// textarea`) — lines of 28 px, 6 px above the text, none below, at least rows × 24 px high (its
+// `rowHeight`): a 78 px box for three rows, not 88 px.
+.TaskForm__text.v-textarea--field-sizing textarea.v-field__input {
+  line-height: 28px;
+  padding-top: 6px;
+  padding-bottom: 0;
+  min-height: calc(3 * 24px + 6px);
+}
+
+// Its resting label stays 8 px down, where it was.
+.TaskForm__text .v-field-label:not(.v-field-label--floating) {
+  top: 8px;
+}
+
+// The chips of a multiple survey select 4 px apart from the field edge and from each other
+// (`.v-select__selections .v-chip`: margin 0 4px), not 0 and 2 px with a 2 px column gap of the
+// field input as in Vuetify 4.
+.TaskForm__select.v-select--chips {
+  .v-field__input {
+    column-gap: 0;
+  }
+
+  .v-select__selection {
+    margin-inline: 4px;
+  }
+}
+</style>

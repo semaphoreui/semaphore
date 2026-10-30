@@ -10,11 +10,11 @@
     <template #title>
       <v-icon
         size="small"
-        class="mr-4"
+        class="mr-4 NewTaskDialog__icon"
         data-testid="newTask-templateTypeIcon"
       >{{ TEMPLATE_TYPE_ICONS[template?.type || ''] }}</v-icon>
       <span class="breadcrumbs__item" data-testid="newTask-templateName">{{ templateTitle }}</span>
-      <v-icon>mdi-chevron-right</v-icon>
+      <v-icon class="NewTaskDialog__icon">mdi-chevron-right</v-icon>
       <span class="breadcrumbs__item" data-testid="newTask-title">{{ $t('newTask') }}</span>
     </template>
 
@@ -97,3 +97,14 @@ export default {
   },
 };
 </script>
+<style lang="scss">
+// The type icon and the chevron of the title are icons of the theme (`.theme--light.v-icon`: .54,
+// white in the dark one), not in the title text colour Vuetify 4 gives them.
+.NewTaskDialog__icon.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.NewTaskDialog__icon.v-theme--dark {
+  color: #fff;
+}
+</style>
