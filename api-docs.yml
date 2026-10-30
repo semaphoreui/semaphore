@@ -1442,6 +1442,17 @@ definitions:
       task_params:
         $ref: '#/definitions/TaskPrams'
 
+  ViewFilter:
+    type: object
+    description: >-
+      Applied by a view of type "all", which then lists only the project's templates
+      whose name contains `name`, ignoring case. Kept but not applied by a custom view.
+      On update, leaving `filter` out keeps the stored one; `{}` clears it.
+    properties:
+      name:
+        type: string
+        example: prod
+
   ViewRequest:
     type: object
     properties:
@@ -1457,6 +1468,8 @@ definitions:
       position:
         type: integer
         minimum: 1
+      filter:
+        $ref: "#/definitions/ViewFilter"
   View:
     type: object
     properties:
@@ -1473,6 +1486,8 @@ definitions:
       type:
         type: string
         enum: ["", all]
+      filter:
+        $ref: "#/definitions/ViewFilter"
       sort_column:
         type: string
         enum: [name]

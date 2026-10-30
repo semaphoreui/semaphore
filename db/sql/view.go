@@ -1,6 +1,9 @@
 package sql
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	sq "github.com/Masterminds/squirrel"
+	"github.com/semaphoreui/semaphore/db"
+)
 
 func (d *SqlDb) GetView(projectID int, viewID int) (view db.View, err error) {
 	err = d.getObject(projectID, db.ViewProps, viewID, &view)
@@ -12,19 +15,32 @@ func (d *SqlDb) GetViews(projectID int) (views []db.View, err error) {
 	return
 }
 
+// UpdateView never moves a view: the project is part of the match, not of
+// what is written. A nil filter is left out, so the stored one stays as it is
+// at the time of the update.
 func (d *SqlDb) UpdateView(view db.View) error {
-	_, err := d.exec(
-		"update project__view set title=?, position=?, project_id=?, `type`=?, sort_column=?, sort_reverse=?, "+
-			"hidden=? "+
-			"where id=?",
-		view.Title,
-		view.Position,
-		view.ProjectID,
-		view.Type,
-		view.SortColumn,
-		view.SortReverse,
-		view.Hidden,
-		view.ID)
+	columns := map[string]any{
+		"title":        view.Title,
+		"position":     view.Position,
+		"`type`":       view.Type,
+		"sort_column":  view.SortColumn,
+		"sort_reverse": view.SortReverse,
+		"hidden":       view.Hidden,
+	}
+
+	if view.Filter != nil {
+		columns["filter"] = view.Filter
+	}
+
+	query, args, err := sq.Update("project__view").
+		SetMap(columns).
+		Where("id=? and project_id=?", view.ID, view.ProjectID).
+		ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = d.exec(query, args...)
 
 	return err
 }
@@ -32,12 +48,13 @@ func (d *SqlDb) UpdateView(view db.View) error {
 func (d *SqlDb) CreateView(view db.View) (newView db.View, err error) {
 	insertID, err := d.insert(
 		"id",
-		"insert into project__view (project_id, title, position, `type`, sort_column, sort_reverse, "+
-			"hidden) values (?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__view (project_id, title, position, `type`, filter, sort_column, sort_reverse, "+
+			"hidden) values (?, ?, ?, ?, ?, ?, ?, ?)",
 		view.ProjectID,
 		view.Title,
 		view.Position,
 		view.Type,
+		view.Filter,
 		view.SortColumn,
 		view.SortReverse,
 		view.Hidden,

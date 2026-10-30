@@ -9,5 +9,7 @@ stored on the server, server-side paging of task lists, and the not-yet-built in
 | Touching the pin/unpin edit mode of the side menu or its i18n keys | `user-options-unpinned-menu.md` |
 | Changing how History or the per-template task list page through tasks (`before`, `count`, `X-Has-Next`) | `history-keyset-pagination.md` |
 | Tempted to add `COUNT(*)` or `OFFSET` to a task list query | `history-keyset-pagination.md` |
+| Changing template views, the "all" view's name filter, or how a view is saved | `template-views.md` |
+| Writing a SQL `LIKE` search, or wondering why `escapeLike` uses `!` | `template-views.md` |
 | Picking up the contextual help panel, or adding any help text / docs link to a form | `contextual-help-panel.md` |
 | Wiring the `docs/` submodule into a frontend build or CI job | `contextual-help-panel.md` |

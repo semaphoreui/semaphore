@@ -3,7 +3,6 @@ package sql
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/go-gorp/gorp/v3"
@@ -444,14 +443,6 @@ func (d *SqlDb) GetUserCount() (count int, err error) {
 	return
 }
 
-func escapeLike(s string) string {
-	// Order matters: escape \ first
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `%`, `\%`)
-	s = strings.ReplaceAll(s, `_`, `\_`)
-	return s
-}
-
 func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err error) {
 	q := squirrel.Select("*").From("`user`")
 
@@ -462,7 +453,7 @@ func (d *SqlDb) GetUsers(params db.RetrieveQueryParams) (users []db.User, err er
 	}
 
 	if params.Filter != "" {
-		q = q.Where(squirrel.Like{"username": escapeLike(params.Filter) + "%"})
+		q = q.Where("username LIKE ? ESCAPE '!'", escapeLike(params.Filter)+"%")
 	}
 
 	query, args, err := q.ToSql()

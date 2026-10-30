@@ -142,6 +142,12 @@ func UpdateView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The body's project_id is not trusted: the view stays in the project it
+	// was loaded from.
+	view.ProjectID = oldView.ProjectID
+
+	// A client written before view filters existed sends none: the store then
+	// keeps the stored one. `"filter": {}` clears it.
 	if err := view.Validate(); err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
