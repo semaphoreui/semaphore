@@ -122,3 +122,17 @@ func TestDeleteAPIToken_LeavesMCPTokens(t *testing.T) {
 	_, err = store.GetAPIToken("abcdefgh2222")
 	assert.NoError(t, err, "a REST revoke by prefix does not touch an MCP token")
 }
+
+// Unlike the MCP token route, the REST API token route answers 204 to a prefix
+// that matches none of the user's tokens, as it always has.
+func TestDeleteAPIToken_NoMatchIsNoContent(t *testing.T) {
+	store := setupSessionTest(t)
+	user := createUserOptionsTestUser(t, store, "alice")
+
+	r, rec := userRequest(store, http.MethodDelete, "/api/user/tokens/x", "", user, user)
+	w := httptest.NewRecorder()
+	deleteAPIToken(w, mux.SetURLVars(r, map[string]string{"token_id": "abcdefgh"}))
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Empty(t, rec.All())
+}

@@ -114,7 +114,7 @@ func Route(
 	backupController := projects.NewBackupController(workflowStore, subscriptionService)
 	projectIntegrationController := projects.NewIntegrationController(subscriptionService)
 	userController := NewUserController(subscriptionService)
-	mcpTokenController := proApi.NewMCPTokenController(util.MCPEnabled(), subscriptionService)
+	mcpTokenController := newMCPTokenController(util.MCPEnabled(), subscriptionService)
 	usersController := NewUsersController(subscriptionService)
 	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore)
 	projectRunnerController := proProjects.NewProjectRunnerController(subscriptionService, runnerService)

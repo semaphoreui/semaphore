@@ -26,3 +26,10 @@ type Features struct {
 	// Enterprise everyone. The server must also have mcp.enabled set.
 	MCP bool `json:"mcp"`
 }
+
+// A refusal of MCP for want of the license names MCPLicenseFeature in the audit record and
+// answers MCPNeedsLicense; the MCP endpoint and the MCP token routes share both.
+const (
+	MCPLicenseFeature = "mcp"
+	MCPNeedsLicense   = "The MCP server needs a Pro seat on a Semaphore Pro license, or a Semaphore Enterprise license"
+)

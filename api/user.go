@@ -122,14 +122,35 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// getAPITokens, createAPIToken and deleteAPIToken are intentionally duplicated
-// for MCP tokens in the Pro module (pro_impl/api/mcp_tokens.go), so that the MCP
-// token logic stays in the private repository and can diverge later without
-// touching these handlers. Until then, keep both in step.
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
+	listUserTokens(w, r, db.APITokenTypeAPI)
+}
+
+func createAPIToken(w http.ResponseWriter, r *http.Request) {
+	issueUserToken(w, r, db.APITokenTypeAPI)
+}
+
+func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
+	if _, ok := revokeUserTokens(w, r, db.APITokenTypeAPI); ok {
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// The handlers below serve the user's own tokens of one type, REST API or MCP:
+// each type has its own routes and never lists or revokes tokens of the other.
+
+func userTokenTarget(tokenType db.APITokenType, token db.APIToken) *audit.Target {
+	targetType := audit.TargetAPIToken
+	if tokenType == db.APITokenTypeMCP {
+		targetType = audit.TargetMCPToken
+	}
+	return &audit.Target{Type: targetType, ID: audit.TokenFingerprint(token.ID), Name: token.Name}
+}
+
+func listUserTokens(w http.ResponseWriter, r *http.Request, tokenType db.APITokenType) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
 
-	tokens, err := helpers.Store(r).GetAPITokens(user.ID, db.APITokenTypeAPI)
+	tokens, err := helpers.Store(r).GetAPITokens(user.ID, tokenType)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -145,7 +166,7 @@ func getAPITokens(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, tokens)
 }
 
-func createAPIToken(w http.ResponseWriter, r *http.Request) {
+func issueUserToken(w http.ResponseWriter, r *http.Request, tokenType db.APITokenType) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
 
 	var body struct {
@@ -169,7 +190,7 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := helpers.Store(r).CreateAPIToken(db.APITokenTypeAPI, db.APIToken{
+	token, err := helpers.Store(r).CreateAPIToken(tokenType, db.APIToken{
 		ID:        tokenID,
 		UserID:    user.ID,
 		Expired:   false,
@@ -182,37 +203,43 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 
 	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:   audit.IAMAPITokenCreate,
-		Target: &audit.Target{Type: audit.TargetAPIToken, ID: audit.TokenFingerprint(token.ID), Name: token.Name},
+		Target: userTokenTarget(tokenType, token),
 	})
 
 	helpers.WriteJSON(w, http.StatusCreated, token)
 }
 
-func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
+// revokeUserTokens revokes the user's tokens of the type whose id starts with
+// the prefix in the route and reports how many it revoked. When it fails it has
+// answered the request itself and reports false.
+func revokeUserTokens(w http.ResponseWriter, r *http.Request, tokenType db.APITokenType) (int, bool) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
 
 	tokenID := mux.Vars(r)["token_id"]
 
-	tokens, err := helpers.Store(r).GetAPITokensByPrefix(user.ID, tokenID, db.APITokenTypeAPI)
+	tokens, err := helpers.Store(r).GetAPITokensByPrefix(user.ID, tokenID, tokenType)
 	if err != nil {
 		helpers.WriteError(w, err)
-		return
+		return 0, false
 	}
 
+	revoked := 0
 	for _, token := range tokens {
 		err = helpers.Store(r).DeleteAPIToken(user.ID, token.ID)
+		// Another request deleted it between the lookup and here.
 		if errors.Is(err, db.ErrNotFound) {
 			continue
 		}
 		if err != nil {
 			helpers.WriteError(w, err)
-			return
+			return 0, false
 		}
 		helpers.Audit(r).Record(r.Context(), audit.Event{
 			Kind:   audit.IAMAPITokenDelete,
-			Target: &audit.Target{Type: audit.TargetAPIToken, ID: audit.TokenFingerprint(token.ID), Name: token.Name},
+			Target: userTokenTarget(tokenType, token),
 		})
+		revoked++
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	return revoked, true
 }

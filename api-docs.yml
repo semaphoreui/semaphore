@@ -2335,8 +2335,9 @@ paths:
       summary: Fetch MCP tokens for user
       description: >
         MCP tokens sign in to the built-in MCP server (Pro). The list shows
-        the first 8 characters of each token only. Without the Pro module or
-        with mcp.enabled off the route answers 404.
+        the first 8 characters of each token only. The REST API accepts MCP
+        tokens too, so the list and revoke routes work in every build, with
+        mcp.enabled off and without MCP in the license.
       responses:
         200:
           description: MCP Tokens
@@ -2350,9 +2351,10 @@ paths:
         - user
       summary: Create an MCP token
       description: >
-        The token value is returned once, in this response. Without the Pro
-        module or with mcp.enabled off the route answers 404. Without MCP in
-        the license it answers 403: Pro needs a Pro seat, Enterprise does not.
+        The token value is returned once, in this response. With mcp.enabled
+        off the route answers 404. Without MCP in the license it answers 403:
+        Pro needs a Pro seat, Enterprise does not; a build without the Pro
+        module has no MCP in any license.
       parameters:
         - name: body
           in: body
