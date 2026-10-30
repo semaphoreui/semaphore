@@ -42,8 +42,12 @@
         </div>
 
         <div class="d-flex justify-space-between mt-4">
+          <!-- `on-surface`: a palette colour (not a theme one) kept the text colour of the theme in
+               Vuetify 2; Vuetify 4 writes white text on `bg-blue-grey`. Not while disabled: then
+               the button is grey with the disabled text colour. -->
           <v-btn
             color="blue-grey"
+            :class="{ 'on-surface': !testNotificationProgress }"
             @click="sendTestNotification()"
             width="170"
             :disabled="testNotificationProgress"
@@ -60,7 +64,8 @@
           v-if="testNotificationProgress"
           color="blue-grey-darken-1"
           indeterminate
-          rounded
+          bg-opacity="0.3"
+          class="rounded"
           width="170"
           height="36"
           style="margin-top: -36px; width: 170px;"
@@ -92,7 +97,8 @@
               v-if="backupProgress"
               color="primary"
               indeterminate
-              rounded
+              bg-opacity="0.3"
+              class="rounded"
               height="36"
               style="margin-top: -36px"
               data-testid="settings-exportProjectProgress"
@@ -113,6 +119,7 @@
 
             <v-btn
               color="blue-grey"
+              :class="{ 'on-surface': !clearCacheProgress }"
               @click="clearCache"
               :disabled="clearCacheProgress"
               min-width="170"
@@ -123,7 +130,8 @@
               v-if="clearCacheProgress"
               color="blue-grey-darken-1"
               indeterminate
-              rounded
+              bg-opacity="0.3"
+              class="rounded"
               height="36"
               style="margin-top: -36px"
               data-testid="settings-clearCacheProgress"
@@ -174,6 +182,15 @@
 
     @media #{map.get(settings.$display-breakpoints, 'sm-and-down')} {
       padding: 0 6px;
+    }
+
+    // The row of Vuetify 2 (`.row`: margin -12px, columns padded 12px): 12 px above and under the
+    // button inside the row, the negative margins collapsing with the 30 px of the block. The row
+    // of Vuetify 4 spaces its columns with `gap` and has neither.
+    > .v-row {
+      margin-top: -12px;
+      margin-bottom: -12px;
+      padding: 12px 0;
     }
   }
 </style>

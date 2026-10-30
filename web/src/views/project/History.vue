@@ -30,9 +30,22 @@
       data-testid="history-table"
       :data-state="loading ? 'loading' : (items.length === 0 ? 'empty' : 'ready')"
     >
+      <!-- The loading bar of Vuetify 2 (`loader-height` 4, background at .3); Vuetify 4 draws
+           a 2 px bar on a .12 background. -->
+      <template v-slot:loader="{ color, isActive }">
+        <v-progress-linear
+          :active="isActive"
+          :color="color"
+          absolute
+          indeterminate
+          height="4"
+          bg-opacity="0.3"
+        />
+      </template>
+
       <template v-slot:item.tpl_alias="{ item }">
         <div class="d-flex align-center">
-          <v-icon class="mr-3" size="small" data-testid="history-rowApp">
+          <v-icon class="HistoryTable__icon mr-3" size="small" data-testid="history-rowApp">
             {{ getAppIcon(item.tpl_app) }}
           </v-icon>
 
@@ -46,7 +59,7 @@
             data-testid="history-rowTask"
           />
 
-          <v-icon size="small" class="ml-1 mr-1">mdi-arrow-left</v-icon>
+          <v-icon size="small" class="HistoryTable__icon ml-1 mr-1">mdi-arrow-left</v-icon>
 
           <router-link
             :to="'/project/' + item.project_id + '/templates/' + item.template_id"
@@ -57,10 +70,12 @@
 
         <div class="ml-7" style="font-size: 14px">
           <span v-if="item.message" data-testid="history-rowMessage">
-            <v-icon size="x-small">mdi-message-outline</v-icon> {{ item.message }}
+            <v-icon size="x-small" class="HistoryTable__icon">mdi-message-outline</v-icon>
+            {{ item.message }}
           </span>
           <span v-else-if="item.commit_hash" data-testid="history-rowCommit">
-            <v-icon size="x-small">mdi-source-fork</v-icon> {{ item.commit_message }}
+            <v-icon size="x-small" class="HistoryTable__icon">mdi-source-fork</v-icon>
+            {{ item.commit_message }}
           </span>
         </div>
       </template>
@@ -144,6 +159,45 @@
 <style lang="scss">
 .HistoryTable td {
   height: 60px !important;
+}
+
+// Vuetify 2 did not dim a loading table; Vuetify 4 fades its cells to the disabled opacity.
+.HistoryTable.v-data-table--loading > .v-table__wrapper > table > :is(thead, tbody) > tr > * {
+  opacity: 1;
+}
+
+// The header row in capitals (App.vue styles the last row of `thead`) also while the loading bar
+// row of Vuetify 4 follows it.
+.HistoryTable > .v-table__wrapper > table > thead > tr:not(.v-data-table-progress) > th {
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+// Rows as cards on a phone (the table is mobile below 600 px): the value at the right end of the
+// row, as the shrink-to-fit `.v-data-table__mobile-row__cell` of Vuetify 2; Vuetify 4 stretches it
+// over the second grid column, so the task line started in the middle. "No data available" at the
+// left edge, as the rows; the core rule for it (vuetify2.scss) needs the mobile sort header, which
+// a table without sortable columns does not draw.
+@media (max-width: 599.98px) {
+  .HistoryTable .v-data-table__tr--mobile > td > .v-data-table__td-value {
+    justify-self: end;
+  }
+
+  .HistoryTable .v-data-table-rows-no-data {
+    text-align: start;
+  }
+}
+
+// Icons without a colour in the secondary text colour of Vuetify 2 (`.theme--light.v-icon`: .54,
+// white in the dark theme); Vuetify 4 draws them in the text colour.
+.HistoryTable__icon.v-icon {
+  &.v-theme--light {
+    color: rgba(0, 0, 0, .54);
+  }
+
+  &.v-theme--dark {
+    color: #fff;
+  }
 }
 </style>
 
