@@ -136,19 +136,22 @@ export default createVuetify({
     VSwitch: { color: 'primary', thumbColor: 'primary' },
     VRadioGroup: { color: 'primary' },
     VRadio: { color: 'primary' },
-    // A field without a variant is underlined, as in Vuetify 2 (Vuetify 4: filled).
-    VTextField: { color: 'primary', variant: 'underlined' },
-    VTextarea: { color: 'primary', variant: 'underlined' },
+    // A field without a variant is underlined, as in Vuetify 2 (Vuetify 4: filled). `glow`: the
+    // icons of a focused field (clear, menu arrow, inner icons) take its colour, as the
+    // `validationState` colour of Vuetify 2 did (Vuetify 4: grey).
+    VTextField: { color: 'primary', variant: 'underlined', glow: true },
+    VTextarea: { color: 'primary', variant: 'underlined', glow: true },
     // The list of a select opens over the field, from its top edge (Vuetify 2 `v-select` menu
     // without `offset-y`; autocomplete and combobox open below, as there).
     VSelect: {
       color: 'primary',
       variant: 'underlined',
+      glow: true,
       menuProps: { location: 'top', origin: 'top' },
     },
-    VAutocomplete: { color: 'primary', variant: 'underlined' },
-    VCombobox: { color: 'primary', variant: 'underlined' },
-    VFileInput: { color: 'primary', variant: 'underlined' },
+    VAutocomplete: { color: 'primary', variant: 'underlined', glow: true },
+    VCombobox: { color: 'primary', variant: 'underlined', glow: true },
+    VFileInput: { color: 'primary', variant: 'underlined', glow: true },
     // Progress bars (and the loading bars of tables and fields) in the primary colour.
     VProgressLinear: { color: 'primary' },
     // The close button of an alert: a circled cross (`$cancel`).

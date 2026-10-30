@@ -46,6 +46,8 @@
             </div>
           </template>
         </v-checkbox>
+        <!-- The slider of Vuetify 2: a 2 px track (filled in primary, the rest primary lighten-3),
+             a 12 px thumb without a shadow -->
         <v-slider
           :disabled="!params.debug"
           class="ml-7 mb-2"
@@ -57,6 +59,12 @@
           min="1"
           max="6"
           hide-details
+          color="primary"
+          track-color="primary-lighten-3"
+          thumb-size="12"
+          track-size="2"
+          :elevation="0"
+          rounded="0"
         ></v-slider>
       </v-col>
       <v-col v-if="!templateParams.hide_dry_run">

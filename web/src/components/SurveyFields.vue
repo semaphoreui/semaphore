@@ -220,4 +220,30 @@ export default {
 .SurveyFields__bound input {
   cursor: default;
 }
+
+.SurveyFields {
+  // The auto-grow textarea of Vuetify 2 (`.v-textarea textarea`, dense outlined): lines of 28 px,
+  // 6 px above the text, at least rows × 24 px high (its `rowHeight`), not rows × the line height.
+  .v-textarea--field-sizing textarea.v-field__input {
+    line-height: 28px;
+    padding-top: 6px;
+    padding-bottom: 0;
+    min-height: calc(3 * 24px + 6px);
+  }
+
+  // The «assign» and «unbind» buttons after a field (`#append-outer` of Vuetify 2): 9 px from the
+  // field, 8 px down from its top (`.v-input__append-outer` of a dense outlined field), not
+  // centred 16 px away.
+  .v-input > .v-input__append {
+    align-items: flex-start;
+    padding-top: 8px;
+    margin-inline-start: 9px;
+  }
+
+  // The chips of a multiple select 4 px apart from the field edge and from each other
+  // (`.v-select__selections .v-chip`: margin 0 4px).
+  .v-select--chips .v-select__selection {
+    margin-inline: 4px;
+  }
+}
 </style>

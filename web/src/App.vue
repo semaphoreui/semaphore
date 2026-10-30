@@ -1050,9 +1050,10 @@ html.WorkflowEditor-html body {
   --v-chip-height: 24px;
 }
 
-// Gap between the icon (or action) in front of a list item and its text.
+// Gap between the icon (or action) in front of a list item and its text; a list or item with
+// its own `prepend-gap` keeps it.
 .v-list-item__prepend > * ~ .v-list-item__spacer {
-  width: 16px !important;
+  width: var(--v-list-prepend-gap, 16px) !important;
 }
 
 .v-toolbar__content {
@@ -1147,14 +1148,25 @@ html.WorkflowEditor-html body {
     color: rgba(133, 133, 133, 0.4);
   }
 
+  // The focused outline carries the `text-primary` class of the field colour (utility layer, above
+  // this one): the colour goes on its parts, which draw their borders in the current colour.
   &.v-field--focused .v-field__outline {
     --v-field-border-width: 2px !important;
     color: #2196f3;
+
+    > * {
+      color: #2196f3;
+    }
   }
 
+  // An error outline stays red when focused, as in Vuetify 2: its parts too, over the rule above.
   &.v-field--error .v-field__outline {
     --v-field-border-width: 2px !important;
     color: #ff5252;
+
+    > * {
+      color: #ff5252;
+    }
   }
 }
 
