@@ -62,7 +62,7 @@
       :items-per-page="-1"
     >
       <template v-slot:item.roles="{ item }">
-        <div class="d-flex align-center" data-testid="team-rowRoles">
+        <div class="d-flex align-center TeamTable__roles" data-testid="team-rowRoles">
           <v-tooltip v-for="mapped in item.mapped_roles || []"
                      :key="`${mapped.provider}/${mapped.group}/${mapped.role}`" location="bottom">
             <template v-slot:activator="{ props }">
@@ -92,6 +92,7 @@
             variant="underlined"
             density="compact"
             class="pt-0 mt-0"
+            :menu-props="{ contentClass: 'TeamRoleMenu TeamAutocompleteMenu', maxHeight: 304 }"
             @update:model-value="updateProjectUser(item)"
             data-testid="team-rowRolesSelect"
           >
@@ -134,6 +135,87 @@
 .TeamTable {
   max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
   margin: auto;
+
+  // The rows clip what runs past the table bottom, as `.v-data-table__wrapper` did
+  // (`overflow-y: hidden`): the line of a two-chip field in the last row stays out of sight.
+  > .v-table__wrapper {
+    overflow-y: hidden;
+  }
+
+  // Mobile rows: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between, the header
+  // 16 px from the value), not the two grid columns of Vuetify 4; the role field takes the rest
+  // of the row.
+  .v-data-table__tr--mobile > td {
+    display: flex;
+    justify-content: space-between;
+    column-gap: 0;
+
+    > .v-data-table__td-title {
+      padding-right: 16px;
+    }
+
+    // The role field fills the rest of the row: the hidden input of a Vuetify 2 autocomplete
+    // was as wide as a text field, so the field always reached the row end.
+    > .v-data-table__td-value:has(> .TeamTable__roles > .v-autocomplete) {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+  }
+}
+
+// The chips of a row as in Vuetify 2: small ones 24 px high (`.v-size--small`; Vuetify 4: 26 px),
+// the frame of an outlined one (a role from a group mapping) in the light border colour
+// (`.v-chip` border-color: .12), not in the text colour.
+.TeamTable__roles .v-chip {
+  &.v-chip--size-small {
+    --v-chip-height: 24px;
+  }
+
+  &.v-chip--variant-outlined {
+    border-color: rgba(var(--v-theme-on-surface), var(--v-border-opacity));
+  }
+}
+
+// The role field of a row: a dense autocomplete with small chips of Vuetify 2
+// (`.v-select--chips--small.v-input--dense`): a 26 px box, chips 4 px from its edge and from each
+// other, stacked without a gap, the arrow at its top, the line 1 px under the box
+// (`.v-input__slot:before`, `bottom: -1px`). The field and its chips keep their content width,
+// as in Vuetify 2, so the role column is as wide as it was (Vuetify 4 lets a field shrink to 0).
+.TeamTable .v-autocomplete {
+  grid-template-columns: max-content minmax(min-content, 1fr) max-content;
+
+  > .v-input__control > .v-field {
+    grid-template-columns: min-content minmax(min-content, 1fr) min-content min-content;
+  }
+
+  .v-field__input {
+    min-width: auto;
+    min-height: 26px;
+    padding: 0;
+    align-items: center;
+    gap: 0;
+    // The chips in full colour (`.v-select__selections` set the colour, not an opacity).
+    opacity: 1;
+  }
+
+  .v-autocomplete__selection {
+    max-width: none;
+    margin: 0 4px;
+
+    > .v-chip {
+      max-width: none;
+    }
+  }
+
+  .v-field__append-inner {
+    padding-top: 0;
+    align-items: flex-start;
+  }
+
+  .v-field__outline::before,
+  .v-field__outline::after {
+    height: calc(100% + 1px);
+  }
 }
 </style>
 <script>

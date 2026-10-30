@@ -19,6 +19,7 @@
         v-model="selectedInviteType"
         rounded="0"
         variant="text"
+        class="TeamMemberForm__inviteType"
         data-testid="teamMember-inviteType"
       >
         <v-btn
@@ -65,6 +66,7 @@
       :disabled="formSaving"
       variant="outlined"
       density="compact"
+      :menu-props="{ contentClass: 'TeamAutocompleteMenu' }"
     ></v-autocomplete>
 
     <v-select
@@ -79,6 +81,7 @@
       :disabled="formSaving"
       variant="outlined"
       density="compact"
+      :menu-props="{ location: 'top', origin: 'top', contentClass: 'TeamRoleMenu', maxHeight: 304 }"
     >
       <template v-slot:item="{ props, item: role }">
         <v-list-item
@@ -91,6 +94,78 @@
     </v-select>
   </v-form>
 </template>
+<style lang="scss">
+// The list of an autocomplete has square corners (`.v-autocomplete__content.v-menu__content`).
+.TeamAutocompleteMenu.v-overlay__content {
+  border-radius: 0;
+
+  > .v-sheet {
+    border-radius: 0;
+  }
+}
+
+// The role lists of the row field (Team.vue) and of this form: the dense list of a dense select of
+// Vuetify 2 (`.v-list--dense`), at most 304 px high (`menuProps.maxHeight`) — group headers 40 px
+// with the text 8 px in (`.v-subheader`, 12 px), two-line items 50 px: the name on a 16 px line,
+// the slug 2 px under it at 13 px medium in the secondary text colour, also on the selected item
+// (`.v-list-item__subtitle`).
+.TeamRoleMenu {
+  .v-list-subheader {
+    min-height: 40px;
+    padding-inline: 8px;
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  .v-list-item {
+    min-height: 50px;
+    padding-block: 8px;
+  }
+
+  .v-list-item-title {
+    line-height: 16px;
+  }
+
+  .v-list-item-subtitle {
+    margin-top: 2px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 16px;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    opacity: 1;
+  }
+}
+
+// The Email / Username switch: a `group` toggle of Vuetify 2 (`.v-btn-toggle--group`) — small
+// 28 px buttons 4 px apart inside a 36 px group, .8 opacity at rest; the active one in
+// the secondary text colour on an .18 tint of it (`.v-btn--active::before`).
+.TeamMemberForm__inviteType.v-btn-group {
+  height: 36px;
+}
+
+.TeamMemberForm__inviteType > .v-btn {
+  height: 28px;
+  min-width: auto;
+  margin: 4px 0 4px 4px;
+  // The transparent thin frame of a toggle button, without the left side after the first
+  // (`.v-btn-toggle > .v-btn.v-btn`).
+  border: thin solid transparent;
+  opacity: .8;
+
+  &:not(:first-child) {
+    border-left-width: 0;
+  }
+
+  &.v-btn--active {
+    opacity: 1;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+
+    > .v-btn__overlay {
+      opacity: .18;
+    }
+  }
+}
+</style>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
