@@ -463,6 +463,7 @@ type TaskManager interface {
 	UpdateTask(task Task) error
 	UpdateTaskArtifacts(projectID int, taskID int, artifacts *string) error
 	SetWaitingTasksToStopped(projectID int, templateID int) error
+	GetOrphanedTasks() ([]Task, error)
 	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetTask(projectID int, taskID int) (Task, error)

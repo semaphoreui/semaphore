@@ -381,6 +381,18 @@ func (d *SqlDb) GetWorkflowRunTasks(projectID int, runID int, params db.Retrieve
 	return
 }
 
+func (d *SqlDb) GetOrphanedTasks() (tasks []db.Task, err error) {
+	query, args, err := squirrel.Select("task.*").
+		From("task").
+		Where(squirrel.Eq{"status": task_logger.UnfinishedTaskStatuses()}).
+		ToSql()
+	if err != nil {
+		return
+	}
+	_, err = d.selectAll(&tasks, query, args...)
+	return
+}
+
 func (d *SqlDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
 	// check if task exists in the project
 	_, err = d.GetTask(projectID, taskID)
