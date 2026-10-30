@@ -252,6 +252,3 @@ func capitalize(s string) string {
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
 }
-
-// strPtr returns a pointer for the optional string fields of the models.
-func strPtr(s string) *string { return &s }

@@ -84,19 +84,19 @@ func templateMutable(tpl resource[db.Template]) mutable[db.Template] {
 					t.Playbook = playbook
 				}
 				if fl.Changed("description") {
-					t.Description = strPtr(description)
+					t.Description = new(description)
 				}
 				if fl.Changed("arguments") {
-					t.Arguments = strPtr(arguments)
+					t.Arguments = new(arguments)
 				}
 				if fl.Changed("allow-override-args") {
 					t.AllowOverrideArgsInTask = allowArgs
 				}
 				if fl.Changed("branch") {
-					t.GitBranch = strPtr(branch)
+					t.GitBranch = new(branch)
 				}
 				if fl.Changed("working-directory") {
-					t.WorkingDirectory = strPtr(workDir)
+					t.WorkingDirectory = new(workDir)
 				}
 				if repo != "" {
 					id, err := resolveRef(cmd, r, api, p, repositoryResource(), repo)
@@ -291,7 +291,7 @@ func environmentMutable(res resource[db.Environment]) mutable[db.Environment] {
 					if err != nil {
 						return err
 					}
-					e.ENV = strPtr(v)
+					e.ENV = new(v)
 				}
 				if e.JSON == "" {
 					e.JSON = "{}"
@@ -854,7 +854,7 @@ func projectFlags(cmd *cobra.Command) applyFunc[db.Project] {
 			p.Alert = alert
 		}
 		if fl.Changed("alert-chat") {
-			p.AlertChat = strPtr(alertChat)
+			p.AlertChat = new(alertChat)
 		}
 		return nil
 	}
