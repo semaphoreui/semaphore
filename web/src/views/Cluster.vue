@@ -1,7 +1,12 @@
 <template>
-  <div data-testid="cluster-page" :data-state="status == null ? 'loading' : 'ready'">
+  <div
+    class="ClusterPage"
+    data-testid="cluster-page"
+    :data-state="status == null ? 'loading' : 'ready'"
+  >
     <v-dialog v-model="clearDialog" max-width="450" persistent>
       <v-card
+        class="ClusterClearDialog"
         data-testid="clusterClearDialog"
         :data-state="clearing ? 'loading' : 'ready'"
       >
@@ -143,184 +148,195 @@
       {{ $t('haDisabledBanner') }}
     </v-alert>
 
-    <div class="pa-4">
-      <!-- Nodes -->
-      <v-card v-if="status && status.nodes" class="mb-4" border data-testid="cluster-nodes">
-        <v-card-title class="text-body-large">{{ $t('nodes') }}</v-card-title>
-        <v-data-table
-          :headers="nodeHeaders"
-          :items="status.nodes"
-          :items-per-page="20"
-          density="compact"
-          data-testid="cluster-nodesTable"
-          :data-state="status.nodes.length === 0 ? 'empty' : 'ready'"
-        >
-          <template v-slot:item.node_id="{ item }">
-            <code data-testid="cluster-rowNodeId">{{ item.node_id }}</code>
-            <v-chip
-              v-if="item.is_self"
-              size="x-small"
-              class="ml-2"
-              data-testid="cluster-rowThisNode"
-            >{{ $t('thisNode') }}</v-chip>
-          </template>
-          <template v-slot:item.alive="{ item }">
-            <v-chip
-              size="x-small"
-              :color="item.alive ? 'success' : 'error'"
-              variant="flat"
-              :data-testid="`cluster-rowStatus-${item.alive ? 'alive' : 'dead'}`"
-            >
-              {{ item.alive ? $t('alive') : $t('dead') }}
-            </v-chip>
-          </template>
-          <template v-slot:item.last_heartbeat="{ item }">
-            {{ formatTime(item.last_heartbeat) }}
-          </template>
-          <template v-slot:item.started_at="{ item }">
-            {{ formatTime(item.started_at) }}
-          </template>
-        </v-data-table>
-      </v-card>
-
-      <!-- Redis -->
-      <v-card v-if="status && status.redis" class="mb-4" border data-testid="cluster-redis">
-        <v-card-title class="text-body-large">{{ $t('redisStatus') }}</v-card-title>
-        <v-card-text>
-          <v-row density="compact">
-            <v-col cols="12" md="6">
-              <v-row density="compact">
-                <v-col>
-                  <div class="text-body-small text-grey">Addr</div>
-                  <code data-testid="cluster-redisAddr">{{ status.redis.addr }}</code>
-                </v-col>
-                <v-col>
-                  <div class="text-body-small text-grey">{{ $t('connected') }}</div>
-                  <v-chip
-                    size="x-small"
-                    :color="status.redis.connected ? 'success' : 'error'"
-                    variant="flat"
-                    data-testid="cluster-redisConnected"
-                  >
-                    {{ status.redis.connected ? 'YES' : 'NO' }}
-                  </v-chip>
-                </v-col>
-                <v-col data-testid="cluster-redisVersion">
-                  <div class="text-body-small text-grey">{{ $t('version') }}</div>
-                  {{ status.redis.version || '—' }}
-                </v-col>
-                <v-col data-testid="cluster-redisUsedMemory">
-                  <div class="text-body-small text-grey">{{ $t('usedMemory') }}</div>
-                  {{ status.redis.used_memory || '—' }}
-                </v-col>
-                <v-col data-testid="cluster-redisTotalKeys">
-                  <div class="text-body-small text-grey">{{ $t('totalKeys') }}</div>
-                  {{ status.redis.total_keys }}
-                </v-col>
-              </v-row>
-              <div class="text-body-small text-grey mt-3">{{ $t('keyGroups') }}</div>
+    <!-- The footer of the Vuetify 2 tables: «Rows per page:» and an underlined select (the
+         footer of Vuetify 4 takes the variant of its own nested VSelect defaults, else
+         outlined), no first / last page buttons. -->
+    <v-defaults-provider :defaults="tableDefaults">
+      <div class="pa-4">
+        <!-- Nodes -->
+        <v-card v-if="status && status.nodes" class="mb-4" flat border data-testid="cluster-nodes">
+          <v-card-title class="ClusterPage__cardTitle">{{ $t('nodes') }}</v-card-title>
+          <v-data-table
+            :headers="nodeHeaders"
+            :items="status.nodes"
+            :items-per-page="20"
+            density="compact"
+            :page-text="status.nodes.length === 0 ? '–' : undefined"
+            data-testid="cluster-nodesTable"
+            :data-state="status.nodes.length === 0 ? 'empty' : 'ready'"
+          >
+            <template v-slot:item.node_id="{ item }">
+              <code data-testid="cluster-rowNodeId">{{ item.node_id }}</code>
               <v-chip
-                v-for="(count, group) in status.redis.key_groups || {}"
-                :key="group"
-                size="small"
-                class="mr-2 mt-1"
-                :data-testid="`cluster-redisKeyGroup-${group}`"
+                v-if="item.is_self"
+                size="x-small"
+                class="ml-2"
+                data-testid="cluster-rowThisNode"
+              >{{ $t('thisNode') }}</v-chip>
+            </template>
+            <template v-slot:item.alive="{ item }">
+              <v-chip
+                size="x-small"
+                :color="item.alive ? 'success' : 'error'"
+                variant="flat"
+                :data-testid="`cluster-rowStatus-${item.alive ? 'alive' : 'dead'}`"
               >
-                {{ group }}: {{ count }}
+                {{ item.alive ? $t('alive') : $t('dead') }}
               </v-chip>
-            </v-col>
-            <v-col cols="12" md="6">
-              <div class="text-body-small text-grey">{{ $t('redisMemoryChart') }}</div>
-              <RedisMemoryChart
-                data-testid="cluster-redisChart"
-                :history="memoryHistory"
-                :window-ms="memoryWindowMs"
-                :now-ts="memoryNow"
-              />
-            </v-col>
-          </v-row>
-        </v-card-text>
-      </v-card>
+            </template>
+            <template v-slot:item.last_heartbeat="{ item }">
+              {{ formatTime(item.last_heartbeat) }}
+            </template>
+            <template v-slot:item.started_at="{ item }">
+              {{ formatTime(item.started_at) }}
+            </template>
+          </v-data-table>
+        </v-card>
 
-      <!-- Task records -->
-      <v-card border data-testid="cluster-taskRecords">
-        <v-card-title class="text-body-large">{{ $t('taskRecords') }}</v-card-title>
-        <v-tabs v-model="tab" data-testid="cluster-tabs">
-          <v-tab
-            :value="0"
-            data-testid="cluster-tab-queue"
-          >{{ $t('queue') }} ({{ queueRows.length }})</v-tab>
-          <v-tab
-            :value="1"
-            data-testid="cluster-tab-running"
-          >{{ $t('running') }} ({{ runningRows.length }})</v-tab>
-          <v-tab
-            :value="2"
-            data-testid="cluster-tab-activeByProject"
-          >{{ $t('activeByProject') }} ({{ activeRows.length }})</v-tab>
-          <v-tab
-            :value="3"
-            data-testid="cluster-tab-aliases"
-          >{{ $t('aliases') }} ({{ aliasRows.length }})</v-tab>
-          <v-tab
-            :value="4"
-            data-testid="cluster-tab-claims"
-          >{{ $t('claims') }} ({{ claimRows.length }})</v-tab>
-        </v-tabs>
-        <v-tabs-window v-model="tab">
-          <v-tabs-window-item :value="0">
-            <v-data-table
-              :headers="taskHeaders"
-              :items="queueRows"
-              density="compact"
-              data-testid="cluster-queueTable"
-              :data-state="tasks == null
-                ? 'loading' : (queueRows.length === 0 ? 'empty' : 'ready')"
-            />
-          </v-tabs-window-item>
-          <v-tabs-window-item :value="1">
-            <v-data-table
-              :headers="taskHeaders"
-              :items="runningRows"
-              density="compact"
-              data-testid="cluster-runningTable"
-              :data-state="tasks == null
-                ? 'loading' : (runningRows.length === 0 ? 'empty' : 'ready')"
-            />
-          </v-tabs-window-item>
-          <v-tabs-window-item :value="2">
-            <v-data-table
-              :headers="taskHeaders"
-              :items="activeRows"
-              density="compact"
-              data-testid="cluster-activeByProjectTable"
-              :data-state="tasks == null
-                ? 'loading' : (activeRows.length === 0 ? 'empty' : 'ready')"
-            />
-          </v-tabs-window-item>
-          <v-tabs-window-item :value="3">
-            <v-data-table
-              :headers="aliasHeaders"
-              :items="aliasRows"
-              density="compact"
-              data-testid="cluster-aliasesTable"
-              :data-state="tasks == null
-                ? 'loading' : (aliasRows.length === 0 ? 'empty' : 'ready')"
-            />
-          </v-tabs-window-item>
-          <v-tabs-window-item :value="4">
-            <v-data-table
-              :headers="claimHeaders"
-              :items="claimRows"
-              density="compact"
-              data-testid="cluster-claimsTable"
-              :data-state="tasks == null
-                ? 'loading' : (claimRows.length === 0 ? 'empty' : 'ready')"
-            />
-          </v-tabs-window-item>
-        </v-tabs-window>
-      </v-card>
-    </div>
+        <!-- Redis -->
+        <v-card v-if="status && status.redis" class="mb-4" flat border data-testid="cluster-redis">
+          <v-card-title class="ClusterPage__cardTitle">{{ $t('redisStatus') }}</v-card-title>
+          <v-card-text>
+            <v-row density="compact">
+              <v-col cols="12" md="6">
+                <v-row density="compact">
+                  <v-col>
+                    <div class="text-body-small text-grey">Addr</div>
+                    <code data-testid="cluster-redisAddr">{{ status.redis.addr }}</code>
+                  </v-col>
+                  <v-col>
+                    <div class="text-body-small text-grey">{{ $t('connected') }}</div>
+                    <v-chip
+                      size="x-small"
+                      :color="status.redis.connected ? 'success' : 'error'"
+                      variant="flat"
+                      data-testid="cluster-redisConnected"
+                    >
+                      {{ status.redis.connected ? 'YES' : 'NO' }}
+                    </v-chip>
+                  </v-col>
+                  <v-col data-testid="cluster-redisVersion">
+                    <div class="text-body-small text-grey">{{ $t('version') }}</div>
+                    {{ status.redis.version || '—' }}
+                  </v-col>
+                  <v-col data-testid="cluster-redisUsedMemory">
+                    <div class="text-body-small text-grey">{{ $t('usedMemory') }}</div>
+                    {{ status.redis.used_memory || '—' }}
+                  </v-col>
+                  <v-col data-testid="cluster-redisTotalKeys">
+                    <div class="text-body-small text-grey">{{ $t('totalKeys') }}</div>
+                    {{ status.redis.total_keys }}
+                  </v-col>
+                </v-row>
+                <div class="text-body-small text-grey mt-3">{{ $t('keyGroups') }}</div>
+                <v-chip
+                  v-for="(count, group) in status.redis.key_groups || {}"
+                  :key="group"
+                  size="small"
+                  class="mr-2 mt-1"
+                  :data-testid="`cluster-redisKeyGroup-${group}`"
+                >
+                  {{ group }}: {{ count }}
+                </v-chip>
+              </v-col>
+              <v-col cols="12" md="6">
+                <div class="text-body-small text-grey">{{ $t('redisMemoryChart') }}</div>
+                <RedisMemoryChart
+                  data-testid="cluster-redisChart"
+                  :history="memoryHistory"
+                  :window-ms="memoryWindowMs"
+                  :now-ts="memoryNow"
+                />
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+
+        <!-- Task records -->
+        <v-card flat border data-testid="cluster-taskRecords">
+          <v-card-title class="ClusterPage__cardTitle">{{ $t('taskRecords') }}</v-card-title>
+          <v-tabs v-model="tab" data-testid="cluster-tabs">
+            <v-tab
+              :value="0"
+              data-testid="cluster-tab-queue"
+            >{{ $t('queue') }} ({{ queueRows.length }})</v-tab>
+            <v-tab
+              :value="1"
+              data-testid="cluster-tab-running"
+            >{{ $t('running') }} ({{ runningRows.length }})</v-tab>
+            <v-tab
+              :value="2"
+              data-testid="cluster-tab-activeByProject"
+            >{{ $t('activeByProject') }} ({{ activeRows.length }})</v-tab>
+            <v-tab
+              :value="3"
+              data-testid="cluster-tab-aliases"
+            >{{ $t('aliases') }} ({{ aliasRows.length }})</v-tab>
+            <v-tab
+              :value="4"
+              data-testid="cluster-tab-claims"
+            >{{ $t('claims') }} ({{ claimRows.length }})</v-tab>
+          </v-tabs>
+          <v-tabs-window v-model="tab">
+            <v-tabs-window-item :value="0">
+              <v-data-table
+                :headers="taskHeaders"
+                :items="queueRows"
+                density="compact"
+                :page-text="queueRows.length === 0 ? '–' : undefined"
+                data-testid="cluster-queueTable"
+                :data-state="tasks == null
+                  ? 'loading' : (queueRows.length === 0 ? 'empty' : 'ready')"
+              />
+            </v-tabs-window-item>
+            <v-tabs-window-item :value="1">
+              <v-data-table
+                :headers="taskHeaders"
+                :items="runningRows"
+                density="compact"
+                :page-text="runningRows.length === 0 ? '–' : undefined"
+                data-testid="cluster-runningTable"
+                :data-state="tasks == null
+                  ? 'loading' : (runningRows.length === 0 ? 'empty' : 'ready')"
+              />
+            </v-tabs-window-item>
+            <v-tabs-window-item :value="2">
+              <v-data-table
+                :headers="taskHeaders"
+                :items="activeRows"
+                density="compact"
+                :page-text="activeRows.length === 0 ? '–' : undefined"
+                data-testid="cluster-activeByProjectTable"
+                :data-state="tasks == null
+                  ? 'loading' : (activeRows.length === 0 ? 'empty' : 'ready')"
+              />
+            </v-tabs-window-item>
+            <v-tabs-window-item :value="3">
+              <v-data-table
+                :headers="aliasHeaders"
+                :items="aliasRows"
+                density="compact"
+                :page-text="aliasRows.length === 0 ? '–' : undefined"
+                data-testid="cluster-aliasesTable"
+                :data-state="tasks == null
+                  ? 'loading' : (aliasRows.length === 0 ? 'empty' : 'ready')"
+              />
+            </v-tabs-window-item>
+            <v-tabs-window-item :value="4">
+              <v-data-table
+                :headers="claimHeaders"
+                :items="claimRows"
+                density="compact"
+                :page-text="claimRows.length === 0 ? '–' : undefined"
+                data-testid="cluster-claimsTable"
+                :data-state="tasks == null
+                  ? 'loading' : (claimRows.length === 0 ? 'empty' : 'ready')"
+              />
+            </v-tabs-window-item>
+          </v-tabs-window>
+        </v-card>
+      </div>
+    </v-defaults-provider>
   </div>
 </template>
 
@@ -365,6 +381,18 @@ export default {
   },
 
   computed: {
+    tableDefaults() {
+      return {
+        VDataTable: {
+          itemsPerPageText: this.$t('rowsPerPage'),
+          showFirstLastPage: false,
+        },
+        VDataTableFooter: {
+          VSelect: { variant: 'underlined' },
+        },
+      };
+    },
+
     canManageSystem() {
       return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageSystem);
     },
@@ -541,3 +569,132 @@ export default {
   },
 };
 </script>
+<style lang="scss">
+// The dense check boxes of the clear dialog (`v-checkbox dense`): a 20 px box icon 2 px under the
+// top of the line of its label, as in Vuetify 2 (Vuetify 4 centres it in the taller control). The
+// dialog is rendered outside the page, hence a class of its own.
+.ClusterClearDialog .v-checkbox.v-input--density-compact .v-selection-control__input {
+  align-items: flex-start;
+
+  > .v-icon {
+    display: block;
+    margin-top: 2px;
+    font-size: 20px;
+    line-height: 20px;
+  }
+}
+
+// The /cluster screen as Vuetify 2 drew it.
+.ClusterPage {
+  // Card titles: `subtitle-1` of Vuetify 2 (the codemod made it `text-body-large`, the body-1 of
+  // Vuetify 2 on a 24 px line): 16 px on a 28 px line, letter-spacing .009375em.
+  .ClusterPage__cardTitle {
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.75rem;
+    letter-spacing: .009375em;
+  }
+
+  // Chips of Vuetify 2: x-small 16 px high, small 24 px (Vuetify 4: 18 and 26).
+  .v-chip.v-chip--size-x-small {
+    --v-chip-height: 16px;
+  }
+
+  .v-chip.v-chip--size-small {
+    --v-chip-height: 24px;
+  }
+
+  .v-data-table {
+    // On a phone the rows of a dense table are cards of 48 px lines and the sort select keeps
+    // its 48 px header: `dense` of Vuetify 2 reached neither `.v-data-table__mobile-row` nor the
+    // mobile header, only the no-data line (32 px).
+    &.v-table--density-compact:has(.v-data-table-headers--mobile) {
+      --v-table-header-height: 48px;
+
+      .v-data-table__tr--mobile {
+        --v-table-row-height: 48px;
+      }
+    }
+
+    // The line over the footer: the top border of `.v-data-footer` in Vuetify 2 — as wide as the
+    // footer (16 px in from both sides, App.vue) and in the border colour (.12), not a divider
+    // over the whole table at .12 of the text colour.
+    > .v-divider {
+      margin: 0 16px;
+      border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+      opacity: 1;
+    }
+
+    // The footer of Vuetify 2 (`.v-data-footer`): 8 px padding; the rows-per-page block pushed to
+    // the right, 14 px before the range, its select 34 px after the label, 13 px above and below
+    // (a 59 px footer), as wide as its value, the value in 12 px; the range 24 px after it and
+    // 32 px before the arrows; 36 px round arrow buttons 14 px apart, in the icon colour of the
+    // theme (.54) when enabled. On a phone the arrows wrap to a second line at the left edge.
+    > .v-data-table-footer {
+      justify-content: flex-start;
+      padding: 0 8px;
+
+      > .v-data-table-footer__items-per-page {
+        margin-inline: auto 14px;
+
+        > span {
+          padding: 0;
+        }
+
+        > .v-select {
+          width: auto;
+          margin: 13px 0 13px 34px;
+
+          .v-field {
+            --v-field-padding-start: 0;
+            --v-field-padding-end: 0;
+            --v-field-padding-top: 0;
+            --v-field-padding-bottom: 0;
+            --v-field-input-padding-top: 7px;
+            --v-field-input-padding-bottom: 7px;
+          }
+
+          .v-field__input {
+            min-height: 32px;
+            padding-inline-end: 2px;
+            font-size: 12px;
+          }
+
+          .v-field__append-inner {
+            padding-top: 4px;
+            align-items: flex-start;
+          }
+        }
+      }
+
+      > .v-data-table-footer__info {
+        min-width: 0;
+        margin: 0 32px 0 24px;
+        padding: 0;
+      }
+
+      .v-pagination__list > li {
+        margin: 0;
+
+        &.v-pagination__prev {
+          margin-inline-end: 7px;
+        }
+
+        &.v-pagination__next {
+          margin-inline-start: 7px;
+        }
+      }
+
+      .v-pagination .v-btn {
+        width: 36px;
+        height: 36px;
+      }
+
+      .v-pagination .v-btn.v-theme--light:not(.v-btn--disabled) {
+        color: rgba(0, 0, 0, .54);
+        opacity: 1;
+      }
+    }
+  }
+}
+</style>
