@@ -27,14 +27,6 @@
     />
   </v-form>
 </template>
-<style>
-/* An underlined field of Vuetify 2 is a 4 px top margin, 12 px for the label and the 32 px line;
-   the 48 px field of Vuetify 4 holds the margin. Under the 16 px margin of the error alert that
-   margin collapsed, so the field stood 4 px higher (as RestoreProjectForm.vue). */
-.InventorySelectForm > .v-alert + .v-input {
-  margin-top: -4px;
-}
-</style>
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 

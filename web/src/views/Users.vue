@@ -91,7 +91,6 @@
       class="mt-4 FixedPageSizeTable UsersTable"
       :items-per-page-options="[20]"
       :items-per-page="20"
-      :show-first-last-page="false"
       data-testid="users-table"
       :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
@@ -143,48 +142,6 @@
 // The tables of the Users screen (users and global roles, GlobalRolesList.vue) as Vuetify 2 drew
 // them.
 .UsersTable {
-  // The footer of Vuetify 2 (`.v-data-footer`): 8 px padding, the range 24 px from the left and
-  // 32 px before the arrows (no rows-per-page select pushes them right), 36 px round arrow buttons
-  // 14 px apart, in the icon colour of the theme (.54) when enabled; no first/last buttons
-  // (`showFirstLastPage: false`).
-  > .v-data-table-footer {
-    justify-content: flex-start;
-    padding: 0 8px;
-
-    > .v-data-table-footer__info {
-      min-width: 0;
-      margin: 0 32px 0 24px;
-      padding: 0;
-    }
-
-    .v-pagination__list > li {
-      margin: 0;
-
-      &.v-pagination__prev {
-        margin-inline-end: 7px;
-      }
-
-      &.v-pagination__next {
-        margin-inline-start: 7px;
-      }
-    }
-
-    .v-pagination .v-btn {
-      width: 36px;
-      height: 36px;
-    }
-
-    .v-pagination .v-btn.v-theme--light:not(.v-btn--disabled) {
-      color: rgba(0, 0, 0, .54);
-      opacity: 1;
-    }
-  }
-
-  // The line over the footer: the top border of `.v-data-footer`, as wide as the footer.
-  > .v-divider {
-    margin: 0 16px;
-  }
-
   // Rows as cards on a phone (`.v-data-table__mobile-row`): the name and the value pushed to the
   // two sides, the name 16 px from the value (Vuetify 4 splits the row in two equal columns, so
   // the chips of a role start in the middle).

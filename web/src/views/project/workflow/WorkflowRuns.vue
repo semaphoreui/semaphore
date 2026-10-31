@@ -41,9 +41,6 @@
 </template>
 
 <style lang="scss">
-@use 'sass:map';
-@use '@/scss/variables' as settings;
-
 // Status chips: a small chip of Vuetify 2 is 24 px high (`$chip-sizes`), Vuetify 4 makes it 26 px.
 .workflow-runs-table .v-chip.v-chip--size-small {
   --v-chip-height: 24px;
@@ -53,14 +50,6 @@
 // `.v-data-table__empty-wrapper` of Vuetify 2).
 .workflow-runs-table .v-data-table-rows-loading {
   color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
-}
-
-// On a phone (mobile rows below 600 px, `mobile-breakpoint`) both lines start at the left edge, as
-// the rows of the cards do; the table has no sortable column, so no mobile header marks it.
-@media #{map.get(settings.$display-breakpoints, 'xs')} {
-  .workflow-runs-table :is(.v-data-table-rows-loading, .v-data-table-rows-no-data) {
-    text-align: start;
-  }
 }
 </style>
 

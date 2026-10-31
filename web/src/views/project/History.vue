@@ -175,16 +175,10 @@
 
 // Rows as cards on a phone (the table is mobile below 600 px): the value at the right end of the
 // row, as the shrink-to-fit `.v-data-table__mobile-row__cell` of Vuetify 2; Vuetify 4 stretches it
-// over the second grid column, so the task line started in the middle. "No data available" at the
-// left edge, as the rows; the core rule for it (vuetify2.scss) needs the mobile sort header, which
-// a table without sortable columns does not draw.
+// over the second grid column, so the task line started in the middle.
 @media (max-width: 599.98px) {
   .HistoryTable .v-data-table__tr--mobile > td > .v-data-table__td-value {
     justify-self: end;
-  }
-
-  .HistoryTable .v-data-table-rows-no-data {
-    text-align: start;
   }
 }
 

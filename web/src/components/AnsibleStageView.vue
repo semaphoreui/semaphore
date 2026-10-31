@@ -212,12 +212,6 @@
   overflow: visible;
 }
 
-// One thin line between the buttons: every button but the first has no left border
-// (`.v-btn-toggle > .v-btn.v-btn:not(:first-child)`).
-.AnsibleStageView__filter.v-btn-group > .v-btn:not(:first-child):not(.v-btn--variant-text) {
-  border-inline-start-width: 0;
-}
-
 // The expand column of Vuetify 2: a 24 px icon (`.v-data-table__expand-icon`), 16 px to the next
 // column; Vuetify 4 has a 28 px button and 8 px. A focused icon (the one just clicked) has the
 // circle of `.v-icon--link:focus::after`: the icon colour at .12, 1.3 times the icon.
@@ -257,13 +251,6 @@
 
   &.v-data-table__td--expanded-row {
     justify-content: flex-end;
-  }
-}
-
-// "No data available" on a phone at the left edge, as the rows (see History.vue).
-@media (max-width: 599.98px) {
-  .AnsibleStageView__errors .v-data-table-rows-no-data {
-    text-align: start;
   }
 }
 

@@ -98,6 +98,14 @@
   --v-icon-size-multiplier: .75;
 }
 
+// A button (a tab too) focused from the keyboard is only tinted (`.v-btn:focus::before`, the
+// focus overlay Vuetify 4 keeps on `:focus-visible`), without the 2 px ring in the current colour
+// Vuetify 4 draws around it (`.v-btn:focus-visible::after`). The ring of forced-colors mode is an
+// outline and stays.
+.v-btn:focus-visible::after {
+  opacity: 0;
+}
+
 // Icon colour of Vuetify 2 (`.theme--light.v-icon`, `.theme--light.v-btn--icon`): an icon button
 // without a colour is grey (.54) in the light theme and white in the dark one; so is the icon in
 // front of a list item in the dark theme (the light one keeps the medium emphasis of Vuetify 4,
@@ -386,6 +394,17 @@
   color: rgba(0, 0, 0, .87);
 }
 
+// A regular (underlined) field right under an alert stands 4 px higher: the 4 px top margin of
+// `.v-text-field` collapsed into the bottom margin of the alert (16 px, App.vue; `mb-*` too); the
+// 48 px field of Vuetify 4 holds that space inside. An alert without a bottom margin (`mb-0`)
+// collapsed nothing.
+.v-alert:not(.mb-0):not(.my-0):not(.ma-0)
+  + :is(.v-text-field, .v-select, .v-autocomplete, .v-combobox, .v-file-input).v-input--density-default:has(
+    > .v-input__control > .v-field--variant-underlined
+  ) {
+  margin-top: -4px;
+}
+
 .v-alert__close > .v-btn {
   width: 28px;
   height: 28px;
@@ -524,6 +543,12 @@
   &.v-btn--active {
     opacity: 1;
   }
+
+  // One thin line between neighbours: a button after the first has no left border
+  // (`.v-btn-toggle > .v-btn.v-btn:not(:first-child)`); the frame above gives every button all four.
+  &:not(:first-child) {
+    border-inline-start-width: 0;
+  }
 }
 
 // Their icons in black (white in the dark theme), not in the text colour
@@ -542,10 +567,104 @@
   color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 
-// On a phone (the table with the mobile header) the no-data line starts at the left edge, as the
-// rows of the cards do.
-.v-table:has(.v-data-table-headers--mobile) .v-data-table-rows-no-data {
-  text-align: start;
+// On a phone (rows as cards below 600 px, `mobileBreakpoint` of plugins/vuetify.js) the no-data
+// and the loading lines start at the left edge, as the rows of the cards do (both are
+// `.v-data-table__empty-wrapper` of Vuetify 2). Not by the mobile header: a table without a
+// sortable column has none.
+@media (max-width: 599.98px) {
+  .v-data-table :is(.v-data-table-rows-no-data, .v-data-table-rows-loading) {
+    text-align: start;
+  }
+}
+
+// Rows as cards on a phone: the value starts 16 px after the field name, as the header of
+// `.v-data-table__mobile-row` was padded (Vuetify 4: a 4 px grid gap; seen on long values, which
+// run out of the row).
+.v-data-table__tr--mobile > td {
+  column-gap: 16px;
+}
+
+// The footer of Vuetify 2 (`.v-data-footer`; `showFirstLastPage: false` in plugins/vuetify.js):
+// 8 px padding; the rows-per-page block pushed to the right, 14 px before the range, its select
+// 34 px after the label, 13 px above and below (a 59 px footer), as wide as its value, the value in
+// 12 px; the range 24 px after it (from the left edge without the block — FixedPageSizeTable,
+// components.scss) and 32 px before the arrows; 36 px round arrow buttons 14 px apart, in the icon
+// colour of the theme (.54) when enabled, not the .62 opacity of the `plain` variant Vuetify 4
+// gives them (full only on hover or focus). On a phone the arrows wrap to a second line at the
+// left edge.
+.v-data-table > .v-data-table-footer {
+  justify-content: flex-start;
+  padding: 0 8px;
+
+  > .v-data-table-footer__items-per-page {
+    margin-inline: auto 14px;
+
+    > span {
+      padding: 0;
+    }
+
+    > .v-select {
+      width: auto;
+      margin: 13px 0 13px 34px;
+
+      .v-field {
+        --v-field-padding-start: 0;
+        --v-field-padding-end: 0;
+        --v-field-padding-top: 0;
+        --v-field-padding-bottom: 0;
+        --v-field-input-padding-top: 7px;
+        --v-field-input-padding-bottom: 7px;
+      }
+
+      .v-field__input {
+        min-height: 32px;
+        padding-inline-end: 4px;
+        font-size: 12px;
+      }
+
+      .v-field__append-inner {
+        padding-top: 4px;
+        align-items: flex-start;
+      }
+    }
+  }
+
+  > .v-data-table-footer__info {
+    min-width: 0;
+    margin: 0 32px 0 24px;
+    padding: 0;
+  }
+
+  .v-pagination__list > li {
+    margin: 0;
+
+    &.v-pagination__prev {
+      margin-inline-end: 7px;
+    }
+
+    &.v-pagination__next {
+      margin-inline-start: 7px;
+    }
+  }
+
+  .v-pagination .v-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .v-pagination .v-btn.v-theme--light:not(.v-btn--disabled) {
+    color: rgba(0, 0, 0, .54);
+    opacity: 1;
+  }
+}
+
+// The line over the footer: the top border of `.v-data-footer` — as wide as the footer (16 px in
+// from both sides, App.vue) and in the border colour (.12), not a divider over the whole table at
+// .12 of the text colour.
+.v-data-table > .v-divider {
+  margin: 0 16px;
+  border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+  opacity: 1;
 }
 
 // The sort select of a table on a phone: 8 px under it, no messages line, the label in the bold of

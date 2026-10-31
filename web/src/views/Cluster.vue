@@ -148,9 +148,8 @@
       {{ $t('haDisabledBanner') }}
     </v-alert>
 
-    <!-- The footer of the Vuetify 2 tables: «Rows per page:» and an underlined select (the
-         footer of Vuetify 4 takes the variant of its own nested VSelect defaults, else
-         outlined), no first / last page buttons. -->
+    <!-- The footer of the Vuetify 2 tables: «Rows per page:» (the rest of the footer —
+         plugins/vuetify.js and assets/scss/vuetify2.scss). -->
     <v-defaults-provider :defaults="tableDefaults">
       <div class="pa-4">
         <!-- Nodes -->
@@ -385,10 +384,6 @@ export default {
       return {
         VDataTable: {
           itemsPerPageText: this.$t('rowsPerPage'),
-          showFirstLastPage: false,
-        },
-        VDataTableFooter: {
-          VSelect: { variant: 'underlined' },
         },
       };
     },
@@ -616,84 +611,10 @@ export default {
       }
     }
 
-    // The line over the footer: the top border of `.v-data-footer` in Vuetify 2 — as wide as the
-    // footer (16 px in from both sides, App.vue) and in the border colour (.12), not a divider
-    // over the whole table at .12 of the text colour.
-    > .v-divider {
-      margin: 0 16px;
-      border-color: rgba(var(--v-border-color), var(--v-border-opacity));
-      opacity: 1;
-    }
-
-    // The footer of Vuetify 2 (`.v-data-footer`): 8 px padding; the rows-per-page block pushed to
-    // the right, 14 px before the range, its select 34 px after the label, 13 px above and below
-    // (a 59 px footer), as wide as its value, the value in 12 px; the range 24 px after it and
-    // 32 px before the arrows; 36 px round arrow buttons 14 px apart, in the icon colour of the
-    // theme (.54) when enabled. On a phone the arrows wrap to a second line at the left edge.
-    > .v-data-table-footer {
-      justify-content: flex-start;
-      padding: 0 8px;
-
-      > .v-data-table-footer__items-per-page {
-        margin-inline: auto 14px;
-
-        > span {
-          padding: 0;
-        }
-
-        > .v-select {
-          width: auto;
-          margin: 13px 0 13px 34px;
-
-          .v-field {
-            --v-field-padding-start: 0;
-            --v-field-padding-end: 0;
-            --v-field-padding-top: 0;
-            --v-field-padding-bottom: 0;
-            --v-field-input-padding-top: 7px;
-            --v-field-input-padding-bottom: 7px;
-          }
-
-          .v-field__input {
-            min-height: 32px;
-            padding-inline-end: 2px;
-            font-size: 12px;
-          }
-
-          .v-field__append-inner {
-            padding-top: 4px;
-            align-items: flex-start;
-          }
-        }
-      }
-
-      > .v-data-table-footer__info {
-        min-width: 0;
-        margin: 0 32px 0 24px;
-        padding: 0;
-      }
-
-      .v-pagination__list > li {
-        margin: 0;
-
-        &.v-pagination__prev {
-          margin-inline-end: 7px;
-        }
-
-        &.v-pagination__next {
-          margin-inline-start: 7px;
-        }
-      }
-
-      .v-pagination .v-btn {
-        width: 36px;
-        height: 36px;
-      }
-
-      .v-pagination .v-btn.v-theme--light:not(.v-btn--disabled) {
-        color: rgba(0, 0, 0, .54);
-        opacity: 1;
-      }
+    // The rows-per-page value («20») ends 2 px before the arrow of its select, not 4 px as the
+    // shared footer (assets/scss/vuetify2.scss) has it.
+    > .v-data-table-footer > .v-data-table-footer__items-per-page > .v-select .v-field__input {
+      padding-inline-end: 2px;
     }
   }
 }

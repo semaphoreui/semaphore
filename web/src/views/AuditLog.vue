@@ -574,13 +574,6 @@ export default {
   margin-inline: -2px;
 }
 
-// On a phone (rows as cards) the no-data and loading lines start at the left edge, as the cards
-// do. The table has no header row there, so the rule of assets/scss/vuetify2.scss (by the mobile
-// header) does not reach it.
-.AuditLog__table--mobile :is(.v-data-table-rows-no-data, .v-data-table-rows-loading) {
-  text-align: start;
-}
-
 // The event drawer: its border over the content, not beside it (`.v-navigation-drawer__border`,
 // 1 px wide, absolute), so the card starts at the edge as in Vuetify 2.
 .AuditLog__drawer.v-navigation-drawer--right {

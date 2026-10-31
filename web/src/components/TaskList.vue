@@ -163,14 +163,6 @@
     padding-top: 5px;
   }
 }
-
-// On a phone (the cards below `mobile-breakpoint` 600) the no-data line starts at the left edge,
-// as in Vuetify 2; this table has no sortable column, so no mobile header that would tell it.
-@media (max-width: 599.98px) {
-  .TaskListTable .v-data-table-rows-no-data {
-    text-align: start;
-  }
-}
 </style>
 <script>
 import axios from 'axios';

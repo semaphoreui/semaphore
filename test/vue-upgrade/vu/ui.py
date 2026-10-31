@@ -106,6 +106,25 @@ FREEZE_CSS = """
   caret-color: transparent !important; scroll-behavior: auto !important;
 }
 .v-ripple__container { display: none !important; }  /* the ripple of Vuetify 2, 3 and 4 */
+/* the indeterminate v-progress-linear of Vuetify 4 moves its bars through registered custom properties
+   (initial value 0 %): with the animation run out at once the long bar covers the whole track. Held at
+   the 0 % frame of the animation (both bars outside the track), as the frozen bar of Vuetify 2 showed
+   nothing (its .long / .short are 0 px wide without the animation). Vuetify 2 has no such container
+   animation: the rule does not touch it. */
+.v-progress-linear__indeterminate {
+  animation-name: none !important;
+  --v-progress-indeterminate-long-left: -90% !important; --v-progress-indeterminate-long-right: 107% !important;
+  --v-progress-indeterminate-short-left: -200% !important; --v-progress-indeterminate-short-right: 107% !important;
+}
+/* Vuetify 4 plays the enter transition of menus and dialogs with the Web Animations API, which the rules
+   above do not stop: the content is visibility: hidden for two frames and pointer-events: none until the
+   animation ends. A click on an item in that window fails, and Playwright scrolls the target on each retry
+   (to the end, centre, start of the window by turns); a dialog the click opens blocks scrolling at that
+   offset (html.v-overlay-scroll-blocked: position fixed, top: -offset) and the page shot comes out shifted.
+   The content of an open overlay takes clicks at once, as with the frozen CSS transitions of Vuetify 2; a
+   closing one (no --active) and a tooltip keep their own value. The two hidden frames stay: forcing
+   `visibility: visible` shows the menus of closed dialogs too (two lists with the same options). */
+.v-overlay--active:not(.v-tooltip) > .v-overlay__content { pointer-events: auto !important; }
 /* the error overlay of the dev server (the hot-reload UI — never in a build): vue-cli-service serve shows
    the errors Vue 3 throws from hooks in a dev build, Vite its compile errors; the overlay over the page
    takes every click */

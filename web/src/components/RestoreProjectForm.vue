@@ -73,13 +73,9 @@ export default {
 <style lang="scss">
 // An underlined field of Vuetify 2 is a 4 px top margin, 12 px for the label and the 32 px line;
 // the 48 px field of Vuetify 4 holds the margin. Where that margin collapsed in Vuetify 2 the
-// fields stood 4 px higher: under the 16 px margin of the error alert, and at the top of the
-// page form, where it merged into the margin of `.project-settings-form` (the form moves, the
-// button under its 300 px box stays).
-.restore-project-form > .v-alert + .v-input {
-  margin-top: -4px;
-}
-
+// fields stood 4 px higher: at the top of the page form it merged into the margin of
+// `.project-settings-form` (the form moves, the button under its 300 px box stays); under the
+// error alert — assets/scss/vuetify2.scss.
 .project-settings-form .restore-project-form:not(:has(> .v-alert)) {
   position: relative;
   top: -4px;

@@ -142,25 +142,41 @@ export default createVuetify({
     VTextField: { color: 'primary', variant: 'underlined', glow: true },
     VTextarea: { color: 'primary', variant: 'underlined', glow: true },
     // The list of a select opens over the field, from its top edge (Vuetify 2 `v-select` menu
-    // without `offset-y`; autocomplete and combobox open below, as there).
+    // without `offset-y`; autocomplete and combobox open below, as there); at most 304 px high
+    // (`menuProps.maxHeight` of Vuetify 2; Vuetify 4: 310). A field with its own `menu-props`
+    // replaces these, so it names the height itself. A list that does not fit under the window
+    // edge flips to end at the field's bottom (Vuetify 4 `connected` strategy); Vuetify 2 shifted
+    // it up to 12 px from the edge — no option of Vuetify 4 turns the flip off.
     VSelect: {
       color: 'primary',
       variant: 'underlined',
       glow: true,
-      menuProps: { location: 'top', origin: 'top' },
+      menuProps: { location: 'top', origin: 'top', maxHeight: 304 },
     },
-    VAutocomplete: { color: 'primary', variant: 'underlined', glow: true },
-    VCombobox: { color: 'primary', variant: 'underlined', glow: true },
+    VAutocomplete: {
+      color: 'primary', variant: 'underlined', glow: true, menuProps: { maxHeight: 304 },
+    },
+    VCombobox: {
+      color: 'primary', variant: 'underlined', glow: true, menuProps: { maxHeight: 304 },
+    },
     VFileInput: { color: 'primary', variant: 'underlined', glow: true },
-    // Progress bars (and the loading bars of tables and fields) in the primary colour.
-    VProgressLinear: { color: 'primary' },
+    // Progress bars (and the loading bars of tables and fields) in the primary colour, the track
+    // at .3 of it (`.v-progress-linear__background` of Vuetify 2; Vuetify 4: .12).
+    VProgressLinear: { color: 'primary', bgOpacity: 0.3 },
     // The close button of an alert: a circled cross (`$cancel`).
     VAlert: { closeIcon: '$cancel' },
     VDataTable: {
       // Vuetify 2 defaults of `v-data-table`: rows as cards below 600 px (Vuetify 3 never
-      // switches without a breakpoint) and the rows-per-page options of the footer.
+      // switches without a breakpoint), the rows-per-page options of the footer and no first /
+      // last page buttons (`showFirstLastPage: false`). The footer layout — vuetify2.scss.
       mobileBreakpoint: 600,
       itemsPerPageOptions: [5, 10, 15, -1],
+      showFirstLastPage: false,
+    },
+    // The rows-per-page select of the footer is a regular (underlined) select, as in Vuetify 2
+    // (Vuetify 4: outlined).
+    VDataTableFooter: {
+      VSelect: { variant: 'underlined' },
     },
   },
   display: {

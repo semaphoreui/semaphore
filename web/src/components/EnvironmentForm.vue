@@ -564,9 +564,6 @@
   </v-form>
 </template>
 <style lang="scss">
-@use 'sass:map';
-@use '@/scss/variables' as settings;
-
 // v-subheader of Vuetify 2: a 48 px row, 14 px text in the letter spacing of the card text.
 .EnvSubheader {
   height: 48px;
@@ -657,14 +654,6 @@
 // The tables keep the rounded corners of the Vuetify 2 sheet.
 .EnvTable {
   border-radius: 4px;
-}
-
-// Below 600 px Vuetify 2 drew the tables in their mobile form: the no-data line starts at the left
-// edge of the row instead of the middle.
-@media #{map.get(settings.$display-breakpoints, 'xs')} {
-  .EnvTable .v-data-table-rows-no-data {
-    text-align: start;
-  }
 }
 
 // The delete icon of a row in the icon colour of the theme (`.theme--light.v-icon`: .54); its

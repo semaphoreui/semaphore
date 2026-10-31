@@ -41,13 +41,6 @@
   </v-form>
 </template>
 <style lang="scss">
-// An underlined field of Vuetify 2 is a 4 px top margin, 12 px for the label and the 32 px line;
-// the 48 px field of Vuetify 4 holds the margin. Under the 16 px margin of the error alert that
-// margin collapsed, so the fields stood 4 px higher (as RestoreProjectForm.vue).
-.TerraformInventoryForm > .v-alert + .v-input {
-  margin-top: -4px;
-}
-
 // The dense underlined select of Vuetify 2 (`v-select dense`): 4 px over the field
 // (`.v-text-field` margin-top), a 26 px line (Vuetify 4 compact: 32 px under no margin) with the
 // selection 2 px down, the arrow at its top, the resting label centred on the line and the floating

@@ -302,7 +302,6 @@
             :items-per-page-options="[20]"
             :items-per-page="20"
             show-expand
-            :show-first-last-page="false"
             v-model:expanded="expanded"
             expand-strategy="single"
             class="mt-4 TaskListTable TaskListTable TerraformStateTable FixedPageSizeTable"
@@ -374,6 +373,12 @@
     margin-right: 0 !important;
   }
 
+  // The line over the footer as wide as the footer: here the whole card (the shared footer —
+  // assets/scss/vuetify2.scss — insets it 16 px with the footer of App.vue).
+  &.v-data-table > .v-divider {
+    margin: 0;
+  }
+
   // The expand column of Vuetify 2: the 24 px chevron icon (`.v-data-table__expand-icon`) in a
   // cell padded 2 px (App.vue) and 16 px, not a small icon button of 28 px in a 48 px cell.
   > .v-table__wrapper > table > thead > tr > th:first-child,
@@ -392,42 +397,6 @@
       border-radius: 50%;
       opacity: .12;
       transform: scale(1.3);
-    }
-  }
-
-  // The footer of Vuetify 2 (`.v-data-footer`): 8 px padding, the range 24 px from the left and
-  // 32 px before the arrows (no rows-per-page select pushes them right), 36 px round arrow buttons
-  // 14 px apart, in the icon colour of the theme (.54) when enabled.
-  > .v-data-table-footer {
-    justify-content: flex-start;
-    padding: 0 8px;
-
-    > .v-data-table-footer__info {
-      min-width: 0;
-      margin: 0 32px 0 24px;
-      padding: 0;
-    }
-
-    .v-pagination__list > li {
-      margin: 0;
-
-      &.v-pagination__prev {
-        margin-inline-end: 7px;
-      }
-
-      &.v-pagination__next {
-        margin-inline-start: 7px;
-      }
-    }
-
-    .v-pagination .v-btn {
-      width: 36px;
-      height: 36px;
-    }
-
-    .v-pagination .v-btn.v-theme--light:not(.v-btn--disabled) {
-      color: rgba(0, 0, 0, .54);
-      opacity: 1;
     }
   }
 
@@ -450,12 +419,6 @@
 // toggle's top.
 .TerraformState__workspaces {
   vertical-align: baseline;
-
-  // Neighbouring buttons share one border (`.v-btn-toggle > .v-btn.v-btn:not(:first-child)` of
-  // Vuetify 2: no left border), the frame itself — assets/scss/vuetify2.scss.
-  &.v-btn-group > .v-btn.v-btn:not(:first-child) {
-    border-left-width: 0;
-  }
 }
 
 // The shadow of a Vuetify 2 fab: elevation 6 (`.v-btn--fab`); Vuetify 4 has elevation classes up
