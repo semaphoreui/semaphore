@@ -444,7 +444,11 @@ func addWorkflowApproval() *db.WorkflowApproval {
 
 // Token Handling
 func addToken(tok string, user int) {
-	_, err := store.CreateAPIToken(db.APIToken{
+	addTokenOfType(tok, user, db.APITokenTypeAPI)
+}
+
+func addTokenOfType(tok string, user int, tokenType db.APITokenType) {
+	_, err := store.CreateAPIToken(tokenType, db.APIToken{
 		ID:      tok,
 		Created: tz.Now(),
 		UserID:  user,

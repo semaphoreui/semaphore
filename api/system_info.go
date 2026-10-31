@@ -30,6 +30,13 @@ type SystemInfo struct {
 	Roles             []db.Role               `json:"roles"`
 	BoltdbUsed        bool                    `json:"boltdb_used"`
 	JWT               SystemInfoJWT           `json:"jwt"`
+	MCP               SystemInfoMCP           `json:"mcp"`
+}
+
+// SystemInfoMCP tells the WebUI whether the administrator has switched the
+// built-in MCP server on. Whether the user may use it is features.mcp.
+type SystemInfoMCP struct {
+	Enabled bool `json:"enabled"`
 }
 
 // SystemInfoJWT exposes the global JWT configuration for the WebUI.
@@ -112,6 +119,9 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		JWT: SystemInfoJWT{
 			Enabled: util.Config.JWT.Enabled,
 			MaxTTL:  util.Config.JWT.MaxTTL,
+		},
+		MCP: SystemInfoMCP{
+			Enabled: util.MCPEnabled(),
 		},
 	}
 

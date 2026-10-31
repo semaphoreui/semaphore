@@ -114,6 +114,7 @@ func Route(
 	backupController := projects.NewBackupController(workflowStore, subscriptionService)
 	projectIntegrationController := projects.NewIntegrationController(subscriptionService)
 	userController := NewUserController(subscriptionService)
+	mcpTokenController := proApi.NewMCPTokenController(util.MCPEnabled(), subscriptionService)
 	usersController := NewUsersController(subscriptionService)
 	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore)
 	projectRunnerController := proProjects.NewProjectRunnerController(subscriptionService, runnerService)
@@ -154,6 +155,12 @@ func Route(
 	pingRouter := r.Path(webPath + "api/ping").Subrouter()
 	pingRouter.Use(plainTextMiddleware)
 	pingRouter.Methods("GET", "HEAD").HandlerFunc(pongHandler)
+
+	// MCP checks access itself and answers with its own content types, so it
+	// stays outside the shared /api groups (JSON responses, session and API-token auth).
+	// Its tools call the REST API through r with the token of the MCP request.
+	mcpController := proApi.NewMCPController(util.MCPEnabled(), store, r, webPath)
+	r.Path(webPath + "api/mcp").Handler(mcpController)
 
 	metricsRouter := r.Path(webPath + "api/metrics").Subrouter()
 	metricsRouter.Use(metricsAuthMiddleware)
@@ -224,6 +231,9 @@ func Route(
 	tokenAPI.Path("/tokens").HandlerFunc(getAPITokens).Methods("GET", "HEAD")
 	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
 	tokenAPI.HandleFunc("/tokens/{token_id}", deleteAPIToken).Methods("DELETE")
+	tokenAPI.Path("/mcp-tokens").HandlerFunc(mcpTokenController.GetTokens).Methods("GET", "HEAD")
+	tokenAPI.Path("/mcp-tokens").HandlerFunc(mcpTokenController.CreateToken).Methods("POST")
+	tokenAPI.HandleFunc("/mcp-tokens/{token_id}", mcpTokenController.DeleteToken).Methods("DELETE")
 	tokenAPI.Path("/options").HandlerFunc(getUserOptions).Methods("GET", "HEAD")
 	tokenAPI.Path("/options").HandlerFunc(setUserOption).Methods("POST")
 	tokenAPI.Path("/identities/ldap").HandlerFunc(linkLdapIdentity).Methods("POST")

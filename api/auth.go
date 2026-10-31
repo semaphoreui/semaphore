@@ -300,7 +300,11 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 		}
 
 		userID = token.UserID
+		// MCP tokens are accepted too: MCP tools call REST with the token of the MCP request.
 		authMethod = audit.AuthAPIToken
+		if token.Type == db.APITokenTypeMCP {
+			authMethod = audit.AuthMCPToken
+		}
 	} else {
 		session, found := getSession(r)
 

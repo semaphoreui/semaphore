@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/snikch/goodman/hooks"
 	trans "github.com/snikch/goodman/transaction"
 )
@@ -11,6 +12,8 @@ import (
 const (
 	adminToken   = "h4a_i4qslpnxyyref71rk5nqbwxccrs7enwvggx0vfs="
 	expiredToken = "kwofd61g93-yuqvex8efmhjkgnbxlo8mp1tin6spyhu="
+	// mcpToken is the x-example of the MCP token revoke route.
+	mcpToken = "dreddmcptoken0123456789abcdefghijklmnopqrst="
 )
 
 var skipTests = []string{
@@ -210,6 +213,13 @@ func main() {
 			t.Request.Body = "{\"status\":\"approved\"}"
 		})
 
+		// MCP tokens: the route revokes a token the test user holds.
+		h.Before("user > /api/user/mcp-tokens/{mcp_token_id} > Revokes MCP tokens by prefix > 204 > application/json", func(transaction *trans.Transaction) {
+			dbConnect()
+			defer store.Close()
+			addTokenOfType(mcpToken, testRunnerUser.ID, db.APITokenTypeMCP)
+		})
+
 		// project runners
 		h.Before("runner > /api/project/{project_id}/runners > Get project runners > 200 > application/json", capabilityWrapper("project"))
 		//h.Before("runner > /api/project/{project_id}/runners > Add project runner > 201 > application/json", capabilityWrapper("project"))
@@ -220,7 +230,7 @@ func main() {
 		h.Before("runner > /api/project/{project_id}/runners/{runner_id}/active > Set project runner active state > 204 > application/json", capabilityWrapper("runner"))
 		h.Before("runner > /api/project/{project_id}/runners/{runner_id}/cache > Clear project runner cache > 204 > application/json", capabilityWrapper("runner"))
 	} else {
-		// Workflows and project runners are implemented by the PRO module.
+		// Workflows, project runners and MCP tokens are implemented by the PRO module.
 		// In a non-PRO build (e.g. PR builds without access to pro_impl)
 		// these endpoints are not functional, so their tests must be skipped.
 		proOnlyTests := []string{
@@ -246,6 +256,9 @@ func main() {
 			"runner > /api/project/{project_id}/runners/{runner_id}/active > Set project runner active state > 204 > application/json",
 			"runner > /api/project/{project_id}/runners/{runner_id}/registration-token > Regenerate the one-time registration token of an unregistered project runner > 200 > application/json",
 			"runner > /api/project/{project_id}/runners/{runner_id}/cache > Clear project runner cache > 204 > application/json",
+			"user > /api/user/mcp-tokens > Fetch MCP tokens for user > 200 > application/json",
+			"user > /api/user/mcp-tokens > Create an MCP token > 201 > application/json",
+			"user > /api/user/mcp-tokens/{mcp_token_id} > Revokes MCP tokens by prefix > 204 > application/json",
 		}
 		for _, v := range proOnlyTests {
 			h.Before(v, skipTest)

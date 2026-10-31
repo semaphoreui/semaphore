@@ -247,6 +247,7 @@ properties:
   ha:           { $ref: "#/$defs/HAConfig" }
   audit:        { $ref: "#/$defs/AuditConfig" }
   subscription: { $ref: "#/$defs/SubscriptionConfig" }
+  mcp:          { $ref: "#/$defs/MCPConfig" }
   dirs:         { $ref: "#/$defs/ConfigDirs" }
   runner:       { $ref: "#/$defs/RunnerConfig" }
   runners: { $ref: "#/$defs/RunnersConfig" }
@@ -626,6 +627,13 @@ $defs:
         description: Backend that stores the shared state and coordinates the HA nodes. `redis` reads `redis`, `redis_sentinel` reads `redis_sentinel`.
       redis:          { $ref: "#/$defs/HARedisConfig" }
       redis_sentinel: { $ref: "#/$defs/HARedisSentinelConfig" }
+
+  MCPConfig:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+        description: Turns the built-in MCP server on (Pro). Off by default; settings stored in the database cannot turn it on.
 
   HARedisConfig:
     type: object

@@ -1,13 +1,10 @@
 package api
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -125,10 +122,14 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// getAPITokens, createAPIToken and deleteAPIToken are intentionally duplicated
+// for MCP tokens in the Pro module (pro_impl/api/mcp_tokens.go), so that the MCP
+// token logic stays in the private repository and can diverge later without
+// touching these handlers. Until then, keep both in step.
 func getAPITokens(w http.ResponseWriter, r *http.Request) {
 	user := helpers.GetFromContext(r, "user").(*db.User)
 
-	tokens, err := helpers.Store(r).GetAPITokens(user.ID)
+	tokens, err := helpers.Store(r).GetAPITokens(user.ID, db.APITokenTypeAPI)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -162,13 +163,14 @@ func createAPIToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenID := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, tokenID); err != nil {
-		panic(err)
+	tokenID, err := db.NewUserTokenID()
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
 
-	token, err := helpers.Store(r).CreateAPIToken(db.APIToken{
-		ID:        strings.ToLower(base64.URLEncoding.EncodeToString(tokenID)),
+	token, err := helpers.Store(r).CreateAPIToken(db.APITokenTypeAPI, db.APIToken{
+		ID:        tokenID,
 		UserID:    user.ID,
 		Expired:   false,
 		ExpiresAt: body.ExpiresAt,
@@ -191,7 +193,7 @@ func deleteAPIToken(w http.ResponseWriter, r *http.Request) {
 
 	tokenID := mux.Vars(r)["token_id"]
 
-	tokens, err := helpers.Store(r).GetAPITokensByPrefix(user.ID, tokenID)
+	tokens, err := helpers.Store(r).GetAPITokensByPrefix(user.ID, tokenID, db.APITokenTypeAPI)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

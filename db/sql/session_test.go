@@ -13,11 +13,11 @@ func TestAPITokens_PrefixLookupAndExactDelete(t *testing.T) {
 	user, err := store.CreateUser(db.UserWithPwd{Pwd: "verystrongpassword1", User: db.User{Username: "alice", Name: "alice", Email: "alice@example.com"}})
 	require.NoError(t, err)
 	for _, id := range []string{"abcdefgh1111", "abcdefgh2222", "zzzzzzzz3333"} {
-		_, err = store.CreateAPIToken(db.APIToken{ID: id, UserID: user.ID, Name: id})
+		_, err = store.CreateAPIToken(db.APITokenTypeAPI, db.APIToken{ID: id, UserID: user.ID, Name: id})
 		require.NoError(t, err)
 	}
 
-	matched, err := store.GetAPITokensByPrefix(user.ID, "abcdefgh")
+	matched, err := store.GetAPITokensByPrefix(user.ID, "abcdefgh", db.APITokenTypeAPI)
 	require.NoError(t, err)
 	var ids []string
 	for _, token := range matched {
@@ -25,12 +25,40 @@ func TestAPITokens_PrefixLookupAndExactDelete(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{"abcdefgh1111", "abcdefgh2222"}, ids)
 
-	_, err = store.GetAPITokensByPrefix(user.ID, "short")
+	_, err = store.GetAPITokensByPrefix(user.ID, "short", db.APITokenTypeAPI)
 	assert.Error(t, err, "a prefix shorter than 8 characters is refused")
 
 	require.NoError(t, store.DeleteAPIToken(user.ID, "abcdefgh1111"))
 	assert.ErrorIs(t, store.DeleteAPIToken(user.ID, "abcdefgh1111"), db.ErrNotFound, "a token deleted earlier is not reported again")
 	assert.ErrorIs(t, store.DeleteAPIToken(user.ID, "abcdefgh"), db.ErrNotFound, "delete takes an exact ID, not a prefix")
+}
+
+func TestAPITokens_TypesAreSeparate(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "verystrongpassword1", User: db.User{Username: "alice", Name: "alice", Email: "alice@example.com"}})
+	require.NoError(t, err)
+	_, err = store.CreateAPIToken(db.APITokenTypeAPI, db.APIToken{ID: "abcdefgh1111", UserID: user.ID, Name: "rest"})
+	require.NoError(t, err)
+	created, err := store.CreateAPIToken(db.APITokenTypeMCP, db.APIToken{ID: "abcdefgh2222", UserID: user.ID, Name: "agent", Type: db.APITokenTypeAPI})
+	require.NoError(t, err)
+	assert.Equal(t, db.APITokenTypeMCP, created.Type, "the type argument wins over token.Type")
+
+	got, err := store.GetAPIToken("abcdefgh2222")
+	require.NoError(t, err)
+	assert.Equal(t, db.APITokenTypeMCP, got.Type, "a lookup by value finds a token of any type and says which")
+	got, err = store.GetAPIToken("abcdefgh1111")
+	require.NoError(t, err)
+	assert.Equal(t, db.APITokenTypeAPI, got.Type)
+
+	listed, err := store.GetAPITokens(user.ID, db.APITokenTypeAPI)
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	assert.Equal(t, "abcdefgh1111", listed[0].ID)
+
+	matched, err := store.GetAPITokensByPrefix(user.ID, "abcdefgh", db.APITokenTypeMCP)
+	require.NoError(t, err)
+	require.Len(t, matched, 1)
+	assert.Equal(t, "abcdefgh2222", matched[0].ID)
 }
 
 // The audit records a delete only when the store confirms it removed a row.

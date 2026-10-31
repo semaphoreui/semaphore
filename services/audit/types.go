@@ -83,11 +83,13 @@ type AuthMethod string
 const (
 	AuthSession  AuthMethod = "session"
 	AuthAPIToken AuthMethod = "api_token"
+	AuthMCPToken AuthMethod = "mcp_token"
 )
 
 const (
 	TargetUser                  = "user"
 	TargetAPIToken              = "api_token"
+	TargetMCPToken              = "mcp_token"
 	TargetRoute                 = "route"
 	TargetRole                  = "role"
 	TargetGlobalRole            = "global_role"

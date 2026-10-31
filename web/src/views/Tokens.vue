@@ -34,7 +34,7 @@
       </v-card>
     </v-dialog>
 
-    <v-toolbar flat>
+    <v-toolbar v-if="!embedded" flat>
       <v-btn icon class="mr-4" @click="returnToProjects()">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
@@ -52,7 +52,7 @@
       <v-btn color="primary" @click="newToken()">{{ $t('New Token') }}</v-btn>
     </v-toolbar>
 
-    <v-divider />
+    <v-divider v-if="!embedded" />
 
     <v-data-table
       :headers="headers"
@@ -127,6 +127,16 @@ export default {
 
   props: {
     systemInfo: Object,
+    // The kind of user token the page manages: REST API tokens or MCP tokens.
+    // Each kind has its own routes and never sees the tokens of the other.
+    kind: {
+      type: String,
+      default: 'api',
+      validator: (value) => ['api', 'mcp'].includes(value),
+    },
+    // A page that shows the list inside its own layout draws the toolbar
+    // itself and opens the new token dialog with newToken().
+    embedded: Boolean,
   },
 
   computed: {
@@ -152,6 +162,13 @@ export default {
   },
 
   methods: {
+    // Tokens belong to the signed-in user, not to a project: the user may
+    // always revoke their own, whatever their role in the current project.
+    // ItemListPageBase calls this from data(), before computed properties exist.
+    allowActions() {
+      return true;
+    },
+
     isExpiredByTime(item) {
       if (!item.expires_at) return false;
       return new Date(item.expires_at).getTime() <= Date.now();
@@ -194,7 +211,7 @@ export default {
         const res = (
           await axios({
             method: 'post',
-            url: '/api/user/tokens',
+            url: this.getItemsUrl(),
             responseType: 'json',
             data: {
               expires_at: expiresAt,
@@ -253,15 +270,15 @@ export default {
     },
 
     getItemsUrl() {
-      return '/api/user/tokens';
+      return this.kind === 'mcp' ? '/api/user/mcp-tokens' : '/api/user/tokens';
     },
 
     getSingleItemUrl() {
-      return `/api/user/tokens/${this.itemId}`;
+      return `${this.getItemsUrl()}/${this.itemId}`;
     },
 
     getEventName() {
-      return 'i-token';
+      return this.kind === 'mcp' ? 'i-mcp-token' : 'i-token';
     },
   },
 };

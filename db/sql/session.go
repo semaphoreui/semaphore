@@ -24,7 +24,8 @@ func (d *SqlDb) CreateSession(session db.Session) (db.Session, error) {
 	return session, err
 }
 
-func (d *SqlDb) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
+func (d *SqlDb) CreateAPIToken(tokenType db.APITokenType, token db.APIToken) (db.APIToken, error) {
+	token.Type = tokenType
 	token.Created = db.GetParsedTime(tz.Now())
 	err := d.Sql().Insert(&token)
 	return token, err
@@ -47,12 +48,12 @@ func validateAPIToken(token string) error {
 	return nil
 }
 
-func (d *SqlDb) GetAPITokensByPrefix(userID int, tokenPrefix string) (tokens []db.APIToken, err error) {
+func (d *SqlDb) GetAPITokensByPrefix(userID int, tokenPrefix string, tokenType db.APITokenType) (tokens []db.APIToken, err error) {
 	err = validateAPIToken(tokenPrefix)
 	if err != nil {
 		return
 	}
-	_, err = d.selectAll(&tokens, "select * from user__token where id like ? and user_id=?", tokenPrefix+"%", userID)
+	_, err = d.selectAll(&tokens, "select * from user__token where id like ? and user_id=? and type=?", tokenPrefix+"%", userID, tokenType)
 	return
 }
 
@@ -79,8 +80,8 @@ func (d *SqlDb) TouchSession(userID int, sessionID int) error {
 	return err
 }
 
-func (d *SqlDb) GetAPITokens(userID int) (tokens []db.APIToken, err error) {
-	_, err = d.selectAll(&tokens, d.PrepareQuery("select * from user__token where user_id=? order by created desc"), userID)
+func (d *SqlDb) GetAPITokens(userID int, tokenType db.APITokenType) (tokens []db.APIToken, err error) {
+	_, err = d.selectAll(&tokens, d.PrepareQuery("select * from user__token where user_id=? and type=? order by created desc"), userID, tokenType)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		err = db.ErrNotFound
