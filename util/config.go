@@ -636,6 +636,41 @@ type SshConfig struct {
 	StrictHostKeyChecking SshStrictHostKeyChecking `json:"strict_host_key_checking,omitempty" env:"" default:"no"`
 }
 
+// ListenPort is the HTTP listen port of the server. In the config file it may
+// be given either as a string (`":3000"`, `"3000"`) or as a bare number (`3000`);
+// both decode to the string form so the rest of the code sees one shape.
+type ListenPort string
+
+// UnmarshalJSON accepts a JSON string or a JSON integer.
+func (p *ListenPort) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		*p = ListenPort(str)
+		return nil
+	}
+
+	var num int64
+	if err := json.Unmarshal(data, &num); err != nil {
+		return fmt.Errorf("port must be a string or an integer, got %s", string(data))
+	}
+
+	*p = ListenPort(strconv.FormatInt(num, 10))
+	return nil
+}
+
+func (p ListenPort) String() string {
+	return string(p)
+}
+
+// Addr returns the port in `:port` form, ready for net.Listen.
+func (p ListenPort) Addr() string {
+	port := strings.TrimPrefix(string(p), ":")
+	if port == "" {
+		port = "3000"
+	}
+	return ":" + port
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -644,9 +679,8 @@ type ConfigType struct {
 
 	Dialect string `json:"dialect,omitempty" default:"sqlite" rule:"^mysql|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
 
-	// Format `:port_num` eg, :3000
-	// if : is missing it will be corrected
-	Port string     `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	// TCP port the HTTP server listens on, as `:port_num` (e.g. `:3000`) or a bare number (`3000`, quoted or not). A missing `:` is added automatically.
+	Port ListenPort `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 	TLS  *TLSConfig `json:"tls,omitempty"`
 
 	Auth *AuthConfig            `json:"auth,omitempty"`
@@ -977,14 +1011,6 @@ func (conf *ConfigType) RunnersReconcileInterval() time.Duration {
 		sec = conf.Runners.ReconcileIntervalSec
 	}
 	return time.Duration(sec) * time.Second
-}
-
-type SubscriptionConfig struct {
-	// Key is a subscription key or token that can be set via config.
-	// When this is set, subscription activation from the web interface is disabled.
-	Key       string `json:"key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY,sensitive"`
-	KeyFile   string `json:"key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
-	ServerURL string `json:"server_url,omitempty" env:"SEMAPHORE_SUBSCRIPTION_SERVER_URL" default:"https://portal.semaphoreui.com/billing"`
 }
 
 func NewConfigType() *ConfigType {
@@ -2024,6 +2050,10 @@ func validateConfig() {
 		panic(err)
 	}
 
+	if err := Config.Subscription.Validate(); err != nil {
+		panic(err)
+	}
+
 	if err := validateAccessKeyEncryption(Config.AccessKeyEncryption); err != nil {
 		panic(err)
 	}
@@ -2480,15 +2510,8 @@ func LookupDefaultApps() {
 
 func GetPublicHost() string {
 	aliasURL := Config.WebHost
-	port := Config.Port
-	if port == "" {
-		port = "3000"
-	}
-
-	port = strings.TrimPrefix(port, ":")
-
 	if aliasURL == "" {
-		aliasURL = "http://localhost:" + port
+		aliasURL = "http://localhost" + Config.Port.Addr()
 	}
 
 	return aliasURL

@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -257,7 +258,7 @@ func TestGetConfigValue(t *testing.T) {
 	testLdapNeedTls := true
 	testDbHost := "192.168.0.1"
 
-	Config.Port = testPort
+	Config.Port = ListenPort(testPort)
 	Config.CookieHash = testCookieHash
 	Config.MaxParallelTasks = testMaxParallelTasks
 	Config.LdapNeedTLS = testLdapNeedTls
@@ -313,7 +314,7 @@ func TestSetConfigValue(t *testing.T) {
 	// setConfigValue(configValue.FieldByName("BoltDb.Hostname"), testDbHost)
 	setConfigValue(configValue.FieldByName("EmailSecure"), testEmailSecure)
 
-	if Config.Port != testPort {
+	if string(Config.Port) != testPort {
 		t.Error("Could not set value for config attribute 'Port'!")
 	}
 	if Config.CookieHash != testCookieHash {
@@ -371,7 +372,7 @@ func TestLoadConfigEnvironmet(t *testing.T) {
 
 	loadConfigEnvironment()
 
-	if Config.Port != envPort {
+	if string(Config.Port) != envPort {
 		t.Error("Setting 'Port' was not loaded from environment-vars!")
 	}
 	if Config.CookieHash != envCookieHash {
@@ -422,7 +423,7 @@ func TestDecodeConfig_JSON(t *testing.T) {
 	jsonBody := `{"port":":1337","cookie_hash":"abc","max_parallel_tasks":7}`
 	decodeConfig(strings.NewReader(jsonBody), "config.json")
 
-	assert.Equal(t, ":1337", Config.Port)
+	assert.Equal(t, ListenPort(":1337"), Config.Port)
 	assert.Equal(t, "abc", Config.CookieHash)
 	assert.Equal(t, 7, Config.MaxParallelTasks)
 }
@@ -439,7 +440,7 @@ sqlite:
 `
 	decodeConfig(strings.NewReader(yamlBody), "config.yaml")
 
-	assert.Equal(t, ":1337", Config.Port)
+	assert.Equal(t, ListenPort(":1337"), Config.Port)
 	assert.Equal(t, "abc", Config.CookieHash)
 	assert.Equal(t, 7, Config.MaxParallelTasks)
 	require.NotNil(t, Config.SQLite)
@@ -452,7 +453,7 @@ func TestDecodeConfig_YAML_YmlExtension(t *testing.T) {
 	yamlBody := "port: \":4242\"\n"
 	decodeConfig(strings.NewReader(yamlBody), "config.yml")
 
-	assert.Equal(t, ":4242", Config.Port)
+	assert.Equal(t, ListenPort(":4242"), Config.Port)
 }
 
 func TestLoadConfigFile_YAML(t *testing.T) {
@@ -465,7 +466,7 @@ func TestLoadConfigFile_YAML(t *testing.T) {
 	used := loadConfigFile(p)
 	require.NotNil(t, used)
 	assert.Equal(t, p, *used)
-	assert.Equal(t, ":9999", Config.Port)
+	assert.Equal(t, ListenPort(":9999"), Config.Port)
 	assert.Equal(t, "yaml-hash", Config.CookieHash)
 }
 
@@ -479,7 +480,7 @@ func TestLoadConfigFile_JSON(t *testing.T) {
 	used := loadConfigFile(p)
 	require.NotNil(t, used)
 	assert.Equal(t, p, *used)
-	assert.Equal(t, ":8888", Config.Port)
+	assert.Equal(t, ListenPort(":8888"), Config.Port)
 }
 
 func TestLoadConfigDefaults(t *testing.T) {
@@ -522,7 +523,7 @@ func TestValidateConfig(t *testing.T) {
 	testMaxParallelTasks := 0
 	testEmailTlsMinVersion := "1.2"
 
-	Config.Port = testPort
+	Config.Port = ListenPort(testPort)
 	Config.Dialect = testDbDialect
 	Config.CookieHash = testCookieHash
 	Config.MaxParallelTasks = testMaxParallelTasks
@@ -538,7 +539,7 @@ func TestValidateConfig(t *testing.T) {
 
 	Config.Port = ":100000"
 	ensureConfigValidationFailure(t, "Port", Config.Port)
-	Config.Port = testPort
+	Config.Port = ListenPort(testPort)
 
 	Config.MaxParallelTasks = -1
 	ensureConfigValidationFailure(t, "MaxParallelTasks", Config.MaxParallelTasks)
@@ -800,4 +801,62 @@ func TestCastValueToKind_IntegerBoundaries(t *testing.T) {
 	assert.Equal(t, uint64(18446744073709551615), v)
 
 	assert.Panics(t, func() { CastValueToKind("18446744073709551616", reflect.Uint64) })
+}
+
+func TestDecodeConfig_PortAsInteger(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		body     string
+		expected ListenPort
+	}{
+		{"json integer", "config.json", `{"port":3000}`, "3000"},
+		{"json string with colon", "config.json", `{"port":":3000"}`, ":3000"},
+		{"json string without colon", "config.json", `{"port":"3000"}`, "3000"},
+		{"yaml integer", "config.yaml", "port: 3000\n", "3000"},
+		{"yaml quoted string", "config.yaml", "port: \":3000\"\n", ":3000"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			Config = new(ConfigType)
+			decodeConfig(strings.NewReader(tt.body), tt.path)
+			assert.Equal(t, tt.expected, Config.Port)
+			assert.Equal(t, ":3000", Config.Port.Addr())
+		})
+	}
+}
+
+func TestListenPort_UnmarshalJSON_Rejects(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{"boolean", `true`},
+		{"float", `30.5`},
+		{"object", `{"a":1}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var p ListenPort
+			err := json.Unmarshal([]byte(tt.body), &p)
+			assert.ErrorContains(t, err, "port must be a string or an integer")
+		})
+	}
+}
+
+func TestListenPort_Addr(t *testing.T) {
+	tests := []struct {
+		port     ListenPort
+		expected string
+	}{
+		{"", ":3000"},
+		{":3000", ":3000"},
+		{"8080", ":8080"},
+		{":8080", ":8080"},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.port), func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.port.Addr())
+		})
+	}
 }

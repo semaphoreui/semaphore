@@ -28,8 +28,10 @@ only when the task touches that topic. Keep this file under 150 lines.
   so they — not in-package fallback constants — are the effective documented defaults.
 - `config.schema.yaml` is not a source of truth; it drifts (gave wrong k8s executor image
   defaults). Generate reference docs from the Go struct with `task docs:gen`.
-- The `docs/` submodule is checked out by no CI job except `docs-reference` in
-  `.github/workflows/dev.yml` — a build step that reads `docs/` must fail loudly when it is absent.
+- No CI job checks out the `docs/` submodule: the only one that did, `docs-reference` in
+  `.github/workflows/dev.yml`, is commented out since `09cf6b91 ci: disable docs check`
+  (2026-09-28), so drift in the generated reference is caught only by a local `task docs:check`.
+  A build step that reads `docs/` must fail loudly when it is absent.
 - Anything the Vue build emits to `api/public` is `go:embed`-ed into the binary and served by
   `serveFile()`; ship static content that way, not through a new Go handler. Use relative paths
   (`publicPath: './'`) — `serveFile()` rewrites `<base href>` from `util.WebHostURL`.
@@ -110,4 +112,4 @@ only when the task touches that topic. Keep this file under 150 lines.
 | --- | --- |
 | Editing or building the docs submodule: build/verification commands, webpack cache trap, generated reference pages, locale rules, MDX/image conventions, where executor docs live, docs research pointers | `docs-site.md` |
 | Spinning up a throwaway Semaphore stand, shooting UI screenshots with Playwright, using the public demo stand, running a hot-reload dev server against a stand | `ui-stands.md` |
-| Running or extending integration tests: SMTP/Mailpit tests, Dredd alert hooks and local Dredd runs, the Bookwright `integration-tests/` repo | `integration-testing.md` |
+| Running or extending integration tests: SMTP/Mailpit tests, subscription-proxy container tests (MockServer + mitmproxy), Dredd alert hooks and local Dredd runs, the Bookwright `integration-tests/` repo | `integration-testing.md` |

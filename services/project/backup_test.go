@@ -2,6 +2,8 @@ package project
 
 import (
 	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db/sql"
@@ -189,6 +191,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
     }
   ],
   "templates": [],
+  "version": 2,
   "views": [],
   "workflows": []
 }`, str)
@@ -469,7 +472,8 @@ func TestRestore_RejectsInvalidHostConfig(t *testing.T) {
 	keyName := "k"
 	newBackup := func(name string, hostConfigs []BackupHostConfig) *BackupFormat {
 		return &BackupFormat{
-			Meta: BackupMeta{Project: db.Project{Name: name}},
+			Version: BackupFormatVersion,
+			Meta:    BackupMeta{Project: db.Project{Name: name}},
 			Keys: []BackupAccessKey{{
 				AccessKey: db.AccessKey{Name: keyName, Type: db.AccessKeySSH},
 			}},
@@ -581,13 +585,14 @@ func TestRestore_DropsUnknownPermissionBits(t *testing.T) {
 	store := sql.InitConfigCreateTestStore()
 
 	payload := `{
+  "version": 2,
   "keys": [{"name": "noop", "owner": "", "type": "none"}],
   "meta": {"name": "Restored Roles", "type": ""},
   "repositories": [{"git_branch": "master", "git_url": "git@example.com:test/test.git", "name": "Repo", "ssh_key": "noop"}],
-  "roles": [{"name": "ops", "permissions": 1048577}],
+  "roles": [{"name": "ops", "slug": "ops", "permissions": 1048577}],
   "templates": [{
     "app": "", "name": "Tpl", "playbook": "test.yml", "repository": "Repo", "type": "",
-    "roles": [{"role": "ops", "is_global": false, "permissions": 1048580}],
+    "roles": [{"slug": "ops", "permissions": 1048580}],
     "vaults": [], "view": null, "environments": []
   }]
 }`
@@ -761,8 +766,8 @@ func TestBackupKeepsBuiltinAndGlobalGrants(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, backup.Templates, 1)
 	assert.ElementsMatch(t, []BackupTemplateRole{
-		{Role: "task_runner", IsGlobal: true, Permissions: db.CanUpdateProject},
-		{Role: "deployer", IsGlobal: true, Permissions: db.CanRunProjectTasks},
+		{Slug: "task_runner", Permissions: db.CanUpdateProject},
+		{Slug: "deployer", Permissions: db.CanRunProjectTasks},
 	}, backup.Templates[0].Roles)
 
 	backup.Meta.Name = "Grants restored"
@@ -775,22 +780,36 @@ func TestBackupKeepsBuiltinAndGlobalGrants(t *testing.T) {
 	require.Len(t, templates, 1)
 	grants, err := store.GetTemplateRoles(restored.ID, templates[0].ID)
 	require.NoError(t, err)
-	require.Len(t, grants, 2)
-	assert.ElementsMatch(t, []string{"task_runner", "deployer"}, []string{grants[0].RoleSlug, grants[1].RoleSlug})
+	require.Len(t, grants, 1)
+	assert.Equal(t, "task_runner", grants[0].RoleSlug)
+	assert.Equal(t, []UnassignedRole{{Slug: "deployer", Reason: "not_in_file", Templates: []UnassignedTemplate{
+		{ID: templates[0].ID, Name: templates[0].Name, Permissions: db.CanRunProjectTasks},
+	}}}, restored.UnassignedRoles)
 }
 
-func TestRestore_FailsOnUnknownGlobalGrant(t *testing.T) {
+func TestRestore_ReportsRolesOutsideTheFile(t *testing.T) {
 	util.Config = &util.ConfigType{TmpPath: "/tmp"}
 	store := sql.InitConfigCreateTestStore()
 	p, _ := createBackupFixture(t, store)
 	backup, err := GetBackup(p.ID, store, proFactory.NewWorkflowStore(store))
 	require.NoError(t, err)
-	backup.Meta.Name = "Missing global"
-	backup.Templates[0].Roles = []BackupTemplateRole{{Role: "nope", IsGlobal: true}}
+	backup.Meta.Name = "Missing role"
+	backup.Templates[0].Roles = []BackupTemplateRole{{Slug: "nobody", Permissions: db.CanRunProjectTasks}}
 	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "m", Name: "m", Email: "m@example.com", Admin: true}})
 	require.NoError(t, err)
-	_, err = backup.Restore(user, store, proFactory.NewWorkflowStore(store))
-	require.Error(t, err)
+
+	restored, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+	require.NoError(t, err)
+	templates, err := store.GetTemplates(restored.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, templates, 1)
+	grants, err := store.GetTemplateRoles(restored.ID, templates[0].ID)
+	require.NoError(t, err)
+	assert.Empty(t, grants)
+	assert.Equal(t, []UnassignedRole{{Slug: "nobody", Reason: "not_in_file", Templates: []UnassignedTemplate{
+		{ID: templates[0].ID, Name: templates[0].Name, Permissions: db.CanRunProjectTasks},
+	}}}, restored.UnassignedRoles)
 }
 
 func TestBackupJSONHasNoRoleInternals(t *testing.T) {
@@ -809,7 +828,350 @@ func TestBackupJSONHasNoRoleInternals(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal([]byte(raw), &doc))
 	require.Len(t, doc.Roles, 1)
-	for _, key := range []string{"id", "scope", "builtin", "slug"} {
+	for _, key := range []string{"id", "scope", "builtin", "project_id"} {
 		assert.NotContains(t, doc.Roles[0], key)
+	}
+	assert.Equal(t, "local", doc.Roles[0]["slug"])
+}
+
+func TestBackupProject_Roles(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	source := sql.InitConfigCreateTestStore()
+	project, err := source.CreateProject(db.Project{Name: "Payments"})
+	require.NoError(t, err)
+	key, err := source.CreateAccessKey(db.AccessKey{Name: "none", Type: db.AccessKeyNone, ProjectID: &project.ID})
+	require.NoError(t, err)
+	repo, err := source.CreateRepository(db.Repository{Name: "r", ProjectID: project.ID, GitURL: "git@example.com:r.git", GitBranch: "main", SSHKeyID: key.ID})
+	require.NoError(t, err)
+	template, err := source.CreateTemplate(db.Template{Name: "deploy", ProjectID: project.ID, RepositoryID: repo.ID, Playbook: "site.yml"})
+	require.NoError(t, err)
+	deployA, err := source.CreateRole(db.Role{Slug: "deploy-a", Name: "Deployer", Permissions: db.CanRunProjectTasks, ProjectID: &project.ID})
+	require.NoError(t, err)
+	_, err = source.CreateRole(db.Role{Slug: "deploy-b", Name: "Deployer", Permissions: db.CanRunProjectTasks, ProjectID: &project.ID})
+	require.NoError(t, err)
+	taskRunner, err := source.GetSharedRoleBySlug(string(db.ProjectTaskRunner))
+	require.NoError(t, err)
+	_, err = source.CreateTemplateRole(db.TemplateRolePerm{TemplateID: template.ID, ProjectID: project.ID, RoleID: deployA.ID, Permissions: db.CanRunProjectTasks})
+	require.NoError(t, err)
+	_, err = source.CreateTemplateRole(db.TemplateRolePerm{TemplateID: template.ID, ProjectID: project.ID, RoleID: taskRunner.ID, Permissions: db.CanUpdateProject})
+	require.NoError(t, err)
+	target := sql.InitConfigCreateTestStore()
+	user, err := target.CreateUser(db.UserWithPwd{
+		Pwd:  "3412341234123",
+		User: db.User{Username: "restorer", Name: "Restorer", Email: "restorer@example.com", Admin: true},
+	})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(project.ID, source, proFactory.NewWorkflowStore(source))
+	require.NoError(t, err)
+	str, err := backup.Marshal()
+	require.NoError(t, err)
+	var file BackupFormat
+	require.NoError(t, file.Unmarshal(str))
+	require.NoError(t, file.Verify())
+	copied, err := file.Restore(user, target, proFactory.NewWorkflowStore(target))
+	require.NoError(t, err)
+
+	roles, err := target.GetProjectRoles(copied.ID)
+	require.NoError(t, err)
+	named := map[string]string{}
+	for _, role := range roles {
+		named[role.Slug] = role.Name
+	}
+	assert.Equal(t, map[string]string{"deploy-a": "Deployer", "deploy-b": "Deployer"}, named)
+	templates, err := target.GetTemplates(copied.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, templates, 1)
+	grants, err := target.GetTemplateRoles(copied.ID, templates[0].ID)
+	require.NoError(t, err)
+	granted := map[string]db.ProjectUserPermission{}
+	for _, grant := range grants {
+		granted[grant.RoleSlug] = grant.Permissions
+	}
+	assert.Equal(t, map[string]db.ProjectUserPermission{"deploy-a": db.CanRunProjectTasks, "task_runner": db.CanUpdateProject}, granted)
+}
+
+func TestBackupProject_KeepsAnOldSlug(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	source := sql.InitConfigCreateTestStore()
+	project, err := source.CreateProject(db.Project{Name: "Payments"})
+	require.NoError(t, err)
+	_, err = source.CreateRole(db.Role{Slug: "my role", Name: "Old", Permissions: db.CanRunProjectTasks, ProjectID: &project.ID})
+	require.NoError(t, err)
+	target := sql.InitConfigCreateTestStore()
+	user, err := target.CreateUser(db.UserWithPwd{
+		Pwd:  "3412341234123",
+		User: db.User{Username: "restorer", Name: "Restorer", Email: "restorer@example.com", Admin: true},
+	})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(project.ID, source, proFactory.NewWorkflowStore(source))
+	require.NoError(t, err)
+	str, err := backup.Marshal()
+	require.NoError(t, err)
+	var file BackupFormat
+	require.NoError(t, file.Unmarshal(str))
+	require.NoError(t, file.Verify())
+	copied, err := file.Restore(user, target, proFactory.NewWorkflowStore(target))
+	require.NoError(t, err)
+
+	roles, err := target.GetProjectRoles(copied.ID)
+	require.NoError(t, err)
+	require.Len(t, roles, 1)
+	assert.Equal(t, "my role", roles[0].Slug)
+}
+
+func TestVerify_RefusesDuplicateRoleSlugs(t *testing.T) {
+	backup := &BackupFormat{
+		Version: BackupFormatVersion,
+		Meta:    BackupMeta{Project: db.Project{Name: "p"}},
+		Roles: []BackupRole{
+			{Role: db.Role{Slug: "ops", Name: "Ops"}},
+			{Role: db.Role{Slug: "OPS", Name: "Ops again"}},
+		},
+	}
+
+	err := backup.Verify()
+
+	assert.ErrorContains(t, err, "error at roles[0]: Role slug is duplicate: ops")
+}
+
+func TestVerify_RoleSlugIsAddressable(t *testing.T) {
+	tests := []struct {
+		name string
+		slug string
+	}{
+		{"no slug", ""},
+		{"reserved slug", "all"},
+		{"slug longer than the column", strings.Repeat("x", 101)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backup := &BackupFormat{
+				Version: BackupFormatVersion,
+				Meta:    BackupMeta{Project: db.Project{Name: "p"}},
+				Roles:   []BackupRole{{Role: db.Role{Slug: tt.slug, Name: "Deployer"}}},
+			}
+
+			err := backup.Verify()
+
+			assert.ErrorContains(t, err, "error at roles[0]: Role slug")
+		})
+	}
+}
+
+func TestRestore_ReportsATakenSlug(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+	p, tpl := createBackupFixture(t, store)
+	own, err := store.CreateRole(db.Role{Slug: "ops", Name: "Deployer", Permissions: db.CanRunProjectTasks, ProjectID: &p.ID})
+	require.NoError(t, err)
+	_, err = store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: p.ID, TemplateID: tpl.ID, RoleID: own.ID, Permissions: db.CanUpdateProject})
+	require.NoError(t, err)
+	backup, err := GetBackup(p.ID, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+	backup.Meta.Name = "Taken slug"
+	// A shared role cannot take a slug a project role holds, so the source project goes first.
+	require.NoError(t, store.DeleteProject(p.ID))
+	_, err = store.CreateRole(db.Role{Slug: "ops", Name: "Ops"})
+	require.NoError(t, err)
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "m", Name: "m", Email: "m@example.com", Admin: true}})
+	require.NoError(t, err)
+
+	restored, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+	require.NoError(t, err)
+	roles, err := store.GetProjectRoles(restored.ID)
+	require.NoError(t, err)
+	assert.Empty(t, roles)
+	templates, err := store.GetTemplates(restored.ID, db.TemplateFilter{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, templates, 1)
+	assert.Equal(t, []UnassignedRole{{Slug: "ops", Reason: "slug_taken", Name: "Deployer", Permissions: db.CanRunProjectTasks, Templates: []UnassignedTemplate{
+		{ID: templates[0].ID, Name: templates[0].Name, Permissions: db.CanUpdateProject},
+	}}}, restored.UnassignedRoles)
+}
+
+func TestRestore_UnassignedRolesIsEmptyList(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "m", Name: "m", Email: "m@example.com", Admin: true}})
+	require.NoError(t, err)
+	backup := &BackupFormat{Version: BackupFormatVersion, Meta: BackupMeta{Project: db.Project{Name: "plain"}}}
+
+	restored, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+	require.NoError(t, err)
+	assert.NotNil(t, restored.UnassignedRoles)
+	assert.Empty(t, restored.UnassignedRoles)
+}
+
+func TestVerify_NamesTheScheduleEntry(t *testing.T) {
+	backup := &BackupFormat{
+		Version:   BackupFormatVersion,
+		Meta:      BackupMeta{Project: db.Project{Name: "p"}},
+		Schedules: []BackupSchedule{{Schedule: db.Schedule{Name: "nightly"}}, {Schedule: db.Schedule{Name: "nightly"}}, {Schedule: db.Schedule{Name: "nightly"}}},
+	}
+
+	err := backup.Verify()
+
+	assert.ErrorContains(t, err, "error at schedules[0]: nightly is duplicate")
+}
+
+type failingDelete struct{ db.Store }
+
+func (failingDelete) DeleteProject(int) error { return errors.New("locked") }
+
+func TestRestore_ReportsAFailedCleanup(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "m", Name: "m", Email: "m@example.com", Admin: true}})
+	require.NoError(t, err)
+	backup := &BackupFormat{
+		Version:   BackupFormatVersion,
+		Meta:      BackupMeta{Project: db.Project{Name: "stuck"}},
+		Templates: []BackupTemplate{{Template: db.Template{Name: "deploy"}, Repository: "gone"}},
+	}
+
+	_, err = backup.Restore(user, failingDelete{store}, proFactory.NewWorkflowStore(store))
+
+	require.ErrorContains(t, err, "error at templates[0]")
+	assert.ErrorContains(t, err, "could not be removed: locked")
+}
+
+func TestVerify_RefusesOtherFormatVersions(t *testing.T) {
+	grant := []BackupTemplateRole{{Slug: "ops", Permissions: db.CanRunProjectTasks}}
+	tests := []struct {
+		name    string
+		backup  BackupFormat
+		wantErr string
+	}{
+		{"no version with roles", BackupFormat{Roles: []BackupRole{{Role: db.Role{Slug: "ops", Name: "Ops"}}}}, "older version of Semaphore"},
+		{"no version with a grant", BackupFormat{Templates: []BackupTemplate{{Template: db.Template{Name: "t"}, Roles: grant}}}, "older version of Semaphore"},
+		{"newer", BackupFormat{Version: 3}, "newer version of Semaphore"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backup := tt.backup
+			backup.Meta = BackupMeta{Project: db.Project{Name: "p"}}
+
+			err := backup.Verify()
+
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestVerify_ReadsAnOldFileWithoutRoles(t *testing.T) {
+	backup := &BackupFormat{Meta: BackupMeta{Project: db.Project{Name: "p"}}}
+
+	err := backup.Verify()
+
+	assert.NoError(t, err)
+}
+
+// A string key travels through a backup like every other key: by name and
+// type only. Its value stays behind, and the restored key is empty until the
+// owner fills it in again.
+func TestBackupProject_StringKey(t *testing.T) {
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{Name: "String key"})
+	require.NoError(t, err)
+
+	ciphertext := "ciphertext-of-s3cr3t"
+	_, err = store.CreateAccessKey(db.AccessKey{
+		ProjectID: &proj.ID,
+		Name:      "api-token",
+		Type:      db.AccessKeyString,
+		String:    "s3cr3t",
+		Secret:    &ciphertext,
+	})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	str, err := backup.Marshal()
+	require.NoError(t, err)
+	assert.NotContains(t, str, "s3cr3t", "a backup must not carry the value")
+	assert.NotContains(t, str, ciphertext, "a backup must not carry the ciphertext either")
+
+	var doc struct {
+		Keys []map[string]any `json:"keys"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(str), &doc))
+	require.Len(t, doc.Keys, 1)
+	assert.Equal(t, "api-token", doc.Keys[0]["name"])
+	assert.Equal(t, "string", doc.Keys[0]["type"])
+	assert.NotContains(t, doc.Keys[0], "string", "the value field must not even be present")
+	assert.NotContains(t, doc.Keys[0], "secret")
+
+	restoredBackup := &BackupFormat{}
+	require.NoError(t, restoredBackup.Unmarshal(str))
+	restoredBackup.Meta.Name = "String key restored"
+	require.NoError(t, restoredBackup.Verify())
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd: "3412341234123",
+		User: db.User{
+			Username: "stringkeytest", Name: "String Key Test",
+			Email: "stringkey@example.com", Admin: true,
+		},
+	})
+	require.NoError(t, err)
+
+	restoredProj, err := restoredBackup.Restore(user, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	restoredKeys, err := store.GetAccessKeys(restoredProj.ID, db.GetAccessKeyOptions{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, restoredKeys, 1)
+	restored := restoredKeys[0]
+	assert.Equal(t, "api-token", restored.Name)
+	assert.Equal(t, db.AccessKeyString, restored.Type)
+	assert.Equal(t, db.AccessKeyShared, restored.Owner)
+	assert.Nil(t, restored.Secret)
+	assert.Empty(t, restored.String)
+	assert.True(t, restored.Empty, "the restored key waits for a value")
+}
+
+// A hand-edited backup may point a credential mapping at a string key; the
+// preflight applies the same rule as the API and rejects it before anything
+// is written.
+func TestRestore_RejectsStringKeyInHostConfig(t *testing.T) {
+	keyName := "api-token"
+	tests := []struct {
+		name    string
+		mapping db.HostConfig
+		wantErr string
+	}{
+		{
+			name:    "host mapping",
+			mapping: db.HostConfig{Type: db.HostConfigHost, Name: "github.com"},
+			wantErr: "a host mapping needs an SSH key",
+		},
+		{
+			name:    "url mapping",
+			mapping: db.HostConfig{Type: db.HostConfigURL, Name: "https://github.com/acme/"},
+			wantErr: "a URL mapping needs an SSH key or a login/password credential",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backup := &BackupFormat{
+				Meta: BackupMeta{Project: db.Project{Name: "string key mapping"}},
+				Keys: []BackupAccessKey{{
+					AccessKey: db.AccessKey{Name: keyName, Type: db.AccessKeyString},
+				}},
+				HostConfigs: []BackupHostConfig{{HostConfig: tt.mapping, SSHKey: &keyName}},
+			}
+
+			err := backup.Verify()
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
 	}
 }

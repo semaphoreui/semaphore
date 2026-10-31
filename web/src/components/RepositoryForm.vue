@@ -91,7 +91,7 @@
     <v-autocomplete
         v-model="item.ssh_key_id"
         :label="$t('accessKey')"
-        :items="keys"
+        :items="sshKeys"
         item-value="id"
         item-text="name"
         :rules="[v => !!v || $t('key_required')]"
@@ -155,6 +155,14 @@ export default {
     })).data;
   },
   computed: {
+    // A string key is a bare value with no login or private key, so it can not
+    // authenticate a user; the picker offers only the types the executor accepts.
+    sshKeys() {
+      if (this.keys == null) {
+        return null;
+      }
+      return this.keys.filter((key) => ['ssh', 'login_password', 'none'].includes(key.type));
+    },
     type() {
       return getRepositoryUrlType(this.item.git_url);
     },

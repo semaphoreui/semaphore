@@ -21,10 +21,14 @@ properties:
   # HTTP server
   # ==========================================================================
   port:
-    type: string
-    pattern: "^:?([0-9]{1,5})$"
+    oneOf:
+      - type: string
+        pattern: "^:?([0-9]{1,5})$"
+      - type: integer
+        minimum: 0
+        maximum: 65535
     default: ":3000"
-    description: TCP port the HTTP server listens on. Leading ':' optional.
+    description: TCP port the HTTP server listens on, as a string (leading ':' optional) or a bare integer.
   interface:
     type: string
     description: Bind address (empty = all interfaces).
@@ -736,6 +740,27 @@ $defs:
         type: string
         format: uri
         default: "https://portal.semaphoreui.com/billing"
+      proxy: { $ref: "#/$defs/SubscriptionProxyConfig" }
+
+  SubscriptionProxyConfig:
+    type: object
+    description: >-
+      HTTP proxy used to reach the subscription server. Affects only those
+      requests. Unset falls back to the proxy variables of the server process
+      (HTTP_PROXY, HTTPS_PROXY, NO_PROXY).
+    properties:
+      url:
+        type: string
+        format: uri
+        description: >-
+          Proxy endpoint, for example http://proxy.example.com:3128. Schemes
+          http, https, socks5 and socks5h are supported.
+      username:
+        type: string
+        description: Proxy user name. Overrides a user name given in url.
+      password:
+        type: string
+        description: Proxy password (sensitive). Overrides a password given in url.
 
   ConfigDirs:
     type: object
