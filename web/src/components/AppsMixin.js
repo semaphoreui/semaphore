@@ -29,6 +29,12 @@ export default {
   },
 
   methods: {
+    // The app of the backend (GET /api/apps), or undefined until it is in: a page may draw its
+    // rows before the request returns, and falls back to the built-in icon, colour and title.
+    getBackendApp(id) {
+      return this.appsMixin.apps?.[id];
+    },
+
     async loadAppsDataFromBackend() {
       return (await axios({
         method: 'get',
@@ -38,8 +44,8 @@ export default {
     },
 
     getAppColor(id) {
-      if (this.appsMixin.apps[id]?.color) {
-        return this.appsMixin.apps[id].color || 'gray';
+      if (this.getBackendApp(id)?.color) {
+        return this.getBackendApp(id).color || 'gray';
       }
 
       if (APP_ICONS[id]) {
@@ -50,8 +56,8 @@ export default {
     },
 
     getAppTitle(id, short = false) {
-      if (this.appsMixin.apps[id]?.title) {
-        return this.appsMixin.apps[id].title;
+      if (this.getBackendApp(id)?.title) {
+        return this.getBackendApp(id).title;
       }
 
       if (short) {
@@ -68,8 +74,8 @@ export default {
     },
 
     getAppIcon(id) {
-      if (this.appsMixin.apps[id]?.icon) {
-        return `mdi-${this.appsMixin.apps[id].icon}`;
+      if (this.getBackendApp(id)?.icon) {
+        return `mdi-${this.getBackendApp(id).icon}`;
       }
 
       if (APP_ICONS[id]) {
