@@ -34,8 +34,13 @@ from vu.ui import (EXTERNAL, INIT_JS, SIZES, PageInfo, attach_recorders,  # noqa
                    freeze_clock, guard_writes, init_js)
 
 ROLES = {"admin": "admin", "runner": "seed_runner"}  # role → user; any seed_* username works too
+# --disable-partial-raster: a repaint re-rasters the whole tile, not only the invalidated rect over the
+# old pixels — partial raster left the anti-aliasing of rounded corners and shadows in that tile ±5
+# levels off, so a page that repaints (the caret of a focused input blinks every 500 ms, transparent or
+# not: the input of a Vuetify 3/4 v-select stays editable, the readonly one of Vuetify 2 had no caret)
+# gave a different frame on every repaint, and snap() found no two identical frames under load.
 CHROMIUM_ARGS = ["--force-color-profile=srgb", "--disable-lcd-text", "--font-render-hinting=none",
-                 "--hide-scrollbars", "--disable-gpu"]
+                 "--hide-scrollbars", "--disable-gpu", "--disable-partial-raster"]
 
 
 def pytest_addoption(parser):

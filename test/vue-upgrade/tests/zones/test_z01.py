@@ -633,7 +633,9 @@ def test_f07_login_with_session(ui, project):
     page.on("request", lambda r: docs.append(urlsplit(r.url).path)
             if r.is_navigation_request() and r.frame == page.main_frame else None)
     page.goto(f"{LOGIN}?return={target}")
-    page.wait_for_url(f"**{target}", timeout=20000)
+    # the path, not a glob: `**{target}` matches the login address itself (…/auth/login?return=<target>),
+    # and the wait below then caught the App of the login page ready in the ~50 ms before the redirect
+    page.wait_for_url(lambda url: urlsplit(url).path == target, timeout=20000)
     expect(tid(page, "app-page")).to_have_attribute("data-state", "ready", timeout=20000)
     assert docs == [LOGIN, target]
 
