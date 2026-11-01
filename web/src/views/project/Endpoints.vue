@@ -48,63 +48,83 @@
       </v-btn>
     </v-toolbar>
 
-    <div class="px-4 pb-2 text--secondary" :class="{ 'pt-4': embedded }" style="font-size: 14px">
-      {{ $t('endpointDescription') }}
-    </div>
-
     <v-divider v-if="!embedded" />
 
-    <v-data-table
-      :headers="headers"
-      :items="items"
-      class="mt-4 Endpoints__table"
-      :items-per-page="Number.MAX_VALUE"
-      hide-default-footer
-      show-expand
-      :expanded.sync="expanded"
-      :no-data-text="$t('noEndpoints')"
+    <!-- One card per endpoint, laid out like the integrations: header, meta line, its items. -->
+    <div
+      class="px-4 py-4 Endpoints__list"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
-      <template v-slot:item.name="{ item }">
-        <a href="#" @click.prevent="toggleExpanded(item)" class="Endpoints__name">
-          {{ item.name }}
-        </a>
-      </template>
+      <div class="pb-4 text--secondary" style="font-size: 14px">
+        {{ $t('endpointDescription') }}
+      </div>
 
-      <template v-slot:item.auth_method="{ item }">
-        <v-chip small label>{{ authMethodTitle(item.auth_method) }}</v-chip>
-      </template>
+      <div v-if="items.length === 0" class="text--secondary py-6 text-center">
+        {{ $t('noEndpoints') }}
+      </div>
 
-      <template v-slot:item.aliases="{ item }">
-        <span v-if="endpointAliases(item.id) != null">{{ endpointAliases(item.id).length }}</span>
-        <v-progress-circular v-else indeterminate size="14" width="2" />
-      </template>
+      <v-card
+        v-for="item of items"
+        :key="item.id"
+        outlined
+        class="mb-4 Endpoints__card"
+        :data-testid="`endpoint-${item.id}`"
+      >
+        <v-card-title class="pb-2 Endpoints__cardHeader">
+          <v-icon class="mr-2">mdi-webhook</v-icon>
+          <span class="Endpoints__name">{{ item.name }}</span>
 
-      <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)">
-            <v-icon>mdi-delete</v-icon>
-          </v-btn>
-          <v-btn @click="editItem(item.id)">
-            <v-icon>mdi-pencil</v-icon>
-          </v-btn>
-        </v-btn-toggle>
-      </template>
+          <v-spacer></v-spacer>
 
-      <template v-slot:expanded-item="{ headers: cols, item }">
-        <td :colspan="cols.length" class="Endpoints__aliases py-3">
-          <div class="text-subtitle-2 mb-2">{{ $t('aliases') }}</div>
+          <template v-if="can(USER_PERMISSIONS.manageProjectResources)">
+            <v-btn
+              color="primary"
+              small
+              text
+              class="mr-1"
+              :disabled="endpointAliases(item.id) == null"
+              @click="addAlias(item.id)"
+            >
+              <v-icon small left>mdi-plus</v-icon>
+              {{ $t('AddAlias') }}
+            </v-btn>
+            <v-btn icon small class="mr-1" @click="editItem(item.id)">
+              <v-icon small>mdi-pencil</v-icon>
+            </v-btn>
+            <v-btn icon small @click="askDeleteItem(item.id)">
+              <v-icon small>mdi-delete</v-icon>
+            </v-btn>
+          </template>
+        </v-card-title>
+
+        <v-card-subtitle class="pb-2 Endpoints__cardMeta">
+          <span class="mr-4">
+            <v-icon small class="mr-1">mdi-shield-key-outline</v-icon>
+            {{ $t('authMethod') }}: {{ authMethodTitle(item.auth_method) }}
+          </span>
+          <span v-if="item.description" class="Endpoints__description">{{ item.description }}</span>
+        </v-card-subtitle>
+
+        <v-divider />
+
+        <v-card-text class="Endpoints__aliases">
+          <v-progress-circular
+            v-if="endpointAliases(item.id) == null"
+            indeterminate
+            size="16"
+            width="2"
+          />
 
           <div
-            class="mb-3 text--secondary"
-            v-if="(endpointAliases(item.id) || []).length === 0"
+            v-else-if="endpointAliases(item.id).length === 0"
+            class="text--secondary"
           >{{ $t('noAliases') }}</div>
 
           <div
             v-else
             v-for="alias of endpointAliases(item.id)"
             :key="alias.id"
-            class="Endpoints__alias"
+            class="Endpoints__alias d-flex align-center"
           >
             <code class="mr-2">{{ alias.url }}</code>
 
@@ -113,25 +133,15 @@
             <v-btn
               v-if="can(USER_PERMISSIONS.manageProjectResources)"
               icon
+              small
               @click="deleteAlias(item.id, alias.id)"
             >
-              <v-icon>mdi-delete</v-icon>
+              <v-icon small>mdi-delete</v-icon>
             </v-btn>
           </div>
-
-          <v-btn
-            v-if="can(USER_PERMISSIONS.manageProjectResources)"
-            color="primary"
-            small
-            class="mt-1"
-            @click="addAlias(item.id)"
-            :disabled="endpointAliases(item.id) == null"
-          >
-            {{ endpointAliases(item.id) == null ? $t('LoadAlias') : $t('AddAlias') }}
-          </v-btn>
-        </td>
-      </template>
-    </v-data-table>
+        </v-card-text>
+      </v-card>
+    </div>
   </div>
 </template>
 <script>
@@ -154,13 +164,6 @@ export default {
     embedded: Boolean,
   },
 
-  data() {
-    return {
-      /** Rows whose alias block is open (v-data-table `expanded`). */
-      expanded: [],
-    };
-  },
-
   methods: {
     allowActions() {
       return this.can(USER_PERMISSIONS.updateProject);
@@ -170,51 +173,9 @@ export default {
       return authMethodTitle(method, (key) => this.$t(key));
     },
 
-    toggleExpanded(item) {
-      if (this.expanded.some((e) => e.id === item.id)) {
-        this.expanded = this.expanded.filter((e) => e.id !== item.id);
-      } else {
-        this.expanded = [...this.expanded, item];
-      }
-    },
-
+    // The cards replace the table; the mixin still asks for headers.
     getHeaders() {
-      return [
-        {
-          text: this.$i18n.t('name'),
-          value: 'name',
-          width: '30%',
-          sortable: true,
-        },
-        {
-          text: this.$i18n.t('description'),
-          value: 'description',
-          width: '40%',
-          sortable: false,
-        },
-        {
-          text: this.$i18n.t('authMethod'),
-          value: 'auth_method',
-          width: '15%',
-          sortable: true,
-        },
-        {
-          text: this.$i18n.t('aliases'),
-          value: 'aliases',
-          width: '10%',
-          sortable: false,
-        },
-        {
-          value: 'actions',
-          sortable: false,
-          width: '0%',
-        },
-        {
-          value: 'data-table-expand',
-          sortable: false,
-          width: '0%',
-        },
-      ];
+      return [];
     },
 
     getItemsUrl() {
@@ -229,13 +190,13 @@ export default {
       return 'w-endpoint';
     },
 
-    /** Loads the endpoints and, for the alias count column, the aliases of each. */
+    /** Loads the endpoints and the aliases of each. */
     async loadItems() {
       await ItemListPageBase.methods.loadItems.call(this);
       await Promise.all((this.items || []).map((endpoint) => this.loadAliases(endpoint.id)));
     },
 
-    /** An endpoint used by integration groups cannot be deleted; show who uses it. */
+    /** An endpoint used by integrations cannot be deleted; show who uses it. */
     async askDeleteItem(itemId) {
       this.itemId = itemId;
 

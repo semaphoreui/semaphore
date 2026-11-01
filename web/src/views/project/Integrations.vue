@@ -299,7 +299,7 @@ export default {
           sortable: true,
         },
         {
-          text: this.$i18n.t('integrationRunTarget'),
+          text: this.$i18n.t('template'),
           value: 'target',
           width: '60%',
           sortable: false,
