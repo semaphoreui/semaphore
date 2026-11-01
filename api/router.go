@@ -333,6 +333,11 @@ func Route(
 	projectTaskStart.Use(projects.ProjectMiddleware, taskController.NewTaskMiddleware, taskController.GetTaskPermissionsMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
 	projectTaskStart.Path("/tasks").HandlerFunc(taskController.AddTask).Methods("POST")
 
+	// The run permission is checked per template in the handler.
+	projectViewTasks := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectViewTasks.Use(projects.ProjectMiddleware, projects.ViewMiddleware)
+	projectViewTasks.Path("/views/{view_id}/tasks").HandlerFunc(projects.RunViewTasks).Methods("POST")
+
 	projectTaskStop := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
 	projectTaskStop.Use(projects.ProjectMiddleware, taskController.GetTaskMiddleware, taskController.GetTaskPermissionsMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
 	projectTaskStop.HandleFunc("/tasks/{task_id}/stop", taskController.StopTask).Methods("POST")

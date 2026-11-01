@@ -4150,6 +4150,33 @@ paths:
       responses:
         204:
           description: view removed
+  /project/{project_id}/views/{view_id}/tasks:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/view_id"
+    post:
+      tags:
+        - project
+      summary: Starts a task for each template of the view
+      description: >
+        Starts a task with the template defaults for every template the view
+        shows and the user may run; other templates are skipped. Returns 403
+        when the view has templates but the user may run none of them.
+      responses:
+        201:
+          description: tasks started
+          schema:
+            type: object
+            properties:
+              tasks:
+                type: array
+                items:
+                  $ref: "#/definitions/Task"
+              failed_template_ids:
+                type: array
+                description: Templates whose task could not be started
+                items:
+                  type: integer
 
 
   # tasks

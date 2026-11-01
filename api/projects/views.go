@@ -3,9 +3,12 @@ package projects
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
+	log "github.com/sirupsen/logrus"
 )
 
 // ViewMiddleware ensures a key exists and loads it to the context
@@ -42,6 +45,67 @@ func GetViewTemplates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, templates)
+}
+
+type viewTasks struct {
+	Tasks             []db.Task `json:"tasks"`
+	FailedTemplateIDs []int     `json:"failed_template_ids"`
+}
+
+// canRunTemplate is the check of POST /tasks: a template grant adds to the
+// project role, it never takes away.
+func canRunTemplate(user *db.User, permissions db.ProjectUserPermission, tpl db.TemplateWithPerms) bool {
+	if tpl.Permissions != nil {
+		permissions |= *tpl.Permissions
+	}
+	return user.Admin || permissions&db.CanRunProjectTasks != 0
+}
+
+// RunViewTasks starts a task with the template defaults for every template
+// of the view the user may run.
+func RunViewTasks(w http.ResponseWriter, r *http.Request) {
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	view := helpers.GetFromContext(r, "view").(db.View)
+	user := helpers.UserFromContext(r)
+	permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+
+	templates, err := helpers.Store(r).GetTemplatesWithPermissions(project.ID, user.ID, db.TemplateFilter{ViewID: &view.ID}, db.RetrieveQueryParams{})
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	runnable := make([]db.TemplateWithPerms, 0, len(templates))
+	for _, tpl := range templates {
+		if canRunTemplate(user, permissions, tpl) {
+			runnable = append(runnable, tpl)
+		}
+	}
+
+	if len(runnable) == 0 && len(templates) > 0 {
+		helpers.RecordDenied(r, strings.Join(audit.PermissionNames(db.CanRunProjectTasks), ","), project.ID)
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	res := viewTasks{Tasks: []db.Task{}, FailedTemplateIDs: []int{}}
+	for _, tpl := range runnable {
+		task, err := taskPool(r).AddTaskFrom(r.Context(), audit.TriggerAPI, db.Task{TemplateID: tpl.ID}, &user.ID, user.Username, project.ID, tpl.App.NeedTaskAlias())
+		if err != nil {
+			log.WithFields(log.Fields{
+				"context":     "RunViewTasks",
+				"project_id":  project.ID,
+				"view_id":     view.ID,
+				"template_id": tpl.ID,
+				"user_id":     user.ID,
+			}).WithError(err).Error("Cannot add task")
+			res.FailedTemplateIDs = append(res.FailedTemplateIDs, tpl.ID)
+			continue
+		}
+		res.Tasks = append(res.Tasks, task)
+	}
+
+	helpers.WriteJSON(w, http.StatusCreated, res)
 }
 
 // GetViews retrieves sorted keys from the database
