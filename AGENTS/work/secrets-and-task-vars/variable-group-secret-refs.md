@@ -29,6 +29,10 @@ Pro Docker/K8s executors) is untouched.
   (`EnvironmentService.Delete`). Alternatives — hand ownership to a surviving group (which one?) or make the
   key shared (it would surface in the Key Store) — were rejected as surprising. The FK `key_id` without
   `on delete` is the safety net: the cascade on `access_key.environment_id` would stop half-way otherwise.
+- Deleting a key that a group still links to is refused by `AccessKeyService.Delete` with `db.ErrInvalidOperation`
+  before the external secret is removed, because the foreign key on `key_id` only fires at the row delete,
+  after a writable storage has already lost the credential (Copilot review, 2026-10-27). The foreign key
+  stays as the backstop.
 - Overwriting a linked key's value from the group form is refused (400): the key may back inventories and
   other groups. The form offers no value mode for a linked row.
 - The form picker lists shared `string` keys only; linking another group's owned key works through the API

@@ -291,6 +291,7 @@ func TestRekeyAccessKeysReStampsToActiveID(t *testing.T) {
 
 type mockAccessKeyRepo struct {
 	hostConfigs []db.HostConfig
+	refs        db.ObjectReferrers
 
 	keys              []db.AccessKey
 	UpdateAccessKeyFn func(db.AccessKey) error
@@ -306,7 +307,7 @@ func (m *mockAccessKeyRepo) GetAccessKey(_ int, keyID int) (db.AccessKey, error)
 	return db.AccessKey{}, db.ErrNotFound
 }
 func (m *mockAccessKeyRepo) GetAccessKeyRefs(int, int) (db.ObjectReferrers, error) {
-	return db.ObjectReferrers{}, nil
+	return m.refs, nil
 }
 func (m *mockAccessKeyRepo) GetAccessKeys(int, db.GetAccessKeyOptions, db.RetrieveQueryParams) ([]db.AccessKey, error) {
 	return nil, nil

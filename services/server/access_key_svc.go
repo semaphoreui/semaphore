@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -78,6 +79,20 @@ func (s *AccessKeyServiceImpl) Delete(projectID int, keyID int) (err error) {
 	if len(used) > 0 {
 		err = common_errors.NewValidationError(
 			"the credential is used by the mapping for " + used[0].Name)
+		return
+	}
+
+	// The same for variable groups: project__environment_secret.key_id is a plain foreign key, so the
+	// repository refuses the delete too, but only after the external secret has been removed. The error
+	// matches the one the foreign key produces, so the API answers "in use" either way.
+	refs, err := s.accessKeyRepo.GetAccessKeyRefs(projectID, keyID)
+	if err != nil {
+		return
+	}
+
+	if len(refs.Environments) > 0 {
+		err = fmt.Errorf("%w: the key is used by the variable group %s",
+			db.ErrInvalidOperation, refs.Environments[0].Name)
 		return
 	}
 
