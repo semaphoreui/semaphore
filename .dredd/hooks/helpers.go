@@ -67,6 +67,9 @@ func truncateAll() {
 		"project__integration",
 		"project__integration_extract_value",
 		"project__integration_matcher",
+		"project__integration_group",
+		"project__endpoint_alias",
+		"project__endpoint",
 		"project__workflow_approval",
 		"project__workflow_run",
 		"project__workflow_edge",
@@ -284,9 +287,48 @@ func addTask() *db.Task {
 	return &t
 }
 
+func addEndpoint() *db.Endpoint {
+	endpoint, err := store.CreateEndpoint(db.Endpoint{
+		ProjectID: userProject.ID,
+		Name:      "Test Endpoint",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return &endpoint
+}
+
+func addEndpointAlias(endpointID int) db.EndpointAlias {
+	alias, err := store.CreateEndpointAlias(db.EndpointAlias{
+		Alias:      "ITA-" + getUUID(),
+		ProjectID:  userProject.ID,
+		EndpointID: endpointID,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return alias
+}
+
+func addIntegrationGroup() *db.IntegrationGroup {
+	group, err := store.CreateIntegrationGroup(db.IntegrationGroup{
+		ProjectID:  userProject.ID,
+		Name:       "Test Integration Group",
+		EndpointID: endpointID,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return &group
+}
+
 func addIntegration() *db.Integration {
 	integration, err := store.CreateIntegration(db.Integration{
 		ProjectID:  userProject.ID,
+		GroupID:    integrationGroupID,
 		Name:       "Test Integration",
 		TemplateID: &templateID,
 	})
@@ -295,19 +337,6 @@ func addIntegration() *db.Integration {
 	}
 
 	return &integration
-}
-
-func addIntegrationAlias(integrationID *int) db.IntegrationAlias {
-	alias, err := store.CreateIntegrationAlias(db.IntegrationAlias{
-		Alias:         "ITA-" + getUUID(),
-		ProjectID:     userProject.ID,
-		IntegrationID: integrationID,
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	return alias
 }
 
 func addIntegrationExtractValue() *db.IntegrationExtractValue {

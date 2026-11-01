@@ -19,6 +19,8 @@ var userKey *db.AccessKey
 var task *db.Task
 var schedule *db.Schedule
 var view *db.View
+var endpoint *db.Endpoint
+var integrationGroup *db.IntegrationGroup
 var integration *db.Integration
 var integrationextractvalue *db.IntegrationExtractValue
 var integrationmatch *db.IntegrationMatcher
@@ -37,30 +39,34 @@ var hostConfigID int
 var inventoryID int
 var environmentID int
 var templateID int
+var endpointID int
+var integrationGroupID int
 var integrationID int
 var integrationExtractValueID int
 var integrationMatchID int
-var integrationAliasID int
+var endpointAliasID int
 var workflowID int
 var workflowRunID int
 var workflowNodeID int
 
 var capabilities = map[string][]string{
-	"user":                    {},
-	"project":                 {"user"},
-	"repository":              {"access_key"},
-	"host_config":             {"access_key"},
-	"inventory":               {"repository"},
-	"environment":             {"repository"},
-	"template":                {"repository", "inventory", "environment", "view"},
-	"task":                    {"template"},
-	"schedule":                {"template"},
-	"view":                    {},
-	"integration":             {"project", "template"},
+	"user":        {},
+	"project":     {"user"},
+	"repository":  {"access_key"},
+	"host_config": {"access_key"},
+	"inventory":   {"repository"},
+	"environment": {"repository"},
+	"template":    {"repository", "inventory", "environment", "view"},
+	"task":        {"template"},
+	"schedule":    {"template"},
+	"view":        {},
+	// The generated body carries auth_secret_id, which alterRequestBody points at userKey.
+	"endpoint":                {"project", "access_key"},
+	"endpoint_alias":          {"endpoint"},
+	"integration_group":       {"endpoint"},
+	"integration":             {"project", "template", "integration_group"},
 	"integrationextractvalue": {"integration"},
 	"integrationmatcher":      {"integration"},
-	"project_alias":           {"integration"},
-	"integration_alias":       {"integration"},
 	"invite":                  {"user", "project"},
 	"runner":                  {"project"},
 	"global_runner":           {},
@@ -197,6 +203,14 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			templateID = res.ID
 		case "task":
 			task = addTask()
+		case "endpoint":
+			endpoint = addEndpoint()
+			endpointID = endpoint.ID
+		case "endpoint_alias":
+			endpointAliasID = addEndpointAlias(endpointID).ID
+		case "integration_group":
+			integrationGroup = addIntegrationGroup()
+			integrationGroupID = integrationGroup.ID
 		case "integration":
 			integration = addIntegration()
 			integrationID = integration.ID
@@ -206,10 +220,6 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "integrationmatcher":
 			integrationmatch = addIntegrationMatcher()
 			integrationMatchID = integrationmatch.ID
-		case "project_alias":
-			integrationAliasID = addIntegrationAlias(nil).ID
-		case "integration_alias":
-			integrationAliasID = addIntegrationAlias(&integration.ID).ID
 		case "runner":
 			runner = addRunner()
 		case "global_runner":
@@ -255,8 +265,8 @@ var pathSubPatterns = []func() string{
 	func() string { return strconv.Itoa(integration.ID) },
 	func() string { return strconv.Itoa(integrationextractvalue.ID) },
 	func() string { return strconv.Itoa(integrationmatch.ID) },
-	func() string { return strconv.Itoa(invite.ID) },          // invite_id, x-example: 14
-	func() string { return strconv.Itoa(integrationAliasID) }, // alias_id, x-example: 15
+	func() string { return strconv.Itoa(invite.ID) },       // invite_id, x-example: 14
+	func() string { return strconv.Itoa(endpointAliasID) }, // alias_id, x-example: 15
 	func() string {
 		if runner == nil {
 			return "0"
@@ -298,6 +308,8 @@ var pathSubPatterns = []func() string{
 		}
 		return strconv.Itoa(globalRole.ID)
 	}, // global role_id, x-example: 24
+	func() string { return strconv.Itoa(endpointID) },         // endpoint_id, x-example: 25
+	func() string { return strconv.Itoa(integrationGroupID) }, // group_id, x-example: 26
 }
 
 // alterRequestPath with the above slice of functions
@@ -359,6 +371,12 @@ func alterRequestBody(t *trans.Transaction) {
 		bodyFieldProcessor("view_id", view.ID, &request)
 	}
 
+	if endpoint != nil {
+		bodyFieldProcessor("endpoint_id", endpoint.ID, &request)
+	}
+	if integrationGroup != nil {
+		bodyFieldProcessor("group_id", integrationGroup.ID, &request)
+	}
 	if integration != nil {
 		bodyFieldProcessor("integration_id", integration.ID, &request)
 	}

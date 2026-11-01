@@ -27,6 +27,7 @@ import Auth from '../views/Auth.vue';
 import New from '../views/project/New.vue';
 import Integrations from '../views/project/Integrations.vue';
 import IntegrationExtractor from '../views/project/IntegrationExtractor.vue';
+import Endpoints from '../views/project/Endpoints.vue';
 import Apps from '../views/Apps.vue';
 import Runners from '../views/Runners.vue';
 import Cluster from '../views/Cluster.vue';
@@ -171,6 +172,10 @@ const routes = [
   {
     path: '/project/:projectId/integrations/:integrationId',
     component: IntegrationExtractor,
+  },
+  {
+    path: '/project/:projectId/endpoints',
+    component: Endpoints,
   },
   {
     path: '/project/:projectId/repositories',

@@ -200,16 +200,36 @@ type ScheduleMetadata struct {
 	TemplateID int `json:"template_id"`
 }
 
-// IntegrationMetadata names what the integration starts: exactly one of
-// TemplateID and WorkflowID is set.
+// IntegrationMetadata names the integration's group and what it starts:
+// exactly one of TemplateID and WorkflowID is set.
 type IntegrationMetadata struct {
-	TemplateID int    `json:"template_id,omitempty"`
-	WorkflowID int    `json:"workflow_id,omitempty"`
-	AuthMethod string `json:"auth_method"`
+	GroupID    int `json:"group_id"`
+	TemplateID int `json:"template_id,omitempty"`
+	WorkflowID int `json:"workflow_id,omitempty"`
 }
 
 type IntegrationPartMetadata struct {
 	IntegrationID int `json:"integration_id,omitempty"`
+}
+
+// EndpointMetadata says how an endpoint checks the webhooks it receives;
+// auth_method=none lets anyone with a URL start its integrations.
+type EndpointMetadata struct {
+	AuthMethod string `json:"auth_method"`
+}
+
+// EndpointPartMetadata names the endpoint an alias belongs to. The alias
+// value itself is a bearer secret and is never recorded.
+type EndpointPartMetadata struct {
+	EndpointID int `json:"endpoint_id,omitempty"`
+}
+
+// IntegrationGroupMetadata names the endpoint a group runs from and the auth
+// it checks: the endpoint's, or its own when AuthOverride is set.
+type IntegrationGroupMetadata struct {
+	EndpointID   int    `json:"endpoint_id"`
+	AuthOverride bool   `json:"auth_override"`
+	AuthMethod   string `json:"auth_method,omitempty"`
 }
 
 type HostConfigMetadata struct {

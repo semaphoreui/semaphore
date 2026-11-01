@@ -83,11 +83,19 @@ func newWorkflowWebhookFixture(t *testing.T) workflowWebhookFixture {
 	require.NoError(t, err)
 	workflowID := int(workflowID64)
 
+	alias := "workflow-alias"
+	endpoint, err := store.CreateEndpoint(db.Endpoint{Name: "hooks", ProjectID: project.ID})
+	require.NoError(t, err)
+	_, err = store.CreateEndpointAlias(db.EndpointAlias{Alias: alias, ProjectID: project.ID, EndpointID: endpoint.ID})
+	require.NoError(t, err)
+	group, err := store.CreateIntegrationGroup(db.IntegrationGroup{Name: "deploys", ProjectID: project.ID, EndpointID: endpoint.ID})
+	require.NoError(t, err)
+
 	integration, err := store.CreateIntegration(db.Integration{
 		Name:       "deploy hook",
 		ProjectID:  project.ID,
+		GroupID:    group.ID,
 		WorkflowID: &workflowID,
-		AuthMethod: db.IntegrationAuthNone,
 	})
 	require.NoError(t, err)
 
@@ -98,10 +106,6 @@ func newWorkflowWebhookFixture(t *testing.T) workflowWebhookFixture {
 		_, err = store.CreateIntegrationExtractValue(project.ID, value)
 		require.NoError(t, err)
 	}
-
-	alias := "workflow-alias"
-	_, err = store.CreateIntegrationAlias(db.IntegrationAlias{Alias: alias, ProjectID: project.ID, IntegrationID: &integration.ID})
-	require.NoError(t, err)
 
 	return workflowWebhookFixture{store: store, project: project, integration: integration, workflowID: workflowID, alias: alias}
 }

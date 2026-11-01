@@ -724,32 +724,37 @@ func TestIsValidHmacPayload_SHA512(t *testing.T) {
 	assert.False(t, isValidHmacPayload(secret, "deadbeef", payload, "", sha512.New))
 }
 
-// stubIntegrationService hands the integration a decrypted credential: the
-// given key, or a login/password key holding password when no key is set.
+// stubIntegrationService hands the endpoint or group a decrypted credential:
+// the given key, or a login/password key holding password when no key is set.
+// It counts the calls, so a test can see how often an auth was checked.
 type stubIntegrationService struct {
 	password string
 	key      *db.AccessKey
+	calls    int
 }
 
-func (s *stubIntegrationService) FillIntegration(integration *db.Integration) error {
+func (s *stubIntegrationService) FillAuthSecret(projectID int, auth *db.IntegrationAuth) error {
+	s.calls++
 	if s.key != nil {
-		integration.AuthSecret = *s.key
+		auth.AuthSecret = *s.key
 		return nil
 	}
-	integration.AuthSecret = db.AccessKey{
+	auth.AuthSecret = db.AccessKey{
 		Type:          db.AccessKeyLoginPassword,
 		LoginPassword: db.LoginPassword{Password: s.password},
 	}
 	return nil
 }
 
-// templateProbeStore wraps a Store and records GetTemplate calls so
-// ReceiveIntegration tests can tell whether auth succeeded (RunIntegration
-// reaches GetTemplate) without needing a live task pool.
+// templateProbeStore wraps a Store and records which integrations ran:
+// RunIntegration reads the extract values of an integration first, for a
+// template and for a workflow alike, and GetTemplate is made to fail so a
+// template run stops before it needs a live task pool.
 type templateProbeStore struct {
 	db.Store
 	getTemplateCalls int
 	failTemplate     bool
+	ran              []int
 }
 
 func (s *templateProbeStore) GetTemplate(projectID int, templateID int) (db.Template, error) {
@@ -760,6 +765,11 @@ func (s *templateProbeStore) GetTemplate(projectID int, templateID int) (db.Temp
 	return s.Store.GetTemplate(projectID, templateID)
 }
 
+func (s *templateProbeStore) GetIntegrationExtractValues(projectID int, params db.RetrieveQueryParams, integrationID int) ([]db.IntegrationExtractValue, error) {
+	s.ran = append(s.ran, integrationID)
+	return s.Store.GetIntegrationExtractValues(projectID, params, integrationID)
+}
+
 func setupHmacSha512ReceiveIntegration(t *testing.T) (*IntegrationController, *templateProbeStore, string, string) {
 	t.Helper()
 	const secret = "webhook-secret"
@@ -768,10 +778,19 @@ func setupHmacSha512ReceiveIntegration(t *testing.T) (*IntegrationController, *t
 	return ctrl, store, alias, authHeader
 }
 
-// setupReceiveIntegration stores a project with one integration of the given
-// auth method behind its own alias, and a controller whose integration
-// service answers with the credential of svc.
-func setupReceiveIntegration(t *testing.T, method db.IntegrationAuthMethod, authHeader string, svc *stubIntegrationService) (*IntegrationController, *templateProbeStore, string) {
+// receiveFixture is a project with one template and one endpoint behind one
+// alias; tests add groups and integrations to it.
+type receiveFixture struct {
+	store    *templateProbeStore
+	project  db.Project
+	template db.Template
+	endpoint db.Endpoint
+	alias    string
+}
+
+// newReceiveFixture stores a project with a template and an endpoint of the
+// given auth method behind the alias.
+func newReceiveFixture(t *testing.T, method db.IntegrationAuthMethod, authHeader string, alias string) receiveFixture {
 	t.Helper()
 
 	base := sql.InitConfigCreateTestStore()
@@ -805,25 +824,63 @@ func setupReceiveIntegration(t *testing.T, method db.IntegrationAuthMethod, auth
 	})
 	require.NoError(t, err)
 
-	integration, err := store.CreateIntegration(db.Integration{
-		Name:       string(method) + " integration",
-		ProjectID:  project.ID,
-		TemplateID: &template.ID,
-		AuthMethod: method,
-		AuthHeader: authHeader,
+	endpoint, err := store.CreateEndpoint(db.Endpoint{
+		Name:            string(method) + " endpoint",
+		ProjectID:       project.ID,
+		IntegrationAuth: db.IntegrationAuth{AuthMethod: method, AuthHeader: authHeader},
 	})
 	require.NoError(t, err)
 
-	alias := string(method) + "-alias"
-	_, err = store.CreateIntegrationAlias(db.IntegrationAlias{
-		Alias:         alias,
-		ProjectID:     project.ID,
-		IntegrationID: &integration.ID,
-	})
+	_, err = store.CreateEndpointAlias(db.EndpointAlias{Alias: alias, ProjectID: project.ID, EndpointID: endpoint.ID})
 	require.NoError(t, err)
 
-	ctrl := NewIntegrationController(store, svc, nil, nil)
-	return ctrl, store, alias
+	return receiveFixture{store: store, project: project, template: template, endpoint: endpoint, alias: alias}
+}
+
+// addGroup adds a group on the fixture's endpoint; with a method it overrides
+// the endpoint's auth.
+func (f receiveFixture) addGroup(t *testing.T, name string, override *db.IntegrationAuth) db.IntegrationGroup {
+	t.Helper()
+	group := db.IntegrationGroup{Name: name, ProjectID: f.project.ID, EndpointID: f.endpoint.ID}
+	if override != nil {
+		group.AuthOverride = true
+		group.IntegrationAuth = *override
+	}
+	created, err := f.store.CreateIntegrationGroup(group)
+	require.NoError(t, err)
+	return created
+}
+
+// addIntegration adds a template integration to the group with the given
+// header matchers (header name → expected value).
+func (f receiveFixture) addIntegration(t *testing.T, group db.IntegrationGroup, name string, matchers map[string]string) db.Integration {
+	t.Helper()
+	integration, err := f.store.CreateIntegration(db.Integration{
+		Name: name, ProjectID: f.project.ID, GroupID: group.ID, TemplateID: &f.template.ID,
+	})
+	require.NoError(t, err)
+	for header, value := range matchers {
+		_, err = f.store.CreateIntegrationMatcher(f.project.ID, db.IntegrationMatcher{
+			Name: header, IntegrationID: integration.ID, MatchType: db.IntegrationMatchHeader,
+			Method: db.IntegrationMatchMethodEquals, Key: header, Value: value,
+		})
+		require.NoError(t, err)
+	}
+	return integration
+}
+
+// setupReceiveIntegration stores a project with one integration in a group
+// that inherits the endpoint's auth of the given method, and a controller
+// whose integration service answers with the credential of svc.
+func setupReceiveIntegration(t *testing.T, method db.IntegrationAuthMethod, authHeader string, svc *stubIntegrationService) (*IntegrationController, *templateProbeStore, string) {
+	t.Helper()
+
+	f := newReceiveFixture(t, method, authHeader, string(method)+"-alias")
+	group := f.addGroup(t, "group", nil)
+	f.addIntegration(t, group, string(method)+" integration", nil)
+
+	ctrl := NewIntegrationController(f.store, svc, nil, nil)
+	return ctrl, f.store, f.alias
 }
 
 func TestReceiveIntegration_HmacSha512_AcceptsValidSignature(t *testing.T) {

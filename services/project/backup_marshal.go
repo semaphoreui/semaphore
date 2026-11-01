@@ -58,9 +58,9 @@ func marshalValue(v reflect.Value) (any, error) {
 				continue
 			}
 
-			tag := fieldType.Tag.Get("backup")
-			if tag == "-" {
-				continue // Skip fields with backup:"-"
+			tag, legacy := backupTag(fieldType)
+			if tag == "-" || legacy {
+				continue // Skip fields with backup:"-" and legacy fields, which are only read
 			}
 
 			// Check if the field should be backed up
@@ -296,17 +296,17 @@ func unmarshalStructWithBackupTags(data map[string]any, v reflect.Value) error {
 			continue
 		}
 
-		// Skip fields with backup:"-"
-		backupTag := fieldType.Tag.Get("backup")
+		// Skip fields with backup:"-"; a legacy field is read like any other.
+		tag, _ := backupTag(fieldType)
 
-		if backupTag == "-" {
+		if tag == "-" {
 			continue
 		}
 
 		// Determine the JSON key to use
 		var jsonKey string
-		if backupTag != "" {
-			jsonKey = backupTag
+		if tag != "" {
+			jsonKey = tag
 		} else {
 			dbTag := fieldType.Tag.Get("db")
 			if dbTag != "" && dbTag != "-" {

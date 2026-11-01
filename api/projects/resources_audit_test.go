@@ -168,9 +168,10 @@ func TestUpdateAndDeleteProject_AreRecorded(t *testing.T) {
 func TestBackupExportAndRestore_AreRecorded(t *testing.T) {
 	f := newResourceFixture(t)
 	controller := NewBackupController(proFactory.NewWorkflowStore(f.store), noLicense{})
-	integration, err := f.store.CreateIntegration(db.Integration{Name: "hook", ProjectID: f.project.ID, TemplateID: new(f.template(t).ID)})
+	group := f.integrationGroup(t)
+	_, err := f.store.CreateIntegration(db.Integration{Name: "hook", ProjectID: f.project.ID, GroupID: group.ID, TemplateID: new(f.template(t).ID)})
 	require.NoError(t, err)
-	_, err = f.store.CreateIntegrationAlias(db.IntegrationAlias{Alias: "a1b2c3", ProjectID: f.project.ID, IntegrationID: &integration.ID})
+	_, err = f.store.CreateEndpointAlias(db.EndpointAlias{Alias: "a1b2c3", ProjectID: f.project.ID, EndpointID: group.EndpointID})
 	require.NoError(t, err)
 
 	r, rec := f.request(http.MethodGet, "", nil, nil)
@@ -186,8 +187,12 @@ func TestBackupExportAndRestore_AreRecorded(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	got := only(t, rec, audit.ResourceProjectBackupRestore)
 	assert.Equal(t, "restored", got.Event.Target.Name)
-	assert.Equal(t, 1, got.Event.Metadata.(audit.BackupRestoreMetadata).Objects["keys"])
-	assert.Equal(t, 1, got.Event.Metadata.(audit.BackupRestoreMetadata).Objects["integration_aliases"], "aliases inside integrations are counted")
+	objects := got.Event.Metadata.(audit.BackupRestoreMetadata).Objects
+	assert.Equal(t, 1, objects["keys"])
+	assert.Equal(t, 1, objects["endpoints"])
+	assert.Equal(t, 1, objects["endpoint_aliases"], "aliases inside endpoints are counted")
+	assert.Equal(t, 1, objects["integration_groups"])
+	assert.Equal(t, 1, objects["integrations"])
 }
 
 func TestRestore_FailedEntryIsNotRecorded(t *testing.T) {
@@ -474,67 +479,34 @@ func TestIntegrationEvents_WorkflowTarget(t *testing.T) {
 		"select id from project__workflow_template where project_id = ? and name = ?"), f.project.ID, "wf")
 	require.NoError(t, err)
 
-	r, rec := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"workflow_id":`+strconv.FormatInt(workflowID, 10)+`,"auth_method":"none"}`, nil, nil)
+	group := f.integrationGroup(t)
+	r, rec := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"group_id":`+strconv.Itoa(group.ID)+`,"workflow_id":`+strconv.FormatInt(workflowID, 10)+`}`, nil, nil)
 	w := httptest.NewRecorder()
 	// The workflow target is a Pro feature; the audit metadata is what is under test here.
 	integrationController(allFeatures).AddIntegration(w, r)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	created := only(t, rec, audit.ResourceIntegrationCreate)
-	assert.Equal(t, audit.IntegrationMetadata{WorkflowID: int(workflowID), AuthMethod: "none"}, created.Event.Metadata)
+	assert.Equal(t, audit.IntegrationMetadata{GroupID: group.ID, WorkflowID: int(workflowID)}, created.Event.Metadata)
 }
 
 func TestIntegrationEvents(t *testing.T) {
 	f := newResourceFixture(t)
 	template := f.template(t)
+	group := f.integrationGroup(t)
 
-	r, rec := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"template_id":`+strconv.Itoa(template.ID)+`,"auth_method":"none"}`, nil, nil)
+	r, rec := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"group_id":`+strconv.Itoa(group.ID)+`,"template_id":`+strconv.Itoa(template.ID)+`}`, nil, nil)
 	w := httptest.NewRecorder()
 	integrationController(noFeatures).AddIntegration(w, r)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	created := only(t, rec, audit.ResourceIntegrationCreate)
-	assert.Equal(t, audit.IntegrationMetadata{TemplateID: template.ID, AuthMethod: "none"}, created.Event.Metadata)
+	assert.Equal(t, audit.IntegrationMetadata{GroupID: group.ID, TemplateID: template.ID}, created.Event.Metadata)
 	integrationID := mustAtoi(t, created.Event.Target.ID)
 	integration, err := f.store.GetIntegration(f.project.ID, integrationID)
 	require.NoError(t, err)
 
-	r, rec = f.request(http.MethodPost, "", map[string]any{"integration": integration}, nil)
-	AddIntegrationAlias(httptest.NewRecorder(), r)
-	alias := only(t, rec, audit.ResourceIntegrationAliasCreate)
-	assert.Empty(t, alias.Event.Target.Name, "the alias value is a bearer secret")
-	assert.Equal(t, audit.IntegrationPartMetadata{IntegrationID: integrationID}, alias.Event.Metadata)
-
-	aliasID := mustAtoi(t, alias.Event.Target.ID)
-	r, rec = f.request(http.MethodDelete, "", map[string]any{"integration": integration}, map[string]string{"alias_id": strconv.Itoa(aliasID)})
-	w = httptest.NewRecorder()
-	RemoveIntegrationAlias(w, r)
-	require.Equal(t, http.StatusNoContent, w.Code)
-	deletedAlias := only(t, rec, audit.ResourceIntegrationAliasDelete)
-	assert.Equal(t, audit.IntegrationPartMetadata{IntegrationID: integrationID}, deletedAlias.Event.Metadata)
-
 	r, rec = f.request(http.MethodDelete, "", map[string]any{"integration": integration}, nil)
 	DeleteIntegration(httptest.NewRecorder(), r)
 	assert.Equal(t, audit.ResourceTarget(audit.TargetIntegration, integrationID, "hook"), only(t, rec, audit.ResourceIntegrationDelete).Event.Target)
-}
-
-func TestRemoveIntegrationAlias_OfAnotherIntegrationIsRefused(t *testing.T) {
-	f := newResourceFixture(t)
-	template := f.template(t)
-	owner, err := f.store.CreateIntegration(db.Integration{Name: "owner", ProjectID: f.project.ID, TemplateID: &template.ID})
-	require.NoError(t, err)
-	other, err := f.store.CreateIntegration(db.Integration{Name: "other", ProjectID: f.project.ID, TemplateID: &template.ID})
-	require.NoError(t, err)
-	alias, err := f.store.CreateIntegrationAlias(db.IntegrationAlias{Alias: "a1b2c3", ProjectID: f.project.ID, IntegrationID: &owner.ID})
-	require.NoError(t, err)
-
-	r, rec := f.request(http.MethodDelete, "", map[string]any{"integration": other}, map[string]string{"alias_id": strconv.Itoa(alias.ID)})
-	w := httptest.NewRecorder()
-	RemoveIntegrationAlias(w, r)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
-	assert.Empty(t, rec.All())
-	aliases, err := f.store.GetIntegrationAliases(f.project.ID, &owner.ID)
-	require.NoError(t, err)
-	assert.Len(t, aliases, 1, "the alias is kept")
 }
 
 func TestDeleteIntegration_FailedDeleteIsNotRecorded(t *testing.T) {
@@ -547,7 +519,7 @@ func TestDeleteIntegration_FailedDeleteIsNotRecorded(t *testing.T) {
 func TestIntegrationMatcherAndExtractorEvents(t *testing.T) {
 	f := newResourceFixture(t)
 	template := f.template(t)
-	integration, err := f.store.CreateIntegration(db.Integration{Name: "hook", ProjectID: f.project.ID, TemplateID: &template.ID})
+	integration, err := f.store.CreateIntegration(db.Integration{Name: "hook", ProjectID: f.project.ID, GroupID: f.integrationGroup(t).ID, TemplateID: &template.ID})
 	require.NoError(t, err)
 	values := map[string]any{"integration": integration}
 	id := strconv.Itoa(integration.ID)

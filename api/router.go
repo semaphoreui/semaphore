@@ -387,6 +387,10 @@ func Route(
 	projectUserAPI.Path("/views").HandlerFunc(projects.AddView).Methods("POST")
 	projectUserAPI.Path("/views/positions").HandlerFunc(projects.SetViewPositions).Methods("POST")
 
+	projectUserAPI.Path("/endpoints").HandlerFunc(projects.GetEndpoints).Methods("GET", "HEAD")
+	projectUserAPI.Path("/endpoints").HandlerFunc(projects.AddEndpoint).Methods("POST")
+	projectUserAPI.Path("/integration_groups").HandlerFunc(projects.GetIntegrationGroups).Methods("GET", "HEAD")
+	projectUserAPI.Path("/integration_groups").HandlerFunc(projects.AddIntegrationGroup).Methods("POST")
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.GetIntegrations).Methods("GET", "HEAD")
 	projectUserAPI.Path("/integrations").HandlerFunc(projectIntegrationController.AddIntegration).Methods("POST")
 	projectUserAPI.Path("/backup").HandlerFunc(backupController.GetBackup).Methods("GET", "HEAD")
@@ -578,11 +582,26 @@ func Route(
 	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
 	projectViewManagement.HandleFunc("/{view_id}/templates", projects.GetViewTemplates).Methods("GET", "HEAD")
 
-	projectIntegrationsAliasAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
-	projectIntegrationsAliasAPI.Use(projects.ProjectMiddleware)
-	projectIntegrationsAliasAPI.HandleFunc("/aliases", projects.GetIntegrationAlias).Methods("GET", "HEAD")
-	projectIntegrationsAliasAPI.HandleFunc("/aliases", projects.AddIntegrationAlias).Methods("POST")
-	projectIntegrationsAliasAPI.HandleFunc("/aliases/{alias_id}", projects.RemoveIntegrationAlias).Methods("DELETE")
+	// Webhook endpoints: the public URLs (aliases) and the auth they are checked with.
+	projectEndpointsAPI := projectUserAPI.PathPrefix("/endpoints").Subrouter()
+	projectEndpointsAPI.Use(projects.ProjectMiddleware, projects.EndpointMiddleware)
+	projectEndpointsAPI.HandleFunc("/{endpoint_id}", projects.GetEndpoint).Methods("GET", "HEAD")
+	projectEndpointsAPI.HandleFunc("/{endpoint_id}", projects.UpdateEndpoint).Methods("PUT")
+	projectEndpointsAPI.HandleFunc("/{endpoint_id}", projects.DeleteEndpoint).Methods("DELETE")
+	projectEndpointsAPI.HandleFunc("/{endpoint_id}/refs", projects.GetEndpointRefs).Methods("GET", "HEAD")
+	projectEndpointsAPI.HandleFunc("/{endpoint_id}/aliases", projects.GetEndpointAliases).Methods("GET", "HEAD")
+	projectEndpointsAPI.HandleFunc("/{endpoint_id}/aliases", projects.AddEndpointAlias).Methods("POST")
+	projectEndpointsAPI.HandleFunc("/{endpoint_id}/aliases/{alias_id}", projects.RemoveEndpointAlias).Methods("DELETE")
+
+	// Integration groups: the integrations that run from one endpoint. A separate
+	// prefix, so "groups" is never read as an integration id.
+	projectIntegrationGroupsAPI := projectUserAPI.PathPrefix("/integration_groups").Subrouter()
+	projectIntegrationGroupsAPI.Use(projects.ProjectMiddleware, projects.IntegrationGroupMiddleware)
+	projectIntegrationGroupsAPI.HandleFunc("/{group_id}", projects.GetIntegrationGroup).Methods("GET", "HEAD")
+	projectIntegrationGroupsAPI.HandleFunc("/{group_id}", projects.UpdateIntegrationGroup).Methods("PUT")
+	projectIntegrationGroupsAPI.HandleFunc("/{group_id}", projects.DeleteIntegrationGroup).Methods("DELETE")
+	projectIntegrationGroupsAPI.HandleFunc("/{group_id}/refs", projects.GetIntegrationGroupRefs).Methods("GET", "HEAD")
+	projectIntegrationGroupsAPI.HandleFunc("/{group_id}/integrations", projects.GetIntegrationGroupIntegrations).Methods("GET", "HEAD")
 
 	projectIntegrationsAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
 	projectIntegrationsAPI.Use(projects.ProjectMiddleware, projects.IntegrationMiddleware)
@@ -594,9 +613,6 @@ func Route(
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/matchers", projects.AddIntegrationMatcher).Methods("POST")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values", projects.GetIntegrationExtractValues).Methods("GET", "HEAD")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/values", projects.AddIntegrationExtractValue).Methods("POST")
-	projectIntegrationsAPI.HandleFunc("/{integration_id}/aliases", projects.GetIntegrationAlias).Methods("GET", "HEAD")
-	projectIntegrationsAPI.HandleFunc("/{integration_id}/aliases", projects.AddIntegrationAlias).Methods("POST")
-	projectIntegrationsAPI.HandleFunc("/{integration_id}/aliases/{alias_id}", projects.RemoveIntegrationAlias).Methods("DELETE")
 
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/matchers/{matcher_id}", projects.GetIntegrationMatcher).Methods("GET", "HEAD")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/matchers/{matcher_id}", projects.UpdateIntegrationMatcher).Methods("PUT")

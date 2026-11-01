@@ -65,6 +65,17 @@ export default {
         title: 'Integrations',
         icon: 'connection',
       }, {
+        slug: 'integration_groups',
+        path: 'integrations',
+        pageless: true,
+        title: this.$t('integrationGroups'),
+        icon: 'folder-outline',
+      }, {
+        slug: 'endpoints',
+        pageless: true,
+        title: this.$t('endpoints'),
+        icon: 'webhook',
+      }, {
         slug: 'access_keys',
         pageless: true,
         path: 'keys',

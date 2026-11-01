@@ -110,6 +110,18 @@ func (b *BackupDB) makeUniqueNames() {
 		item.Title = name
 	})
 
+	makeUniqueNames(b.endpoints, func(item *db.Endpoint) string {
+		return item.Name
+	}, func(item *db.Endpoint, name string) {
+		item.Name = name
+	})
+
+	makeUniqueNames(b.integrationGroups, func(item *db.IntegrationGroup) string {
+		return item.Name
+	}, func(item *db.IntegrationGroup, name string) {
+		item.Name = name
+	})
+
 	makeUniqueNames(b.integrations, func(item *db.Integration) string {
 		return item.Name
 	}, func(item *db.Integration, name string) {
@@ -219,7 +231,20 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
-	b.integrationProjAliases, err = store.GetIntegrationAliases(projectID, nil)
+	b.endpoints, err = store.GetEndpoints(projectID, db.RetrieveQueryParams{})
+	if err != nil {
+		return
+	}
+
+	b.endpointAliases = make(map[int][]db.EndpointAlias)
+	for _, o := range b.endpoints {
+		b.endpointAliases[o.ID], err = store.GetEndpointAliases(projectID, o.ID)
+		if err != nil {
+			return
+		}
+	}
+
+	b.integrationGroups, err = store.GetIntegrationGroups(projectID, db.RetrieveQueryParams{})
 	if err != nil {
 		return
 	}
@@ -229,15 +254,9 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
-	b.integrationAliases = make(map[int][]db.IntegrationAlias)
 	b.integrationMatchers = make(map[int][]db.IntegrationMatcher)
 	b.integrationExtractValues = make(map[int][]db.IntegrationExtractValue)
 	for _, o := range b.integrations {
-
-		b.integrationAliases[o.ID], err = store.GetIntegrationAliases(projectID, &o.ID)
-		if err != nil {
-			return
-		}
 		b.integrationMatchers[o.ID], err = store.GetIntegrationMatchers(projectID, db.RetrieveQueryParams{}, o.ID)
 		if err != nil {
 			return
@@ -438,13 +457,42 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 	}
 
+	endpoints := make([]BackupEndpoint, 0, len(b.endpoints))
+	for _, o := range b.endpoints {
+		aliases := make([]string, 0, len(b.endpointAliases[o.ID]))
+		for _, a := range b.endpointAliases[o.ID] {
+			aliases = append(aliases, a.Alias)
+		}
+
+		var keyName *string
+		if o.AuthSecretID != nil {
+			keyName, _ = findNameByID[db.AccessKey](*o.AuthSecretID, b.keys)
+		}
+
+		endpoints = append(endpoints, BackupEndpoint{Endpoint: o, Aliases: aliases, AuthSecretName: keyName})
+	}
+
+	integrationGroups := make([]BackupIntegrationGroup, 0, len(b.integrationGroups))
+	for _, o := range b.integrationGroups {
+		endpointName, _ := findNameByID[db.Endpoint](o.EndpointID, b.endpoints)
+		if endpointName == nil {
+			continue
+		}
+
+		var keyName *string
+		if o.AuthSecretID != nil {
+			keyName, _ = findNameByID[db.AccessKey](*o.AuthSecretID, b.keys)
+		}
+
+		integrationGroups = append(integrationGroups, BackupIntegrationGroup{IntegrationGroup: o, Endpoint: *endpointName, AuthSecretName: keyName})
+	}
+
 	integrations := make([]BackupIntegration, 0, len(b.integrations))
 	for _, o := range b.integrations {
 
-		var aliases []string
-
-		for _, a := range b.integrationAliases[o.ID] {
-			aliases = append(aliases, a.Alias)
+		groupName, _ := findNameByID[db.IntegrationGroup](o.GroupID, b.integrationGroups)
+		if groupName == nil {
+			continue
 		}
 
 		// The target is stored by name. An integration whose target is not in
@@ -461,20 +509,13 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			continue
 		}
 
-		var keyName *string
-
-		if o.AuthSecretID != nil {
-			keyName, _ = findNameByID[db.AccessKey](*o.AuthSecretID, b.keys)
-		}
-
 		integration := BackupIntegration{
 			Integration:   o,
-			Aliases:       aliases,
+			Group:         groupName,
 			Matchers:      b.integrationMatchers[o.ID],
 			ExtractValues: b.integrationExtractValues[o.ID],
 			Template:      tplName,
 			Workflow:      workflowName,
-			AuthSecret:    keyName,
 		}
 
 		if o.TaskParams != nil && o.TaskParams.InventoryID != nil {
@@ -482,12 +523,6 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 
 		integrations = append(integrations, integration)
-	}
-
-	var integrationAliases []string
-
-	for _, alias := range b.integrationProjAliases {
-		integrationAliases = append(integrationAliases, alias.Alias)
 	}
 
 	runners := make([]BackupRunner, len(b.runners))
@@ -523,20 +558,21 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		Meta: BackupMeta{
 			b.meta,
 		},
-		Inventories:        inventories,
-		Environments:       environments,
-		Views:              views,
-		Repositories:       repositories,
-		HostConfigs:        hostConfigs,
-		Keys:               keys,
-		Templates:          templates,
-		Integration:        integrations,
-		IntegrationAliases: integrationAliases,
-		Schedules:          schedules,
-		SecretStorages:     secretStorages,
-		Roles:              roles,
-		Runners:            runners,
-		Workflows:          workflows,
+		Inventories:       inventories,
+		Environments:      environments,
+		Views:             views,
+		Repositories:      repositories,
+		HostConfigs:       hostConfigs,
+		Keys:              keys,
+		Templates:         templates,
+		Endpoints:         endpoints,
+		IntegrationGroups: integrationGroups,
+		Integration:       integrations,
+		Schedules:         schedules,
+		SecretStorages:    secretStorages,
+		Roles:             roles,
+		Runners:           runners,
+		Workflows:         workflows,
 	}, nil
 }
 

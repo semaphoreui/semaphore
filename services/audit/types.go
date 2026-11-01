@@ -103,7 +103,10 @@ const (
 	TargetIntegration           = "integration"
 	TargetIntegrationMatcher    = "integration_matcher"
 	TargetIntegrationExtractor  = "integration_extractor"
-	TargetIntegrationAlias      = "integration_alias"
+	TargetIntegrationAlias      = "integration_alias" // Deprecated: aliases belong to endpoints since 2.20.19.
+	TargetEndpoint              = "endpoint"
+	TargetEndpointAlias         = "endpoint_alias"
+	TargetIntegrationGroup      = "integration_group"
 	TargetHostConfig            = "host_config"
 	TargetWorkflow              = "workflow"
 	TargetEnvironment           = "environment"

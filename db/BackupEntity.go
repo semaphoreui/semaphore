@@ -93,6 +93,22 @@ func (e Integration) GetID() int {
 	return e.ID
 }
 
+func (e Endpoint) GetID() int {
+	return e.ID
+}
+
+func (e Endpoint) GetName() string {
+	return e.Name
+}
+
+func (e IntegrationGroup) GetID() int {
+	return e.ID
+}
+
+func (e IntegrationGroup) GetName() string {
+	return e.Name
+}
+
 func (e Runner) GetID() int {
 	return e.ID
 }

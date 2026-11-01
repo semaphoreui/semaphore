@@ -56,46 +56,17 @@ func (c *IntegrationController) workflowTargetAllowed(w http.ResponseWriter, r *
 	return true
 }
 
-// integrationMetadata names what the integration starts. An integration has
-// exactly one target (Integration.Validate and the store enforce it), so one
-// of the two ids is recorded, never both.
+// integrationMetadata names the integration's group and what it starts. An
+// integration has exactly one target (Integration.Validate and the store
+// enforce it), so one of the two ids is recorded, never both.
 func integrationMetadata(integration db.Integration) audit.IntegrationMetadata {
-	metadata := audit.IntegrationMetadata{AuthMethod: string(integration.AuthMethod)}
+	metadata := audit.IntegrationMetadata{GroupID: integration.GroupID}
 	if integration.RunsWorkflow() {
 		metadata.WorkflowID = *integration.WorkflowID
 	} else if integration.TemplateID != nil {
 		metadata.TemplateID = *integration.TemplateID
 	}
 	return metadata
-}
-
-// authSecretFits checks the credential an integration points at against its
-// auth method, and writes the 400 when it does not fit. Checked when the
-// integration is stored: a webhook would otherwise fail at delivery time,
-// far from the edit, and only in the server log.
-func authSecretFits(w http.ResponseWriter, r *http.Request, integration db.Integration) bool {
-	if integration.AuthSecretID == nil {
-		return true
-	}
-
-	key, err := helpers.Store(r).GetAccessKey(integration.ProjectID, *integration.AuthSecretID)
-	if err != nil {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Auth secret does not exist in this project",
-		})
-		return false
-	}
-
-	// Keys owned by a variable group, a secret storage or a task are
-	// internal and never offered to integrations.
-	if key.Owner != db.AccessKeyShared || !integration.AuthMethod.AcceptsKeyType(key.Type) {
-		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Auth secret type does not fit the auth method",
-		})
-		return false
-	}
-
-	return true
 }
 
 func IntegrationMiddleware(next http.Handler) http.Handler {
@@ -193,10 +164,6 @@ func (c *IntegrationController) AddIntegration(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if !authSecretFits(w, r, integration) {
-		return
-	}
-
 	newIntegration, errIntegration := helpers.Store(r).CreateIntegration(integration)
 
 	if errIntegration != nil {
@@ -205,7 +172,6 @@ func (c *IntegrationController) AddIntegration(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// auth_method=none lets anyone start the template, which is what SIEM rules look for.
 	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.ResourceIntegrationCreate,
 		Target:    audit.ResourceTarget(audit.TargetIntegration, newIntegration.ID, newIntegration.Name),
@@ -239,10 +205,6 @@ func (c *IntegrationController) UpdateIntegration(w http.ResponseWriter, r *http
 	}
 
 	if !c.workflowTargetAllowed(w, r, integration, &oldIntegration) {
-		return
-	}
-
-	if !authSecretFits(w, r, integration) {
 		return
 	}
 

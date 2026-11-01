@@ -156,9 +156,10 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
 	}
 
 	assert.Equal(t, `{
+  "endpoints": [],
   "environments": [],
   "host_configs": [],
-  "integration_aliases": [],
+  "integration_groups": [],
   "integrations": [],
   "inventories": [],
   "keys": [
@@ -637,8 +638,22 @@ func TestBackup_IntegrationTargets(t *testing.T) {
 	require.NoError(t, err)
 	tpl, err := store.CreateTemplate(db.Template{Name: "Deploy", Playbook: "deploy.yml", ProjectID: proj.ID, RepositoryID: repo.ID})
 	require.NoError(t, err)
+	hookKey, err := store.CreateAccessKey(db.AccessKey{Name: "hook secret", ProjectID: &proj.ID, Type: db.AccessKeyString, String: "s3cret"})
+	require.NoError(t, err)
+	endpoint, err := store.CreateEndpoint(db.Endpoint{
+		Name: "GitHub", Description: "pushes", ProjectID: proj.ID,
+		IntegrationAuth: db.IntegrationAuth{AuthMethod: db.IntegrationAuthGitHub, AuthSecretID: &hookKey.ID},
+	})
+	require.NoError(t, err)
+	_, err = store.CreateEndpointAlias(db.EndpointAlias{Alias: "github-alias", ProjectID: proj.ID, EndpointID: endpoint.ID})
+	require.NoError(t, err)
+	group, err := store.CreateIntegrationGroup(db.IntegrationGroup{
+		Name: "deploys", ProjectID: proj.ID, EndpointID: endpoint.ID, AuthOverride: true,
+		IntegrationAuth: db.IntegrationAuth{AuthMethod: db.IntegrationAuthToken, AuthHeader: "X-Token", AuthSecretID: &hookKey.ID},
+	})
+	require.NoError(t, err)
 
-	_, err = store.CreateIntegration(db.Integration{Name: "template hook", ProjectID: proj.ID, TemplateID: &tpl.ID})
+	_, err = store.CreateIntegration(db.Integration{Name: "template hook", ProjectID: proj.ID, GroupID: group.ID, TemplateID: &tpl.ID})
 	require.NoError(t, err)
 
 	_, err = store.Sql().Exec(store.PrepareQuery(
@@ -648,11 +663,20 @@ func TestBackup_IntegrationTargets(t *testing.T) {
 		"select id from project__workflow_template where project_id = ? and name = ?"), proj.ID, "WF")
 	require.NoError(t, err)
 	wfID := int(workflowID)
-	_, err = store.CreateIntegration(db.Integration{Name: "workflow hook", ProjectID: proj.ID, WorkflowID: &wfID})
+	_, err = store.CreateIntegration(db.Integration{Name: "workflow hook", ProjectID: proj.ID, GroupID: group.ID, WorkflowID: &wfID})
 	require.NoError(t, err)
 
 	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
 	require.NoError(t, err)
+	require.Len(t, backup.Endpoints, 1)
+	assert.Equal(t, []string{"github-alias"}, backup.Endpoints[0].Aliases)
+	require.NotNil(t, backup.Endpoints[0].AuthSecretName)
+	assert.Equal(t, "hook secret", *backup.Endpoints[0].AuthSecretName)
+	require.Len(t, backup.IntegrationGroups, 1)
+	assert.Equal(t, "GitHub", backup.IntegrationGroups[0].Endpoint)
+	assert.True(t, backup.IntegrationGroups[0].AuthOverride)
+	require.NotNil(t, backup.Integration[0].Group)
+	assert.Equal(t, "deploys", *backup.Integration[0].Group)
 	// With the open-source workflow store the backup carries no workflows and
 	// the workflow hook is left out; with the Pro store (workspace build) it is
 	// exported by the workflow's name. Either way it is never an empty entry.
@@ -671,6 +695,9 @@ func TestBackup_IntegrationTargets(t *testing.T) {
 	str, err := backup.Marshal()
 	require.NoError(t, err)
 	assert.Contains(t, string(str), `"template": "Deploy"`)
+	assert.Contains(t, string(str), `"group": "deploys"`)
+	assert.NotContains(t, string(str), `"searchable"`, "legacy fields are read, never written")
+	assert.NotContains(t, string(str), `"integration_aliases"`)
 
 	restoredBackup := &BackupFormat{}
 	require.NoError(t, restoredBackup.Unmarshal(str))
@@ -695,6 +722,37 @@ func TestBackup_IntegrationTargets(t *testing.T) {
 	require.NotNil(t, restored[0].TemplateID)
 	assert.Equal(t, restoredTemplates[0].ID, *restored[0].TemplateID)
 	assert.Nil(t, restored[0].WorkflowID)
+
+	restoredEndpoints, err := store.GetEndpoints(restoredProj.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, restoredEndpoints, 1)
+	restoredEndpoint := restoredEndpoints[0]
+	assert.Equal(t, "GitHub", restoredEndpoint.Name)
+	assert.Equal(t, db.IntegrationAuthMethod(db.IntegrationAuthGitHub), restoredEndpoint.AuthMethod)
+	// The alias is unique across the instance and the source project still
+	// holds it, so the restored endpoint goes without it.
+	sourceEndpoint, err := store.GetEndpointByAlias("github-alias")
+	require.NoError(t, err)
+	assert.Equal(t, proj.ID, sourceEndpoint.ProjectID)
+	restoredAliases, err := store.GetEndpointAliases(restoredProj.ID, restoredEndpoint.ID)
+	require.NoError(t, err)
+	assert.Empty(t, restoredAliases)
+	restoredKeys, err := store.GetAccessKeys(restoredProj.ID, db.GetAccessKeyOptions{}, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	var restoredKeyID int
+	for _, k := range restoredKeys {
+		if k.Name == "hook secret" {
+			restoredKeyID = k.ID
+		}
+	}
+	require.NotNil(t, restoredEndpoint.AuthSecretID)
+	assert.Equal(t, restoredKeyID, *restoredEndpoint.AuthSecretID, "the key is re-linked by name")
+	restoredGroup, err := store.GetIntegrationGroup(restoredProj.ID, restored[0].GroupID)
+	require.NoError(t, err)
+	assert.Equal(t, "deploys", restoredGroup.Name)
+	assert.Equal(t, restoredEndpoint.ID, restoredGroup.EndpointID)
+	assert.True(t, restoredGroup.AuthOverride)
+	assert.Equal(t, "X-Token", restoredGroup.AuthHeader)
 }
 
 // Verify refuses an integration whose target is missing, doubled or unknown
@@ -702,10 +760,13 @@ func TestBackup_IntegrationTargets(t *testing.T) {
 func TestRestore_IntegrationVerify(t *testing.T) {
 	templateName := "Deploy"
 	workflowName := "WF"
+	groupName := "hooks"
 	base := func() *BackupFormat {
 		return &BackupFormat{
-			Templates: []BackupTemplate{{Template: db.Template{Name: templateName}}},
-			Workflows: []BackupWorkflow{{WorkflowTemplate: db.WorkflowTemplate{Name: workflowName}}},
+			Templates:         []BackupTemplate{{Template: db.Template{Name: templateName}}},
+			Workflows:         []BackupWorkflow{{WorkflowTemplate: db.WorkflowTemplate{Name: workflowName}}},
+			Endpoints:         []BackupEndpoint{{Endpoint: db.Endpoint{Name: "hooks"}}},
+			IntegrationGroups: []BackupIntegrationGroup{{IntegrationGroup: db.IntegrationGroup{Name: groupName}, Endpoint: "hooks"}},
 		}
 	}
 
@@ -714,12 +775,14 @@ func TestRestore_IntegrationVerify(t *testing.T) {
 		integration BackupIntegration
 		wantErr     string
 	}{
-		{"template target", BackupIntegration{Template: &templateName}, ""},
-		{"workflow target", BackupIntegration{Workflow: &workflowName}, ""},
-		{"both", BackupIntegration{Template: &templateName, Workflow: &workflowName}, "either a template or a workflow"},
-		{"none", BackupIntegration{}, "neither a template nor a workflow"},
-		{"unknown template", BackupIntegration{Template: new("missing")}, "template does not exist"},
-		{"unknown workflow", BackupIntegration{Workflow: new("missing")}, "workflow does not exist"},
+		{"template target", BackupIntegration{Group: &groupName, Template: &templateName}, ""},
+		{"workflow target", BackupIntegration{Group: &groupName, Workflow: &workflowName}, ""},
+		{"both", BackupIntegration{Group: &groupName, Template: &templateName, Workflow: &workflowName}, "either a template or a workflow"},
+		{"none", BackupIntegration{Group: &groupName}, "neither a template nor a workflow"},
+		{"unknown template", BackupIntegration{Group: &groupName, Template: new("missing")}, "template does not exist"},
+		{"unknown workflow", BackupIntegration{Group: &groupName, Workflow: new("missing")}, "workflow does not exist"},
+		{"no group", BackupIntegration{Template: &templateName}, "integration has no group"},
+		{"unknown group", BackupIntegration{Group: new("missing"), Template: &templateName}, "integration group does not exist"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

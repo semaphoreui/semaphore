@@ -75,11 +75,12 @@ func TestAddIntegration_WorkflowTargetIsProOnly(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newResourceFixture(t)
+			group := f.integrationGroup(t)
 			target := `"template_id":` + strconv.Itoa(f.template(t).ID)
 			if tt.workflow {
 				target = `"workflow_id":` + strconv.Itoa(f.workflow(t, "wf"))
 			}
-			r, rec := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,`+target+`,"auth_method":"none"}`, nil, nil)
+			r, rec := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"group_id":`+strconv.Itoa(group.ID)+`,`+target+`}`, nil, nil)
 			w := httptest.NewRecorder()
 
 			integrationController(tt.getFeatures).AddIntegration(w, r)
@@ -101,7 +102,7 @@ func TestAddIntegration_WorkflowTargetIsProOnly(t *testing.T) {
 func TestAddIntegration_SubscriptionFailureIs500(t *testing.T) {
 	f := newResourceFixture(t)
 	controller := &IntegrationController{pro: proFeatureGate{subscription: brokenLicense{}, getFeatures: allFeatures}}
-	r, _ := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"workflow_id":`+strconv.Itoa(f.workflow(t, "wf"))+`,"auth_method":"none"}`, nil, nil)
+	r, _ := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"group_id":`+strconv.Itoa(f.integrationGroup(t).ID)+`,"workflow_id":`+strconv.Itoa(f.workflow(t, "wf"))+`}`, nil, nil)
 	w := httptest.NewRecorder()
 
 	controller.AddIntegration(w, r)
@@ -131,7 +132,8 @@ func TestUpdateIntegration_WorkflowTargetIsProOnly(t *testing.T) {
 			template := f.template(t)
 			workflows := map[string]int{"wf": f.workflow(t, "wf"), "other": f.workflow(t, "other")}
 
-			old := db.Integration{Name: "hook", ProjectID: f.project.ID, AuthMethod: db.IntegrationAuthNone}
+			group := f.integrationGroup(t)
+			old := db.Integration{Name: "hook", ProjectID: f.project.ID, GroupID: group.ID}
 			if tt.oldWorkflow {
 				old.WorkflowID = new(workflows["wf"])
 			} else {
@@ -144,7 +146,7 @@ func TestUpdateIntegration_WorkflowTargetIsProOnly(t *testing.T) {
 			if tt.newTarget != "" {
 				target = `"workflow_id":` + strconv.Itoa(workflows[tt.newTarget])
 			}
-			body := `{"id":` + strconv.Itoa(old.ID) + `,"name":"renamed","project_id":` + strconv.Itoa(f.project.ID) + `,` + target + `,"auth_method":"none"}`
+			body := `{"id":` + strconv.Itoa(old.ID) + `,"name":"renamed","project_id":` + strconv.Itoa(f.project.ID) + `,"group_id":` + strconv.Itoa(group.ID) + `,` + target + `}`
 			r, rec := f.request(http.MethodPut, body, map[string]any{"integration": old}, nil)
 			w := httptest.NewRecorder()
 

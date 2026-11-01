@@ -363,7 +363,9 @@ export default {
         })
       ).data;
 
-      if (this.itemRefs.integrations.length > 0) {
+      if ((this.itemRefs.integrations || []).length > 0
+        || (this.itemRefs.integration_groups || []).length > 0
+        || (this.itemRefs.endpoints || []).length > 0) {
         this.itemRefsDialog = true;
         return;
       }

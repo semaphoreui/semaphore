@@ -4,13 +4,27 @@
 
     <v-text-field
       v-model="item.name"
-      label="Name"
-      :rules="[(v) => !!v || 'Name is required']"
+      :label="$t('name')"
+      :rules="[(v) => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
       outlined
       dense
     ></v-text-field>
+
+    <v-autocomplete
+      v-model="item.group_id"
+      :label="$t('integrationGroup')"
+      :items="groups"
+      item-value="id"
+      item-text="name"
+      :rules="[(v) => !!v || $t('groupRequired')]"
+      :disabled="formSaving"
+      :no-data-text="$t('noIntegrationGroups')"
+      outlined
+      dense
+      class="IntegrationForm__group"
+    ></v-autocomplete>
 
     <div
       v-if="workflowsEnabled"
@@ -76,7 +90,7 @@
     <v-autocomplete
       v-else
       v-model="item.template_id"
-      label="Task Template to run"
+      :label="$t('templateToRun')"
       clearable
       :items="templates"
       item-value="id"
@@ -112,52 +126,15 @@
         />
       </v-card-text>
     </v-card>
-
-    <v-select
-      v-model="item.auth_method"
-      label="Auth method"
-      :items="authMethods"
-      item-value="id"
-      item-text="title"
-      :disabled="formSaving"
-      outlined
-      dense
-    ></v-select>
-
-    <HighlightedCard v-if="item.auth_method">
-      <template>
-        <v-text-field
-            v-if="['token', 'hmac', 'hmac-sha512'].includes(item.auth_method)"
-            v-model="item.auth_header"
-            label="Auth header"
-            :disabled="formSaving"
-            outlined
-            dense
-        ></v-text-field>
-
-        <v-select
-            v-model="item.auth_secret_id"
-            :label="$t('integrationAuthSecret')"
-            clearable
-            :items="authSecretKeys"
-            item-value="id"
-            item-text="name"
-            :disabled="formSaving"
-            outlined
-            dense
-        ></v-select>
-      </template>
-    </HighlightedCard>
   </v-form>
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import axios from 'axios';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
-import HighlightedCard from '@/components/HighlightedCard.vue';
 
 export default {
-  components: { HighlightedCard, TaskParamsForm },
+  components: { TaskParamsForm },
   mixins: [ItemFormBase],
   props: {
     /**
@@ -165,54 +142,33 @@ export default {
      * `workflow_integrations_management` (Pro) lets the user pick a workflow.
      */
     features: Object,
+    /** Group to preselect for a new integration (opened from a group's "New integration"). */
+    groupId: Number,
   },
   data() {
     return {
       templates: [],
       workflows: [],
+      groups: [],
       /** What the integration runs: 'template' or 'workflow'. Derived from the item on load. */
       target: 'template',
-      authMethods: [
-        {
-          id: '',
-          title: 'None',
-        },
-        {
-          id: 'github',
-          title: 'GitHub Webhooks',
-        },
-        {
-          id: 'bitbucket',
-          title: 'Bitbucket Webhooks',
-        },
-        {
-          id: 'token',
-          title: 'Token',
-        },
-        {
-          id: 'hmac',
-          title: 'HMAC',
-        },
-        {
-          id: 'hmac-sha512',
-          title: 'HMAC (SHA-512)',
-        },
-        {
-          id: 'basic',
-          title: 'BasicAuth',
-        },
-      ],
-      keys: null,
     };
   },
   async created() {
-    this.templates = (
-      await axios({
+    const [templates, groups] = await Promise.all([
+      axios({
         method: 'get',
         url: `/api/project/${this.projectId}/templates`,
         responseType: 'json',
-      })
-    ).data;
+      }),
+      axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/integration_groups`,
+        responseType: 'json',
+      }),
+    ]);
+    this.templates = templates.data || [];
+    this.groups = groups.data || [];
 
     if (this.workflowsEnabled) {
       this.workflows = (
@@ -225,22 +181,9 @@ export default {
     }
   },
 
-  watch: {
-    // A key picked for a token method may not fit BasicAuth: drop it rather
-    // than send a pair the server rejects.
-    'item.auth_method': function onAuthMethodChange() {
-      if (this.item == null || this.item.auth_secret_id == null || this.authSecretKeys == null) {
-        return;
-      }
-      if (!this.authSecretKeys.some((key) => key.id === this.item.auth_secret_id)) {
-        this.item.auth_secret_id = null;
-      }
-    },
-  },
-
   computed: {
     isLoaded() {
-      return this.item && this.keys != null;
+      return this.item != null;
     },
 
     workflowsEnabled() {
@@ -256,18 +199,6 @@ export default {
       return !!(this.features && this.features.workflow_integrations_management);
     },
 
-    // Token and HMAC-style methods verify one secret string, so a String key or
-    // a login/password key fits; BasicAuth also needs a login, so only the latter.
-    authSecretKeys() {
-      if (this.keys == null) {
-        return null;
-      }
-      const allowed = this.item && this.item.auth_method === 'basic'
-        ? ['login_password']
-        : ['login_password', 'string'];
-      return this.keys.filter((key) => allowed.includes(key.type));
-    },
-
     template() {
       return this.templates.find((t) => t.id === this.item.template_id);
     },
@@ -276,6 +207,7 @@ export default {
   methods: {
     getNewItem() {
       return {
+        group_id: this.groupId || null,
         template_id: null,
         workflow_id: null,
       };
@@ -310,18 +242,13 @@ export default {
     },
 
     async afterLoadData() {
-      this.keys = (
-        await axios({
-          method: 'get',
-          url: `/api/project/${this.projectId}/keys`,
-          responseType: 'json',
-        })
-      ).data;
-
       // The API omits workflow_id when it is null; add the key reactively so the
       // workflow autocomplete can bind to it.
       if (this.item.workflow_id === undefined) {
         this.$set(this.item, 'workflow_id', null);
+      }
+      if (this.item.group_id === undefined) {
+        this.$set(this.item, 'group_id', this.groupId || null);
       }
 
       this.target = this.item.workflow_id ? 'workflow' : 'template';

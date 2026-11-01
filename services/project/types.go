@@ -17,9 +17,10 @@ type BackupDB struct {
 	environments []db.Environment
 	schedules    []db.Schedule
 
-	integrationProjAliases   []db.IntegrationAlias
+	endpoints                []db.Endpoint
+	endpointAliases          map[int][]db.EndpointAlias
+	integrationGroups        []db.IntegrationGroup
 	integrations             []db.Integration
-	integrationAliases       map[int][]db.IntegrationAlias
 	integrationMatchers      map[int][]db.IntegrationMatcher
 	integrationExtractValues map[int][]db.IntegrationExtractValue
 
@@ -84,17 +85,22 @@ type RestoredProject struct {
 }
 
 type BackupFormat struct {
-	Version            int                   `backup:"version"`
-	Meta               BackupMeta            `backup:"meta"`
-	Templates          []BackupTemplate      `backup:"templates"`
-	Repositories       []BackupRepository    `backup:"repositories"`
-	HostConfigs        []BackupHostConfig    `backup:"host_configs"`
-	Keys               []BackupAccessKey     `backup:"keys"`
-	Views              []BackupView          `backup:"views"`
-	Inventories        []BackupInventory     `backup:"inventories"`
-	Environments       []BackupEnvironment   `backup:"environments"`
-	Integration        []BackupIntegration   `backup:"integrations"`
-	IntegrationAliases []string              `backup:"integration_aliases"`
+	Version           int                      `backup:"version"`
+	Meta              BackupMeta               `backup:"meta"`
+	Templates         []BackupTemplate         `backup:"templates"`
+	Repositories      []BackupRepository       `backup:"repositories"`
+	HostConfigs       []BackupHostConfig       `backup:"host_configs"`
+	Keys              []BackupAccessKey        `backup:"keys"`
+	Views             []BackupView             `backup:"views"`
+	Inventories       []BackupInventory        `backup:"inventories"`
+	Environments      []BackupEnvironment      `backup:"environments"`
+	Endpoints         []BackupEndpoint         `backup:"endpoints"`
+	IntegrationGroups []BackupIntegrationGroup `backup:"integration_groups"`
+	Integration       []BackupIntegration      `backup:"integrations"`
+	// IntegrationAliases are the project-level aliases of a file written
+	// before 2.20.19; upgradeLegacyIntegrations turns them into a Default
+	// endpoint.
+	IntegrationAliases []string              `backup:"integration_aliases,legacy"`
 	Schedules          []BackupSchedule      `backup:"schedules"`
 	SecretStorages     []BackupSecretStorage `backup:"secret_storages"`
 	Roles              []BackupRole          `backup:"roles"`
@@ -169,17 +175,40 @@ type BackupTemplateVault struct {
 	VaultKey *string `backup:"vault_key"`
 }
 
-// BackupIntegration wraps an integration with its target by name: exactly
-// one of Template and Workflow is set. Backups written before workflow
-// targets existed carry "template" only and restore unchanged.
+// BackupEndpoint wraps an endpoint with its aliases and its key by name.
+type BackupEndpoint struct {
+	db.Endpoint
+	Aliases        []string `backup:"aliases"`
+	AuthSecretName *string  `backup:"auth_secret"`
+}
+
+// BackupIntegrationGroup wraps a group with its endpoint and key by name.
+type BackupIntegrationGroup struct {
+	db.IntegrationGroup
+	Endpoint       string  `backup:"endpoint"`
+	AuthSecretName *string `backup:"auth_secret"`
+}
+
+// BackupIntegration wraps an integration with its group and its target by
+// name: exactly one of Template and Workflow is set. Backups written before
+// workflow targets existed carry "template" only and restore unchanged.
+//
+// The Legacy fields are what a file written before 2.20.19 said about the
+// integration's own aliases and auth; upgradeLegacyIntegrations turns them
+// into endpoints and groups. They are never written.
 type BackupIntegration struct {
 	db.Integration
-	Aliases       []string                     `backup:"aliases"`
+	Group         *string                      `backup:"group"`
 	Matchers      []db.IntegrationMatcher      `backup:"matchers"`
 	ExtractValues []db.IntegrationExtractValue `backup:"extract_values"`
 	Template      *string                      `backup:"template"`
 	Workflow      *string                      `backup:"workflow"`
-	AuthSecret    *string                      `backup:"auth_secret"`
+
+	LegacyAliases    []string                 `backup:"aliases,legacy"`
+	LegacyAuthSecret *string                  `backup:"auth_secret,legacy"`
+	LegacyAuthMethod db.IntegrationAuthMethod `backup:"auth_method,legacy"`
+	LegacyAuthHeader string                   `backup:"auth_header,legacy"`
+	LegacySearchable bool                     `backup:"searchable,legacy"`
 }
 
 type BackupSecretStorage struct {
@@ -254,5 +283,17 @@ func (e BackupRunner) GetName() string {
 }
 
 func (e BackupWorkflow) GetName() string {
+	return e.Name
+}
+
+func (e BackupEndpoint) GetName() string {
+	return e.Name
+}
+
+func (e BackupIntegrationGroup) GetName() string {
+	return e.Name
+}
+
+func (e BackupIntegration) GetName() string {
 	return e.Name
 }

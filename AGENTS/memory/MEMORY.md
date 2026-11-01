@@ -100,6 +100,8 @@ only when the task touches that topic. Keep this file under 150 lines.
   quotes ignored: `!unsafe "2026.08"` is a float, `"00123"` the int 83. Tag only strings holding a
   Jinja2 delimiter or a `#jinja2:` header (`isPossiblyTemplate`, `services/tasks/extra_vars_file.go`);
   check a generated extra-vars file with the real loader, not yaml.v3 (`extra_vars_ansible_test.go`).
+- `.dredd/hooks` is a dot-directory: `go build ./...` and `go vet ./...` skip it, so a Store interface
+  change leaves the hooks broken silently — vet it explicitly (`go vet ./.dredd/hooks/`).
 - `db/migration` imports `services/export`, so `go build ./db/...` compiles the exporters: a schema
   change in `db/` must adapt `services/export/*.go` in the same step or the db packages do not build.
 - Store tests run on SQLite only (`InitConfigCreateTestStoreAt`). A migration that moves data was

@@ -858,8 +858,126 @@ definitions:
         type: string
         enum: [static, static-yaml, file, terraform-workspace]
 
+  Endpoint:
+    type: object
+    description: A webhook entry point of the project. Its aliases are the public URLs requests arrive at; its auth is what every request is checked with, unless an integration group overrides it.
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+        minimum: 1
+      name:
+        type: string
+        example: GitHub
+      description:
+        type: string
+        example: Pushes from the GitHub organization
+      auth_method:
+        type: string
+        description: One of "" (none), token, hmac, hmac-sha512, github, bitbucket, basic.
+        example: ""
+      auth_secret_id:
+        type: integer
+        x-nullable: true
+        description: The project key holding the secret (a string key, or a login/password key).
+      auth_header:
+        type: string
+        description: The request header carrying the token or the HMAC signature (token, hmac, hmac-sha512).
+
+  EndpointRequest:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+        example: GitHub
+      description:
+        type: string
+        example: Pushes from the GitHub organization
+      auth_method:
+        type: string
+        example: ""
+      auth_secret_id:
+        type: integer
+        x-nullable: true
+      auth_header:
+        type: string
+
+  EndpointAlias:
+    type: object
+    description: One public URL of an endpoint. The alias value works as a bearer secret and is only ever shown as the full URL.
+    properties:
+      id:
+        type: integer
+      url:
+        type: string
+
+  ObjectReferrer:
+    type: object
+    description: An object that refers to the one asked about, by id and name.
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+
+  IntegrationGroup:
+    type: object
+    description: A set of integrations that run from one endpoint. It inherits the endpoint's auth unless auth_override is set, in which case its own auth fields apply.
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+        minimum: 1
+      name:
+        type: string
+        example: deploys
+      endpoint_id:
+        type: integer
+      auth_override:
+        type: boolean
+      auth_method:
+        type: string
+        example: ""
+      auth_secret_id:
+        type: integer
+        x-nullable: true
+      auth_header:
+        type: string
+
+  IntegrationGroupRequest:
+    type: object
+    properties:
+      id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+        example: deploys
+      endpoint_id:
+        type: integer
+        x-example: 25
+      auth_override:
+        type: boolean
+        example: false
+      auth_method:
+        type: string
+        example: ""
+      auth_secret_id:
+        type: integer
+        x-nullable: true
+      auth_header:
+        type: string
+
   Integration:
     type: object
+    description: What runs when a webhook reaches the group's endpoint. The URL and the auth belong to the endpoint and the group.
     properties:
       id:
         type: integer
@@ -869,6 +987,9 @@ definitions:
       project_id:
         type: integer
         minimum: 1
+      group_id:
+        type: integer
+        description: The integration group the integration belongs to.
       template_id:
         type: integer
         x-nullable: true
@@ -877,16 +998,6 @@ definitions:
         type: integer
         x-nullable: true
         description: The workflow the integration starts instead of a template (Pro). Extracted values become the answers to the workflow's survey.
-      auth_method:
-        type: string
-        example: ""
-      auth_secret_id:
-        type: integer
-        x-nullable: true
-      auth_header:
-        type: string
-      searchable:
-        type: boolean
       task_params:
         $ref: '#/definitions/TaskPrams'
 
@@ -900,6 +1011,10 @@ definitions:
         example: deploy
       project_id:
         type: integer
+      group_id:
+        type: integer
+        x-example: 26
+        description: The integration group the integration belongs to; it must be in the same project.
       template_id:
         type: integer
         x-nullable: true
@@ -908,16 +1023,6 @@ definitions:
         type: integer
         x-nullable: true
         description: The workflow to start instead of a template (Pro). task_params do not apply to a workflow and are dropped.
-      auth_method:
-        type: string
-        example: ""
-      auth_secret_id:
-        type: integer
-        x-nullable: true
-      auth_header:
-        type: string
-      searchable:
-        type: boolean
       task_params:
         $ref: '#/definitions/TaskPrams'
 
@@ -1016,14 +1121,6 @@ definitions:
       value:
         type: string
         example: value
-
-  IntegrationAlias:
-    type: object
-    properties:
-      id:
-        type: integer
-      url:
-        type: string
 
   RepositoryRequest:
     type: object
@@ -2049,11 +2146,25 @@ parameters:
     x-example: 13
   alias_id:
     name: alias_id
-    description: Integration Alias ID
+    description: Endpoint Alias ID
     in: path
     type: integer
     required: true
     x-example: 15
+  endpoint_id:
+    name: endpoint_id
+    description: Endpoint ID
+    in: path
+    type: integer
+    required: true
+    x-example: 25
+  group_id:
+    name: group_id
+    description: Integration Group ID
+    in: path
+    type: integer
+    required: true
+    x-example: 26
   invite_id:
     name: invite_id
     description: Invite ID
@@ -3243,79 +3354,248 @@ paths:
         204:
           description: integration matcher removed
 
-  /project/{project_id}/integrations/aliases:
+  # Webhook endpoints: the public URLs (aliases) and the auth requests are checked with.
+  /project/{project_id}/endpoints:
     parameters:
       - $ref: "#/parameters/project_id"
     get:
       tags:
         - integration
-      summary: Get all integration aliases for the project
+      summary: get all endpoints
       responses:
         200:
-          description: Integration Aliases
+          description: endpoints
           schema:
             type: array
             items:
-              $ref: "#/definitions/IntegrationAlias"
+              $ref: "#/definitions/Endpoint"
     post:
       tags:
         - integration
-      summary: Create a new integration alias for the project
-      responses:
-        200:
-          description: Integration Alias Created
+      summary: create a new endpoint
+      parameters:
+        - name: Endpoint
+          in: body
+          required: true
           schema:
-            $ref: "#/definitions/IntegrationAlias"
-
-  /project/{project_id}/integrations/aliases/{alias_id}:
-    parameters:
-      - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/alias_id"
-    delete:
-      tags:
-        - integration
-      summary: Remove integration alias
+            $ref: "#/definitions/EndpointRequest"
       responses:
-        204:
-          description: integration alias removed
+        201:
+          description: Endpoint Created
+          schema:
+            $ref: "#/definitions/Endpoint"
+        400:
+          description: Bad endpoint params, or an auth secret that does not fit the auth method
 
-  /project/{project_id}/integrations/{integration_id}/aliases:
+  /project/{project_id}/endpoints/{endpoint_id}:
     parameters:
       - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/endpoint_id"
     get:
       tags:
         - integration
-      summary: Get all aliases for an integration
+      summary: Get Endpoint
       responses:
         200:
-          description: Integration Aliases
+          description: Endpoint
+          schema:
+            $ref: "#/definitions/Endpoint"
+    put:
+      tags:
+        - integration
+      summary: Update Endpoint
+      parameters:
+        - name: Endpoint
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/EndpointRequest"
+      responses:
+        204:
+          description: Endpoint updated
+    delete:
+      tags:
+        - integration
+      summary: Remove endpoint
+      responses:
+        204:
+          description: endpoint removed
+        400:
+          description: Endpoint is used by integration groups (see refs)
+
+  /project/{project_id}/endpoints/{endpoint_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/endpoint_id"
+    get:
+      tags:
+        - integration
+      summary: Get integration groups using the endpoint
+      responses:
+        200:
+          description: references
+          schema:
+            type: object
+            properties:
+              integration_groups:
+                type: array
+                items:
+                  $ref: "#/definitions/ObjectReferrer"
+
+  /project/{project_id}/endpoints/{endpoint_id}/aliases:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/endpoint_id"
+    get:
+      tags:
+        - integration
+      summary: Get all aliases of the endpoint
+      responses:
+        200:
+          description: Endpoint Aliases
           schema:
             type: array
             items:
-              $ref: "#/definitions/IntegrationAlias"
+              $ref: "#/definitions/EndpointAlias"
     post:
       tags:
         - integration
-      summary: Create a new alias for an integration
+      summary: Create a new alias for the endpoint
       responses:
         200:
-          description: Integration Alias Created
+          description: Endpoint Alias Created
           schema:
-            $ref: "#/definitions/IntegrationAlias"
+            $ref: "#/definitions/EndpointAlias"
 
-  /project/{project_id}/integrations/{integration_id}/aliases/{alias_id}:
+  /project/{project_id}/endpoints/{endpoint_id}/aliases/{alias_id}:
     parameters:
       - $ref: "#/parameters/project_id"
-      - $ref: "#/parameters/integration_id"
+      - $ref: "#/parameters/endpoint_id"
       - $ref: "#/parameters/alias_id"
     delete:
       tags:
         - integration
-      summary: Remove integration alias
+      summary: Remove endpoint alias
       responses:
         204:
-          description: integration alias removed
+          description: endpoint alias removed
+
+  # Integration groups: the integrations that run from one endpoint.
+  /project/{project_id}/integration_groups:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - integration
+      summary: get all integration groups
+      responses:
+        200:
+          description: integration groups
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/IntegrationGroup"
+    post:
+      tags:
+        - integration
+      summary: create a new integration group
+      parameters:
+        - name: Integration Group
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationGroupRequest"
+      responses:
+        201:
+          description: Integration Group Created
+          schema:
+            $ref: "#/definitions/IntegrationGroup"
+
+  /project/{project_id}/integration_groups/{group_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/group_id"
+    get:
+      tags:
+        - integration
+      summary: Get Integration Group
+      responses:
+        200:
+          description: Integration Group
+          schema:
+            $ref: "#/definitions/IntegrationGroup"
+    put:
+      tags:
+        - integration
+      summary: Update Integration Group
+      parameters:
+        - name: Integration Group
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/IntegrationGroupRequest"
+      responses:
+        204:
+          description: Integration Group updated
+    delete:
+      tags:
+        - integration
+      summary: Remove integration group with its integrations
+      responses:
+        204:
+          description: integration group removed
+
+  /project/{project_id}/integration_groups/{group_id}/refs:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/group_id"
+    get:
+      tags:
+        - integration
+      summary: Get integrations of the group
+      responses:
+        200:
+          description: references
+          schema:
+            type: object
+            properties:
+              integrations:
+                type: array
+                items:
+                  $ref: "#/definitions/ObjectReferrer"
+
+  /project/{project_id}/integration_groups/{group_id}/integrations:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/group_id"
+    get:
+      tags:
+        - integration
+      summary: Get integrations of the group in full
+      responses:
+        200:
+          description: integrations
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Integration"
+
+  # The public webhook. No session: the alias is the secret, and the response never says what it matched.
+  /integrations/{integration_alias}:
+    parameters:
+      - name: integration_alias
+        in: path
+        type: string
+        required: true
+        x-example: unknown-alias
+    post:
+      tags:
+        - integration
+      summary: Receive a webhook on an endpoint alias
+      description: Runs every integration of the endpoint's groups whose auth passes and whose matchers all accept the request. Always answers 204; the X-Semaphore-* headers name what was started.
+      responses:
+        204:
+          description: Received
 
   # project access keys
   /project/{project_id}/keys:

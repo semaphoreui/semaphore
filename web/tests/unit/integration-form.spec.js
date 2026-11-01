@@ -17,12 +17,12 @@ const templates = [{
   id: 11, name: 'Deploy', app: 'bash', survey_vars: [],
 }];
 const workflows = [{ id: 5, name: 'Build and deploy' }];
-const keys = [{ id: 1, name: 'login', type: 'login_password' }];
+const groups = [{ id: 2, name: 'GitHub hooks', endpoint_id: 1 }];
 
 function respondTo(url, item) {
   if (url.endsWith('/templates')) return templates;
   if (url.endsWith('/workflows')) return workflows;
-  if (url.endsWith('/keys')) return keys;
+  if (url.endsWith('/integration_groups')) return groups;
   if (/\/integrations\/\d+$/.test(url)) return item;
   return {};
 }
@@ -33,7 +33,7 @@ function mountForm(propsData) {
     vuetify: new Vuetify(),
     propsData: { projectId: 7, ...propsData },
     mocks: { $t: (k) => k },
-    stubs: { TaskParamsForm: true, HighlightedCard: true },
+    stubs: { TaskParamsForm: true },
   });
 }
 
@@ -46,6 +46,40 @@ describe('IntegrationForm.vue', () => {
 
   afterEach(() => {
     http.restore();
+  });
+
+  it('loads the groups and preselects the one it was opened from', async () => {
+    http.respond((c) => respondTo(c.url));
+    const wrapper = mountForm({ itemId: 'new', features: {}, groupId: 2 });
+    await flush();
+
+    expect(http.requests.map((r) => r.url)).to.include('/api/project/7/integration_groups');
+    expect(wrapper.vm.groups).to.deep.equal(groups);
+    expect(wrapper.vm.item.group_id).to.equal(2);
+    expect(wrapper.find('.IntegrationForm__group').exists()).to.equal(true);
+  });
+
+  it('refuses to save without a group', async () => {
+    http.respond((c) => respondTo(c.url));
+    const wrapper = mountForm({ itemId: 'new', features: {} });
+    await flush();
+
+    wrapper.vm.item.name = 'hook';
+    wrapper.vm.item.template_id = 11;
+    await flush();
+    await wrapper.vm.save();
+
+    expect(http.requests.find((r) => r.method === 'post')).to.equal(undefined);
+  });
+
+  it('carries no authorization fields any more', async () => {
+    http.respond((c) => respondTo(c.url));
+    const wrapper = mountForm({ itemId: 'new', features: {} });
+    await flush();
+
+    expect(http.requests.map((r) => r.url)).to.not.include('/api/project/7/keys');
+    expect(wrapper.vm.item).to.not.have.property('auth_method');
+    expect(wrapper.vm.item).to.not.have.property('searchable');
   });
 
   it('shows the target toggle only when the workflows feature is on', async () => {
@@ -114,6 +148,7 @@ describe('IntegrationForm.vue', () => {
     await flush();
 
     wrapper.vm.item.name = 'hook';
+    wrapper.vm.item.group_id = 2;
     wrapper.vm.setTarget('workflow');
     wrapper.vm.item.workflow_id = 5;
     await flush(); // let the inputs pick up the values before v-form validates
@@ -123,6 +158,7 @@ describe('IntegrationForm.vue', () => {
     const post = http.requests.find((r) => r.method === 'post');
     expect(post, 'POST request').to.not.equal(undefined);
     expect(post.url).to.equal('/api/project/7/integrations');
+    expect(post.data.group_id).to.equal(2);
     expect(post.data.workflow_id).to.equal(5);
     expect(post.data.template_id).to.equal(null);
     expect(post.data.task_params).to.equal(null);
@@ -177,7 +213,9 @@ describe('IntegrationForm.vue', () => {
   it('keeps an existing workflow integration editable without the Pro feature', async () => {
     http.respond((c) => {
       if (c.method === 'put') return {};
-      return respondTo(c.url, { id: 3, name: 'hook', workflow_id: 5 });
+      return respondTo(c.url, {
+        id: 3, name: 'hook', workflow_id: 5, group_id: 2,
+      });
     });
     const wrapper = mountForm({ itemId: 3, features: { workflows: true } });
     await flush();

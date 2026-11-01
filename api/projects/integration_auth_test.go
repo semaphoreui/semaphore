@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The pair auth method / credential type is checked when the integration is
+// The pair auth method / credential type is checked when the endpoint is
 // stored, so a webhook never fails at delivery time for a key that could not
 // have worked.
-func TestAddIntegration_AuthSecretMustFitTheAuthMethod(t *testing.T) {
+func TestAddEndpoint_AuthSecretMustFitTheAuthMethod(t *testing.T) {
 	tests := []struct {
 		name     string
 		method   string
@@ -37,59 +37,56 @@ func TestAddIntegration_AuthSecretMustFitTheAuthMethod(t *testing.T) {
 			f := newResourceFixture(t)
 			key, err := f.store.CreateAccessKey(db.AccessKey{Name: "hook", Type: tt.keyType, Owner: tt.owner, ProjectID: &f.project.ID})
 			require.NoError(t, err)
-			body := `{"name":"hook","project_id":` + strconv.Itoa(f.project.ID) +
-				`,"template_id":` + strconv.Itoa(f.template(t).ID) +
+			body := `{"name":"hooks","project_id":` + strconv.Itoa(f.project.ID) +
 				`,"auth_method":"` + tt.method + `","auth_header":"X-Token","auth_secret_id":` + strconv.Itoa(key.ID) + `}`
 			r, _ := f.request(http.MethodPost, body, nil, nil)
 			w := httptest.NewRecorder()
 
-			integrationController(noFeatures).AddIntegration(w, r)
+			AddEndpoint(w, r)
 
 			require.Equal(t, tt.wantCode, w.Code, w.Body.String())
-			integrations, err := f.store.GetIntegrations(f.project.ID, db.RetrieveQueryParams{}, false)
+			endpoints, err := f.store.GetEndpoints(f.project.ID, db.RetrieveQueryParams{})
 			require.NoError(t, err)
 			if tt.wantCode == http.StatusBadRequest {
 				assert.Contains(t, w.Body.String(), "Auth secret type does not fit")
-				assert.Empty(t, integrations, "nothing is created")
+				assert.Empty(t, endpoints, "nothing is created")
 				return
 			}
-			require.Len(t, integrations, 1)
-			require.NotNil(t, integrations[0].AuthSecretID)
-			assert.Equal(t, key.ID, *integrations[0].AuthSecretID)
+			require.Len(t, endpoints, 1)
+			require.NotNil(t, endpoints[0].AuthSecretID)
+			assert.Equal(t, key.ID, *endpoints[0].AuthSecretID)
 		})
 	}
 }
 
-func TestAddIntegration_AuthSecretOfAnotherProjectIsRefused(t *testing.T) {
+func TestAddEndpoint_AuthSecretOfAnotherProjectIsRefused(t *testing.T) {
 	f := newResourceFixture(t)
 	other, err := f.store.CreateProject(db.Project{Name: "other"})
 	require.NoError(t, err)
 	key, err := f.store.CreateAccessKey(db.AccessKey{Name: "hook", Type: db.AccessKeyString, ProjectID: &other.ID})
 	require.NoError(t, err)
-	body := `{"name":"hook","project_id":` + strconv.Itoa(f.project.ID) +
-		`,"template_id":` + strconv.Itoa(f.template(t).ID) +
+	body := `{"name":"hooks","project_id":` + strconv.Itoa(f.project.ID) +
 		`,"auth_method":"token","auth_header":"X-Token","auth_secret_id":` + strconv.Itoa(key.ID) + `}`
 	r, _ := f.request(http.MethodPost, body, nil, nil)
 	w := httptest.NewRecorder()
 
-	integrationController(noFeatures).AddIntegration(w, r)
+	AddEndpoint(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
 	assert.Contains(t, w.Body.String(), "does not exist in this project")
 }
 
-// Switching an integration to BasicAuth while it keeps a string key is the
-// pair the form drops on its own; the API refuses it when sent directly.
-func TestUpdateIntegration_AuthSecretMustFitTheAuthMethod(t *testing.T) {
+// Switching an endpoint to BasicAuth while it keeps a string key is the pair
+// the form drops on its own; the API refuses it when sent directly.
+func TestUpdateEndpoint_AuthSecretMustFitTheAuthMethod(t *testing.T) {
 	f := newResourceFixture(t)
 	stringKey, err := f.store.CreateAccessKey(db.AccessKey{Name: "hook", Type: db.AccessKeyString, ProjectID: &f.project.ID})
 	require.NoError(t, err)
 	loginKey, err := f.store.CreateAccessKey(db.AccessKey{Name: "bob", Type: db.AccessKeyLoginPassword, ProjectID: &f.project.ID})
 	require.NoError(t, err)
-	template := f.template(t)
-	stored, err := f.store.CreateIntegration(db.Integration{
-		Name: "hook", ProjectID: f.project.ID, TemplateID: &template.ID,
-		AuthMethod: db.IntegrationAuthToken, AuthHeader: "X-Token", AuthSecretID: &stringKey.ID,
+	stored, err := f.store.CreateEndpoint(db.Endpoint{
+		Name: "hooks", ProjectID: f.project.ID,
+		IntegrationAuth: db.IntegrationAuth{AuthMethod: db.IntegrationAuthToken, AuthHeader: "X-Token", AuthSecretID: &stringKey.ID},
 	})
 	require.NoError(t, err)
 
@@ -105,15 +102,44 @@ func TestUpdateIntegration_AuthSecretMustFitTheAuthMethod(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			body := `{"id":` + strconv.Itoa(stored.ID) + `,"name":"hook","project_id":` + strconv.Itoa(f.project.ID) +
-				`,"template_id":` + strconv.Itoa(template.ID) +
+			body := `{"id":` + strconv.Itoa(stored.ID) + `,"name":"hooks","project_id":` + strconv.Itoa(f.project.ID) +
 				`,"auth_method":"` + tt.method + `","auth_header":"X-Token","auth_secret_id":` + strconv.Itoa(tt.keyID) + `}`
-			r, _ := f.request(http.MethodPut, body, map[string]any{"integration": stored}, nil)
+			r, _ := f.request(http.MethodPut, body, map[string]any{"endpoint": stored}, nil)
 			w := httptest.NewRecorder()
 
-			integrationController(noFeatures).UpdateIntegration(w, r)
+			UpdateEndpoint(w, r)
 
 			assert.Equal(t, tt.wantCode, w.Code, w.Body.String())
 		})
 	}
+}
+
+// A group's own key is checked only when the group overrides the endpoint's
+// auth; without the override the auth fields are dropped, not refused.
+func TestAddIntegrationGroup_OwnAuthSecretMustFitWhenOverriding(t *testing.T) {
+	f := newResourceFixture(t)
+	endpoint := f.endpoint(t)
+	stringKey, err := f.store.CreateAccessKey(db.AccessKey{Name: "hook", Type: db.AccessKeyString, ProjectID: &f.project.ID})
+	require.NoError(t, err)
+
+	body := func(override bool) string {
+		return `{"name":"deploys","project_id":` + strconv.Itoa(f.project.ID) + `,"endpoint_id":` + strconv.Itoa(endpoint.ID) +
+			`,"auth_override":` + strconv.FormatBool(override) + `,"auth_method":"basic","auth_secret_id":` + strconv.Itoa(stringKey.ID) + `}`
+	}
+
+	r, _ := f.request(http.MethodPost, body(true), nil, nil)
+	w := httptest.NewRecorder()
+	AddIntegrationGroup(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+	assert.Contains(t, w.Body.String(), "Auth secret type does not fit")
+
+	r, _ = f.request(http.MethodPost, body(false), nil, nil)
+	w = httptest.NewRecorder()
+	AddIntegrationGroup(w, r)
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	groups, err := f.store.GetIntegrationGroups(f.project.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, groups, 1)
+	assert.False(t, groups[0].AuthOverride)
+	assert.Equal(t, db.IntegrationAuth{}, groups[0].IntegrationAuth, "an inheriting group keeps no auth of its own")
 }

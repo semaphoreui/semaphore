@@ -1274,6 +1274,13 @@ export default {
             to: `${base}/integrations`,
             testId: 'sidebar-integrations',
           },
+          {
+            key: 'endpoints',
+            icon: 'mdi-webhook',
+            title: this.$t('endpoints'),
+            to: `${base}/endpoints`,
+            testId: 'sidebar-endpoints',
+          },
         );
       }
 

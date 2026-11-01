@@ -102,7 +102,10 @@ export default {
           || this.itemRefs.inventories.length > 0
           || this.itemRefs.access_keys.length > 0
           || this.itemRefs.schedules.length > 0
-          || (this.itemRefs.host_configs || []).length > 0) {
+          || (this.itemRefs.host_configs || []).length > 0
+          || (this.itemRefs.integrations || []).length > 0
+          || (this.itemRefs.integration_groups || []).length > 0
+          || (this.itemRefs.endpoints || []).length > 0) {
           this.itemRefsDialog = true;
           return;
         }

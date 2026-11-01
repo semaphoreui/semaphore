@@ -88,6 +88,12 @@
   runs. The first run usually ends `2 passing, 130 failing` with every status `401` — that is the
   goodman race, not the code; loop up to three runs and keep the first with zero `got '401'`.
   Baseline on `feat/wf_integrations` (2026-10-16): `104 passing, 1 failing (POST /inventory), 54 skipped`.
+- Dredd hooks (2026-11-01): a capability whose generated body carries `auth_secret_id` must depend on
+  `access_key`, or `alterRequestBody` leaves the example id pointing at another project's key (400);
+  a transaction that creates an object needing several parents must name a capability that resolves
+  them all (POST `/integrations` → `integration`, not `integration_group`). Grep the summary with
+  colour codes stripped (`sed 's/\x1b\[[0-9;]*m//g'`), `grep "^complete:"` misses it otherwise.
+  Baseline on `feat/redesign_integrations` (2026-11-01, SQLite): `117 passing, 0 failing, 71 skipped`.
 
 ## Bookwright `integration-tests/` repo
 

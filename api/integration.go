@@ -4,7 +4,9 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -81,218 +83,231 @@ type IntegrationRunResult struct {
 	Run  *db.WorkflowRun
 }
 
+// verifyAuth reports whether the request passes auth, whose key must already
+// be loaded (AuthSecret). The reason names what failed for the log; it is
+// never sent to the caller, who always gets 204. Every secret comparison is
+// constant-time, so a wrong token or password costs the same as a right one.
+func verifyAuth(r *http.Request, payload []byte, auth db.IntegrationAuth) (ok bool, reason string) {
+	// A key that cannot provide the shared secret refuses the request here,
+	// before the method-specific check.
+	secret, ok := auth.VerificationSecret()
+	if !ok {
+		return false, "auth secret is empty or its key type does not fit the auth method"
+	}
+
+	switch auth.AuthMethod {
+	case db.IntegrationAuthGitHub:
+		if !isValidHmacPayload(secret, r.Header.Get("X-Hub-Signature-256"), payload, "sha256=", sha256.New) {
+			return false, "invalid GitHub signature"
+		}
+	case db.IntegrationAuthBitbucket:
+		if !isValidHmacPayload(secret, r.Header.Get("x-hub-signature"), payload, "sha256=", sha256.New) {
+			return false, "invalid Bitbucket signature"
+		}
+	case db.IntegrationAuthHmac:
+		if !isValidHmacPayload(secret, r.Header.Get(auth.AuthHeader), payload, "", sha256.New) {
+			return false, "invalid HMAC-SHA256 signature"
+		}
+	case db.IntegrationAuthHmacSha512:
+		if !isValidHmacPayload(secret, r.Header.Get(auth.AuthHeader), payload, "", sha512.New) {
+			return false, "invalid HMAC-SHA512 signature"
+		}
+	case db.IntegrationAuthToken:
+		if !hmac.Equal([]byte(secret), []byte(r.Header.Get(auth.AuthHeader))) {
+			return false, "invalid verification token"
+		}
+	case db.IntegrationAuthBasic:
+		if auth.AuthSecret.Type != db.AccessKeyLoginPassword {
+			return false, "BasicAuth needs a login/password credential"
+		}
+		if auth.AuthSecret.LoginPassword.Password == "" {
+			return false, "BasicAuth credential has no password"
+		}
+		login, password, present := r.BasicAuth()
+		if !present {
+			return false, "no BasicAuth credentials in the request"
+		}
+		// Both are compared, whatever the first says, so the response time
+		// does not tell a wrong login from a wrong password.
+		loginOk := subtle.ConstantTimeCompare([]byte(login), []byte(auth.AuthSecret.LoginPassword.Login))
+		passwordOk := subtle.ConstantTimeCompare([]byte(password), []byte(auth.AuthSecret.LoginPassword.Password))
+		if loginOk&passwordOk != 1 {
+			return false, "invalid BasicAuth: incorrect login or password"
+		}
+	case db.IntegrationAuthNone:
+		// Nothing to check.
+	default:
+		return false, "unknown verification method: " + string(auth.AuthMethod)
+	}
+
+	return true, ""
+}
+
+// matchAll reports whether every matcher accepts the request. An integration
+// without matchers reacts to every request its group lets through.
+func matchAll(matchers []db.IntegrationMatcher, header http.Header, payload []byte) bool {
+	for _, matcher := range matchers {
+		if !Match(matcher, header, payload) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// authorize loads the key of auth and checks the request against it. A
+// failure is logged, never reported to the caller.
+func (c *IntegrationController) authorize(r *http.Request, payload []byte, projectID int, auth db.IntegrationAuth, logger *log.Entry) bool {
+	if err := c.integrationService.FillAuthSecret(projectID, &auth); err != nil {
+		logger.WithError(err).Error("Could not load the auth secret")
+		return false
+	}
+
+	ok, reason := verifyAuth(r, payload, auth)
+	if !ok {
+		logger.Warn("Webhook refused: " + reason)
+	}
+
+	return ok
+}
+
+// ReceiveIntegration is the public webhook: the alias names an endpoint,
+// every integration group of that endpoint checks the request against its
+// effective auth (the endpoint's, verified once per request, or its own), and
+// each integration of an authorized group whose matchers all accept the
+// request runs. Whatever happens the caller gets 204: the alias is a bearer
+// secret and the response must not help guessing anything behind it.
 func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
-	integrationAlias, ok := helpers.GetStrParamOrAbort("integration_alias", w, r)
-
+	alias, ok := helpers.GetStrParamOrAbort("integration_alias", w, r)
 	if !ok {
 		return
 	}
 
-	log.Info(fmt.Sprintf("Receiving Integration from: %s", r.RemoteAddr))
+	// The alias itself is never logged.
+	logger := log.WithFields(log.Fields{
+		"context":     "integrations",
+		"remote_addr": r.RemoteAddr,
+	})
+	logger.Info("Receiving integration webhook")
 
-	integrations, level, err := c.store.GetIntegrationsByAlias(integrationAlias)
-
+	endpoint, err := c.store.GetEndpointByAlias(alias)
 	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	log.Info(fmt.Sprintf("%d integrations found for alias %s", len(integrations), integrationAlias))
-
-	projects := make(map[int]db.Project)
-
-	var payload []byte
-
-	payload, err = io.ReadAll(r.Body)
-
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	for _, integration := range integrations {
-
-		project, ok := projects[integration.ProjectID]
-		if !ok {
-			project, err = c.store.GetProject(integrations[0].ProjectID)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			projects[integration.ProjectID] = project
+		if errors.Is(err, db.ErrNotFound) {
+			logger.Warn("Unknown integration alias")
+		} else {
+			logger.WithError(err).Error("Could not resolve the integration alias")
 		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 
-		if integration.ProjectID != project.ID {
-			log.WithFields(log.Fields{
-				"context":       "integrations",
-				"project_id":    project.ID,
-				"integrationId": integration.ID,
-			}).Error("integration project mismatch")
+	logger = logger.WithFields(log.Fields{
+		"project_id":  endpoint.ProjectID,
+		"endpoint_id": endpoint.ID,
+	})
+
+	payload, err := io.ReadAll(r.Body)
+	if err != nil {
+		logger.WithError(err).Error("Could not read the webhook body")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	project, err := c.store.GetProject(endpoint.ProjectID)
+	if err != nil {
+		logger.WithError(err).Error("Could not load the endpoint's project")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	groups, err := c.store.GetIntegrationGroupsByEndpoint(endpoint.ProjectID, endpoint.ID)
+	if err != nil {
+		logger.WithError(err).Error("Could not load the endpoint's integration groups")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	// The endpoint's own auth is checked at most once per request, when the
+	// first group that inherits it comes up.
+	endpointChecked, endpointAuthorized := false, false
+
+	for _, group := range groups {
+		groupLogger := logger.WithField("integration_group_id", group.ID)
+
+		var authorized bool
+		if group.AuthOverride {
+			authorized = c.authorize(r, payload, group.ProjectID, group.IntegrationAuth, groupLogger)
+		} else {
+			if !endpointChecked {
+				endpointAuthorized = c.authorize(r, payload, endpoint.ProjectID, endpoint.IntegrationAuth, logger)
+				endpointChecked = true
+			}
+			authorized = endpointAuthorized
+		}
+		if !authorized {
 			continue
 		}
 
-		err = c.integrationService.FillIntegration(&integration)
+		integrations, err := c.store.GetIntegrationsByGroup(group.ProjectID, group.ID, true)
 		if err != nil {
-			log.Error(err)
-			return
-		}
-
-		// A key that cannot provide the shared secret refuses the request here,
-		// before the method-specific check.
-		secret, ok := integration.VerificationSecret()
-		if !ok {
-			log.WithFields(log.Fields{
-				"context":       "integrations",
-				"integrationId": integration.ID,
-			}).Error("auth secret is empty or its key type does not fit the auth method")
+			groupLogger.WithError(err).Error("Could not load the group's integrations")
 			continue
 		}
 
-		switch integration.AuthMethod {
-		case db.IntegrationAuthGitHub:
-			ok := isValidHmacPayload(
-				secret,
-				r.Header.Get("X-Hub-Signature-256"),
-				payload,
-				"sha256=",
-				sha256.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid GitHub/HMAC signature")
-				continue
-			}
-		case db.IntegrationAuthBitbucket:
-			ok := isValidHmacPayload(
-				secret,
-				r.Header.Get("x-hub-signature"),
-				payload,
-				"sha256=",
-				sha256.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid Bitbucket/HMAC signature")
-				continue
-			}
-		case db.IntegrationAuthHmac:
-			ok := isValidHmacPayload(
-				secret,
-				r.Header.Get(integration.AuthHeader),
-				payload,
-				"",
-				sha256.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid HMAC signature")
-				continue
-			}
-		case db.IntegrationAuthHmacSha512:
-			ok := isValidHmacPayload(
-				secret,
-				r.Header.Get(integration.AuthHeader),
-				payload,
-				"",
-				sha512.New)
-
-			if !ok {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid HMAC-SHA512 signature")
-				continue
-			}
-		case db.IntegrationAuthToken:
-			if secret != r.Header.Get(integration.AuthHeader) {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid verification token")
-				continue
-			}
-		case db.IntegrationAuthBasic:
-			if integration.AuthSecret.Type != db.AccessKeyLoginPassword {
-				log.WithFields(log.Fields{
-					"context":       "integrations",
-					"integrationId": integration.ID,
-				}).Error("BasicAuth needs a login/password credential")
-				continue
-			}
-			var username, password, auth = r.BasicAuth()
-			if !auth || integration.AuthSecret.LoginPassword.Password != password || integration.AuthSecret.LoginPassword.Login != username {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).Error("Invalid BasicAuth: incorrect login or password")
-				continue
-			}
-		case db.IntegrationAuthNone:
-			// Do nothing
-		default:
-			log.WithFields(log.Fields{
-				"context": "integrations",
-			}).Error("Unknown verification method: " + integration.AuthMethod)
-			continue
-		}
-
-		if level != db.IntegrationAliasSingle {
-			var matchers []db.IntegrationMatcher
-			matchers, err = c.store.GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
+		for _, integration := range integrations {
+			matchers, err := c.store.GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
 			if err != nil {
-				log.WithFields(log.Fields{
-					"context": "integrations",
-				}).WithError(err).Error("Could not retrieve matchers")
+				groupLogger.WithField("integration_id", integration.ID).WithError(err).Error("Could not retrieve matchers")
 				continue
 			}
 
-			var matched = false
-
-			for _, matcher := range matchers {
-				if Match(matcher, r.Header, payload) {
-					matched = true
-					continue
-				} else {
-					matched = false
-					break
-				}
-			}
-
-			if !matched {
+			if !matchAll(matchers, r.Header, payload) {
 				continue
 			}
-		}
 
-		result := c.RunIntegration(integration, project, r, payload)
-
-		if task := result.Task; task != nil {
-			w.Header().Add("X-Semaphore-Task-ID", strconv.Itoa(task.ID))
-			w.Header().Add("X-Semaphore-Template-ID", strconv.Itoa(task.TemplateID))
-			w.Header().Add("X-Semaphore-Project-ID", strconv.Itoa(task.ProjectID))
-
-			if task.IntegrationID != nil {
-				w.Header().Add("X-Semaphore-Integration-ID", strconv.Itoa(*task.IntegrationID))
-			}
-
-			if task.InventoryID != nil {
-				w.Header().Add("X-Semaphore-Inventory-ID", strconv.Itoa(*task.InventoryID))
-			}
-		}
-
-		if run := result.Run; run != nil {
-			w.Header().Add("X-Semaphore-Workflow-ID", strconv.Itoa(run.WorkflowTemplateID))
-			w.Header().Add("X-Semaphore-Workflow-Run-ID", strconv.Itoa(run.ID))
-			w.Header().Add("X-Semaphore-Project-ID", strconv.Itoa(run.ProjectID))
-			w.Header().Add("X-Semaphore-Integration-ID", strconv.Itoa(integration.ID))
-
-			if run.RootTaskID != nil {
-				w.Header().Add("X-Semaphore-Task-ID", strconv.Itoa(*run.RootTaskID))
-			}
+			result := c.RunIntegration(integration, project, r, payload)
+			writeRunHeaders(w, endpoint, group, integration, result)
 		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// writeRunHeaders tells the caller what one integration started. Nothing is
+// written for an integration that did not run.
+func writeRunHeaders(w http.ResponseWriter, endpoint db.Endpoint, group db.IntegrationGroup, integration db.Integration, result IntegrationRunResult) {
+	if result.Task == nil && result.Run == nil {
+		return
+	}
+
+	w.Header().Set("X-Semaphore-Endpoint-ID", strconv.Itoa(endpoint.ID))
+	w.Header().Add("X-Semaphore-Integration-Group-ID", strconv.Itoa(group.ID))
+
+	if task := result.Task; task != nil {
+		w.Header().Add("X-Semaphore-Task-ID", strconv.Itoa(task.ID))
+		w.Header().Add("X-Semaphore-Template-ID", strconv.Itoa(task.TemplateID))
+		w.Header().Add("X-Semaphore-Project-ID", strconv.Itoa(task.ProjectID))
+
+		if task.IntegrationID != nil {
+			w.Header().Add("X-Semaphore-Integration-ID", strconv.Itoa(*task.IntegrationID))
+		}
+
+		if task.InventoryID != nil {
+			w.Header().Add("X-Semaphore-Inventory-ID", strconv.Itoa(*task.InventoryID))
+		}
+	}
+
+	if run := result.Run; run != nil {
+		w.Header().Add("X-Semaphore-Workflow-ID", strconv.Itoa(run.WorkflowTemplateID))
+		w.Header().Add("X-Semaphore-Workflow-Run-ID", strconv.Itoa(run.ID))
+		w.Header().Add("X-Semaphore-Project-ID", strconv.Itoa(run.ProjectID))
+		w.Header().Add("X-Semaphore-Integration-ID", strconv.Itoa(integration.ID))
+
+		if run.RootTaskID != nil {
+			w.Header().Add("X-Semaphore-Task-ID", strconv.Itoa(*run.RootTaskID))
+		}
+	}
 }
 
 func Match(matcher db.IntegrationMatcher, header http.Header, bodyBytes []byte) (matched bool) {

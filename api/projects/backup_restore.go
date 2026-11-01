@@ -150,9 +150,9 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	integrationAliases := len(backup.IntegrationAliases)
-	for _, integration := range backup.Integration {
-		integrationAliases += len(integration.Aliases)
+	endpointAliases := 0
+	for _, endpoint := range backup.Endpoints {
+		endpointAliases += len(endpoint.Aliases)
 	}
 
 	helpers.Audit(r).Record(r.Context(), audit.Event{
@@ -160,20 +160,22 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 		Target:    audit.ResourceTarget(audit.TargetProject, p.ID, p.Name),
 		ProjectID: p.ID,
 		Metadata: audit.BackupRestoreMetadata{Objects: map[string]int{
-			"templates":           len(backup.Templates),
-			"repositories":        len(backup.Repositories),
-			"host_configs":        len(backup.HostConfigs),
-			"keys":                len(backup.Keys),
-			"views":               len(backup.Views),
-			"inventories":         len(backup.Inventories),
-			"environments":        len(backup.Environments),
-			"integrations":        len(backup.Integration),
-			"integration_aliases": integrationAliases,
-			"schedules":           len(backup.Schedules),
-			"secret_storages":     len(backup.SecretStorages),
-			"roles":               len(backup.Roles),
-			"runners":             len(backup.Runners),
-			"workflows":           len(backup.Workflows),
+			"templates":          len(backup.Templates),
+			"repositories":       len(backup.Repositories),
+			"host_configs":       len(backup.HostConfigs),
+			"keys":               len(backup.Keys),
+			"views":              len(backup.Views),
+			"inventories":        len(backup.Inventories),
+			"environments":       len(backup.Environments),
+			"endpoints":          len(backup.Endpoints),
+			"endpoint_aliases":   endpointAliases,
+			"integration_groups": len(backup.IntegrationGroups),
+			"integrations":       len(backup.Integration),
+			"schedules":          len(backup.Schedules),
+			"secret_storages":    len(backup.SecretStorages),
+			"roles":              len(backup.Roles),
+			"runners":            len(backup.Runners),
+			"workflows":          len(backup.Workflows),
 		}},
 	})
 

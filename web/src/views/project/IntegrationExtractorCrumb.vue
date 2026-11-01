@@ -8,8 +8,17 @@
           class="breadcrumbs__item breadcrumbs__item--link"
           :to="`/project/${projectId}/integrations/`"
         >
-          Integrations
+          {{ $t('integrations') }}
         </router-link>
+        <template v-if="group != null">
+          <v-icon>mdi-chevron-right</v-icon>
+          <router-link
+            class="breadcrumbs__item breadcrumbs__item--link"
+            :to="`/project/${projectId}/integrations/`"
+          >
+            {{ group.name }}
+          </router-link>
+        </template>
         <v-icon>mdi-chevron-right</v-icon>
         <span class="breadcrumbs__item">{{ integration.name }}</span>
       </v-toolbar-title>
@@ -19,37 +28,19 @@
   </div>
 </template>
 <script>
-
-import ItemListPageBase from '@/components/ItemListPageBase';
+import EventBus from '@/event-bus';
 
 export default {
-  mixins: [ItemListPageBase],
-  components: { },
   props: {
     integration: Object,
-    integrationId: Number,
-  },
-  data() {
-    return {
-      extractor: null,
-    };
+    /** The integration's group; null while it loads. */
+    group: Object,
+    projectId: Number,
   },
 
   methods: {
-    allowActions() {
-      return true;
-    },
-    getHeaders() {
-      return [];
-    },
-    getItemsUrl() {
-      return `/api/project/${this.projectId}/integrations`;
-    },
-    getSingleItemUrl() {
-      return `/api/project/${this.projectId}/integrations/${this.integrationId}`;
-    },
-    getEventName() {
-      return 'w-integration-matcher';
+    showDrawer() {
+      EventBus.$emit('i-show-drawer');
     },
   },
 };

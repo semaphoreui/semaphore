@@ -2,61 +2,29 @@
   <div v-if="integration != null">
     <IntegrationExtractorCrumb
       :integration="integration"
-      :integration-id="integrationId"
+      :group="group"
       :project-id="projectId"
     />
 
-    <div class="px-4 pt-3 pb-2">
-      <v-switch
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
-        class="mt-0"
-        v-model="integration.searchable"
-        :label="$t('globalAlias')"
-        @change="updateIntegration()"
-      />
-    </div>
-
-    <div v-if="integration.searchable" class="px-4">
-      <v-alert type="info" text class="d-inline-block">
-        Matchers allow the integration to be found by a project alias.
-      </v-alert>
-    </div>
-
-    <div v-else class="px-4 pb-6">
-      <div class="mb-3 pl-1" v-if="(aliases || []).length === 0">There is no aliases.</div>
-
-      <div v-else v-for="alias of aliases || []" :key="alias.id">
-        <code class="mr-2">{{ alias.url }}</code>
-
-        <CopyClipboardButton
-          :text="alias.url"
-          success-message="The alias URL  has been copied to the clipboard."
-        />
-
-        <v-btn
-          icon
-          @click="deleteAlias(alias.id)"
-          v-if="can(USER_PERMISSIONS.manageProjectResources)"
-        >
-          <v-icon>mdi-delete</v-icon>
-        </v-btn>
+    <div class="px-4 pt-3 pb-4 IntegrationExtractor__meta">
+      <div v-if="endpoint != null" class="mb-3">
+        <v-icon small class="mr-1">mdi-webhook</v-icon>
+        {{ $t('endpoint') }}:
+        <router-link
+          :to="`/project/${projectId}/endpoints`"
+          class="IntegrationExtractor__endpoint"
+        >{{ endpoint.name }}</router-link>
       </div>
 
-      <v-btn
-        color="primary"
-        @click="addAlias()"
-        :disabled="aliases == null"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
-      >
-        {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
-      </v-btn>
+      <v-alert type="info" text dense class="d-inline-block mb-0 IntegrationExtractor__hint">
+        {{ $t('matchersHint') }}
+      </v-alert>
     </div>
 
     <v-divider />
 
     <IntegrationMatcher
       class="mb-6"
-      v-if="integration.searchable"
       :is-admin="isAdmin"
       :userPermissions="userPermissions"
       :project-id="projectId"
@@ -70,21 +38,18 @@
   </div>
 </template>
 <script>
-import IntegrationsBase from '@/views/project/IntegrationsBase';
 import axios from 'axios';
 
 import { USER_PERMISSIONS } from '@/lib/constants';
 
-import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import PermissionsCheck from '@/components/PermissionsCheck';
 import IntegrationExtractValue from './IntegrationExtractValue.vue';
 import IntegrationMatcher from './IntegrationMatcher.vue';
 import IntegrationExtractorCrumb from './IntegrationExtractorCrumb.vue';
 
 export default {
-  mixins: [IntegrationsBase, PermissionsCheck],
+  mixins: [PermissionsCheck],
   components: {
-    CopyClipboardButton,
     IntegrationMatcher,
     IntegrationExtractValue,
     IntegrationExtractorCrumb,
@@ -96,8 +61,20 @@ export default {
   data() {
     return {
       integration: null,
+      /** The integration's group and the group's endpoint, for the breadcrumb and the link. */
+      group: null,
+      endpoint: null,
       USER_PERMISSIONS,
     };
+  },
+
+  computed: {
+    integrationId() {
+      if (/^-?\d+$/.test(this.$route.params.integrationId)) {
+        return parseInt(this.$route.params.integrationId, 10);
+      }
+      return this.$route.params.integrationId;
+    },
   },
 
   async created() {
@@ -108,20 +85,26 @@ export default {
         responseType: 'json',
       })
     ).data;
-  },
 
-  methods: {
-    allowActions() {
-      return true;
-    },
-    async updateIntegration() {
-      await axios({
-        method: 'put',
-        url: `/api/project/${this.projectId}/integrations/${this.integrationId}`,
-        responseType: 'json',
-        data: this.integration,
-      });
-    },
+    if (this.integration.group_id) {
+      this.group = (
+        await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/integration_groups/${this.integration.group_id}`,
+          responseType: 'json',
+        })
+      ).data;
+    }
+
+    if (this.group && this.group.endpoint_id) {
+      this.endpoint = (
+        await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/endpoints/${this.group.endpoint_id}`,
+          responseType: 'json',
+        })
+      ).data;
+    }
   },
 };
 </script>

@@ -522,7 +522,78 @@ func (b *BackupDB) fileRole(slug string) (db.Role, error) {
 	return role, err
 }
 
+func (e BackupEndpoint) Verify(backup *BackupFormat) error {
+	if e.Name == "" {
+		return fmt.Errorf("endpoint has no name")
+	}
+	return verifyDuplicate[BackupEndpoint](e.Name, backup.Endpoints)
+}
+
+func (e BackupEndpoint) Restore(b *BackupDB) error {
+	endpoint := e.Endpoint
+	endpoint.ProjectID = b.meta.ID
+	endpoint.AuthSecretID = nil
+	if k := findEntityByName[db.AccessKey](e.AuthSecretName, b.keys); k != nil {
+		endpoint.AuthSecretID = &k.ID
+	}
+
+	newEndpoint, err := b.store.CreateEndpoint(endpoint)
+	if err != nil {
+		return err
+	}
+	b.endpoints = append(b.endpoints, newEndpoint)
+
+	// An alias is unique across the instance: when the project the backup was
+	// taken from still holds it, the restored endpoint goes without it and the
+	// user adds a new one, as with the integration aliases before 2.20.19.
+	for _, a := range e.Aliases {
+		_, _ = b.store.CreateEndpointAlias(db.EndpointAlias{Alias: a, ProjectID: b.meta.ID, EndpointID: newEndpoint.ID})
+	}
+
+	return nil
+}
+
+func (e BackupIntegrationGroup) Verify(backup *BackupFormat) error {
+	if e.Name == "" {
+		return fmt.Errorf("integration group has no name")
+	}
+	if getEntryByName[BackupEndpoint](&e.Endpoint, backup.Endpoints) == nil {
+		return fmt.Errorf("endpoint does not exist in endpoints[].name")
+	}
+	return verifyDuplicate[BackupIntegrationGroup](e.Name, backup.IntegrationGroups)
+}
+
+func (e BackupIntegrationGroup) Restore(b *BackupDB) error {
+	endpoint := findEntityByName[db.Endpoint](&e.Endpoint, b.endpoints)
+	if endpoint == nil {
+		return fmt.Errorf("endpoint does not exist in endpoints[].name")
+	}
+
+	group := e.IntegrationGroup
+	group.ProjectID = b.meta.ID
+	group.EndpointID = endpoint.ID
+	group.AuthSecretID = nil
+	if k := findEntityByName[db.AccessKey](e.AuthSecretName, b.keys); k != nil {
+		group.AuthSecretID = &k.ID
+	}
+
+	newGroup, err := b.store.CreateIntegrationGroup(group)
+	if err != nil {
+		return err
+	}
+	b.integrationGroups = append(b.integrationGroups, newGroup)
+
+	return nil
+}
+
 func (e BackupIntegration) Verify(backup *BackupFormat) error {
+	if e.Group == nil {
+		return fmt.Errorf("integration has no group")
+	}
+	if getEntryByName[BackupIntegrationGroup](e.Group, backup.IntegrationGroups) == nil {
+		return fmt.Errorf("integration group does not exist in integration_groups[].name")
+	}
+
 	switch {
 	case e.Template != nil && e.Workflow != nil:
 		return fmt.Errorf("integration runs either a template or a workflow, not both")
@@ -541,19 +612,15 @@ func (e BackupIntegration) Verify(backup *BackupFormat) error {
 }
 
 func (e BackupIntegration) Restore(b *BackupDB) error {
-	var authSecretID *int
-
-	if e.AuthSecret == nil {
-		authSecretID = nil
-	} else if k := findEntityByName[db.AccessKey](e.AuthSecret, b.keys); k == nil {
-		authSecretID = nil
-	} else {
-		authSecretID = &((*k).ID)
+	// Groups are restored before integrations, so b.integrationGroups is complete.
+	group := findEntityByName[db.IntegrationGroup](e.Group, b.integrationGroups)
+	if group == nil {
+		return fmt.Errorf("integration group does not exist in integration_groups[].name")
 	}
 
 	integration := e.Integration
 	integration.ProjectID = b.meta.ID
-	integration.AuthSecretID = authSecretID
+	integration.GroupID = group.ID
 	integration.TemplateID = nil
 	integration.WorkflowID = nil
 
@@ -596,15 +663,6 @@ func (e BackupIntegration) Restore(b *BackupDB) error {
 	for _, v := range e.ExtractValues {
 		v.IntegrationID = newIntegration.ID
 		_, _ = b.store.CreateIntegrationExtractValue(b.meta.ID, v)
-	}
-
-	for _, a := range e.Aliases {
-		alias := db.IntegrationAlias{
-			Alias:         a,
-			ProjectID:     b.meta.ID,
-			IntegrationID: &newIntegration.ID,
-		}
-		_, _ = b.store.CreateIntegrationAlias(alias)
 	}
 
 	return nil
@@ -758,6 +816,17 @@ func (backup *BackupFormat) Verify() error {
 			return fmt.Errorf("error at workflows[%d]: %s", i, err.Error())
 		}
 	}
+	backup.upgradeLegacyIntegrations()
+	for i, o := range backup.Endpoints {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at endpoints[%d]: %s", i, err.Error())
+		}
+	}
+	for i, o := range backup.IntegrationGroups {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at integration_groups[%d]: %s", i, err.Error())
+		}
+	}
 	for i, o := range backup.Integration {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at integrations[%d]: %s", i, err.Error())
@@ -891,20 +960,26 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		}
 	}
 
+	// Endpoints need only the keys, groups need their endpoint; both come
+	// before the integrations that belong to them.
+	backup.upgradeLegacyIntegrations()
+	for i, o := range backup.Endpoints {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at endpoints[%d]: %w", i, err)
+		}
+	}
+	for i, o := range backup.IntegrationGroups {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at integration_groups[%d]: %w", i, err)
+		}
+	}
+
 	// Integrations come after workflows: one may start a workflow, and nothing
 	// restored above refers to an integration.
 	for i, o := range backup.Integration {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at integrations[%d]: %w", i, err)
 		}
-	}
-
-	for _, o := range backup.IntegrationAliases {
-		alias := db.IntegrationAlias{
-			Alias:     o,
-			ProjectID: b.meta.ID,
-		}
-		_, _ = b.store.CreateIntegrationAlias(alias)
 	}
 
 	return &RestoredProject{Project: newProject, UnassignedRoles: b.unassigned}, nil
