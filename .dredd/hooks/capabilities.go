@@ -331,6 +331,8 @@ func alterRequestBody(t *trans.Transaction) {
 	var request map[string]any
 	json.Unmarshal([]byte(t.Request.Body), &request)
 
+	normalizeEnvironmentSecrets(&request)
+
 	if userProject != nil {
 		bodyFieldProcessor("project_id", userProject.ID, &request)
 	}
@@ -398,6 +400,28 @@ func alterRequestBody(t *trans.Transaction) {
 
 	out, _ := json.Marshal(request)
 	t.Request.Body = string(out)
+}
+
+func normalizeEnvironmentSecrets(request *map[string]any) {
+	secrets, ok := (*request)["secrets"].([]any)
+	if !ok {
+		return
+	}
+
+	for _, value := range secrets {
+		secret, ok := value.(map[string]any)
+		if !ok || secret["operation"] != string(db.EnvironmentSecretCreate) {
+			continue
+		}
+
+		keyID, ok := secret["key_id"].(float64)
+		if !ok || keyID >= 0 {
+			continue
+		}
+
+		delete(secret, "key_id")
+		secret["secret"] = "DREDD-SECRET"
+	}
 }
 
 func bodyFieldProcessor(id string, sub any, request *map[string]any) {

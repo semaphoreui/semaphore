@@ -83,6 +83,7 @@ export default {
       }, {
         slug: 'environments',
         path: 'environment',
+        pageless: true,
         title: 'Variable Groups',
         icon: 'code-braces',
       }].filter((s) => (this.objectRefs[s.slug] || []).length > 0);
