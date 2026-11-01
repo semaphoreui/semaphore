@@ -414,3 +414,31 @@ func TestAccessKeyService_Update_RefusedBeforeSecretIsSerialized(t *testing.T) {
 	assert.ErrorContains(t, err, "host mapping needs an SSH key")
 	assert.False(t, spy.serialized, "the secret must not reach its storage")
 }
+
+// A key linked to a variable group is kept by the foreign key of
+// project__environment_secret, which fires after the secret has been removed
+// from its storage. The service refuses first, with the error the foreign key
+// would produce, so the API still answers "in use".
+func TestAccessKeyService_Delete_RefusedWhenVariableGroupLinksKey(t *testing.T) {
+	projectID := 1
+	storageID := 5
+
+	repo := &mockAccessKeyRepo{
+		keys: []db.AccessKey{{
+			ID: 10, ProjectID: &projectID, Name: "k",
+			Type: db.AccessKeyString, SourceStorageID: &storageID,
+		}},
+		refs: db.ObjectReferrers{
+			Environments: []db.ObjectReferrer{{ID: 3, Name: "prod vars"}},
+		},
+	}
+
+	spy := &spyEncryption{}
+	svc := NewAccessKeyService(repo, spy, nil, repo)
+
+	err := svc.Delete(projectID, 10)
+
+	assert.ErrorIs(t, err, db.ErrInvalidOperation)
+	assert.ErrorContains(t, err, "prod vars")
+	assert.False(t, spy.deleted, "the secret must still be in its storage")
+}
