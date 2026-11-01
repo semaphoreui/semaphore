@@ -15,11 +15,12 @@ func TestIntegration_Validate(t *testing.T) {
 		integration Integration
 		wantErr     string
 	}{
-		{"template target", Integration{Name: "hook", TemplateID: &templateID}, ""},
-		{"workflow target", Integration{Name: "hook", WorkflowID: &workflowID}, ""},
-		{"no name", Integration{TemplateID: &templateID}, "No Name set for integration"},
-		{"no target", Integration{Name: "hook"}, "Integration must run a template or a workflow"},
-		{"both targets", Integration{Name: "hook", TemplateID: &templateID, WorkflowID: &workflowID}, "Integration can run either a template or a workflow, not both"},
+		{"template target", Integration{Name: "hook", GroupID: 1, TemplateID: &templateID}, ""},
+		{"workflow target", Integration{Name: "hook", GroupID: 1, WorkflowID: &workflowID}, ""},
+		{"no name", Integration{GroupID: 1, TemplateID: &templateID}, "No Name set for integration"},
+		{"no group", Integration{Name: "hook", TemplateID: &templateID}, "Integration must belong to an integration group"},
+		{"no target", Integration{Name: "hook", GroupID: 1}, "Integration must run a template or a workflow"},
+		{"both targets", Integration{Name: "hook", GroupID: 1, TemplateID: &templateID, WorkflowID: &workflowID}, "Integration can run either a template or a workflow, not both"},
 	}
 
 	for _, tt := range tests {

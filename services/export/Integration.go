@@ -74,7 +74,7 @@ func (e *IntegrationExporter) restoreValue(val EntityObject[db.Integration], sto
 		return err
 	}
 
-	old.AuthSecretID, err = exporter.getNewKeyIntRef(AccessKey, val.scope, old.AuthSecretID, e)
+	old.GroupID, err = exporter.getNewKeyInt(IntegrationGroup, val.scope, old.GroupID)
 	if err != nil {
 		return err
 	}
@@ -102,5 +102,5 @@ func (e *IntegrationExporter) exportDependsOn() []string {
 }
 
 func (e *IntegrationExporter) importDependsOn() []string {
-	return []string{Project, SecretStorage, Template, Inventory, AccessKey}
+	return []string{Project, SecretStorage, Template, Inventory, IntegrationGroup}
 }

@@ -36,7 +36,7 @@ func TestIntegrationAuthMethod_AcceptsKeyType(t *testing.T) {
 	})
 }
 
-func TestIntegration_VerificationSecret(t *testing.T) {
+func TestIntegrationAuth_VerificationSecret(t *testing.T) {
 	stringKey := AccessKey{Type: AccessKeyString, String: "tok"}
 	loginKey := AccessKey{Type: AccessKeyLoginPassword, LoginPassword: LoginPassword{Login: "bob", Password: "pw"}}
 	sshKey := AccessKey{Type: AccessKeySSH, SshKey: SshKey{PrivateKey: "k"}}
@@ -64,12 +64,64 @@ func TestIntegration_VerificationSecret(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			integration := Integration{AuthMethod: tt.method, AuthSecret: tt.key}
+			auth := IntegrationAuth{AuthMethod: tt.method, AuthSecret: tt.key}
 
-			got, ok := integration.VerificationSecret()
+			got, ok := auth.VerificationSecret()
 
 			assert.Equal(t, tt.want, got)
 			assert.Equal(t, tt.wantOk, ok)
 		})
 	}
+}
+
+func TestEndpoint_Validate(t *testing.T) {
+	assert.NoError(t, (&Endpoint{Name: "hooks"}).Validate())
+	assert.ErrorContains(t, (&Endpoint{}).Validate(), "No Name set for endpoint")
+}
+
+func TestIntegrationGroup_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		group   IntegrationGroup
+		wantErr string
+	}{
+		{"valid", IntegrationGroup{Name: "ci", EndpointID: 3}, ""},
+		{"no name", IntegrationGroup{EndpointID: 3}, "No Name set for integration group"},
+		{"no endpoint", IntegrationGroup{Name: "ci"}, "Integration group must use an endpoint"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.group.Validate()
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestIntegrationGroup_EffectiveAuth(t *testing.T) {
+	keyID := 5
+	endpoint := Endpoint{IntegrationAuth: IntegrationAuth{AuthMethod: IntegrationAuthToken, AuthSecretID: &keyID, AuthHeader: "X-Token"}}
+	own := IntegrationAuth{AuthMethod: IntegrationAuthBasic}
+
+	inheriting := IntegrationGroup{IntegrationAuth: own}
+	assert.Equal(t, endpoint.IntegrationAuth, inheriting.EffectiveAuth(endpoint), "without override the endpoint decides")
+
+	overriding := IntegrationGroup{AuthOverride: true, IntegrationAuth: own}
+	assert.Equal(t, own, overriding.EffectiveAuth(endpoint))
+}
+
+func TestIntegrationGroup_NormalizeAuth(t *testing.T) {
+	keyID := 5
+	own := IntegrationAuth{AuthMethod: IntegrationAuthToken, AuthSecretID: &keyID, AuthHeader: "X-Token"}
+
+	inheriting := IntegrationGroup{IntegrationAuth: own}
+	inheriting.NormalizeAuth()
+	assert.Equal(t, IntegrationAuth{}, inheriting.IntegrationAuth, "a group that inherits keeps no auth of its own")
+
+	overriding := IntegrationGroup{AuthOverride: true, IntegrationAuth: own}
+	overriding.NormalizeAuth()
+	assert.Equal(t, own, overriding.IntegrationAuth)
 }

@@ -90,6 +90,12 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 	}
 
 	statements := []string{
+		// Integrations before their groups, groups before their endpoints: a
+		// group keeps its endpoint from being deleted, and the cascade from
+		// the project row would reach the endpoint first on some engines.
+		"delete from project__integration where project_id=?",
+		"delete from project__integration_group where project_id=?",
+		"delete from project__endpoint where project_id=?",
 		"delete from project__workflow_run where project_id=?",
 		"update project__template set build_template_id = null where project_id=?",
 		"delete from project__template where project_id=?",

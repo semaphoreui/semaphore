@@ -62,7 +62,15 @@ func (e View) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }
 
-func (e IntegrationAlias) GetDbKey() string {
+func (e Endpoint) GetDbKey() string {
+	return NewKeyFromInt(e.ID)
+}
+
+func (e EndpointAlias) GetDbKey() string {
+	return NewKeyFromInt(e.ID)
+}
+
+func (e IntegrationGroup) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }
 

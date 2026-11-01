@@ -30,18 +30,19 @@ func TestMigration_2_20_14(t *testing.T) {
 	require.NoError(t, err)
 	integration := db.Integration{ID: int(integrationID), ProjectID: project.ID}
 
-	_, err = store.CreateIntegrationAlias(db.IntegrationAlias{
-		Alias: "alias-2-20-12", ProjectID: project.ID, IntegrationID: &integration.ID,
-	})
+	// The store of this version no longer writes the old tables and columns,
+	// so the children are seeded by hand as well.
+	_, err = store.Sql().Exec(store.PrepareQuery(
+		"insert into project__integration_alias (project_id, integration_id, alias) values (?, ?, ?)"),
+		project.ID, integration.ID, "alias-2-20-12")
 	require.NoError(t, err)
-	_, err = store.CreateIntegrationMatcher(project.ID, db.IntegrationMatcher{
-		Name: "m", IntegrationID: integration.ID, MatchType: db.IntegrationMatchHeader,
-		Method: db.IntegrationMatchMethodEquals, Key: "X-Event", Value: "push",
-	})
+	_, err = store.Sql().Exec(store.PrepareQuery(
+		"insert into project__integration_matcher (name, integration_id, match_type, `method`, body_data_type, `key`, `value`) values (?, ?, 'header', 'equals', '', 'X-Event', 'push')"),
+		"m", integration.ID)
 	require.NoError(t, err)
-	_, err = store.CreateIntegrationExtractValue(project.ID, db.IntegrationExtractValue{
-		Name: "v", IntegrationID: integration.ID, ValueSource: db.IntegrationExtractHeaderValue, Key: "X-Ref", Variable: "ref",
-	})
+	_, err = store.Sql().Exec(store.PrepareQuery(
+		"insert into project__integration_extract_value (name, integration_id, value_source, body_data_type, `key`, `variable`, variable_type) values (?, ?, 'header', '', 'X-Ref', 'ref', 'environment')"),
+		"v", integration.ID)
 	require.NoError(t, err)
 	task, err := store.CreateTask(db.Task{
 		ProjectID: project.ID, TemplateID: templateID, IntegrationID: &integration.ID, Status: "success",
@@ -50,9 +51,9 @@ func TestMigration_2_20_14(t *testing.T) {
 
 	require.NoError(t, db.Migrate(store, nil))
 
-	// Child rows survived the rebuild and still point at the same integration.
+	// Child rows survived the rebuild and still point at the same integration;
+	// the alias moved to the integration's endpoint in 2.20.19.
 	for table, want := range map[string]int64{
-		"project__integration_alias":         1,
 		"project__integration_matcher":       1,
 		"project__integration_extract_value": 1,
 	} {
@@ -70,18 +71,21 @@ func TestMigration_2_20_14(t *testing.T) {
 	require.NotNil(t, migrated.TemplateID)
 	assert.Equal(t, templateID, *migrated.TemplateID)
 	assert.Nil(t, migrated.WorkflowID)
+	endpoint, err := store.GetEndpointByAlias("alias-2-20-12")
+	require.NoError(t, err)
+	assert.Equal(t, project.ID, endpoint.ProjectID)
 
 	// The foreign key on integration_id still cascades: deleting the
 	// integration removes its children, as before the rebuild.
 	workflowID := createTestWorkflow(t, store, project.ID, "wf")
 	workflowHook, err := store.CreateIntegration(db.Integration{
-		Name: "workflow hook", ProjectID: project.ID, WorkflowID: &workflowID,
+		Name: "workflow hook", ProjectID: project.ID, GroupID: migrated.GroupID, WorkflowID: &workflowID,
 	})
 	require.NoError(t, err)
 	assert.Nil(t, workflowHook.TemplateID)
 
 	require.NoError(t, store.DeleteIntegration(project.ID, integration.ID))
-	for _, table := range []string{"project__integration_alias", "project__integration_matcher", "project__integration_extract_value"} {
+	for _, table := range []string{"project__integration_matcher", "project__integration_extract_value"} {
 		count, err := store.Sql().SelectInt("select count(*) from "+table+" where integration_id = ?", integration.ID)
 		require.NoError(t, err)
 		assert.Zero(t, count, table)

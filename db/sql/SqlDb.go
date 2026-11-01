@@ -670,7 +670,7 @@ func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectI
 		return
 	}
 
-	refs.Integrations, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.IntegrationAliasProps)
+	refs.Integrations, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.IntegrationProps)
 	if err != nil {
 		return
 	}
@@ -678,6 +678,22 @@ func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectI
 	refs.AccessKeys, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.AccessKeyProps)
 	if err != nil {
 		return
+	}
+
+	// Endpoints and integration groups verify webhooks with a key through
+	// auth_secret_id, a column the key_id suffix convention does not cover.
+	refs.Endpoints = make([]db.ObjectReferrer, 0)
+	refs.IntegrationGroups = make([]db.ObjectReferrer, 0)
+	if objectProps.Type == db.AccessKeyProps.Type {
+		refs.Endpoints, err = d.getObjectRefsByColumn(projectID, db.EndpointProps, "auth_secret_id", objectID)
+		if err != nil {
+			return
+		}
+
+		refs.IntegrationGroups, err = d.getObjectRefsByColumn(projectID, db.IntegrationGroupProps, "auth_secret_id", objectID)
+		if err != nil {
+			return
+		}
 	}
 
 	// A host config refers to a key through ssh_key_id. Without this, deleting
@@ -761,6 +777,36 @@ func (d *SqlDb) getObjectRefsFrom(
 		id := int(referringObjects.Elem().Index(i).FieldByName("ID").Int())
 		name := referringObjects.Elem().Index(i).FieldByName("Name").String()
 		referringObjs = append(referringObjs, db.ObjectReferrer{ID: id, Name: name})
+	}
+
+	return
+}
+
+// getObjectRefsByColumn lists the rows of a project-owned table whose given
+// column holds objectID, for references the ReferringColumnSuffix convention
+// cannot express.
+func (d *SqlDb) getObjectRefsByColumn(
+	projectID int,
+	referringObjectProps db.ObjectProps,
+	column string,
+	objectID int,
+) (referringObjs []db.ObjectReferrer, err error) {
+	referringObjs = make([]db.ObjectReferrer, 0)
+
+	var rows []struct {
+		ID   int    `db:"id"`
+		Name string `db:"name"`
+	}
+	_, err = d.selectAll(&rows,
+		"select id, name from "+referringObjectProps.TableName+" where project_id = ? and "+column+" = ?",
+		projectID,
+		objectID)
+	if err != nil {
+		return
+	}
+
+	for _, row := range rows {
+		referringObjs = append(referringObjs, db.ObjectReferrer{ID: row.ID, Name: row.Name})
 	}
 
 	return

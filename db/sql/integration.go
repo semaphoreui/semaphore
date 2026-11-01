@@ -41,10 +41,26 @@ func (d *SqlDb) validateIntegrationTarget(integration db.Integration) error {
 	return nil
 }
 
+// validateIntegrationGroup checks that the group the integration belongs to
+// is in the integration's own project.
+func (d *SqlDb) validateIntegrationGroup(integration db.Integration) error {
+	var group db.IntegrationGroup
+	err := d.getObject(integration.ProjectID, db.IntegrationGroupProps, integration.GroupID, &group)
+	if err == db.ErrNotFound {
+		return common_errors.NewValidationError("Integration group does not exist in the project")
+	}
+
+	return err
+}
+
 func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db.Integration, err error) {
 	err = integration.Validate()
 
 	if err != nil {
+		return
+	}
+
+	if err = d.validateIntegrationGroup(integration); err != nil {
 		return
 	}
 
@@ -70,16 +86,13 @@ func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db
 	insertID, err := d.insert(
 		"id",
 		"insert into project__integration "+
-			"(project_id, name, template_id, workflow_id, auth_method, auth_secret_id, auth_header, searchable, task_params_id) values "+
-			"(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"(project_id, group_id, name, template_id, workflow_id, task_params_id) values "+
+			"(?, ?, ?, ?, ?, ?)",
 		integration.ProjectID,
+		integration.GroupID,
 		integration.Name,
 		integration.TemplateID,
 		integration.WorkflowID,
-		integration.AuthMethod,
-		integration.AuthSecretID,
-		integration.AuthHeader,
-		integration.Searchable,
 		integration.TaskParamsID)
 
 	if err != nil {
@@ -94,23 +107,49 @@ func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db
 
 func (d *SqlDb) GetIntegrations(projectID int, params db.RetrieveQueryParams, includeTaskParams bool) (integrations []db.Integration, err error) {
 	err = d.getObjects(projectID, db.IntegrationProps, params, nil, &integrations)
-
-	if includeTaskParams {
-		for i := range integrations {
-			if integrations[i].TaskParamsID == nil {
-				continue
-			}
-
-			var taskParams db.TaskParams
-			err = d.getObject(projectID, db.TaskParamsProps, *integrations[i].TaskParamsID, &taskParams)
-			if err != nil {
-				return nil, err
-			}
-			integrations[i].TaskParams = &taskParams
-		}
+	if err != nil {
+		return
 	}
 
-	return integrations, err
+	if includeTaskParams {
+		err = d.fillIntegrationTaskParams(projectID, integrations)
+	}
+
+	return
+}
+
+func (d *SqlDb) GetIntegrationsByGroup(projectID int, groupID int, includeTaskParams bool) (integrations []db.Integration, err error) {
+	err = d.getObjects(projectID, db.IntegrationProps, db.RetrieveQueryParams{},
+		func(q squirrel.SelectBuilder) squirrel.SelectBuilder {
+			return q.Where("group_id=?", groupID)
+		},
+		&integrations)
+	if err != nil {
+		return
+	}
+
+	if includeTaskParams {
+		err = d.fillIntegrationTaskParams(projectID, integrations)
+	}
+
+	return
+}
+
+func (d *SqlDb) fillIntegrationTaskParams(projectID int, integrations []db.Integration) error {
+	for i := range integrations {
+		if integrations[i].TaskParamsID == nil {
+			continue
+		}
+
+		var taskParams db.TaskParams
+		err := d.getObject(projectID, db.TaskParamsProps, *integrations[i].TaskParamsID, &taskParams)
+		if err != nil {
+			return err
+		}
+		integrations[i].TaskParams = &taskParams
+	}
+
+	return nil
 }
 
 func (d *SqlDb) GetIntegration(projectID int, integrationID int) (integration db.Integration, err error) {
@@ -196,6 +235,10 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) (err error) {
 		return
 	}
 
+	if err = d.validateIntegrationGroup(integration); err != nil {
+		return
+	}
+
 	if err = d.validateIntegrationTarget(integration); err != nil {
 		return
 	}
@@ -236,21 +279,15 @@ func (d *SqlDb) UpdateIntegration(integration db.Integration) (err error) {
 	_, err = d.exec(
 		"update project__integration set "+
 			"`name`=?, "+
+			"group_id=?, "+
 			"template_id=?, "+
 			"workflow_id=?, "+
-			"auth_method=?, "+
-			"auth_secret_id=?, "+
-			"auth_header=?, "+
-			"searchable=?, "+
 			"task_params_id=? "+
 			"where project_id=? AND `id`=?",
 		integration.Name,
+		integration.GroupID,
 		integration.TemplateID,
 		integration.WorkflowID,
-		integration.AuthMethod,
-		integration.AuthSecretID,
-		integration.AuthHeader,
-		integration.Searchable,
 		integration.TaskParamsID,
 		integration.ProjectID,
 		integration.ID)

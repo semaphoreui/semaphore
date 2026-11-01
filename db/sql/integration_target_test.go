@@ -31,12 +31,13 @@ func assertValidationError(t *testing.T, err error, msg string) {
 
 func TestCreateIntegration_WorkflowTarget(t *testing.T) {
 	store := InitConfigCreateTestStore()
-	project, _ := createTestIntegration(t, store)
+	project, existing := createTestIntegration(t, store)
 	workflowID := createTestWorkflow(t, store, project.ID, "wf")
 
 	created, err := store.CreateIntegration(db.Integration{
 		Name:       "workflow hook",
 		ProjectID:  project.ID,
+		GroupID:    existing.GroupID,
 		WorkflowID: &workflowID,
 		TaskParams: &db.TaskParams{Message: "ignored for workflows"},
 	})
@@ -61,11 +62,11 @@ func TestCreateIntegration_RejectsBothOrNoTarget(t *testing.T) {
 	project, existing := createTestIntegration(t, store)
 	workflowID := createTestWorkflow(t, store, project.ID, "wf")
 
-	_, err := store.CreateIntegration(db.Integration{Name: "none", ProjectID: project.ID})
+	_, err := store.CreateIntegration(db.Integration{Name: "none", ProjectID: project.ID, GroupID: existing.GroupID})
 	assertValidationError(t, err, "Integration must run a template or a workflow")
 
 	_, err = store.CreateIntegration(db.Integration{
-		Name: "both", ProjectID: project.ID, TemplateID: existing.TemplateID, WorkflowID: &workflowID,
+		Name: "both", ProjectID: project.ID, GroupID: existing.GroupID, TemplateID: existing.TemplateID, WorkflowID: &workflowID,
 	})
 	assertValidationError(t, err, "not both")
 }
@@ -77,20 +78,21 @@ func TestCreateIntegration_TargetMustBelongToProject(t *testing.T) {
 
 	other, err := store.CreateProject(db.Project{Name: "other project"})
 	require.NoError(t, err)
+	_, otherGroup := createTestIntegrationGroup(t, store, other.ID)
 
 	_, err = store.CreateIntegration(db.Integration{
-		Name: "foreign template", ProjectID: other.ID, TemplateID: existing.TemplateID,
+		Name: "foreign template", ProjectID: other.ID, GroupID: otherGroup.ID, TemplateID: existing.TemplateID,
 	})
 	assertValidationError(t, err, "Template does not exist in the project")
 
 	_, err = store.CreateIntegration(db.Integration{
-		Name: "foreign workflow", ProjectID: other.ID, WorkflowID: &workflowID,
+		Name: "foreign workflow", ProjectID: other.ID, GroupID: otherGroup.ID, WorkflowID: &workflowID,
 	})
 	assertValidationError(t, err, "Workflow does not exist in the project")
 
 	missing := workflowID + 1000
 	_, err = store.CreateIntegration(db.Integration{
-		Name: "missing workflow", ProjectID: project.ID, WorkflowID: &missing,
+		Name: "missing workflow", ProjectID: project.ID, GroupID: existing.GroupID, WorkflowID: &missing,
 	})
 	assertValidationError(t, err, "Workflow does not exist in the project")
 }
@@ -178,11 +180,11 @@ func TestUpdateIntegration_TargetMustBelongToProject(t *testing.T) {
 
 func TestDeleteWorkflow_CascadesToIntegration(t *testing.T) {
 	store := InitConfigCreateTestStore()
-	project, _ := createTestIntegration(t, store)
+	project, existing := createTestIntegration(t, store)
 	workflowID := createTestWorkflow(t, store, project.ID, "wf")
 
 	created, err := store.CreateIntegration(db.Integration{
-		Name: "workflow hook", ProjectID: project.ID, WorkflowID: &workflowID,
+		Name: "workflow hook", ProjectID: project.ID, GroupID: existing.GroupID, WorkflowID: &workflowID,
 	})
 	require.NoError(t, err)
 

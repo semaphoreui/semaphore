@@ -100,6 +100,13 @@ only when the task touches that topic. Keep this file under 150 lines.
   quotes ignored: `!unsafe "2026.08"` is a float, `"00123"` the int 83. Tag only strings holding a
   Jinja2 delimiter or a `#jinja2:` header (`isPossiblyTemplate`, `services/tasks/extra_vars_file.go`);
   check a generated extra-vars file with the real loader, not yaml.v3 (`extra_vars_ansible_test.go`).
+- `db/migration` imports `services/export`, so `go build ./db/...` compiles the exporters: a schema
+  change in `db/` must adapt `services/export/*.go` in the same step or the db packages do not build.
+- Store tests run on SQLite only (`InitConfigCreateTestStoreAt`). A migration that moves data was
+  verified on MySQL/Postgres (2026-10-31) with throwaway containers (`mysql:8.4` on 33306,
+  `postgres:16` on 55432, user/pass `semaphore`/`p455w0rd`) and a one-off `package main` under a
+  `_`-prefixed dir in `AGENTS/tmp/` that sets `util.Config` and calls `db.Migrate`/`db.Rollback`;
+  Postgres needs `Options: {"sslmode": "disable"}`, MySQL refuses a `db.Task` without `Created`.
 - A new per-task execution step (hooks, extra commands) must be implemented twice: in
   `services/tasks/local_executor.go` (server and runner local executor share it) and in the Pro
   container executors, which render one `sh -c` script under `set -e` in

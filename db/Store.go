@@ -70,13 +70,15 @@ type ObjectReferrer struct {
 }
 
 type ObjectReferrers struct {
-	Templates    []ObjectReferrer `json:"templates"`
-	Inventories  []ObjectReferrer `json:"inventories"`
-	Repositories []ObjectReferrer `json:"repositories"`
-	Integrations []ObjectReferrer `json:"integrations"`
-	Schedules    []ObjectReferrer `json:"schedules"`
-	AccessKeys   []ObjectReferrer `json:"access_keys"`
-	HostConfigs  []ObjectReferrer `json:"host_configs"`
+	Templates         []ObjectReferrer `json:"templates"`
+	Inventories       []ObjectReferrer `json:"inventories"`
+	Repositories      []ObjectReferrer `json:"repositories"`
+	Integrations      []ObjectReferrer `json:"integrations"`
+	Endpoints         []ObjectReferrer `json:"endpoints"`
+	IntegrationGroups []ObjectReferrer `json:"integration_groups"`
+	Schedules         []ObjectReferrer `json:"schedules"`
+	AccessKeys        []ObjectReferrer `json:"access_keys"`
+	HostConfigs       []ObjectReferrer `json:"host_configs"`
 }
 
 type IntegrationReferrers struct {
@@ -85,6 +87,18 @@ type IntegrationReferrers struct {
 }
 
 type IntegrationExtractorChildReferrers struct {
+	Integrations []ObjectReferrer `json:"integrations"`
+}
+
+// EndpointReferrers are the groups that run from an endpoint; an endpoint
+// with any cannot be deleted.
+type EndpointReferrers struct {
+	IntegrationGroups []ObjectReferrer `json:"integration_groups"`
+}
+
+// IntegrationGroupReferrers are the integrations of a group; deleting the
+// group deletes them.
+type IntegrationGroupReferrers struct {
 	Integrations []ObjectReferrer `json:"integrations"`
 }
 
@@ -400,10 +414,42 @@ type AccessKeyManager interface {
 	DeleteExpiredTaskAccessKeys() error
 }
 
+// EndpointManager handles the project's webhook endpoints and their aliases.
+type EndpointManager interface {
+	CreateEndpoint(endpoint Endpoint) (Endpoint, error)
+	GetEndpoints(projectID int, params RetrieveQueryParams) ([]Endpoint, error)
+	GetEndpoint(projectID int, endpointID int) (Endpoint, error)
+	UpdateEndpoint(endpoint Endpoint) error
+	// DeleteEndpoint refuses with a validation error while an integration
+	// group still uses the endpoint.
+	DeleteEndpoint(projectID int, endpointID int) error
+	GetEndpointRefs(projectID int, endpointID int) (EndpointReferrers, error)
+
+	CreateEndpointAlias(alias EndpointAlias) (EndpointAlias, error)
+	GetEndpointAliases(projectID int, endpointID int) ([]EndpointAlias, error)
+	DeleteEndpointAlias(projectID int, endpointID int, aliasID int) error
+	// GetEndpointByAlias resolves a public alias to its endpoint; the webhook
+	// receiver starts here. It returns ErrNotFound for an unknown alias.
+	GetEndpointByAlias(alias string) (Endpoint, error)
+}
+
+// IntegrationGroupManager handles the groups integrations belong to.
+type IntegrationGroupManager interface {
+	CreateIntegrationGroup(group IntegrationGroup) (IntegrationGroup, error)
+	GetIntegrationGroups(projectID int, params RetrieveQueryParams) ([]IntegrationGroup, error)
+	GetIntegrationGroup(projectID int, groupID int) (IntegrationGroup, error)
+	GetIntegrationGroupsByEndpoint(projectID int, endpointID int) ([]IntegrationGroup, error)
+	UpdateIntegrationGroup(group IntegrationGroup) error
+	// DeleteIntegrationGroup deletes the group's integrations with it.
+	DeleteIntegrationGroup(projectID int, groupID int) error
+	GetIntegrationGroupRefs(projectID int, groupID int) (IntegrationGroupReferrers, error)
+}
+
 // IntegrationManager handles integration-related operations
 type IntegrationManager interface {
 	CreateIntegration(integration Integration) (newIntegration Integration, err error)
 	GetIntegrations(projectID int, params RetrieveQueryParams, includeTaskParams bool) ([]Integration, error)
+	GetIntegrationsByGroup(projectID int, groupID int, includeTaskParams bool) ([]Integration, error)
 	GetIntegration(projectID int, integrationID int) (integration Integration, err error)
 	UpdateIntegration(integration Integration) error
 	GetIntegrationRefs(projectID int, integrationID int) (IntegrationReferrers, error)
@@ -422,11 +468,6 @@ type IntegrationManager interface {
 	UpdateIntegrationMatcher(projectID int, integrationMatcher IntegrationMatcher) error
 	GetIntegrationMatcherRefs(projectID int, matcherID int, integrationID int) (IntegrationExtractorChildReferrers, error)
 	DeleteIntegrationMatcher(projectID int, matcherID int, integrationID int) error
-
-	CreateIntegrationAlias(alias IntegrationAlias) (IntegrationAlias, error)
-	GetIntegrationAliases(projectID int, integrationID *int) ([]IntegrationAlias, error)
-	GetIntegrationsByAlias(alias string) ([]Integration, IntegrationAliasLevel, error)
-	DeleteIntegrationAlias(projectID int, aliasID int) error
 }
 
 // SessionManager handles session-related operations
@@ -629,6 +670,8 @@ type Store interface {
 	HostConfigManager
 	EnvironmentManager
 	AccessKeyManager
+	EndpointManager
+	IntegrationGroupManager
 	IntegrationManager
 	SessionManager
 	TokenManager
@@ -685,10 +728,28 @@ var IntegrationMatcherProps = ObjectProps{
 	DefaultSortingColumn: "name",
 }
 
-var IntegrationAliasProps = ObjectProps{
-	TableName:         "project__integration_alias",
-	Type:              reflect.TypeFor[IntegrationAlias](),
+var EndpointProps = ObjectProps{
+	TableName:             "project__endpoint",
+	Type:                  reflect.TypeFor[Endpoint](),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "endpoint_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
+}
+
+var EndpointAliasProps = ObjectProps{
+	TableName:         "project__endpoint_alias",
+	Type:              reflect.TypeFor[EndpointAlias](),
 	PrimaryColumnName: "id",
+}
+
+var IntegrationGroupProps = ObjectProps{
+	TableName:             "project__integration_group",
+	Type:                  reflect.TypeFor[IntegrationGroup](),
+	PrimaryColumnName:     "id",
+	ReferringColumnSuffix: "group_id",
+	SortableColumns:       []string{"name"},
+	DefaultSortingColumn:  "name",
 }
 
 var EnvironmentProps = ObjectProps{

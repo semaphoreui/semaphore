@@ -25,7 +25,9 @@ const (
 	RoleMapping             = "RoleMapping"
 	TaskParams              = "TaskParams"
 	Integration             = "Integration"
-	IntegrationAlias        = "IntegrationAlias"
+	Endpoint                = "Endpoint"
+	EndpointAlias           = "EndpointAlias"
+	IntegrationGroup        = "IntegrationGroup"
 	IntegrationExtractValue = "IntegrationExtractValue"
 	IntegrationMatcher      = "IntegrationMatcher"
 	Schedule                = "Schedule"
@@ -427,10 +429,12 @@ func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUs
 		RoleMapping:             &RoleMappingExporter{},
 		Schedule:                &ScheduleExporter{},
 		ProjectUser:             &ProjectUserExporter{},
+		Endpoint:                &EndpointExporter{},
+		EndpointAlias:           &EndpointAliasExporter{},
+		IntegrationGroup:        &IntegrationGroupExporter{},
 		Integration:             &IntegrationExporter{},
 		IntegrationExtractValue: &IntegrationExtractValueExporter{},
 		IntegrationMatcher:      &IntegrationMatcherExporter{},
-		IntegrationAlias:        &IntegrationAliasExporter{},
 		Task:                    &TaskExporter{},
 		//TaskStage:               &TaskStageExporter{},
 		Option: &OptionExporter{},
