@@ -11,7 +11,7 @@
         <v-icon small class="mr-1">mdi-webhook</v-icon>
         {{ $t('endpoint') }}:
         <router-link
-          :to="`/project/${projectId}/endpoints`"
+          :to="`/project/${projectId}/integrations/endpoints`"
           class="IntegrationExtractor__endpoint"
         >{{ endpoint.name }}</router-link>
       </div>

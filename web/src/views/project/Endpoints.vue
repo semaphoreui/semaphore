@@ -34,7 +34,8 @@
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat>
+    <!-- Shown on the Endpoints tab of the Integrations page, the toolbar is that page's. -->
+    <v-toolbar flat v-if="!embedded">
       <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
       <v-toolbar-title>{{ $t('endpoints') }}</v-toolbar-title>
       <v-spacer></v-spacer>
@@ -47,11 +48,11 @@
       </v-btn>
     </v-toolbar>
 
-    <div class="px-4 pb-2 text--secondary" style="font-size: 14px">
+    <div class="px-4 pb-2 text--secondary" :class="{ 'pt-4': embedded }" style="font-size: 14px">
       {{ $t('endpointDescription') }}
     </div>
 
-    <v-divider />
+    <v-divider v-if="!embedded" />
 
     <v-data-table
       :headers="headers"
@@ -147,6 +148,11 @@ import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 export default {
   mixins: [ItemListPageBase, EndpointAliasesBase],
   components: { EndpointForm, CopyClipboardButton },
+
+  props: {
+    /** Rendered inside the Integrations page: no toolbar of its own. */
+    embedded: Boolean,
+  },
 
   data() {
     return {

@@ -62,7 +62,7 @@ export default {
         icon: 'git',
       }, {
         slug: 'integrations',
-        title: 'Integrations',
+        title: this.$t('integrationRuns'),
         icon: 'connection',
       }, {
         slug: 'integration_groups',
@@ -72,6 +72,7 @@ export default {
         icon: 'folder-outline',
       }, {
         slug: 'endpoints',
+        path: 'integrations/endpoints',
         pageless: true,
         title: this.$t('endpoints'),
         icon: 'webhook',

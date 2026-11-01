@@ -68,17 +68,45 @@
       <v-toolbar-title>{{ $t('integrations') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
+        v-if="tab === 'integrations' && can(USER_PERMISSIONS.manageProjectResources)"
         color="primary"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
         @click="editGroup('new')"
         data-testid="integrations-new-group"
         >{{ $t('NewIntegrationGroup') }}
       </v-btn>
+      <v-btn
+        v-if="tab === 'endpoints' && can(USER_PERMISSIONS.manageProjectResources)"
+        color="primary"
+        @click="$refs.endpoints.editItem('new')"
+        data-testid="endpoints-new"
+        >{{ $t('NewEndpoint') }}
+      </v-btn>
     </v-toolbar>
+
+    <v-tabs class="pl-4" :value="tab === 'endpoints' ? 1 : 0">
+      <v-tab :to="`/project/${projectId}/integrations`" exact data-testid="integrations-tab">
+        {{ $t('integrations') }}
+      </v-tab>
+      <v-tab :to="`/project/${projectId}/integrations/endpoints`" data-testid="endpoints-tab">
+        {{ $t('endpoints') }}
+      </v-tab>
+    </v-tabs>
 
     <v-divider />
 
+    <Endpoints
+      v-if="tab === 'endpoints'"
+      ref="endpoints"
+      embedded
+      :project-id="projectId"
+      :project-type="projectType"
+      :user-permissions="userPermissions"
+      :user-id="userId"
+      :user="user"
+    />
+
     <div
+      v-else
       class="px-4 py-4 Integrations__groups"
       style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
     >
@@ -121,7 +149,7 @@
 
         <v-card-subtitle class="pb-2 Integrations__groupMeta">
           <router-link
-            :to="`/project/${projectId}/endpoints`"
+            :to="`/project/${projectId}/integrations/endpoints`"
             class="mr-4 Integrations__groupEndpoint"
           >
             <v-icon small class="mr-1">mdi-webhook</v-icon>
@@ -194,13 +222,19 @@ import { authMethodTitle } from '@/lib/integrationAuth';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import IntegrationForm from '@/components/IntegrationForm.vue';
 import IntegrationGroupForm from '@/components/IntegrationGroupForm.vue';
+import Endpoints from '@/views/project/Endpoints.vue';
 
 export default {
   mixins: [ItemListPageBase],
-  components: { IntegrationForm, IntegrationGroupForm },
+  components: { IntegrationForm, IntegrationGroupForm, Endpoints },
   props: {
     /** Server feature flags; `workflows` enables the workflow target of an integration. */
     features: Object,
+    /** Which tab the route opened: 'integrations' (default) or 'endpoints'. */
+    tab: {
+      type: String,
+      default: 'integrations',
+    },
   },
   data() {
     return {
