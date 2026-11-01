@@ -503,6 +503,12 @@ func globalRolesEnabled() bool {
 	return proFeatures.GetFeatures(&db.User{}, "").GlobalRolesManagement
 }
 
+// customRolesEnabled reports whether the server under test lets the test user write object grants: the PRO
+// implementation enables them only for an active Enterprise plan, which the Dredd stand does not have.
+func customRolesEnabled() bool {
+	return proFeatures.GetFeatures(&db.User{}, "").CustomRolesManagement
+}
+
 // HELPERS
 var randSetup = false
 

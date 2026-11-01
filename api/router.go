@@ -124,7 +124,7 @@ func Route(
 	roleMappingsController := proApi.NewRoleMappingsController(roleMappingStore, store)
 	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
-	workflowPermController := projects.NewWorkflowPermController(store)
+	workflowPermController := projects.NewWorkflowPermController(store, subscriptionService)
 	systemInfoController := NewSystemInfoController(subscriptionService)
 
 	r := mux.NewRouter()

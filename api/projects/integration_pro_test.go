@@ -37,7 +37,7 @@ func (brokenLicense) GetToken() (pro_interfaces.SubscriptionToken, error) {
 // allFeatures and noFeatures stand in for the build's feature table, so the tests hold for the
 // open-source stub and for Pro alike.
 func allFeatures(*db.User, string) pro_interfaces.Features {
-	return pro_interfaces.Features{Workflows: true, WorkflowIntegrationsManagement: true}
+	return pro_interfaces.Features{Workflows: true, WorkflowIntegrationsManagement: true, CustomRolesManagement: true}
 }
 
 func noFeatures(*db.User, string) pro_interfaces.Features {

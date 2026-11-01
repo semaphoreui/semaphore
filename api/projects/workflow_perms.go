@@ -5,18 +5,43 @@ import (
 	"net/http"
 	"strconv"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/audit"
 )
+
+// workflowPermsEnterpriseOnly is the 403 body when a grant is written on a plan without custom roles.
+const workflowPermsEnterpriseOnly = "Workflow permissions are only available for Enterprise users."
 
 // WorkflowPermController grants roles on one workflow, the twin of the template permission handlers.
 type WorkflowPermController struct {
 	workflowRoles db.WorkflowRoleManager
+	pro           proFeatureGate
 }
 
-func NewWorkflowPermController(workflowRoles db.WorkflowRoleManager) *WorkflowPermController {
-	return &WorkflowPermController{workflowRoles: workflowRoles}
+func NewWorkflowPermController(workflowRoles db.WorkflowRoleManager, subscription pro_interfaces.SubscriptionService) *WorkflowPermController {
+	return &WorkflowPermController{workflowRoles: workflowRoles, pro: newProFeatureGate(subscription)}
+}
+
+// grantsAllowed answers the request itself when the plan has no custom roles.
+func (c *WorkflowPermController) grantsAllowed(w http.ResponseWriter, r *http.Request, projectID int) bool {
+	features, err := c.pro.features(helpers.UserFromContext(r))
+	if err != nil {
+		log.WithFields(log.Fields{
+			"context":    "workflow_perms",
+			"project_id": projectID,
+		}).WithError(err).Error("Failed to read the subscription plan")
+		helpers.WriteErrorStatus(w, "Failed to read the subscription plan", http.StatusInternalServerError)
+		return false
+	}
+	if !features.CustomRolesManagement {
+		helpers.WriteErrorStatus(w, workflowPermsEnterpriseOnly, http.StatusForbidden)
+		return false
+	}
+	return true
 }
 
 func (c *WorkflowPermController) GetWorkflowPerms(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +58,9 @@ func (c *WorkflowPermController) GetWorkflowPerms(w http.ResponseWriter, r *http
 
 func (c *WorkflowPermController) AddWorkflowPerm(w http.ResponseWriter, r *http.Request) {
 	workflow := helpers.GetFromContext(r, "workflow").(db.WorkflowTemplate)
+	if !c.grantsAllowed(w, r, workflow.ProjectID) {
+		return
+	}
 
 	var perm db.WorkflowRolePerm
 	if !helpers.Bind(w, r, &perm) {
@@ -84,6 +112,9 @@ func (c *WorkflowPermController) UpdateWorkflowPerm(w http.ResponseWriter, r *ht
 	if !ok {
 		return
 	}
+	if !c.grantsAllowed(w, r, workflow.ProjectID) {
+		return
+	}
 
 	var perm db.WorkflowRolePerm
 	if !helpers.Bind(w, r, &perm) {
@@ -127,6 +158,9 @@ func (c *WorkflowPermController) DeleteWorkflowPerm(w http.ResponseWriter, r *ht
 	workflow := helpers.GetFromContext(r, "workflow").(db.WorkflowTemplate)
 	permID, ok := helpers.GetIntParamOrAbort("perm_id", w, r)
 	if !ok {
+		return
+	}
+	if !c.grantsAllowed(w, r, workflow.ProjectID) {
 		return
 	}
 

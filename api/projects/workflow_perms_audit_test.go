@@ -36,6 +36,7 @@ func workflowPermRequest(t *testing.T, store db.Store, method string, body strin
 	rec := &audittest.Recorder{}
 	r := httptest.NewRequest(method, "/api/project/12/workflows/3/perms", bytes.NewBufferString(body))
 	r = helpers.SetContextValue(r, "workflow", db.WorkflowTemplate{ID: 3, ProjectID: 12})
+	r = helpers.SetContextValue(r, "user", &db.User{ID: 7, Username: "bob"})
 	r = helpers.SetContextValue(r, "audit", rec)
 	r = helpers.SetContextValue(r, "store", store)
 	if permID != "" {
@@ -48,7 +49,7 @@ func TestWorkflowPermissions_AreRecorded(t *testing.T) {
 	store := sqlstore.InitConfigCreateTestStore()
 	runner := builtinRole(t, store, db.ProjectTaskRunner)
 	ref := audit.NewRoleRef(runner)
-	controller := NewWorkflowPermController(&fakeWorkflowRoles{existing: db.WorkflowRolePerm{ID: 5, RoleID: runner.ID, RoleSlug: runner.Slug}})
+	controller := &WorkflowPermController{workflowRoles: &fakeWorkflowRoles{existing: db.WorkflowRolePerm{ID: 5, RoleID: runner.ID, RoleSlug: runner.Slug}}, pro: proFeatureGate{subscription: noLicense{}, getFeatures: allFeatures}}
 
 	r, rec := workflowPermRequest(t, store, http.MethodPost, `{"role_slug":"Task_Runner","permissions":16}`, "")
 	w := httptest.NewRecorder()
@@ -75,7 +76,7 @@ func TestWorkflowPermissions_AreRecorded(t *testing.T) {
 
 func TestUpdateWorkflowPerm_UnknownGrantIsNotFound(t *testing.T) {
 	store := sqlstore.InitConfigCreateTestStore()
-	controller := NewWorkflowPermController(&fakeWorkflowRoles{getErr: db.ErrNotFound})
+	controller := &WorkflowPermController{workflowRoles: &fakeWorkflowRoles{getErr: db.ErrNotFound}, pro: proFeatureGate{subscription: noLicense{}, getFeatures: allFeatures}}
 	r, rec := workflowPermRequest(t, store, http.MethodPut, `{"role_slug":"guest","permissions":16}`, "5")
 	w := httptest.NewRecorder()
 
@@ -87,7 +88,7 @@ func TestUpdateWorkflowPerm_UnknownGrantIsNotFound(t *testing.T) {
 
 func TestWorkflowPermissions_RejectUnknownBits(t *testing.T) {
 	store := sqlstore.InitConfigCreateTestStore()
-	controller := NewWorkflowPermController(&fakeWorkflowRoles{existing: db.WorkflowRolePerm{ID: 5, RoleID: 7}})
+	controller := &WorkflowPermController{workflowRoles: &fakeWorkflowRoles{existing: db.WorkflowRolePerm{ID: 5, RoleID: 7}}, pro: proFeatureGate{subscription: noLicense{}, getFeatures: allFeatures}}
 	tests := []struct {
 		name   string
 		method string
