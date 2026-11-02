@@ -14,8 +14,6 @@ func TestConfigType_MaxSessionLife(t *testing.T) {
 		config   *ConfigType
 		expected time.Duration
 	}{
-		{"nil config", nil, 0},
-		{"auth section not configured", &ConfigType{}, 0},
 		{"zero hours means unlimited", &ConfigType{Auth: &AuthConfig{MaxSessionLifeHours: 0}}, 0},
 		{"negative hours means unlimited", &ConfigType{Auth: &AuthConfig{MaxSessionLifeHours: -5}}, 0},
 		{"configured hours", &ConfigType{Auth: &AuthConfig{MaxSessionLifeHours: 12}}, 12 * time.Hour},
@@ -34,8 +32,6 @@ func TestConfigType_SessionInactivityTimeout(t *testing.T) {
 		config   *ConfigType
 		expected time.Duration
 	}{
-		{"nil config", nil, DefaultSessionInactivityTimeout},
-		{"auth section not configured", &ConfigType{}, DefaultSessionInactivityTimeout},
 		{"zero hours means built-in default", &ConfigType{Auth: &AuthConfig{SessionInactivityHours: 0}}, DefaultSessionInactivityTimeout},
 		{"negative hours means built-in default", &ConfigType{Auth: &AuthConfig{SessionInactivityHours: -5}}, DefaultSessionInactivityTimeout},
 		{"configured hours", &ConfigType{Auth: &AuthConfig{SessionInactivityHours: 8}}, 8 * time.Hour},

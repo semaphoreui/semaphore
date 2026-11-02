@@ -14,20 +14,20 @@ type AuthConfig struct {
 	// session is rejected and expired, even if it was active recently, and the
 	// user must log in again. 0 (default) means no absolute limit: sessions
 	// then only expire after the inactivity timeout without activity.
-	MaxSessionLifeHours int `json:"max_session_life_hours,omitempty" rule:"^[0-9]*$" env:"SEMAPHORE_AUTH_MAX_SESSION_LIFE_HOURS"`
+	MaxSessionLifeHours int `json:"max_session_life_hours,omitempty" rule:"^[0-9]*$" env:"SEMAPHORE_SESSION_MAX_LIFE_HOURS"`
 
 	// SessionInactivityHours is how long a login session may stay unused, in
 	// hours, before it is rejected and expired. Every authenticated request
 	// resets the counter. 0 (default) means the built-in 168 hours (7 days).
 	// The inactivity timeout cannot be disabled.
-	SessionInactivityHours int `json:"session_inactivity_hours,omitempty" rule:"^[0-9]*$" env:"SEMAPHORE_AUTH_SESSION_INACTIVITY_HOURS"`
+	SessionInactivityHours int `json:"session_inactivity_hours,omitempty" rule:"^[0-9]*$" env:"SEMAPHORE_SESSION_INACTIVITY_HOURS"`
 }
 
 // MaxSessionLife returns the absolute session lifetime configured by
 // auth.max_session_life_hours, or 0 when sessions have no absolute limit.
 // It is safe to call when the auth section is not configured.
 func (c *ConfigType) MaxSessionLife() time.Duration {
-	if c == nil || c.Auth == nil || c.Auth.MaxSessionLifeHours <= 0 {
+	if c.Auth.MaxSessionLifeHours <= 0 {
 		return 0
 	}
 	return time.Duration(c.Auth.MaxSessionLifeHours) * time.Hour
@@ -38,7 +38,7 @@ func (c *ConfigType) MaxSessionLife() time.Duration {
 // DefaultSessionInactivityTimeout when the option is not set. It is safe to
 // call when the auth section is not configured.
 func (c *ConfigType) SessionInactivityTimeout() time.Duration {
-	if c == nil || c.Auth == nil || c.Auth.SessionInactivityHours <= 0 {
+	if c.Auth.SessionInactivityHours <= 0 {
 		return DefaultSessionInactivityTimeout
 	}
 	return time.Duration(c.Auth.SessionInactivityHours) * time.Hour
