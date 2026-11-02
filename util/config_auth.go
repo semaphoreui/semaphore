@@ -12,7 +12,7 @@ type AuthConfig struct {
 	// hours, before it is rejected and expired. Every authenticated request
 	// resets the counter. 0 (default) means the built-in 168 hours (7 days).
 	// The inactivity timeout cannot be disabled.
-	SessionInactivityHours int `json:"session_inactivity_hours,omitempty" rule:"^[0-9]*$" env:"SEMAPHORE_AUTH_SESSION_INACTIVITY_HOURS"`
+	SessionInactivityHours int `json:"session_inactivity_hours,omitempty" rule:"^[0-9]*$" env:"SEMAPHORE_SESSION_INACTIVITY_HOURS"`
 }
 
 // SessionInactivityTimeout returns how long a session may stay unused before

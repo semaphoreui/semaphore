@@ -29,7 +29,7 @@ func TestConfigType_SessionInactivityTimeout(t *testing.T) {
 }
 
 func TestAuthConfig_LoadFromEnvironment(t *testing.T) {
-	t.Setenv("SEMAPHORE_AUTH_SESSION_INACTIVITY_HOURS", "8")
+	t.Setenv("SEMAPHORE_SESSION_INACTIVITY_HOURS", "8")
 
 	cfg := &ConfigType{}
 	_, err := loadEnvironmentToObject(cfg)
