@@ -33,6 +33,7 @@ properties:
   # ==========================================================================
   # Authentication
   # ==========================================================================
+  auth: { $ref: "#/$defs/AuthConfig" }
   mfa: { $ref: "#/$defs/MultifactorAuthConfig" }
 
   # ==========================================================================
@@ -323,6 +324,19 @@ $defs:
         minimum: 1
         maximum: 65535
         description: Port for the HTTP→HTTPS redirect listener. Mutually exclusive with http_redirect_addr.
+
+  AuthConfig:
+    type: object
+    description: Settings that apply to every login method.
+    properties:
+      session_inactivity_hours:
+        type: integer
+        minimum: 0
+        default: 0
+        description: >-
+          How long a login session may stay unused, in hours, before it is
+          expired. Every authenticated request resets the counter. 0 means the
+          built-in 168 hours (7 days); the timeout cannot be disabled.
 
   MultifactorAuthConfig:
     type: object
