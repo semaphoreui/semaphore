@@ -2,10 +2,6 @@ package db
 
 import "time"
 
-// SessionInactivityTimeout is how long a session may stay unused before it is
-// rejected. It applies regardless of the configured absolute session lifetime.
-const SessionInactivityTimeout = 7 * 24 * time.Hour
-
 type SessionVerificationMethod int
 
 const (

@@ -2,14 +2,25 @@ package util
 
 import "time"
 
+// DefaultSessionInactivityTimeout is how long a session may stay unused before
+// it is rejected when auth.session_inactivity_hours is not configured. It
+// applies regardless of the configured absolute session lifetime.
+const DefaultSessionInactivityTimeout = 7 * 24 * time.Hour
+
 // AuthConfig holds settings that apply to every login method.
 type AuthConfig struct {
 	// MaxSessionLifeHours is the absolute lifetime of a login session in
 	// hours, counted from the moment the user logged in. Once exceeded the
 	// session is rejected and expired, even if it was active recently, and the
 	// user must log in again. 0 (default) means no absolute limit: sessions
-	// then only expire after SessionInactivityTimeout without activity.
+	// then only expire after the inactivity timeout without activity.
 	MaxSessionLifeHours int `json:"max_session_life_hours,omitempty" rule:"^[0-9]*$" env:"SEMAPHORE_AUTH_MAX_SESSION_LIFE_HOURS"`
+
+	// SessionInactivityHours is how long a login session may stay unused, in
+	// hours, before it is rejected and expired. Every authenticated request
+	// resets the counter. 0 (default) means the built-in 168 hours (7 days).
+	// The inactivity timeout cannot be disabled.
+	SessionInactivityHours int `json:"session_inactivity_hours,omitempty" rule:"^[0-9]*$" env:"SEMAPHORE_AUTH_SESSION_INACTIVITY_HOURS"`
 }
 
 // MaxSessionLife returns the absolute session lifetime configured by
@@ -20,6 +31,17 @@ func (c *ConfigType) MaxSessionLife() time.Duration {
 		return 0
 	}
 	return time.Duration(c.Auth.MaxSessionLifeHours) * time.Hour
+}
+
+// SessionInactivityTimeout returns how long a session may stay unused before
+// it is rejected, as configured by auth.session_inactivity_hours, or
+// DefaultSessionInactivityTimeout when the option is not set. It is safe to
+// call when the auth section is not configured.
+func (c *ConfigType) SessionInactivityTimeout() time.Duration {
+	if c == nil || c.Auth == nil || c.Auth.SessionInactivityHours <= 0 {
+		return DefaultSessionInactivityTimeout
+	}
+	return time.Duration(c.Auth.SessionInactivityHours) * time.Hour
 }
 
 type RecaptchaConfig struct {

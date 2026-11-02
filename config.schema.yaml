@@ -381,8 +381,16 @@ $defs:
         description: >-
           Absolute lifetime of a login session in hours, counted from login.
           Once exceeded the session is expired even if it was recently active.
-          0 means no absolute limit; sessions then expire only after 7 days
-          without activity.
+          0 means no absolute limit; sessions then expire only after the
+          inactivity timeout (session_inactivity_hours).
+      session_inactivity_hours:
+        type: integer
+        minimum: 0
+        default: 0
+        description: >-
+          How long a login session may stay unused, in hours, before it is
+          expired. Every authenticated request resets the counter. 0 means the
+          built-in 168 hours (7 days); the timeout cannot be disabled.
 
   MultifactorAuthConfig:
     type: object
