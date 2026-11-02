@@ -1642,10 +1642,8 @@ func validateConfig() {
 		panic(err)
 	}
 
-	if Config.Auth != nil {
-		if err := validate(Config.Auth); err != nil {
-			panic(err)
-		}
+	if err := validate(Config.Auth); err != nil {
+		panic(err)
 	}
 
 	if err := validateAccessKeyEncryption(Config.AccessKeyEncryption); err != nil {
