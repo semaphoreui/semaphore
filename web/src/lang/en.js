@@ -45,6 +45,8 @@ export default {
   newProject: 'New Project',
   close: 'Close',
   newProject2: 'New Project...',
+  projectSearch: 'Search projects…',
+  projectSearchNoMatch: 'No matching projects',
   demoMode: 'DEMO MODE',
   task: 'Task #{expr}',
   youCanRunAnyTasks: 'You can run any tasks',

@@ -135,7 +135,13 @@
       v-if="$route.path.startsWith('/project/')"
       class="NavDrawer"
     >
-      <v-menu bottom max-width="235" max-height="100%" v-if="project">
+      <v-menu
+        v-model="projectMenu"
+        bottom
+        max-width="235"
+        max-height="100%"
+        v-if="project"
+      >
         <template v-slot:activator="{ on, attrs }">
           <v-list class="pa-0 overflow-y-auto">
             <v-list-item
@@ -169,9 +175,30 @@
           </v-list>
         </template>
         <v-list>
+          <!-- click.stop: a click in the field must not close the menu. -->
+          <v-sheet
+            v-if="showProjectSearch"
+            class="app__project-search"
+            @click.stop
+          >
+            <v-text-field
+              ref="projectSearch"
+              v-model="projectSearch"
+              dense
+              outlined
+              hide-details
+              clearable
+              autofocus
+              prepend-inner-icon="mdi-magnify"
+              :placeholder="$t('projectSearch')"
+              class="ma-2"
+              data-testid="sidebar-projectSearch"
+            />
+          </v-sheet>
+
           <v-list-item
-            v-for="(item, i) in projects"
-            :key="i"
+            v-for="item in foundProjects"
+            :key="item.id"
             :to="`/project/${item.id}`"
             @click="selectProject(item.id)"
           >
@@ -185,6 +212,10 @@
               </v-avatar>
             </v-list-item-icon>
             <v-list-item-content>{{ item.name }}</v-list-item-content>
+          </v-list-item>
+
+          <v-list-item v-if="foundProjects.length === 0" disabled>
+            <v-list-item-content>{{ $t('projectSearchNoMatch') }}</v-list-item-content>
           </v-list-item>
 
           <v-divider v-if="user.can_create_project" />
@@ -820,6 +851,13 @@ html.WorkflowEditor-html body {
   font-weight: bold;
 }
 
+// Stays at the top while a long project list scrolls.
+.app__project-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
 .v-application--is-ltr .v-list-item__action:first-child,
 .v-application--is-ltr .v-list-item__icon:first-child {
   margin-right: 16px !important;
@@ -969,6 +1007,7 @@ import ProjectForm from '@/components/ProjectForm.vue';
 import UserForm from '@/components/UserForm.vue';
 import EventBus from '@/event-bus';
 import { navMiniForPath } from '@/lib/workflowEditorPrefs';
+import { filterProjects, PROJECT_SEARCH_MIN_PROJECTS } from '@/lib/projectSearch';
 import socket from '@/socket';
 
 import SubscriptionForm from '@/components/SubscriptionForm.vue';
@@ -1077,6 +1116,8 @@ export default {
       snackbarText: '',
       snackbarColor: '',
       projects: null,
+      projectMenu: false,
+      projectSearch: '',
       newProjectDialog: null,
       newProjectType: '',
       userDialog: null,
@@ -1113,6 +1154,19 @@ export default {
   },
 
   watch: {
+    // The menu keeps its content between openings: start each one with an
+    // empty, focused search field (autofocus works only on the first one).
+    projectMenu(open) {
+      if (!open) {
+        this.projectSearch = '';
+        return;
+      }
+      this.$nextTick(() => {
+        const field = this.$refs.projectSearch;
+        if (field && field.focus) field.focus();
+      });
+    },
+
     async projects(val) {
       if (
         val.length === 0
@@ -1165,6 +1219,14 @@ export default {
   computed: {
     isPro() {
       return (process.env.VUE_APP_BUILD_TYPE || '').startsWith('pro_');
+    },
+
+    showProjectSearch() {
+      return (this.projects || []).length > PROJECT_SEARCH_MIN_PROJECTS;
+    },
+
+    foundProjects() {
+      return filterProjects(this.projects, this.projectSearch);
     },
 
     // Instance-wide rights of the signed-in user: the admin flag or an assigned global role.
