@@ -218,8 +218,13 @@ func TestStartSSHAgent_UsesConfiguredSocketsDir(t *testing.T) {
 	assert.Equal(t, filepath.Join(socketsDir, "project_3"), filepath.Dir(agent.SocketFile))
 
 	// The project tmp folder is still created 0755, as when the socket lived
-	// there, so InstallHostConfigs does not make it 0700 first.
+	// there, so InstallHostConfigs does not make it 0700 first. The umask
+	// trims the mode, so compare with a directory made the same way (0755).
+	refDir := filepath.Join(t.TempDir(), "ref")
+	require.NoError(t, os.MkdirAll(refDir, 0o755))
+	refInfo, err := os.Stat(refDir)
+	require.NoError(t, err)
 	info, err := os.Stat(filepath.Join(tmpPath, "project_3"))
 	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o755), info.Mode().Perm())
+	assert.Equal(t, refInfo.Mode().Perm(), info.Mode().Perm())
 }
