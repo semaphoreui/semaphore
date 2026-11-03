@@ -864,6 +864,8 @@ func TestListenPort_Addr(t *testing.T) {
 
 func TestConfig_GetSSHAgentSocketsDir(t *testing.T) {
 	projectID := 7
+	wd, err := os.Getwd()
+	require.NoError(t, err)
 
 	tests := []struct {
 		name      string
@@ -877,6 +879,7 @@ func TestConfig_GetSSHAgentSocketsDir(t *testing.T) {
 		{"default value, key outside a project", &ConfigDirs{SSHAgentSockets: "/tmp/semaphore"}, nil, "/data/tmp"},
 		{"custom value, project key", &ConfigDirs{SSHAgentSockets: "/run/sockets"}, &projectID, "/run/sockets/project_7"},
 		{"custom value, key outside a project", &ConfigDirs{SSHAgentSockets: "/run/sockets"}, nil, "/run/sockets"},
+		{"relative value, project key", &ConfigDirs{SSHAgentSockets: "sockets"}, &projectID, filepath.Join(wd, "sockets", "project_7")},
 	}
 
 	for _, tt := range tests {
