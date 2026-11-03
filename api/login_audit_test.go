@@ -247,6 +247,13 @@ func (f fakeRoleSync) SyncLoginRoles(userID int, provider string, claims map[str
 	return f.added, f.removed, f.err
 }
 
+func (f fakeRoleSync) SyncGroupRoles(userID int, provider string, groups []string) ([]db.MappedRole, []db.MappedRole, error) {
+	if f.provider != nil {
+		*f.provider = provider
+	}
+	return f.added, f.removed, f.err
+}
+
 func TestSyncLoginRoles(t *testing.T) {
 	user := db.User{ID: 5, Username: "jdoe"}
 	row := db.MappedRole{ProjectID: 2, UserID: 5, Username: "jdoe", MappingID: 7, Provider: "okta", Group: "devops", RoleID: 3, RoleSlug: "dev"}
