@@ -5,10 +5,17 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
 func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, err error) {
 
+	if err = schedule.Validate(); err != nil {
+		return
+	}
+	if err = d.validateScheduleTarget(schedule); err != nil {
+		return
+	}
 	if schedule.TaskParams != nil {
 		params := schedule.TaskParams
 		params.ProjectID = schedule.ProjectID
@@ -25,8 +32,8 @@ func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, e
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, `type`, task_params_id, delete_after_run)"+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, `type`, task_params_id, delete_after_run, workflow_id)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		schedule.ProjectID,
 		schedule.TemplateID,
 		schedule.CronFormat,
@@ -36,7 +43,8 @@ func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, e
 		schedule.RunAt,
 		schedule.Type,
 		schedule.TaskParamsID,
-		schedule.DeleteAfterRun)
+		schedule.DeleteAfterRun,
+		schedule.WorkflowID)
 
 	if err != nil {
 		return
@@ -60,6 +68,12 @@ func (d *SqlDb) SetScheduleLastCommitHash(projectID int, scheduleID int, lastCom
 
 func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 
+	if err = schedule.Validate(); err != nil {
+		return
+	}
+	if err = d.validateScheduleTarget(schedule); err != nil {
+		return
+	}
 	if schedule.TaskParams != nil {
 		var curr db.Schedule
 		err = d.getObject(schedule.ProjectID, db.ScheduleProps, schedule.ID, &curr)
@@ -98,7 +112,7 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		"`type`=?, "+
 		"last_commit_hash = NULL, "+
 		"task_params_id=?, "+
-		"delete_after_run=? "+
+		"delete_after_run=?, workflow_id=? "+
 		"where project_id=? and id=?",
 		schedule.CronFormat,
 		schedule.RepositoryID,
@@ -109,6 +123,7 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		schedule.Type,
 		schedule.TaskParamsID,
 		schedule.DeleteAfterRun,
+		schedule.WorkflowID,
 		schedule.ProjectID,
 		schedule.ID)
 
@@ -174,8 +189,9 @@ func (d *SqlDb) GetProjectSchedules(projectID int, includeTaskParams bool, inclu
 	}
 
 	_, err = d.selectAll(&schedules,
-		"SELECT ps.*, pt.name as tpl_name FROM project__schedule ps "+
-			"JOIN project__template pt ON pt.id = ps.template_id "+
+		"SELECT ps.*, COALESCE(pt.name, pw.name, '') as tpl_name FROM project__schedule ps "+
+			"LEFT JOIN project__template pt ON pt.id = ps.template_id "+
+			"LEFT JOIN project__workflow_template pw ON pw.id = ps.workflow_id "+
 			"WHERE "+
 			repoFilter+
 			"ps.project_id=?",
@@ -233,4 +249,19 @@ func (d *SqlDb) SetScheduleCommitHash(projectID int, scheduleID int, hash string
 		projectID,
 		scheduleID)
 	return err
+}
+
+func (d *SqlDb) validateScheduleTarget(s db.Schedule) error {
+	table, id := "project__template", s.TemplateID
+	if s.WorkflowID != nil {
+		table, id = "project__workflow_template", s.WorkflowID
+	}
+	count, err := d.Sql().SelectInt(d.PrepareQuery("select count(1) from "+table+" where id=? and project_id=?"), *id, s.ProjectID)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return common_errors.NewValidationError("Schedule target does not exist in the project")
+	}
+	return nil
 }

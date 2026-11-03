@@ -197,7 +197,8 @@ type TemplateInventoryMetadata struct {
 }
 
 type ScheduleMetadata struct {
-	TemplateID int `json:"template_id"`
+	WorkflowID int `json:"workflow_id,omitempty"`
+	TemplateID int `json:"template_id,omitempty"`
 }
 
 // IntegrationMetadata names what the integration starts: exactly one of

@@ -118,6 +118,7 @@ type BackupAccessKey struct {
 
 type BackupSchedule struct {
 	db.Schedule
+	Workflow            *string `backup:"workflow"`
 	Template            string  `backup:"template"`
 	CheckableRepository *string `backup:"checkable_repository"`
 }

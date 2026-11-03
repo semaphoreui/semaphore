@@ -1429,6 +1429,11 @@ definitions:
         type: integer
       template_id:
         type: integer
+        x-nullable: true
+      workflow_id:
+        type: integer
+        description: Workflow to run. Set exactly one of template_id and workflow_id.
+        x-nullable: true
       name:
         type: string
       active:

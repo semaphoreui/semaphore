@@ -128,9 +128,9 @@ func (s *mutateServer) handler(t *testing.T) http.Handler {
 		case "/api/project/7/repositories/2":
 			enc(db.Repository{ID: 2, Name: "infra", GitURL: "git@x", GitBranch: "main", SSHKeyID: 6})
 		case "/api/project/7/schedules":
-			enc([]db.ScheduleWithTpl{{Schedule: db.Schedule{ID: 9, Name: "nightly", TemplateID: 3, CronFormat: "0 3 * * *", Active: true}}})
+			enc([]db.ScheduleWithTpl{{Schedule: db.Schedule{ID: 9, Name: "nightly", TemplateID: new(3), CronFormat: "0 3 * * *", Active: true}}})
 		case "/api/project/7/schedules/9":
-			enc(db.Schedule{ID: 9, Name: "nightly", TemplateID: 3, CronFormat: "0 3 * * *", Active: true})
+			enc(db.Schedule{ID: 9, Name: "nightly", TemplateID: new(3), CronFormat: "0 3 * * *", Active: true})
 		case "/api/project/7/views":
 			enc([]db.View{{ID: 11, Title: "Ops"}})
 		case "/api/project/7/views/11":

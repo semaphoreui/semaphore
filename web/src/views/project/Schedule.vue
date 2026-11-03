@@ -16,6 +16,7 @@
           :need-save="needSave"
           :need-reset="needReset"
           :timezone="systemInfo.schedule_timezone"
+          :features="systemInfo.features"
           :type="scheduleType"
         />
       </template>
@@ -108,7 +109,9 @@
         <div class="d-flex">
           <router-link :to="
             '/project/' + item.project_id +
-            '/templates/' + item.template_id"
+            (item.workflow_id
+              ? '/workflows/' + item.workflow_id
+              : '/templates/' + item.template_id)"
           >{{ item.tpl_name }}
           </router-link>
         </div>
@@ -216,7 +219,9 @@ export default {
         text: this.$i18n.t('schedule'),
         value: 'cron_format',
       }, {
-        text: this.$i18n.t('template'),
+        text: this.systemInfo?.features?.workflows
+          ? `${this.$i18n.t('template')} / ${this.$i18n.t('workflow')}`
+          : this.$i18n.t('template'),
         value: 'tpl_name',
         width: '100%',
       }, {

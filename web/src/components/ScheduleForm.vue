@@ -33,7 +33,38 @@
       dense
     ></v-text-field>
 
+    <v-btn-toggle
+      v-if="features.workflows"
+      v-model="target"
+      mandatory
+      class="mb-4"
+      @change="changeTarget"
+    >
+      <v-btn value="template" small>{{ $t('Template') }}</v-btn>
+      <v-btn value="workflow" small>{{ $t('workflow') }}</v-btn>
+    </v-btn-toggle>
+
     <v-autocomplete
+      v-if="target === 'workflow'"
+      v-model="item.workflow_id"
+      :label="$t('workflowToRun')"
+      :items="workflows"
+      item-value="id"
+      item-text="name"
+      :rules="[v => !!v || $t('workflowToRun')]"
+      :disabled="formSaving"
+      outlined
+      dense
+      @change="resetWorkflowParams"
+    />
+    <SurveyFields
+      v-if="target === 'workflow'"
+      :vars="workflowVars"
+      :value="workflowEnvironment"
+    />
+
+    <v-autocomplete
+      v-if="target === 'template'"
       v-model="item.template_id"
       :label="$t('Template')"
       :items="templates"
@@ -48,7 +79,7 @@
 
     <v-card
       style="background: var(--highlighted-card-bg-color)"
-      v-if="item.template_id"
+      v-if="target === 'template' && item.template_id"
       class="mb-8 pt-3"
     >
       <div style="
@@ -328,6 +359,7 @@ import {
 } from '@/lib/cronPresets';
 import { getErrorMessage } from '@/lib/error';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
+import SurveyFields from '@/components/SurveyFields.vue';
 
 dayjs.extend(utc);
 dayjs.extend(timezonePlugin);
@@ -470,12 +502,15 @@ function formatTimeInTZ(date, tz) {
 }
 
 export default {
-  components: { TaskParamsForm },
+  components: { TaskParamsForm, SurveyFields },
   mixins: [ItemFormBase],
 
   data() {
     return {
       templates: null,
+      workflows: [],
+      target: 'template',
+      workflowEnvironment: {},
       timing: 'hourly',
       TIMINGS,
       MONTHS,
@@ -521,14 +556,22 @@ export default {
       url: `/api/project/${this.projectId}/templates`,
       responseType: 'json',
     })).data;
+    if (this.features.workflows) {
+      this.workflows = (await axios.get(`/api/project/${this.projectId}/workflows`)).data;
+    }
   },
 
   props: {
+    features: { type: Object, default: () => ({}) },
     timezone: String,
     type: String,
   },
 
   computed: {
+    workflowVars() {
+      return (this.workflows.find((w) => w.id === this.item?.workflow_id)?.survey_vars || [])
+        .filter((v) => v.type !== 'secret');
+    },
     localTimezone() {
       return 'Local';
     },
@@ -563,10 +606,32 @@ export default {
   },
 
   methods: {
+    changeTarget() {
+      this.item.template_id = null;
+      this.$set(this.item, 'workflow_id', null);
+      this.workflowEnvironment = {};
+      this.item.task_params = {};
+    },
+
+    resetWorkflowParams() {
+      const params = {};
+      this.workflowVars.forEach((v) => {
+        const value = v.default_value;
+        if (v.type === 'select') {
+          const selected = value ? [value] : [];
+          params[v.name] = Array.isArray(value) ? [...value] : selected;
+        } else {
+          params[v.name] = Array.isArray(value) ? value[0] : (value ?? '');
+        }
+      });
+      this.workflowEnvironment = params;
+    },
+
     getNewItem() {
       return {
         name: '',
         template_id: null,
+        workflow_id: null,
         cron_format: '* * * * *',
         active: true,
         run_once: false,
@@ -720,6 +785,10 @@ export default {
     },
 
     afterLoadData() {
+      this.target = this.item.workflow_id ? 'workflow' : 'template';
+      this.workflowEnvironment = JSON.parse(this.item.task_params?.environment || '{}');
+      if (this.item.workflow_id === undefined) this.$set(this.item, 'workflow_id', null);
+
       // if (!this.item.type) {
       //   this.item.type = this.item.run_at ? 'run_at' : '';
       // }
@@ -737,6 +806,12 @@ export default {
 
     async beforeSave() {
       this.item.type = this.type;
+      if (this.target === 'workflow') {
+        this.item.template_id = null;
+        this.item.task_params = { environment: JSON.stringify(this.workflowEnvironment) };
+      } else {
+        this.item.workflow_id = null;
+      }
 
       if (this.type === 'run_at') {
         const parsed = this.runAtInput

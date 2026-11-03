@@ -362,7 +362,7 @@ func TestAddTemplate_InventoryFailureIsPartial(t *testing.T) {
 func TestScheduleEvents(t *testing.T) {
 	f := newResourceFixture(t)
 	template := f.template(t)
-	schedule, err := f.store.CreateSchedule(db.Schedule{Name: "nightly", ProjectID: f.project.ID, TemplateID: template.ID, CronFormat: "0 0 * * *"})
+	schedule, err := f.store.CreateSchedule(db.Schedule{Name: "nightly", ProjectID: f.project.ID, TemplateID: &template.ID, CronFormat: "0 0 * * *"})
 	require.NoError(t, err)
 	util.Config.Schedule = &util.ScheduleConfig{Timezone: "UTC"}
 	pool := schedules.CreateSchedulePool(f.store, nil, nil, nil)
@@ -406,7 +406,7 @@ func TestScheduleEvents(t *testing.T) {
 func TestUpdateSchedule_ActiveChangeAlsoRecordsSwitch(t *testing.T) {
 	f := newResourceFixture(t)
 	template := f.template(t)
-	schedule, err := f.store.CreateSchedule(db.Schedule{Name: "nightly", ProjectID: f.project.ID, TemplateID: template.ID, CronFormat: "0 0 * * *", Active: false})
+	schedule, err := f.store.CreateSchedule(db.Schedule{Name: "nightly", ProjectID: f.project.ID, TemplateID: &template.ID, CronFormat: "0 0 * * *", Active: false})
 	require.NoError(t, err)
 	util.Config.Schedule = &util.ScheduleConfig{Timezone: "UTC"}
 	pool := schedules.CreateSchedulePool(f.store, nil, nil, nil)
@@ -428,7 +428,7 @@ func TestUpdateSchedule_ActiveChangeAlsoRecordsSwitch(t *testing.T) {
 			body := `{"id":` + strconv.Itoa(schedule.ID) + `,"project_id":` + strconv.Itoa(f.project.ID) + `,"template_id":` + strconv.Itoa(template.ID) + `,"name":"nightly","cron_format":"0 0 * * *","active":` + strconv.FormatBool(tt.active) + `}`
 			r, rec := f.request(http.MethodPut, body, map[string]any{"schedule": stored, "schedule_pool": pool}, nil)
 			w := httptest.NewRecorder()
-			UpdateSchedule(w, r)
+			NewScheduleController(noLicense{}).UpdateSchedule(w, r)
 			require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
 
 			kinds, err := rec.Kinds()

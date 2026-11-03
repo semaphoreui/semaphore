@@ -145,11 +145,20 @@ func (e BackupSchedule) Restore(b *BackupDB) error {
 	v := e.Schedule
 	v.ProjectID = b.meta.ID
 
-	tpl := findEntityByName[db.Template](&e.Template, b.templates)
-	if tpl == nil {
-		return fmt.Errorf("template does not exist in templates[].name")
+	v.TemplateID, v.WorkflowID = nil, nil
+	if e.Workflow != nil {
+		workflow := findEntityByName[db.WorkflowTemplate](e.Workflow, b.workflows)
+		if workflow == nil {
+			return fmt.Errorf("workflow does not exist in workflows[].name")
+		}
+		v.WorkflowID = &workflow.ID
+	} else {
+		tpl := findEntityByName[db.Template](&e.Template, b.templates)
+		if tpl == nil {
+			return fmt.Errorf("template does not exist in templates[].name")
+		}
+		v.TemplateID = &tpl.ID
 	}
-	v.TemplateID = tpl.ID
 
 	if e.CheckableRepository != nil {
 		repo := findEntityByName[db.Repository](e.CheckableRepository, b.repositories)
@@ -871,23 +880,23 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		}
 	}
 
-	for i, o := range backup.Schedules {
-		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at schedules[%d]: %w", i, err)
-		}
-	}
-
 	for i, o := range backup.Runners {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at runners[%d]: %w", i, err)
 		}
 	}
 
-	// Workflows are restored last: their nodes reference templates, inventories
+	// Workflows follow templates: their nodes reference templates, inventories
 	// and environments by name, all of which must already exist in the project.
 	for i, o := range backup.Workflows {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at workflows[%d]: %w", i, err)
+		}
+	}
+
+	for i, o := range backup.Schedules {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at schedules[%d]: %w", i, err)
 		}
 	}
 

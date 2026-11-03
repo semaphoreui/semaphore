@@ -533,7 +533,10 @@ func scheduleMutable(res resource[db.ScheduleWithTpl]) mutable[db.ScheduleWithTp
   semaphore client schedule create -p 1 --template 12 --cron "@hourly" --inactive`,
 		updateExample: `  semaphore client schedule update nightly --cron "0 4 * * *"`,
 		validate: func(cmd *cobra.Command, s db.ScheduleWithTpl) error {
-			return requireFields(cmd, "--template", nz(s.TemplateID), "--cron", s.CronFormat)
+			if err := s.Schedule.Validate(); err != nil {
+				return err
+			}
+			return requireFields(cmd, "--cron", s.CronFormat)
 		},
 		bind: func(cmd *cobra.Command) applyFunc[db.ScheduleWithTpl] {
 			var name, template, cron string
@@ -561,7 +564,8 @@ func scheduleMutable(res resource[db.ScheduleWithTpl]) mutable[db.ScheduleWithTp
 					if err != nil {
 						return err
 					}
-					s.TemplateID = id
+					s.TemplateID = &id
+					s.WorkflowID = nil
 				}
 				return nil
 			}

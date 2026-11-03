@@ -310,7 +310,7 @@ func (d *SqlDb) ApplyMigration(migration db.Migration) error {
 // (and rolled back) with FK enforcement disabled on the connection.
 func sqliteNeedsFkOff(dialect string, version string) bool {
 	switch version {
-	case "2.19.14", "2.20.14":
+	case "2.19.14", "2.20.14", "2.20.17":
 		return dialect == util.DbDriverSQLite
 	default:
 		return false

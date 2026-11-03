@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/util"
@@ -83,7 +84,7 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 
 	remoteHash, err := db_lib.GitRepository{
 		Logger:      nil,
-		TemplateID:  schedule.TemplateID,
+		TemplateID:  *schedule.TemplateID,
 		Repository:  repo,
 		Client:      db_lib.CreateDefaultGitClient(r.keyInstaller),
 		HostConfigs: hostConfigs,
@@ -138,17 +139,6 @@ func (r ScheduleRunner) Run() {
 		}
 	}
 
-	tpl, err := r.pool.store.GetTemplate(schedule.ProjectID, schedule.TemplateID)
-	if err != nil {
-		log.WithError(err).WithFields(log.Fields{
-			"context":     common_errors.GetErrorContext(),
-			"project_id":  schedule.ProjectID,
-			"schedule_id": schedule.ID,
-			"template_id": schedule.TemplateID,
-		}).Error("failed to get template")
-		return
-	}
-
 	// In HA mode, ensure only one node fires this schedule occurrence.
 	if r.pool.dedup != nil && !r.pool.dedup.TryLockExecution(r.scheduleID) {
 		log.WithFields(log.Fields{
@@ -164,13 +154,30 @@ func (r ScheduleRunner) Run() {
 		return
 	}
 
+	if schedule.WorkflowID != nil {
+		r.runWorkflow(schedule)
+		if scheduleType == db.ScheduleTypeRunAt {
+			r.pool.Refresh()
+		}
+		return
+	}
+	if schedule.TemplateID == nil {
+		log.Error("schedule has no target")
+		return
+	}
+	tpl, err := r.pool.store.GetTemplate(schedule.ProjectID, *schedule.TemplateID)
+	if err != nil {
+		log.WithError(err).Error("failed to get schedule template")
+		return
+	}
+
 	var task db.Task
 	if schedule.TaskParams != nil {
-		task = schedule.TaskParams.CreateTask(schedule.TemplateID)
+		task = schedule.TaskParams.CreateTask(*schedule.TemplateID)
 	} else {
 		task = db.Task{
 			ProjectID:  schedule.ProjectID,
-			TemplateID: schedule.TemplateID,
+			TemplateID: *schedule.TemplateID,
 		}
 	}
 	task.ScheduleID = &schedule.ID
@@ -248,6 +255,8 @@ type ScheduleDeduplicator interface {
 }
 
 type SchedulePool struct {
+	workflowRepo      db.WorkflowManager
+	workflowService   pro_interfaces.WorkflowService
 	cron              *cron.Cron
 	locker            sync.Locker
 	dedup             ScheduleDeduplicator

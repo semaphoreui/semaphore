@@ -270,6 +270,7 @@ func runService() {
 		encryptionService,
 	)
 
+	schedulePool.SetWorkflowService(workflowStore, workflowService)
 	defer schedulePool.Destroy()
 	defer taskPool.Stop()
 

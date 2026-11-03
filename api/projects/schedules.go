@@ -7,6 +7,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/schedules"
 )
@@ -124,8 +125,8 @@ func ValidateScheduleCronFormat(w http.ResponseWriter, r *http.Request) {
 	_ = validateCronFormat(schedule.CronFormat, w)
 }
 
-// AddSchedule adds a template to the database
-func AddSchedule(w http.ResponseWriter, r *http.Request) {
+// AddSchedule creates a schedule.
+func (c *ScheduleController) AddSchedule(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	var schedule db.Schedule
@@ -138,6 +139,9 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	schedule.ProjectID = project.ID
+	if !c.workflowTargetAllowed(w, r, schedule, nil) {
+		return
+	}
 	schedule, err := helpers.Store(r).CreateSchedule(schedule)
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -156,7 +160,7 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.ResourceScheduleCreate,
 		Target:    audit.ResourceTarget(audit.TargetSchedule, schedule.ID, schedule.Name),
 		ProjectID: project.ID,
-		Metadata:  audit.ScheduleMetadata{TemplateID: schedule.TemplateID},
+		Metadata:  scheduleMetadata(schedule),
 	})
 
 	refreshSchedulePool(r)
@@ -165,7 +169,7 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateSchedule writes a schedule to an existing key in the database
-func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
+func (c *ScheduleController) UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 	oldSchedule := helpers.GetFromContext(r, "schedule").(db.Schedule)
 
 	var schedule db.Schedule
@@ -193,6 +197,9 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !c.workflowTargetAllowed(w, r, schedule, &oldSchedule) {
+		return
+	}
 	err := helpers.Store(r).UpdateSchedule(schedule)
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -211,7 +218,7 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.ResourceScheduleUpdate,
 		Target:    audit.ResourceTarget(audit.TargetSchedule, oldSchedule.ID, schedule.Name),
 		ProjectID: oldSchedule.ProjectID,
-		Metadata:  audit.ScheduleMetadata{TemplateID: schedule.TemplateID},
+		Metadata:  scheduleMetadata(schedule),
 	})
 
 	// A full update can switch the schedule on or off too.
@@ -224,7 +231,7 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 			Kind:      kind,
 			Target:    audit.ResourceTarget(audit.TargetSchedule, oldSchedule.ID, schedule.Name),
 			ProjectID: oldSchedule.ProjectID,
-			Metadata:  audit.ScheduleMetadata{TemplateID: schedule.TemplateID},
+			Metadata:  scheduleMetadata(schedule),
 		})
 	}
 
@@ -267,7 +274,7 @@ func SetScheduleActive(w http.ResponseWriter, r *http.Request) {
 			Kind:      kind,
 			Target:    audit.ResourceTarget(audit.TargetSchedule, oldSchedule.ID, oldSchedule.Name),
 			ProjectID: oldSchedule.ProjectID,
-			Metadata:  audit.ScheduleMetadata{TemplateID: oldSchedule.TemplateID},
+			Metadata:  scheduleMetadata(oldSchedule),
 		})
 	}
 
@@ -303,4 +310,38 @@ func RemoveSchedule(w http.ResponseWriter, r *http.Request) {
 	refreshSchedulePool(r)
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func scheduleMetadata(s db.Schedule) audit.ScheduleMetadata {
+	m := audit.ScheduleMetadata{}
+	if s.TemplateID != nil {
+		m.TemplateID = *s.TemplateID
+	}
+	if s.WorkflowID != nil {
+		m.WorkflowID = *s.WorkflowID
+	}
+	return m
+}
+
+// ScheduleController applies workflow availability to schedule mutations.
+type ScheduleController struct{ pro proFeatureGate }
+
+func NewScheduleController(subscription pro_interfaces.SubscriptionService) *ScheduleController {
+	return &ScheduleController{pro: newProFeatureGate(subscription)}
+}
+
+func (c *ScheduleController) workflowTargetAllowed(w http.ResponseWriter, r *http.Request, s db.Schedule, old *db.Schedule) bool {
+	if s.WorkflowID == nil || (old != nil && old.WorkflowID != nil && *old.WorkflowID == *s.WorkflowID) {
+		return true
+	}
+	features, err := c.pro.features(helpers.UserFromContext(r))
+	if err != nil {
+		helpers.WriteErrorStatus(w, "Failed to read the subscription plan", http.StatusInternalServerError)
+		return false
+	}
+	if !features.Workflows {
+		helpers.WriteErrorStatus(w, "Workflow schedules are only available with Workflows enabled.", http.StatusForbidden)
+		return false
+	}
+	return true
 }

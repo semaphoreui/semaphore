@@ -1,6 +1,10 @@
 package db
 
-import "time"
+import (
+	"time"
+
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
+)
 
 const (
 	ScheduleTypeCron  = ""
@@ -10,7 +14,8 @@ const (
 type Schedule struct {
 	ID             int    `db:"id" json:"id" backup:"-"`
 	ProjectID      int    `db:"project_id" json:"project_id" backup:"-"`
-	TemplateID     int    `db:"template_id" json:"template_id" backup:"-"`
+	TemplateID     *int   `db:"template_id" json:"template_id" backup:"-"`
+	WorkflowID     *int   `db:"workflow_id" json:"workflow_id" backup:"-"`
 	CronFormat     string `db:"cron_format" json:"cron_format"`
 	Name           string `db:"name" json:"name"`
 	Active         bool   `db:"active" json:"active"`
@@ -28,4 +33,14 @@ type Schedule struct {
 type ScheduleWithTpl struct {
 	Schedule
 	TemplateName string `db:"tpl_name" json:"tpl_name"`
+}
+
+func (s Schedule) Validate() error {
+	if (s.TemplateID == nil) == (s.WorkflowID == nil) {
+		return common_errors.NewValidationError("Schedule must run either a template or a workflow")
+	}
+	if s.WorkflowID != nil && s.RepositoryID != nil {
+		return common_errors.NewValidationError("Workflow schedules cannot check repository commits")
+	}
+	return nil
 }

@@ -35,8 +35,11 @@ func (e *ScheduleExporter) load(store db.Store, exporter DataExporter, progress 
 func getSchedules(vals []db.ScheduleWithTpl) []db.Schedule {
 	values := make([]db.Schedule, 0)
 
+	// Instance exports do not include workflows; only template schedules can be restored.
 	for _, val := range vals {
-		values = append(values, val.Schedule)
+		if val.WorkflowID == nil {
+			values = append(values, val.Schedule)
+		}
 	}
 
 	return values
@@ -70,7 +73,7 @@ func (e *ScheduleExporter) restoreValue(val EntityObject[db.Schedule], store db.
 		return err
 	}
 
-	old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID)
+	old.TemplateID, err = exporter.getNewKeyIntRef(Template, val.scope, old.TemplateID, e)
 	if err != nil {
 		return err
 	}

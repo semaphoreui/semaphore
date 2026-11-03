@@ -43,7 +43,7 @@ func getSchedulesByProject(projectID int, schedules []db.Schedule) []db.Schedule
 
 func getScheduleByTemplate(templateID int, schedules []db.Schedule) *string {
 	for _, o := range schedules {
-		if o.TemplateID == templateID {
+		if o.TemplateID != nil && *o.TemplateID == templateID {
 			return &o.CronFormat
 		}
 	}
@@ -280,27 +280,33 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 	}
 
-	schedules := make([]BackupSchedule, len(b.schedules))
-	for i, o := range b.schedules {
+	schedules := make([]BackupSchedule, 0, len(b.schedules))
+	for _, o := range b.schedules {
+		var tplName, workflowName *string
+		if o.TemplateID != nil {
+			tplName, _ = findNameByID[db.Template](*o.TemplateID, b.templates)
+		}
+		if o.WorkflowID != nil {
+			workflowName, _ = findNameByID[db.WorkflowTemplate](*o.WorkflowID, b.workflows)
+		}
 
-		tplName, _ := findNameByID[db.Template](o.TemplateID, b.templates)
 		var repoName *string
 		if o.RepositoryID != nil {
 			repoName, _ = findNameByID[db.Repository](*o.RepositoryID, b.repositories)
 		}
 
-		if tplName == nil {
+		if tplName == nil && workflowName == nil {
 			continue
 		}
 
-		schedules[i] = BackupSchedule{
-			o,
-			*tplName,
-			repoName,
+		schedule := BackupSchedule{Schedule: o, Workflow: workflowName, CheckableRepository: repoName}
+		if tplName != nil {
+			schedule.Template = *tplName
 		}
+		schedules = append(schedules, schedule)
 
 		if o.TaskParams != nil && o.TaskParams.InventoryID != nil {
-			schedules[i].TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
+			schedules[len(schedules)-1].TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
 		}
 	}
 
