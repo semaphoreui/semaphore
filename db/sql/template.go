@@ -406,7 +406,8 @@ func (d *SqlDb) getTemplates(
 	}
 
 	var tasks []db.TaskWithTpl
-	err = d.getTasks(projectID, nil, nil, taskIDs, db.RetrieveQueryParams{}, &tasks)
+	// The viewer filter leaves out a build task the member may not read.
+	err = d.getTasks(projectID, nil, nil, taskIDs, db.RetrieveQueryParams{TaskFilter: &db.TaskFilter{Viewer: filter.Viewer}}, &tasks)
 
 	if err != nil {
 		return
