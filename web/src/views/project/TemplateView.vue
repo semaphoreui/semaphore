@@ -1,5 +1,6 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="!isLoaded">
+  <v-alert v-if="notFound" type="info" text class="ma-4">{{ $t('templateNotFound') }}</v-alert>
+  <div v-else-if="!isLoaded">
     <v-progress-linear indeterminate color="primary darken-2"></v-progress-linear>
   </div>
   <div v-else>
@@ -7,6 +8,7 @@
       v-model="newTaskDialog"
       :project-id="projectId"
       :template="item"
+      :can-read="can(USER_PERMISSIONS.readProject, null)"
     />
 
     <EditTemplateDialog
@@ -18,6 +20,7 @@
       :features="features"
       :jwt="jwt"
       :task-type="item.type"
+      :can-read="can(USER_PERMISSIONS.readProject, null)"
     ></EditTemplateDialog>
 
     <EditTemplateDialog
@@ -30,6 +33,7 @@
       :features="features"
       :jwt="jwt"
       :task-type="item.type"
+      :can-read="can(USER_PERMISSIONS.readProject, null)"
     ></EditTemplateDialog>
 
     <ObjectRefsDialog
@@ -158,7 +162,7 @@
         }/templates/${item.id}/perms`">{{ $t('Permissions') }}
       </v-tab>
       <v-tab
-        v-if="['terraform', 'tofu'].includes(item.app)"
+        v-if="hasStateTab"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
         }/templates/${item.id}/state`"
@@ -177,6 +181,7 @@
       :repositories="repositories"
       :features="features"
       :is-admin="isAdmin"
+      :can-read="can(USER_PERMISSIONS.readProject, null)"
       @update-template="loadData"
       :need-update="needLoadData"
     ></router-view>
@@ -245,6 +250,7 @@ export default {
       repositories: null,
       deleteDialog: null,
       editDialog: null,
+      notFound: false,
       copyDialog: null,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_TITLES,
@@ -268,6 +274,12 @@ export default {
 
     canStop() {
       return this.can(USER_PERMISSIONS.runProjectTasks);
+    },
+
+    // The state tab manages inventories, which need read on the project.
+    hasStateTab() {
+      return ['terraform', 'tofu'].includes(this.item.app)
+        && this.can(this.USER_PERMISSIONS.readProject, null);
     },
 
     canUpdate() {
@@ -404,17 +416,28 @@ export default {
     },
 
     async loadData() {
-      [
-        this.item,
-        this.inventory,
-        this.environment,
-        this.repositories,
-      ] = await Promise.all([
-        this.loadProjectResource('templates', this.itemId),
-        this.loadProjectResources('inventory'),
-        this.loadProjectResources('environment'),
-        this.loadProjectResources('repositories'),
-      ]);
+      // The template's own permissions carry its grant, the project read is asked for apart.
+      const canRead = this.can(this.USER_PERMISSIONS.readProject, null);
+      this.notFound = false;
+      try {
+        [
+          this.item,
+          this.inventory,
+          this.environment,
+          this.repositories,
+        ] = await Promise.all([
+          this.loadProjectResource('templates', this.itemId),
+          canRead ? this.loadProjectResources('inventory') : [],
+          canRead ? this.loadProjectResources('environment') : [],
+          canRead ? this.loadProjectResources('repositories') : [],
+        ]);
+      } catch (err) {
+        // A deleted template or one the member may not read answers 404, the page says so.
+        if (!err.response || err.response.status !== 404) {
+          throw err;
+        }
+        this.notFound = true;
+      }
     },
 
     async updateDescription() {

@@ -24,12 +24,18 @@ const PROJECT = {
   id: 7,
   name: 'copy',
   unassigned_roles: [
-    { slug: 'ops', reason: 'not_in_file', templates: [{ id: 3, name: 'Deploy', permissions: 1 }] },
+    {
+      slug: 'ops',
+      reason: 'not_in_file',
+      workflows: [],
+      templates: [{ id: 3, name: 'Deploy', permissions: 1 }],
+    },
     {
       slug: 'deployer',
       reason: 'slug_taken',
       name: 'Deployer',
       permissions: 5,
+      workflows: [],
       templates: [{ id: 3, name: 'Deploy', permissions: 2 }],
     },
   ],
@@ -117,6 +123,7 @@ describe('RestoreProjectResult.vue', () => {
         reason: 'slug_taken',
         name: 'Deployer',
         permissions: 5,
+        workflows: [{ id: 5, name: 'Release', permissions: 16 }],
         templates: [
           { id: 3, name: 'Deploy', permissions: 2 },
           { id: 4, name: 'Stage', permissions: 1 },
@@ -147,6 +154,7 @@ describe('RestoreProjectResult.vue', () => {
       '/api/project/7/roles',
       '/api/project/7/templates/3/perms',
       '/api/project/7/templates/4/perms',
+      '/api/project/7/workflows/5/perms',
       '/api/project/7/templates/4/perms',
     ]);
     expect(wrapper.vm.rows).to.have.lengthOf(0);
@@ -165,6 +173,7 @@ describe('RestoreProjectResult.vue', () => {
       unassigned_roles: [{
         slug: 'ops',
         reason: 'not_in_file',
+        workflows: [],
         templates: [{ id: 3, name: 'Deploy', permissions: 1 }, { id: 4, name: 'Stage', permissions: 1 }],
       }],
     });
@@ -180,7 +189,12 @@ describe('RestoreProjectResult.vue', () => {
       id: 7,
       name: 'copy',
       unassigned_roles: [
-        { slug: 'constructor', reason: 'not_in_file', templates: [{ id: 3, name: 'Deploy', permissions: 1 }] },
+        {
+          slug: 'constructor',
+          reason: 'not_in_file',
+          workflows: [],
+          templates: [{ id: 3, name: 'Deploy', permissions: 1 }],
+        },
       ],
     });
 
@@ -212,6 +226,31 @@ describe('RestoreProjectResult.vue', () => {
     expect(posts.map((r) => [r.url, r.data])).to.deep.equal([
       ['/api/project/7/templates/3/perms', { role_slug: '__create__', permissions: 2 }],
     ]);
+  });
+
+  it('grants a workflow of the row', async () => {
+    const wrapper = await mountWith({
+      id: 7,
+      name: 'copy',
+      unassigned_roles: [
+        {
+          slug: 'ops',
+          reason: 'not_in_file',
+          workflows: [{ id: 5, name: 'Release', permissions: 16 }],
+          templates: [],
+        },
+      ],
+    });
+    expect(wrapper.text()).to.include('Release');
+
+    await wrapper.vm.assign();
+    await flush();
+
+    const posts = http.requests.filter((r) => r.method === 'post');
+    expect(posts.map((r) => [r.url, r.data])).to.deep.equal([
+      ['/api/project/7/workflows/5/perms', { role_slug: 'ops', permissions: 16 }],
+    ]);
+    expect(wrapper.vm.rows).to.have.lengthOf(0);
   });
 
   it('hides the keys alert when no key is empty', async () => {

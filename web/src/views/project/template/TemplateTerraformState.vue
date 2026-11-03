@@ -351,10 +351,14 @@ export default {
   props: {
     template: Object,
     features: Object,
+    canRead: Boolean,
   },
 
   watch: {
     async inventoryId() {
+      if (!this.canRead) {
+        return;
+      }
       this.inventory = (this.inventories || []).find((inv) => inv.id === this.inventoryId);
       await this.loadAliases();
       await this.loadStates();
@@ -401,6 +405,9 @@ export default {
 
   async created() {
     this.inventoryId = this.template.inventory_id;
+    if (!this.canRead) {
+      return;
+    }
     await this.loadInventories();
     this.inventory = this.inventories.find((inv) => inv.id === this.inventoryId);
     await this.loadAliases();

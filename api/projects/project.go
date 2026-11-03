@@ -65,6 +65,19 @@ func ProjectMiddleware(next http.Handler) http.Handler {
 			permissions |= grants
 		}
 
+		if helpers.HasParam("workflow_id", r) {
+			workflowID, workflowOk := helpers.GetIntParamOrAbort("workflow_id", w, r)
+			if !workflowOk {
+				return
+			}
+			grants, err := helpers.Store(r).GetWorkflowPermission(project.ID, workflowID, user.ID)
+			if err != nil {
+				helpers.WriteError(w, err)
+				return
+			}
+			permissions |= grants
+		}
+
 		r = helpers.SetContextValue(r, "projectMember", member)
 		r = helpers.SetContextValue(r, "permissions", permissions)
 		r = helpers.SetContextValue(r, "project", project)
@@ -80,15 +93,19 @@ func GetMustCanMiddleware(permissions db.ProjectUserPermission) mux.MiddlewareFu
 
 			userPerms := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
 
-			can := (userPerms & permissions) == permissions
+			// A read asks for read_project, whatever verb the route checks otherwise.
+			required := permissions
+			if r.Method == "GET" || r.Method == "HEAD" {
+				required = db.CanReadProject
+			}
 
-			if !me.Admin && r.Method != "GET" && r.Method != "HEAD" && !can {
+			if !me.Admin && userPerms&required != required {
 				projectID := 0
 				if project, ok := helpers.GetOkFromContext(r, "project"); ok {
 					projectID = project.(db.Project).ID
 				}
 				// Every call site passes a single permission bit.
-				helpers.RecordDenied(r, strings.Join(audit.PermissionNames(permissions), ","), projectID)
+				helpers.RecordDenied(r, strings.Join(audit.PermissionNames(required), ","), projectID)
 				w.WriteHeader(http.StatusForbidden)
 				return
 			}

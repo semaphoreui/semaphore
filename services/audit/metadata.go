@@ -126,6 +126,12 @@ type TemplatePermissionMetadata struct {
 	Permissions []string `json:"permissions,omitempty"`
 }
 
+type WorkflowPermissionMetadata struct {
+	WorkflowID  int      `json:"workflow_id"`
+	Role        RoleRef  `json:"role,omitzero"`
+	Permissions []string `json:"permissions,omitempty"`
+}
+
 type SettingsMetadata struct {
 	// Keys only, never values.
 	Keys []string `json:"keys"`
@@ -162,6 +168,9 @@ func GlobalPermissionNames(p db.GlobalPermission) []string {
 
 func PermissionNames(p db.ProjectUserPermission) []string {
 	names := []string{}
+	if p&db.CanReadProject != 0 {
+		names = append(names, "read_project")
+	}
 	if p&db.CanRunProjectTasks != 0 {
 		names = append(names, "run_tasks")
 	}
@@ -173,6 +182,15 @@ func PermissionNames(p db.ProjectUserPermission) []string {
 	}
 	if p&db.CanManageProjectUsers != 0 {
 		names = append(names, "manage_users")
+	}
+	if p&db.CanRunWorkflows != 0 {
+		names = append(names, "run_workflows")
+	}
+	if p&db.CanEditWorkflows != 0 {
+		names = append(names, "edit_workflows")
+	}
+	if p&db.CanApproveWorkflows != 0 {
+		names = append(names, "approve_workflows")
 	}
 	return names
 }
@@ -256,6 +274,12 @@ type TaskCompleteMetadata struct {
 
 type TaskMetadata struct {
 	TemplateID int `json:"template_id"`
+}
+
+// The target of a workflow approval event is the workflow; the run and the node say which step.
+type WorkflowApprovalMetadata struct {
+	RunID  int `json:"run_id"`
+	NodeID int `json:"node_id"`
 }
 
 type RunnerRegisterMetadata struct {

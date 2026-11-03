@@ -29,6 +29,7 @@
         :features="features"
         :task-type="taskType"
         :jwt="jwt"
+        :can-read="canRead"
       />
     </template>
   </EditDialog>
@@ -58,6 +59,10 @@ export default {
     features: Object,
     taskType: String,
     jwt: Object,
+    canRead: {
+      type: Boolean,
+      default: true,
+    },
   },
 
   data() {

@@ -61,6 +61,36 @@ func (c *BackupController) workflowIntegrationsAllowed(w http.ResponseWriter, r 
 	return true
 }
 
+// workflowGrantsAllowed refuses, before anything is created, a backup holding
+// a workflow grant when the user lacks the custom roles feature, like the
+// workflow permissions API does. The answer is written on refusal.
+func (c *BackupController) workflowGrantsAllowed(w http.ResponseWriter, r *http.Request, user *db.User, backup *projectService.BackupFormat) bool {
+	granted := false
+	for _, workflow := range backup.Workflows {
+		if len(workflow.Roles) > 0 {
+			granted = true
+			break
+		}
+	}
+	if !granted {
+		return true
+	}
+
+	features, err := c.pro.features(user)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"context": "backup_api",
+		}).WithError(err).Error("Failed to read the subscription plan")
+		helpers.WriteErrorStatus(w, "Failed to read the subscription plan", http.StatusInternalServerError)
+		return false
+	}
+	if !features.CustomRolesManagement {
+		helpers.WriteErrorStatus(w, workflowPermsEnterpriseOnly, http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
 func (c *BackupController) GetBackup(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
@@ -130,6 +160,10 @@ func (c *BackupController) Restore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !c.workflowIntegrationsAllowed(w, r, user, &backup) {
+		return
+	}
+
+	if !c.workflowGrantsAllowed(w, r, user, &backup) {
 		return
 	}
 
