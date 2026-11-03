@@ -85,7 +85,7 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ldapUser, userDN, err := tryFindLDAPUser(provider, creds.Username, creds.Password)
+	ldapUser, userDN, _, err := tryFindLDAPUser(provider, creds.Username, creds.Password)
 	if err != nil || ldapUser == nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
