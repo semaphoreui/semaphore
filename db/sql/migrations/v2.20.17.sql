@@ -16,3 +16,6 @@ create table `project__workflow_role`
     foreign key (`project_id`) references project (`id`) on delete cascade,
     unique (`workflow_id`, `role_id`)
 );
+
+create index `project__workflow_role__role_id` on `project__workflow_role` (`role_id`);
+create index `project__workflow_role__project_id` on `project__workflow_role` (`project_id`);
