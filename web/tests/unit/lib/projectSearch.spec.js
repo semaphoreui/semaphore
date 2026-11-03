@@ -23,6 +23,17 @@ describe('filterProjects', () => {
     expect(filterProjects(projects, '  eu ').map((p) => p.id)).to.deep.equal([3]);
   });
 
+  it('ignores diacritics in the name and in the query', () => {
+    const accented = [
+      { id: 5, name: 'Café Orders' },
+      { id: 6, name: 'Zürich Office' },
+    ];
+    expect(filterProjects(accented, 'cafe').map((p) => p.id)).to.deep.equal([5]);
+    expect(filterProjects(accented, 'ZURICH').map((p) => p.id)).to.deep.equal([6]);
+    expect(filterProjects(accented, 'zür').map((p) => p.id)).to.deep.equal([6]);
+    expect(filterProjects(projects, 'prodúction').map((p) => p.id)).to.deep.equal([1]);
+  });
+
   it('returns an empty list when nothing matches', () => {
     expect(filterProjects(projects, 'dev')).to.deep.equal([]);
   });
