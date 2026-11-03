@@ -140,7 +140,7 @@ properties:
       flat ldap_* config. Defaults to false (certificates are verified).
   ldap_group_search_dn:
     type: string
-    description: Base DN of the group search. Empty: groups are not read.
+    description: "Base DN of the group search. Empty: groups are not read."
   ldap_group_search_filter:
     type: string
     default: "(|(member={{ .dn }})(uniqueMember={{ .dn }})(memberUid={{ .username }}))"
@@ -459,7 +459,7 @@ $defs:
       search_filter: { type: string }
       group_search_dn:
         type: string
-        description: Base DN of the group search. Empty: groups are not read.
+        description: "Base DN of the group search. Empty: groups are not read."
       group_search_filter:
         type: string
         default: "(|(member={{ .dn }})(uniqueMember={{ .dn }})(memberUid={{ .username }}))"
