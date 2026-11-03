@@ -1,5 +1,6 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="!isLoaded">
+  <v-alert v-if="notFound" type="info" text class="ma-4">{{ $t('templateNotFound') }}</v-alert>
+  <div v-else-if="!isLoaded">
     <v-progress-linear indeterminate color="primary darken-2"></v-progress-linear>
   </div>
   <div v-else>
@@ -249,6 +250,7 @@ export default {
       repositories: null,
       deleteDialog: null,
       editDialog: null,
+      notFound: false,
       copyDialog: null,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_TITLES,
@@ -416,17 +418,26 @@ export default {
     async loadData() {
       // The template's own permissions carry its grant, the project read is asked for apart.
       const canRead = this.can(this.USER_PERMISSIONS.readProject, null);
-      [
-        this.item,
-        this.inventory,
-        this.environment,
-        this.repositories,
-      ] = await Promise.all([
-        this.loadProjectResource('templates', this.itemId),
-        canRead ? this.loadProjectResources('inventory') : [],
-        canRead ? this.loadProjectResources('environment') : [],
-        canRead ? this.loadProjectResources('repositories') : [],
-      ]);
+      this.notFound = false;
+      try {
+        [
+          this.item,
+          this.inventory,
+          this.environment,
+          this.repositories,
+        ] = await Promise.all([
+          this.loadProjectResource('templates', this.itemId),
+          canRead ? this.loadProjectResources('inventory') : [],
+          canRead ? this.loadProjectResources('environment') : [],
+          canRead ? this.loadProjectResources('repositories') : [],
+        ]);
+      } catch (err) {
+        // A deleted template or one the member may not read answers 404, the page says so.
+        if (!err.response || err.response.status !== 404) {
+          throw err;
+        }
+        this.notFound = true;
+      }
     },
 
     async updateDescription() {

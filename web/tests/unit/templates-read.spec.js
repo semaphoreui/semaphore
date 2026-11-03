@@ -185,4 +185,22 @@ describe('template pages without read_project', () => {
     expect(ctx.template).to.equal(null);
     expect(ctx.templateHidden).to.equal(true);
   });
+
+  it('TemplateView.vue reports a template it may not load', async () => {
+    const ctx = {
+      ...ctxWithoutRead([]),
+      item: null,
+      notFound: false,
+      loadProjectResource: async () => {
+        const err = new Error('Request failed with status code 404');
+        err.response = { status: 404 };
+        throw err;
+      },
+    };
+
+    await TemplateView.methods.loadData.call(ctx);
+
+    expect(ctx.notFound).to.equal(true);
+    expect(ctx.item).to.equal(null);
+  });
 });

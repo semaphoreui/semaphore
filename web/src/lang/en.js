@@ -548,6 +548,7 @@ export default {
   canEditWorkflows: 'Can edit workflows',
   canApproveWorkflows: 'Can approve workflows',
   canSeeTemplate: 'Can see this template',
+  templateNotFound: 'Template not found or not available to you.',
   canRunTemplate: 'Can run this template',
   canEditTemplate: 'Can edit this template',
   canSeeWorkflow: 'Can see this workflow',
