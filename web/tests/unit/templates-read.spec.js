@@ -161,6 +161,7 @@ describe('template pages without read_project', () => {
     };
 
     await TemplateTerraformState.created.call(ctx);
+    await TemplateTerraformState.watch.inventoryId.call(ctx);
 
     expect(loaded).to.equal(false);
   });

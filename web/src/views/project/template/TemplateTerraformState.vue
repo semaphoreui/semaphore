@@ -356,6 +356,9 @@ export default {
 
   watch: {
     async inventoryId() {
+      if (!this.canRead) {
+        return;
+      }
       this.inventory = (this.inventories || []).find((inv) => inv.id === this.inventoryId);
       await this.loadAliases();
       await this.loadStates();
