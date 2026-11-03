@@ -1082,11 +1082,16 @@ func (conf *ConfigType) GetProjectTmpDir(projectID int) string {
 // the tmp_path folders otherwise. projectID is nil for a key outside any project.
 //
 // The setting defaults to "/tmp/semaphore", so that value means "not set" and
-// keeps the sockets under tmp_path, as before.
+// keeps the sockets under tmp_path, as before. A relative setting is made
+// absolute against the server's working directory, because Ansible gets the
+// path in SSH_AUTH_SOCK and runs from another directory.
 func (conf *ConfigType) GetSSHAgentSocketsDir(projectID *int) string {
 	base := ""
 	if conf.Dirs != nil && conf.Dirs.SSHAgentSockets != defaultSSHAgentSocketsDir {
 		base = conf.Dirs.SSHAgentSockets
+		if abs, err := filepath.Abs(base); base != "" && err == nil {
+			base = abs
+		}
 	}
 
 	if base == "" {
