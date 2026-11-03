@@ -76,6 +76,11 @@ only when the task touches that topic. Keep this file under 150 lines.
   disappears (hit in `Users.vue`/`Roles.vue`, 2026-10-17).
 - Semaphore web: `/api/user` carries `global_permissions` (mask) — gate admin menus and pages with
   `hasGlobalPermission(user, GLOBAL_PERMISSIONS.x)` from `web/src/lib/role-permissions.js`, not `user.admin`.
+- An object that runs "a template or a workflow" (integration, schedule) shares one shape: nullable
+  `template_id`/`workflow_id`, `Validate()` + store `validateRunTarget`, a `projects.*Controller`
+  with `proFeatureGate` on its own `Features.Workflow*Management` flag, backup by name, and a
+  `WorkflowRunParams` id that only `pro_impl`'s `StartWorkflow` stamps on the root task — copy
+  `AGENTS/work/schedules/workflow-target.md` before adding a third one.
 - A Pro feature with its own tables follows `feat/group-role-mappings`: community keeps the migration,
   the `db.XStore` interface, a stub in `pro/db/sql` + `pro/db/factory`, a stub controller in `pro/api`
   and the `api.Route` parameter wired in `cli/cmd/root.go`; `pro_impl` holds the real store

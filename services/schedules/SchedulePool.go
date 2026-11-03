@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/util"
@@ -81,9 +82,16 @@ func (r ScheduleRunner) tryUpdateScheduleCommitHash(schedule db.Schedule) (updat
 	}
 	defer hostConfigs.Destroy()
 
+	// Only a template schedule can be a commit checker (Schedule.Validate);
+	// the template id names the working copy of the repository.
+	templateID := 0
+	if schedule.TemplateID != nil {
+		templateID = *schedule.TemplateID
+	}
+
 	remoteHash, err := db_lib.GitRepository{
 		Logger:      nil,
-		TemplateID:  schedule.TemplateID,
+		TemplateID:  templateID,
 		Repository:  repo,
 		Client:      db_lib.CreateDefaultGitClient(r.keyInstaller),
 		HostConfigs: hostConfigs,
@@ -138,17 +146,6 @@ func (r ScheduleRunner) Run() {
 		}
 	}
 
-	tpl, err := r.pool.store.GetTemplate(schedule.ProjectID, schedule.TemplateID)
-	if err != nil {
-		log.WithError(err).WithFields(log.Fields{
-			"context":     common_errors.GetErrorContext(),
-			"project_id":  schedule.ProjectID,
-			"schedule_id": schedule.ID,
-			"template_id": schedule.TemplateID,
-		}).Error("failed to get template")
-		return
-	}
-
 	// In HA mode, ensure only one node fires this schedule occurrence.
 	if r.pool.dedup != nil && !r.pool.dedup.TryLockExecution(r.scheduleID) {
 		log.WithFields(log.Fields{
@@ -164,13 +161,50 @@ func (r ScheduleRunner) Run() {
 		return
 	}
 
+	if schedule.RunsWorkflow() {
+		r.runWorkflow(schedule)
+	} else {
+		r.runTemplate(schedule)
+	}
+
+	// For "RunAt" schedules, the schedule should only trigger once at the specified time and be deactivated afterwards.
+	// Calling Refresh here ensures that after the job has fired, the pool reloads the active schedules
+	// from the database (where this run-at schedule may now be disabled) so it is not executed again.
+	if scheduleType == db.ScheduleTypeRunAt {
+		r.pool.Refresh()
+	}
+}
+
+// runTemplate starts a task of the schedule's template, with the schedule's
+// task params when it has any.
+func (r ScheduleRunner) runTemplate(schedule db.Schedule) {
+	logger := log.WithFields(log.Fields{
+		"context":     "schedules",
+		"project_id":  schedule.ProjectID,
+		"schedule_id": schedule.ID,
+	})
+
+	if schedule.TemplateID == nil {
+		logger.Error("schedule has no template")
+		return
+	}
+
+	templateID := *schedule.TemplateID
+	logger = logger.WithField("template_id", templateID)
+
+	tpl, err := r.pool.store.GetTemplate(schedule.ProjectID, templateID)
+	if err != nil {
+		logger.WithError(err).Error("failed to get template")
+		return
+	}
+
 	var task db.Task
 	if schedule.TaskParams != nil {
-		task = schedule.TaskParams.CreateTask(schedule.TemplateID)
+		task = schedule.TaskParams.CreateTask(templateID)
 	} else {
 		task = db.Task{
 			ProjectID:  schedule.ProjectID,
-			TemplateID: schedule.TemplateID,
+			TemplateID: templateID,
 		}
 	}
 	task.ScheduleID = &schedule.ID
@@ -186,19 +220,46 @@ func (r ScheduleRunner) Run() {
 	)
 
 	if err != nil {
-		log.WithError(err).WithFields(log.Fields{
-			"context":     common_errors.GetErrorContext(),
-			"project_id":  schedule.ProjectID,
-			"schedule_id": schedule.ID,
-			"template_id": schedule.TemplateID,
-		}).Error("failed to add task")
+		logger.WithError(err).Error("failed to add task")
+	}
+}
+
+// runWorkflow starts a run of the schedule's workflow with the survey
+// defaults. The start is attributed to the scheduler (audit actor) and to the
+// schedule (task.schedule_id of the root task); a start the engine refuses —
+// a required survey variable without a default, a workflow without a root —
+// is logged, like a task the pool refuses.
+func (r ScheduleRunner) runWorkflow(schedule db.Schedule) {
+	logger := log.WithFields(log.Fields{
+		"context":     "schedules",
+		"project_id":  schedule.ProjectID,
+		"schedule_id": schedule.ID,
+		"workflow_id": *schedule.WorkflowID,
+	})
+
+	if r.pool.workflowRepo == nil || r.pool.workflowService == nil {
+		logger.Error("Workflows are not available in this build")
+		return
 	}
 
-	// For "RunAt" schedules, the schedule should only trigger once at the specified time and be deactivated afterwards.
-	// Calling Refresh here ensures that after the job has fired, the pool reloads the active schedules
-	// from the database (where this run-at schedule may now be disabled) so it is not executed again.
-	if scheduleType == db.ScheduleTypeRunAt {
-		r.pool.Refresh()
+	workflow, err := r.pool.workflowRepo.GetWorkflowTemplate(schedule.ProjectID, *schedule.WorkflowID)
+	if err != nil {
+		logger.WithError(err).Error("failed to load the schedule's workflow")
+		return
+	}
+	if workflow.ID == 0 {
+		// The open-source workflow store answers every lookup with an empty
+		// template and no error: workflows are a Pro feature.
+		logger.Error("Workflows are not available in this build")
+		return
+	}
+
+	params := db.WorkflowRunParams{ScheduleID: &schedule.ID}
+
+	ctx := audit.WithActor(context.Background(), audit.SystemActor(audit.ComponentScheduler))
+	_, err = r.pool.workflowService.StartWorkflow(ctx, workflow, params, nil)
+	if err != nil {
+		logger.WithError(err).Error("failed to start workflow")
 	}
 }
 
@@ -255,12 +316,22 @@ type SchedulePool struct {
 	taskPool          *tasks.TaskPool
 	encryptionService server.AccessKeyEncryptionService
 	keyInstaller      db_lib.AccessKeyInstaller
+	workflowRepo      db.WorkflowManager
+	workflowService   pro_interfaces.WorkflowService
 }
 
 // SetDeduplicator configures a distributed schedule deduplicator for HA mode.
 // When set, only one node in the cluster fires each schedule occurrence.
 func (p *SchedulePool) SetDeduplicator(d ScheduleDeduplicator) {
 	p.dedup = d
+}
+
+// SetWorkflowService wires the workflow store and engine a schedule with a
+// workflow target starts its run through. Without them such a schedule only
+// logs an error when it fires.
+func (p *SchedulePool) SetWorkflowService(repo db.WorkflowManager, service pro_interfaces.WorkflowService) {
+	p.workflowRepo = repo
+	p.workflowService = service
 }
 
 func (p *SchedulePool) init() {

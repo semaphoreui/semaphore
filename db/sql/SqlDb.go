@@ -728,7 +728,7 @@ func (d *SqlDb) getObjectRefsFrom(
 
 	if referringObjectProps.Type == db.ScheduleProps.Type {
 		var referringSchedules []db.Schedule
-		_, err = d.selectAll(&referringSchedules, "select template_id id from project__schedule where project_id = ? and ("+cond+")", vals...)
+		_, err = d.selectAll(&referringSchedules, "select template_id id from project__schedule where project_id = ? and template_id is not null and ("+cond+")", vals...)
 		if err != nil {
 			return
 		}

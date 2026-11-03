@@ -196,8 +196,11 @@ type TemplateInventoryMetadata struct {
 	InventoryID int `json:"inventory_id"`
 }
 
+// ScheduleMetadata names what the schedule starts: exactly one of
+// TemplateID and WorkflowID is set.
 type ScheduleMetadata struct {
-	TemplateID int `json:"template_id"`
+	TemplateID int `json:"template_id,omitempty"`
+	WorkflowID int `json:"workflow_id,omitempty"`
 }
 
 // IntegrationMetadata names what the integration starts: exactly one of

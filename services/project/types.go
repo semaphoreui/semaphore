@@ -116,9 +116,13 @@ type BackupAccessKey struct {
 	Storage       *string `backup:"storage"`
 }
 
+// BackupSchedule stores the schedule's target by name: exactly one of
+// Template and Workflow is set. Backups written before workflow targets
+// existed carry "template" only and restore unchanged.
 type BackupSchedule struct {
 	db.Schedule
-	Template            string  `backup:"template"`
+	Template            *string `backup:"template"`
+	Workflow            *string `backup:"workflow"`
 	CheckableRepository *string `backup:"checkable_repository"`
 }
 
