@@ -616,7 +616,7 @@ func TestGetSecretsPath_Default(t *testing.T) {
 	loadConfigDefaults()
 	assert.Equal(t, "/tmp/semaphore", Config.GetSecretsPath())
 	require.NotNil(t, Config.Dirs)
-	assert.Equal(t, "/tmp/semaphore", Config.Dirs.SSHAgentSockets)
+	assert.Equal(t, "", Config.Dirs.SSHAgentSockets)
 }
 
 func TestGetSecretsPath_Env(t *testing.T) {
@@ -874,9 +874,9 @@ func TestConfig_GetSSHAgentSocketsDir(t *testing.T) {
 		want      string
 	}{
 		{"nil dirs, project key", nil, &projectID, "/data/tmp/project_7"},
-		{"default value, project key", &ConfigDirs{SSHAgentSockets: "/tmp/semaphore"}, &projectID, "/data/tmp/project_7"},
+		{"explicit /tmp/semaphore, project key", &ConfigDirs{SSHAgentSockets: "/tmp/semaphore"}, &projectID, "/tmp/semaphore/project_7"},
 		{"empty value, project key", &ConfigDirs{}, &projectID, "/data/tmp/project_7"},
-		{"default value, key outside a project", &ConfigDirs{SSHAgentSockets: "/tmp/semaphore"}, nil, "/data/tmp"},
+		{"explicit /tmp/semaphore, key outside a project", &ConfigDirs{SSHAgentSockets: "/tmp/semaphore"}, nil, "/tmp/semaphore"},
 		{"custom value, project key", &ConfigDirs{SSHAgentSockets: "/run/sockets"}, &projectID, "/run/sockets/project_7"},
 		{"custom value, key outside a project", &ConfigDirs{SSHAgentSockets: "/run/sockets"}, nil, "/run/sockets"},
 		{"relative value, project key", &ConfigDirs{SSHAgentSockets: "sockets"}, &projectID, filepath.Join(wd, "sockets", "project_7")},

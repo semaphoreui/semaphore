@@ -182,7 +182,8 @@ func TestKeyInstaller_Install_StringKeyForGitStartsNoAgent(t *testing.T) {
 }
 
 // TestStartSSHAgent_UsesConfiguredSocketsDir checks that dirs.ssh_agent_sockets
-// moves the agent socket out of tmp_path.
+// moves the agent socket out of tmp_path, and that the project tmp folder is
+// still created 0755.
 func TestStartSSHAgent_UsesConfiguredSocketsDir(t *testing.T) {
 	original := util.Config
 	t.Cleanup(func() { util.Config = original })
@@ -215,5 +216,10 @@ func TestStartSSHAgent_UsesConfiguredSocketsDir(t *testing.T) {
 	t.Cleanup(func() { _ = agent.Close() })
 
 	assert.Equal(t, filepath.Join(socketsDir, "project_3"), filepath.Dir(agent.SocketFile))
-	assert.NoDirExists(t, filepath.Join(tmpPath, "project_3"))
+
+	// The project tmp folder is still created 0755, as when the socket lived
+	// there, so InstallHostConfigs does not make it 0700 first.
+	info, err := os.Stat(filepath.Join(tmpPath, "project_3"))
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o755), info.Mode().Perm())
 }
