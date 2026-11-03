@@ -174,7 +174,7 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 		provider.SearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		fmt.Sprintf(provider.SearchFilter, ldap.EscapeFilter(username)),
-		[]string{mappings.DN, mappings.Mail, mappings.UID, mappings.CN},
+		[]string{mappings.DN, mappings.Mail, mappings.UID, mappings.CN, "uid"},
 		nil,
 	)
 
@@ -188,6 +188,8 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 	}
 
 	entry := convertEntryToMap(sr.Entries[0])
+	// memberUid holds the uid of the directory, which the login may not be.
+	uid, _ := entry["uid"].(string)
 
 	prepareClaims(entry)
 
@@ -212,7 +214,10 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 		return nil, "", nil, err
 	}
 
-	groups, err := ldapGroups(l, provider, userDN, claims.username)
+	if uid == "" {
+		uid = claims.username
+	}
+	groups, err := ldapGroups(l, provider, userDN, uid)
 	if err != nil {
 		return nil, "", nil, err
 	}
