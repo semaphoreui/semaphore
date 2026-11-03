@@ -165,4 +165,24 @@ describe('template pages without read_project', () => {
     expect(loaded).to.equal(false);
   });
 
+  it('TaskLogDialog.vue opens a task whose template is hidden', async () => {
+    const ctx = {
+      itemId: 1,
+      item: null,
+      template: null,
+      templateHidden: false,
+      loadProjectResource: async (name) => {
+        if (name === 'templates') {
+          throw new Error('Request failed with status code 404');
+        }
+        return { id: 1, template_id: 2 };
+      },
+    };
+
+    await TaskLogDialog.methods.loadData.call(ctx);
+
+    expect(ctx.item).to.deep.equal({ id: 1, template_id: 2 });
+    expect(ctx.template).to.equal(null);
+    expect(ctx.templateHidden).to.equal(true);
+  });
 });
