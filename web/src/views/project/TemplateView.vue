@@ -19,6 +19,7 @@
       :features="features"
       :jwt="jwt"
       :task-type="item.type"
+      :can-read="can(USER_PERMISSIONS.readProject, null)"
     ></EditTemplateDialog>
 
     <EditTemplateDialog
@@ -31,6 +32,7 @@
       :features="features"
       :jwt="jwt"
       :task-type="item.type"
+      :can-read="can(USER_PERMISSIONS.readProject, null)"
     ></EditTemplateDialog>
 
     <ObjectRefsDialog

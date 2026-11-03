@@ -34,6 +34,7 @@
       @save="loadItems()"
       :features="features"
       :jwt="jwt"
+      :can-read="can(USER_PERMISSIONS.readProject)"
     ></EditTemplateDialog>
 
     <NewTaskDialog

@@ -19,12 +19,15 @@ function ctxWithoutRead(loaded) {
 describe('template pages without read_project', () => {
   let Templates;
   let TemplateView;
+  let TemplateForm;
 
   before(() => {
     // eslint-disable-next-line global-require
     Templates = require('@/views/project/Templates.vue').default;
     // eslint-disable-next-line global-require
     TemplateView = require('@/views/project/TemplateView.vue').default;
+    // eslint-disable-next-line global-require
+    TemplateForm = require('@/components/TemplateForm.vue').default;
   });
 
   it('Templates.vue loads the list without project resources', async () => {
@@ -57,5 +60,34 @@ describe('template pages without read_project', () => {
     expect(ctx.inventory).to.deep.equal([]);
     expect(ctx.environment).to.deep.equal([]);
     expect(ctx.repositories).to.deep.equal([]);
+  });
+
+  it('TemplateForm.vue loads only what a template grant may read', async () => {
+    const loaded = [];
+    const endpoints = [];
+    const ctx = {
+      canRead: false,
+      isNew: false,
+      itemId: 7,
+      app: 'ansible',
+      loadProjectResources: async (name) => {
+        loaded.push(name);
+        return [];
+      },
+      loadProjectEndpoint: async (url) => {
+        endpoints.push(url);
+        return [];
+      },
+    };
+
+    await TemplateForm.methods.loadRelativeData.call(ctx);
+
+    expect(loaded).to.deep.equal(['views', 'templates']);
+    expect(endpoints).to.deep.equal([]);
+    expect(ctx.repositories).to.deep.equal([]);
+    expect(ctx.inventory).to.deep.equal([]);
+    expect(ctx.environment).to.deep.equal([]);
+    expect(ctx.runnerTags).to.deep.equal([]);
+    expect(ctx.schedules).to.deep.equal([]);
   });
 });
