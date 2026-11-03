@@ -558,7 +558,7 @@
           />
 
           <TemplateVaults
-            v-if="needField('vault')"
+            v-if="hasVaults"
             :project-id="this.projectId"
             :vaults="vaults"
             @change="setTemplateVaults"
@@ -865,6 +865,11 @@ export default {
   },
 
   computed: {
+    // A vault picks a project key, so the block needs read like the other selectors.
+    hasVaults() {
+      return this.canRead && this.needField('vault');
+    },
+
     galaxyBadge() {
       const n = this.galaxyCustomizedCount;
       return n ? this.$t('galaxyCustomized', { n }) : null;

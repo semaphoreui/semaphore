@@ -20,6 +20,8 @@ describe('template pages without read_project', () => {
   let Templates;
   let TemplateView;
   let TemplateForm;
+  let TemplateTerraformState;
+  let TaskLogDialog;
 
   before(() => {
     // eslint-disable-next-line global-require
@@ -28,6 +30,10 @@ describe('template pages without read_project', () => {
     TemplateView = require('@/views/project/TemplateView.vue').default;
     // eslint-disable-next-line global-require
     TemplateForm = require('@/components/TemplateForm.vue').default;
+    // eslint-disable-next-line global-require
+    TemplateTerraformState = require('@/views/project/template/TemplateTerraformState.vue').default;
+    // eslint-disable-next-line global-require
+    TaskLogDialog = require('@/components/TaskLogDialog.vue').default;
   });
 
   it('Templates.vue loads the list without project resources', async () => {
@@ -124,4 +130,13 @@ describe('template pages without read_project', () => {
     expect(ctx.cronVisible).to.equal(undefined);
     expect(ctx.item.id).to.equal(null);
   });
+
+  it('TemplateForm.vue leaves the vaults out without read', () => {
+    const needField = () => true;
+
+    expect(TemplateForm.computed.hasVaults.call({ canRead: true, needField })).to.equal(true);
+    expect(TemplateForm.computed.hasVaults.call({ canRead: false, needField })).to.equal(false);
+  });
+
+
 });
