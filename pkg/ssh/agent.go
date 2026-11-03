@@ -138,13 +138,7 @@ func StartSSHAgent(key db.AccessKey, logger task_logger.Logger) (Agent, error) {
 
 	socketFilename := fmt.Sprintf("ssh-agent-%d-%s.sock", key.ID, random.String(10))
 
-	var socketFile string
-
-	if key.ProjectID == nil {
-		socketFile = path.Join(util.Config.TmpPath, socketFilename)
-	} else {
-		socketFile = path.Join(util.Config.GetProjectTmpDir(*key.ProjectID), socketFilename)
-	}
+	socketFile := path.Join(util.Config.GetSSHAgentSocketsDir(key.ProjectID), socketFilename)
 
 	sshAgent := Agent{
 		Logger: logger,

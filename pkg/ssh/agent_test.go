@@ -1,6 +1,9 @@
 package ssh
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/pem"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +14,7 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 // TestAgent_Listen_CreatesSocketDir tests that Listen() creates the socket's
@@ -175,4 +179,41 @@ func TestKeyInstaller_Install_StringKeyForGitStartsNoAgent(t *testing.T) {
 	assert.Nil(t, installation.SSHAgent)
 	assert.Empty(t, installation.Login)
 	assert.Empty(t, installation.Password)
+}
+
+// TestStartSSHAgent_UsesConfiguredSocketsDir checks that dirs.ssh_agent_sockets
+// moves the agent socket out of tmp_path.
+func TestStartSSHAgent_UsesConfiguredSocketsDir(t *testing.T) {
+	original := util.Config
+	t.Cleanup(func() { util.Config = original })
+
+	// Not t.TempDir(): its path exceeds the ~104-byte unix socket limit on macOS.
+	socketsDir, err := os.MkdirTemp("/tmp", "sock")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(socketsDir) }) //nolint:errcheck
+
+	tmpPath, err := os.MkdirTemp("/tmp", "tmp")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tmpPath) }) //nolint:errcheck
+
+	util.Config = &util.ConfigType{
+		TmpPath: tmpPath,
+		Dirs:    &util.ConfigDirs{SSHAgentSockets: socketsDir},
+	}
+
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	block, err := gossh.MarshalPrivateKey(priv, "")
+	require.NoError(t, err)
+
+	projectID := 3
+	key := db.AccessKey{ID: 5, ProjectID: &projectID}
+	key.SshKey.PrivateKey = string(pem.EncodeToMemory(block))
+
+	agent, err := StartSSHAgent(key, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = agent.Close() })
+
+	assert.Equal(t, filepath.Join(socketsDir, "project_3"), filepath.Dir(agent.SocketFile))
+	assert.NoDirExists(t, filepath.Join(tmpPath, "project_3"))
 }

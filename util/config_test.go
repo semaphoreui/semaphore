@@ -861,3 +861,28 @@ func TestListenPort_Addr(t *testing.T) {
 		})
 	}
 }
+
+func TestConfig_GetSSHAgentSocketsDir(t *testing.T) {
+	projectID := 7
+
+	tests := []struct {
+		name      string
+		dirs      *ConfigDirs
+		projectID *int
+		want      string
+	}{
+		{"nil dirs, project key", nil, &projectID, "/data/tmp/project_7"},
+		{"default value, project key", &ConfigDirs{SSHAgentSockets: "/tmp/semaphore"}, &projectID, "/data/tmp/project_7"},
+		{"empty value, project key", &ConfigDirs{}, &projectID, "/data/tmp/project_7"},
+		{"default value, key outside a project", &ConfigDirs{SSHAgentSockets: "/tmp/semaphore"}, nil, "/data/tmp"},
+		{"custom value, project key", &ConfigDirs{SSHAgentSockets: "/run/sockets"}, &projectID, "/run/sockets/project_7"},
+		{"custom value, key outside a project", &ConfigDirs{SSHAgentSockets: "/run/sockets"}, nil, "/run/sockets"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conf := &ConfigType{TmpPath: "/data/tmp", Dirs: tt.dirs}
+			assert.Equal(t, tt.want, conf.GetSSHAgentSocketsDir(tt.projectID))
+		})
+	}
+}

@@ -554,6 +554,8 @@ type TeamsConfig struct {
 	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
 }
 
+const defaultSSHAgentSocketsDir = "/tmp/semaphore"
+
 type ConfigDirs struct {
 	Secrets         string `json:"secrets,omitempty" env:"SEMAPHORE_SECRETS_PATH" default:"/tmp/semaphore"`
 	Repos           string `json:"repos,omitempty" env:"SEMAPHORE_REPOS_DIR"`
@@ -1064,6 +1066,31 @@ func (conf *ConfigType) ClearTmpDir() error {
 
 func (conf *ConfigType) GetProjectTmpDir(projectID int) string {
 	return path.Join(conf.TmpPath, fmt.Sprintf("project_%d", projectID))
+}
+
+// GetSSHAgentSocketsDir returns the directory for the SSH agent sockets of a
+// key: the project's folder under dirs.ssh_agent_sockets when that is set, and
+// the tmp_path folders otherwise. projectID is nil for a key outside any project.
+//
+// The setting defaults to "/tmp/semaphore", so that value means "not set" and
+// keeps the sockets under tmp_path, as before.
+func (conf *ConfigType) GetSSHAgentSocketsDir(projectID *int) string {
+	base := ""
+	if conf.Dirs != nil && conf.Dirs.SSHAgentSockets != defaultSSHAgentSocketsDir {
+		base = conf.Dirs.SSHAgentSockets
+	}
+
+	if base == "" {
+		if projectID == nil {
+			return conf.TmpPath
+		}
+		return conf.GetProjectTmpDir(*projectID)
+	}
+
+	if projectID == nil {
+		return base
+	}
+	return path.Join(base, fmt.Sprintf("project_%d", *projectID))
 }
 
 func (conf *ConfigType) GetProjectTmpFile(projectID int, filename string) string {
