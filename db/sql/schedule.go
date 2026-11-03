@@ -7,7 +7,23 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 )
 
+func (d *SqlDb) validateScheduleTarget(schedule db.Schedule) error {
+	return d.validateRunTarget(schedule.ProjectID, schedule.TemplateID, schedule.WorkflowID, "Schedule")
+}
+
 func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, err error) {
+	if err = schedule.Validate(); err != nil {
+		return
+	}
+
+	if err = d.validateScheduleTarget(schedule); err != nil {
+		return
+	}
+
+	if schedule.RunsWorkflow() {
+		// A workflow's root node carries its own task params.
+		schedule.TaskParams = nil
+	}
 
 	if schedule.TaskParams != nil {
 		params := schedule.TaskParams
@@ -25,10 +41,11 @@ func (d *SqlDb) CreateSchedule(schedule db.Schedule) (newSchedule db.Schedule, e
 
 	insertID, err := d.insert(
 		"id",
-		"insert into project__schedule (project_id, template_id, cron_format, repository_id, `name`, `active`, run_at, `type`, task_params_id, delete_after_run)"+
-			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"insert into project__schedule (project_id, template_id, workflow_id, cron_format, repository_id, `name`, `active`, run_at, `type`, task_params_id, delete_after_run)"+
+			"values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		schedule.ProjectID,
 		schedule.TemplateID,
+		schedule.WorkflowID,
 		schedule.CronFormat,
 		schedule.RepositoryID,
 		schedule.Name,
@@ -59,14 +76,30 @@ func (d *SqlDb) SetScheduleLastCommitHash(projectID int, scheduleID int, lastCom
 }
 
 func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
+	if err = schedule.Validate(); err != nil {
+		return
+	}
+
+	if err = d.validateScheduleTarget(schedule); err != nil {
+		return
+	}
+
+	var curr db.Schedule
+	err = d.getObject(schedule.ProjectID, db.ScheduleProps, schedule.ID, &curr)
+	if err != nil {
+		return
+	}
+
+	if schedule.RunsWorkflow() {
+		// Switching to a workflow leaves the old task params behind: the row
+		// is unlinked below and removed after the update succeeds.
+		schedule.TaskParams = nil
+		schedule.TaskParamsID = nil
+	} else if schedule.TaskParams == nil {
+		schedule.TaskParamsID = curr.TaskParamsID
+	}
 
 	if schedule.TaskParams != nil {
-		var curr db.Schedule
-		err = d.getObject(schedule.ProjectID, db.ScheduleProps, schedule.ID, &curr)
-		if err != nil {
-			return
-		}
-
 		params := schedule.TaskParams
 		params.ProjectID = schedule.ProjectID
 
@@ -92,6 +125,7 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		"cron_format=?, "+
 		"repository_id=?, "+
 		"template_id=?, "+
+		"workflow_id=?, "+
 		"`name`=?, "+
 		"`active`=?, "+
 		"run_at=?, "+
@@ -103,6 +137,7 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		schedule.CronFormat,
 		schedule.RepositoryID,
 		schedule.TemplateID,
+		schedule.WorkflowID,
 		schedule.Name,
 		schedule.Active,
 		schedule.RunAt,
@@ -111,6 +146,17 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		schedule.DeleteAfterRun,
 		schedule.ProjectID,
 		schedule.ID)
+
+	if err != nil {
+		return
+	}
+
+	if schedule.RunsWorkflow() && curr.TaskParamsID != nil {
+		err = d.deleteObject(schedule.ProjectID, db.TaskParamsProps, *curr.TaskParamsID)
+		if errors.Is(err, db.ErrNotFound) {
+			err = nil
+		}
+	}
 
 	return
 }
@@ -173,9 +219,12 @@ func (d *SqlDb) GetProjectSchedules(projectID int, includeTaskParams bool, inclu
 		repoFilter = "ps.repository_id IS NULL AND "
 	}
 
+	// A schedule runs a template or a workflow, so one of the two joins
+	// misses; the missing name comes back empty rather than null.
 	_, err = d.selectAll(&schedules,
-		"SELECT ps.*, pt.name as tpl_name FROM project__schedule ps "+
-			"JOIN project__template pt ON pt.id = ps.template_id "+
+		"SELECT ps.*, COALESCE(pt.name, '') as tpl_name, COALESCE(pw.name, '') as wf_name FROM project__schedule ps "+
+			"LEFT JOIN project__template pt ON pt.id = ps.template_id "+
+			"LEFT JOIN project__workflow_template pw ON pw.id = ps.workflow_id "+
 			"WHERE "+
 			repoFilter+
 			"ps.project_id=?",

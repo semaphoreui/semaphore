@@ -3,7 +3,7 @@
     ref="form"
     lazy-validation
     v-model="formValid"
-    v-if="templates && item != null"
+    v-if="templates && workflows && item != null"
   >
     <v-alert
       v-model="showInfo"
@@ -33,7 +33,69 @@
       dense
     ></v-text-field>
 
+    <div
+      v-if="workflowsEnabled"
+      class="d-flex justify-space-between align-center mb-2 ScheduleForm__target"
+    >
+      <b style="font-size: 13px; margin-left: 5px">{{ $t('scheduleRunTarget') }}</b>
+      <v-btn-toggle
+        :value="target"
+        @change="setTarget($event)"
+        tile
+        group
+        mandatory
+        :disabled="formSaving"
+      >
+        <v-btn value="template" small class="ma-0" style="border-radius: 4px">
+          {{ $t('scheduleTargetTemplate') }}
+        </v-btn>
+        <v-btn value="workflow" small class="ma-0" style="border-radius: 4px">
+          {{ $t('scheduleTargetWorkflow') }}
+        </v-btn>
+      </v-btn-toggle>
+    </div>
+
+    <v-alert
+      v-if="target === 'workflow' && !workflowsEnabled"
+      type="info"
+      text
+      dense
+      class="ScheduleForm__workflowUnavailable"
+    >
+      {{ $t('scheduleWorkflowTargetUnavailable', { id: item.workflow_id }) }}
+    </v-alert>
+
+    <div v-else-if="target === 'workflow'" style="position: relative">
+      <v-autocomplete
+        v-model="item.workflow_id"
+        :label="$t('workflowToRun')"
+        :items="workflows"
+        item-value="id"
+        :item-text="(itm) => itm.name"
+        :rules="[v => !!v || $t('scheduleTargetRequired')]"
+        required
+        :disabled="formSaving || !workflowSchedulesAvailable"
+        outlined
+        dense
+        class="ScheduleForm__workflow"
+      />
+
+      <v-chip
+        v-if="!workflowSchedulesAvailable"
+        color="hsl(348deg, 86%, 61%)"
+        text-color="white"
+        small
+        label
+        class="ScheduleForm__upgrade"
+        style="position: absolute; top: 8px; right: 8px"
+        @click="upgradeToPro('workflow_schedules_management')"
+      >
+        Upgrade to PRO
+      </v-chip>
+    </div>
+
     <v-autocomplete
+      v-else
       v-model="item.template_id"
       :label="$t('Template')"
       :items="templates"
@@ -48,7 +110,7 @@
 
     <v-card
       style="background: var(--highlighted-card-bg-color)"
-      v-if="item.template_id"
+      v-if="target === 'template' && item.template_id"
       class="mb-8 pt-3"
     >
       <div style="
@@ -476,6 +538,9 @@ export default {
   data() {
     return {
       templates: null,
+      workflows: null,
+      /** What the schedule runs: 'template' or 'workflow'. Derived from the item on load. */
+      target: 'template',
       timing: 'hourly',
       TIMINGS,
       MONTHS,
@@ -521,16 +586,45 @@ export default {
       url: `/api/project/${this.projectId}/templates`,
       responseType: 'json',
     })).data;
+
+    // Workflows exist only in builds with the feature; elsewhere the endpoint is 404.
+    if (this.workflowsEnabled) {
+      this.workflows = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/workflows`,
+        responseType: 'json',
+      })).data || [];
+    } else {
+      this.workflows = [];
+    }
   },
 
   props: {
     timezone: String,
     type: String,
+    /**
+     * Server feature flags (`systemInfo.features`): `workflows` shows the workflow target,
+     * `workflow_schedules_management` (Pro) lets the user pick a workflow.
+     */
+    features: Object,
   },
 
   computed: {
     localTimezone() {
       return 'Local';
+    },
+
+    workflowsEnabled() {
+      return !!(this.features && this.features.workflows);
+    },
+
+    /**
+     * Whether this user may point a schedule at a workflow. Without it the workflow
+     * select is shown disabled with an "Upgrade to PRO" chip, and the server refuses the
+     * target with 403 anyway.
+     */
+    workflowSchedulesAvailable() {
+      return !!(this.features && this.features.workflow_schedules_management);
     },
 
     runAtRules() {
@@ -567,6 +661,7 @@ export default {
       return {
         name: '',
         template_id: null,
+        workflow_id: null,
         cron_format: '* * * * *',
         active: true,
         run_once: false,
@@ -719,10 +814,38 @@ export default {
       }
     },
 
+    /**
+     * Switches the run target. Exactly one of template_id / workflow_id is kept;
+     * task params only make sense for a template.
+     */
+    setTarget(target) {
+      if (!target || target === this.target) {
+        return;
+      }
+      this.target = target;
+      if (target === 'workflow') {
+        this.item.template_id = null;
+        this.item.task_params = null;
+      } else {
+        this.item.workflow_id = null;
+        if (this.item.task_params == null) {
+          this.item.task_params = {};
+        }
+      }
+    },
+
     afterLoadData() {
-      // if (!this.item.type) {
-      //   this.item.type = this.item.run_at ? 'run_at' : '';
-      // }
+      // The API omits workflow_id when it is null; add the key reactively so the
+      // workflow autocomplete can bind to it.
+      if (this.item.workflow_id === undefined) {
+        this.$set(this.item, 'workflow_id', null);
+      }
+
+      this.target = this.item.workflow_id ? 'workflow' : 'template';
+
+      if (this.target === 'template' && this.item.task_params == null) {
+        this.item.task_params = {};
+      }
 
       if (this.item.run_at) {
         this.setRunAtInputFromItem();
@@ -737,6 +860,13 @@ export default {
 
     async beforeSave() {
       this.item.type = this.type;
+
+      if (this.target === 'workflow') {
+        this.item.template_id = null;
+        this.item.task_params = null;
+      } else {
+        this.item.workflow_id = null;
+      }
 
       if (this.type === 'run_at') {
         const parsed = this.runAtInput

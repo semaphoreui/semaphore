@@ -8,28 +8,29 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
-// validateIntegrationTarget checks that the template or the workflow the
-// integration runs exists in the integration's own project. The foreign keys
-// only guarantee the row exists somewhere; without this a project could start
-// another project's template through a webhook.
-func (d *SqlDb) validateIntegrationTarget(integration db.Integration) error {
+// validateRunTarget checks that the template or the workflow an object runs
+// exists in the object's own project. The foreign keys only guarantee the row
+// exists somewhere; without this a project could start another project's
+// template through a webhook or a schedule. owner names the object in the
+// validation error.
+func (d *SqlDb) validateRunTarget(projectID int, templateID *int, workflowID *int, owner string) error {
 	var table string
 	var targetID int
 	var what string
 
 	switch {
-	case integration.TemplateID != nil:
-		table, targetID, what = "project__template", *integration.TemplateID, "Template"
-	case integration.WorkflowID != nil:
-		table, targetID, what = "project__workflow_template", *integration.WorkflowID, "Workflow"
+	case templateID != nil:
+		table, targetID, what = "project__template", *templateID, "Template"
+	case workflowID != nil:
+		table, targetID, what = "project__workflow_template", *workflowID, "Workflow"
 	default:
-		return common_errors.NewValidationError("Integration must run a template or a workflow")
+		return common_errors.NewValidationError(owner + " must run a template or a workflow")
 	}
 
 	count, err := d.Sql().SelectInt(
 		d.PrepareQuery("select count(1) from "+table+" where id=? and project_id=?"),
 		targetID,
-		integration.ProjectID)
+		projectID)
 	if err != nil {
 		return err
 	}
@@ -39,6 +40,10 @@ func (d *SqlDb) validateIntegrationTarget(integration db.Integration) error {
 	}
 
 	return nil
+}
+
+func (d *SqlDb) validateIntegrationTarget(integration db.Integration) error {
+	return d.validateRunTarget(integration.ProjectID, integration.TemplateID, integration.WorkflowID, "Integration")
 }
 
 func (d *SqlDb) CreateIntegration(integration db.Integration) (newIntegration db.Integration, err error) {

@@ -248,8 +248,9 @@ func addInvite() *db.ProjectInvite {
 }
 
 func addSchedule() *db.Schedule {
+	tplID := int(templateID)
 	schedule, err := store.CreateSchedule(db.Schedule{
-		TemplateID: int(templateID),
+		TemplateID: &tplID,
 		CronFormat: "* * * 1 *",
 		ProjectID:  userProject.ID,
 	})
