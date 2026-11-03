@@ -161,7 +161,7 @@
         }/templates/${item.id}/perms`">{{ $t('Permissions') }}
       </v-tab>
       <v-tab
-        v-if="['terraform', 'tofu'].includes(item.app)"
+        v-if="hasStateTab"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
         }/templates/${item.id}/state`"
@@ -272,6 +272,12 @@ export default {
 
     canStop() {
       return this.can(USER_PERMISSIONS.runProjectTasks);
+    },
+
+    // The state tab manages inventories, which need read on the project.
+    hasStateTab() {
+      return ['terraform', 'tofu'].includes(this.item.app)
+        && this.can(this.USER_PERMISSIONS.readProject, null);
     },
 
     canUpdate() {

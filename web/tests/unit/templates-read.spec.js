@@ -138,5 +138,31 @@ describe('template pages without read_project', () => {
     expect(TemplateForm.computed.hasVaults.call({ canRead: false, needField })).to.equal(false);
   });
 
+  it('TemplateView.vue shows the state tab only with read', () => {
+    const ctx = (canRead) => ({
+      USER_PERMISSIONS,
+      item: { app: 'tofu' },
+      can: (p) => p !== USER_PERMISSIONS.readProject || canRead,
+    });
+
+    expect(TemplateView.computed.hasStateTab.call(ctx(true))).to.equal(true);
+    expect(TemplateView.computed.hasStateTab.call(ctx(false))).to.equal(false);
+  });
+
+  it('TemplateTerraformState.vue loads nothing without read', async () => {
+    let loaded = false;
+    const ctx = {
+      canRead: false,
+      template: { inventory_id: 1 },
+      inventories: [],
+      loadInventories: async () => { loaded = true; },
+      loadAliases: async () => { loaded = true; },
+      loadStates: async () => { loaded = true; },
+    };
+
+    await TemplateTerraformState.created.call(ctx);
+
+    expect(loaded).to.equal(false);
+  });
 
 });

@@ -351,6 +351,7 @@ export default {
   props: {
     template: Object,
     features: Object,
+    canRead: Boolean,
   },
 
   watch: {
@@ -401,6 +402,9 @@ export default {
 
   async created() {
     this.inventoryId = this.template.inventory_id;
+    if (!this.canRead) {
+      return;
+    }
     await this.loadInventories();
     this.inventory = this.inventories.find((inv) => inv.id === this.inventoryId);
     await this.loadAliases();
