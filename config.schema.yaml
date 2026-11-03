@@ -775,7 +775,7 @@ $defs:
     properties:
       secrets:           { type: string, default: /tmp/semaphore }
       repos:             { type: string }
-      ssh_agent_sockets: { type: string, default: /tmp/semaphore }
+      ssh_agent_sockets: { type: string }
 
   RunnerConfig:
     type: object

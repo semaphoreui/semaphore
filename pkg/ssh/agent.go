@@ -140,6 +140,16 @@ func StartSSHAgent(key db.AccessKey, logger task_logger.Logger) (Agent, error) {
 
 	socketFile := path.Join(util.Config.GetSSHAgentSocketsDir(key.ProjectID), socketFilename)
 
+	// Listen creates the folder of the socket. With a custom socket directory
+	// that is no longer the project's tmp folder, which the agent used to create
+	// 0755 before InstallHostConfigs could create it 0700, and git running as
+	// process.user has to traverse it.
+	if key.ProjectID != nil {
+		if err := os.MkdirAll(util.Config.GetProjectTmpDir(*key.ProjectID), 0o755); err != nil {
+			return Agent{}, fmt.Errorf("creating project tmp directory: %w", err)
+		}
+	}
+
 	sshAgent := Agent{
 		Logger: logger,
 		Keys: []AgentKey{

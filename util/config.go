@@ -554,12 +554,10 @@ type TeamsConfig struct {
 	MembersCanLeave bool           `json:"members_can_leave,omitempty" env:"SEMAPHORE_TEAMS_MEMBERS_CAN_LEAVE"`
 }
 
-const defaultSSHAgentSocketsDir = "/tmp/semaphore"
-
 type ConfigDirs struct {
 	Secrets         string `json:"secrets,omitempty" env:"SEMAPHORE_SECRETS_PATH" default:"/tmp/semaphore"`
 	Repos           string `json:"repos,omitempty" env:"SEMAPHORE_REPOS_DIR"`
-	SSHAgentSockets string `json:"ssh_agent_sockets,omitempty" env:"SEMAPHORE_SSH_AGENT_SOCKETS_DIR" default:"/tmp/semaphore"`
+	SSHAgentSockets string `json:"ssh_agent_sockets,omitempty" env:"SEMAPHORE_SSH_AGENT_SOCKETS_DIR"`
 }
 
 // JWTConfig issuance for task executions (used by playbooks to authenticate to
@@ -1072,13 +1070,14 @@ func (conf *ConfigType) GetProjectTmpDir(projectID int) string {
 // key: the project's folder under dirs.ssh_agent_sockets when that is set, and
 // the tmp_path folders otherwise. projectID is nil for a key outside any project.
 //
-// The setting defaults to "/tmp/semaphore", so that value means "not set" and
-// keeps the sockets under tmp_path, as before. A relative setting is made
-// absolute against the server's working directory, because Ansible gets the
-// path in SSH_AUTH_SOCK and runs from another directory.
+// The setting has no default: an empty value means "not set" and keeps the
+// sockets under tmp_path, as before, and any other value, "/tmp/semaphore"
+// included, is used. A relative setting is made absolute against the server's
+// working directory, because Ansible gets the path in SSH_AUTH_SOCK and runs
+// from another directory.
 func (conf *ConfigType) GetSSHAgentSocketsDir(projectID *int) string {
 	base := ""
-	if conf.Dirs != nil && conf.Dirs.SSHAgentSockets != defaultSSHAgentSocketsDir {
+	if conf.Dirs != nil && conf.Dirs.SSHAgentSockets != "" {
 		base = conf.Dirs.SSHAgentSockets
 		if abs, err := filepath.Abs(base); base != "" && err == nil {
 			base = abs
