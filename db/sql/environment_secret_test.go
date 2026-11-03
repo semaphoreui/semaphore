@@ -200,3 +200,20 @@ func TestEnvironmentSecret_OwnedKeyLinkedElsewhereBlocksGroupDeleteAtDbLevel(t *
 	_, err = f.store.GetEnvironment(f.project.ID, f.env.ID)
 	assert.NoError(t, err, "nothing was deleted")
 }
+
+// A secret link references access_key with no ON DELETE action, so the project
+// deletion has to remove the links before it removes the keys. Both kinds of
+// link are covered: a key owned by the group and a shared Key Store key.
+func TestDeleteProject_WithEnvironmentSecrets(t *testing.T) {
+	f := newEnvironmentSecretFixture(t)
+	f.link(t, f.env, db.EnvironmentSecretVar, "token", f.owned)
+	f.link(t, f.env, db.EnvironmentSecretEnv, "DB_PASSWORD", f.shared)
+
+	require.NoError(t, f.store.DeleteProject(f.project.ID))
+
+	_, err := f.store.GetProject(f.project.ID)
+	assert.ErrorIs(t, err, db.ErrNotFound)
+
+	_, err = f.store.GetAccessKey(f.project.ID, f.shared.ID)
+	assert.ErrorIs(t, err, db.ErrNotFound, "the project's keys go with the project")
+}
