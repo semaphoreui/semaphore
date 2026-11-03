@@ -100,4 +100,28 @@ describe('template pages without read_project', () => {
     expect(Templates.computed.canCreate.call(ctx(true))).to.equal(true);
     expect(Templates.computed.canCreate.call(ctx(false))).to.equal(false);
   });
+
+  it('TemplateForm.vue copies a template without its schedule when read is missing', async () => {
+    const endpoints = [];
+    const ctx = {
+      canRead: false,
+      sourceItemId: 3,
+      item: {},
+      schedules: [],
+      loadProjectResource: async () => ({ id: 3, arguments: '[]' }),
+      loadProjectEndpoint: async (url) => {
+        endpoints.push(url);
+        return [{ cron_format: '* * * * *', repository_id: 1 }];
+      },
+      loadRelativeData: async () => {},
+      needField: () => false,
+      $set: (o, k, v) => Object.assign(o, { [k]: v }),
+    };
+
+    await TemplateForm.methods.afterLoadData.call(ctx);
+
+    expect(endpoints).to.deep.equal([]);
+    expect(ctx.cronVisible).to.equal(undefined);
+    expect(ctx.item.id).to.equal(null);
+  });
 });

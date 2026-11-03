@@ -1239,9 +1239,10 @@ export default {
           }
         }
 
-        const sourceSchedule = (
+        // The schedule controls are hidden without read, so a copy must not carry one over.
+        const sourceSchedule = this.canRead ? (
           await this.loadProjectEndpoint(`/templates/${this.sourceItemId}/schedules`)
-        )[0];
+        )[0] : null;
 
         if (sourceSchedule != null) {
           this.cronFormat = sourceSchedule.cron_format;
