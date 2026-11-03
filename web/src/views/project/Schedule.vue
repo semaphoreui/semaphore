@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="items != null"
+    v-if="items != null && workflows != null"
     data-testid="schedule-page"
     :data-state="items.length === 0 ? 'empty' : 'ready'"
   >
@@ -22,6 +22,7 @@
           :need-reset="needReset"
           :timezone="systemInfo.schedule_timezone"
           :type="scheduleType"
+          :features="features"
         />
       </template>
     </EditDialog>
@@ -120,14 +121,25 @@
         <div data-testid="schedule-rowName">{{ item.name || '&mdash;' }}</div>
       </template>
 
-      <template v-slot:item.tpl_name="{ item }">
+      <template v-slot:item.target="{ item }">
         <div class="d-flex">
           <router-link
-            :to="
-            '/project/' + item.project_id +
-            '/templates/' + item.template_id"
+            v-if="item.workflow_id"
+            :to="`/project/${item.project_id}/workflows/${item.workflow_id}`"
+            class="ScheduleTarget ScheduleTarget--workflow"
+            data-testid="schedule-rowWorkflow"
+          >
+            <v-icon size="small" class="mr-1">mdi-graph-outline</v-icon>
+            {{ item.wf_name || '—' }}
+          </router-link>
+          <router-link
+            v-else
+            :to="`/project/${item.project_id}/templates/${item.template_id}`"
+            class="ScheduleTarget ScheduleTarget--template"
             data-testid="schedule-rowTemplate"
-          >{{ item.tpl_name }}
+          >
+            <v-icon size="small" class="mr-1">mdi-check-all</v-icon>
+            {{ item.tpl_name }}
           </router-link>
         </div>
       </template>
@@ -263,13 +275,34 @@ export default {
   mixins: [ItemListPageBase],
   props: {
     systemInfo: Object,
+    /** Server feature flags; `workflows` enables the workflow target of a schedule. */
+    features: Object,
   },
   data() {
     return {
       openedItems: [],
       scheduleType: null,
+      workflows: null,
     };
   },
+
+  async created() {
+    // Workflows exist only in builds with the feature; elsewhere the endpoint is 404.
+    // The list rows carry the workflow name (wf_name), so the list is needed only
+    // to know the feature is on; keep it for parity with the integrations page.
+    if (this.features && this.features.workflows) {
+      this.workflows = (
+        await axios({
+          method: 'get',
+          url: `/api/project/${this.projectId}/workflows`,
+          responseType: 'json',
+        })
+      ).data || [];
+    } else {
+      this.workflows = [];
+    }
+  },
+
   methods: {
     editSchedule(id, type) {
       this.scheduleType = type;
@@ -314,9 +347,10 @@ export default {
         title: this.$t('schedule'),
         key: 'cron_format',
       }, {
-        title: this.$t('template'),
-        key: 'tpl_name',
+        title: this.$t('scheduleRunTarget'),
+        key: 'target',
         width: '100%',
+        sortable: false,
       }, {
         title: this.$t('actions'),
         key: 'actions',

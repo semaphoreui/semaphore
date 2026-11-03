@@ -64,6 +64,12 @@ type WorkflowRunParams struct {
 	// task page and the audit trail show which integration started the run.
 	// Never read from a request body.
 	IntegrationID *int `json:"-"`
+
+	// ScheduleID is set by the server when a schedule starts the run: it is
+	// stamped on the root task (task.schedule_id), so the task page and the
+	// audit trail show which schedule started the run. Never read from a
+	// request body.
+	ScheduleID *int `json:"-"`
 }
 
 // workflowOutputNamePattern is the shape of an output name. The hyphen is

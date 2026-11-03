@@ -113,6 +113,7 @@ func Route(
 	workflowMiddlewareController := projects.NewWorkflowController(workflowStore)
 	backupController := projects.NewBackupController(workflowStore, subscriptionService)
 	projectIntegrationController := projects.NewIntegrationController(subscriptionService)
+	scheduleController := projects.NewScheduleController(subscriptionService)
 	userController := NewUserController(subscriptionService)
 	usersController := NewUsersController(subscriptionService)
 	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore)
@@ -388,7 +389,7 @@ func Route(
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
 
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.GetProjectSchedules).Methods("GET", "HEAD")
-	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
+	projectUserAPI.Path("/schedules").HandlerFunc(scheduleController.AddSchedule).Methods("POST")
 	projectUserAPI.Path("/schedules/validate").HandlerFunc(projects.ValidateScheduleCronFormat).Methods("POST")
 
 	projectUserAPI.Path("/views").HandlerFunc(projects.AddView).Methods("POST")
@@ -590,7 +591,7 @@ func Route(
 	projectScheduleManagement := projectUserAPI.PathPrefix("/schedules").Subrouter()
 	projectScheduleManagement.Use(projects.SchedulesMiddleware)
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.GetSchedule).Methods("GET", "HEAD")
-	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.UpdateSchedule).Methods("PUT")
+	projectScheduleManagement.HandleFunc("/{schedule_id}", scheduleController.UpdateSchedule).Methods("PUT")
 	projectScheduleManagement.HandleFunc("/{schedule_id}/active", projects.SetScheduleActive).Methods("PUT")
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.RemoveSchedule).Methods("DELETE")
 

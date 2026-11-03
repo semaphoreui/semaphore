@@ -18,7 +18,12 @@ type Features struct {
 	// refuses to create an integration with a workflow target or to point an existing one at a
 	// different workflow.
 	WorkflowIntegrationsManagement bool `json:"workflow_integrations_management"`
-	DockerExecutor                 bool `json:"docker_executor"`
-	K8sExecutor                    bool `json:"k8s_executor"`
-	AuditLogFilters                bool `json:"audit_log_filters"`
+	// WorkflowSchedulesManagement lets a schedule start a workflow instead of a template. In a
+	// Pro plan only Pro users have it; in Enterprise everyone. Without it the API refuses to
+	// create a schedule with a workflow target or to point an existing one at a different
+	// workflow.
+	WorkflowSchedulesManagement bool `json:"workflow_schedules_management"`
+	DockerExecutor              bool `json:"docker_executor"`
+	K8sExecutor                 bool `json:"k8s_executor"`
+	AuditLogFilters             bool `json:"audit_log_filters"`
 }
