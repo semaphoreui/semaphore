@@ -63,7 +63,7 @@
             v-on="on"
             color="primary"
             class="mr-1 pr-2"
-            v-if="can(USER_PERMISSIONS.manageProjectResources)"
+            v-if="canCreate"
             :disabled="!isAdmin && appsMixin.activeAppIds.length === 0"
           >
             {{ $t('newTemplate') }}
@@ -320,6 +320,12 @@ export default {
   },
 
   computed: {
+
+    // A new template needs an inventory and a repository, which only project read can list.
+    canCreate() {
+      return this.can(this.USER_PERMISSIONS.manageProjectResources)
+        && this.can(this.USER_PERMISSIONS.readProject);
+    },
 
     viewId() {
       if (/^-?\d+$/.test(this.$route.params.viewId)) {

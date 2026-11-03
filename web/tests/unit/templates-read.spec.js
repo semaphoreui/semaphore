@@ -90,4 +90,14 @@ describe('template pages without read_project', () => {
     expect(ctx.runnerTags).to.deep.equal([]);
     expect(ctx.schedules).to.deep.equal([]);
   });
+
+  it('Templates.vue offers a new template only with project read', () => {
+    const ctx = (canRead) => ({
+      USER_PERMISSIONS,
+      can: (p) => p !== USER_PERMISSIONS.readProject || canRead,
+    });
+
+    expect(Templates.computed.canCreate.call(ctx(true))).to.equal(true);
+    expect(Templates.computed.canCreate.call(ctx(false))).to.equal(false);
+  });
 });
