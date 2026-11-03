@@ -1405,6 +1405,12 @@ definitions:
         type: integer
       template_id:
         type: integer
+        x-nullable: true
+        description: The task template to start. Exactly one of template_id and workflow_id must be set.
+      workflow_id:
+        type: integer
+        x-nullable: true
+        description: The workflow to start instead of a template (Pro). task_params do not apply to a workflow and are dropped.
       name:
         type: string
       active:
@@ -1429,6 +1435,12 @@ definitions:
         type: integer
       template_id:
         type: integer
+        x-nullable: true
+        description: The task template the schedule starts. Exactly one of template_id and workflow_id is set.
+      workflow_id:
+        type: integer
+        x-nullable: true
+        description: The workflow the schedule starts instead of a template (Pro). The run starts with the workflow's survey defaults.
       name:
         type: string
       active:
