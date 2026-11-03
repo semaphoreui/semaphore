@@ -109,11 +109,13 @@ export default {
 
   methods: {
     async beforeLoadItems() {
-      this.providers = (await axios({
+      const { data } = await axios({
         method: 'get',
         url: '/api/auth/login',
         responseType: 'json',
-      })).data.oidc_providers || [];
+      });
+      const all = [...(data.oidc_providers || []), ...(data.ldap_providers || [])];
+      this.providers = all.filter((p, i) => all.findIndex((q) => q.id === p.id) === i);
     },
 
     getHeaders() {
