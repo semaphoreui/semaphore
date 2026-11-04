@@ -110,8 +110,8 @@
   </div>
 </template>
 <style lang="scss">
-// The title of the role list: `text-subtitle-1` of Vuetify 2 (16 px on a 28 px line), the class before
-// the rename; `text-body-large` of Vuetify 4 has a 24 px line.
+// The title of the role list: `text-subtitle-1` of Vuetify 2 (16 px on a 28 px line), the class
+// before the rename; `text-body-large` of Vuetify 4 has a 24 px line.
 .RestoreProjectResult__title {
   font-size: 1rem;
   line-height: 1.75rem;

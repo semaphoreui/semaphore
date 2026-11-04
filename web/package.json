@@ -9,7 +9,7 @@
     "prebuild": "npm run sync:api-docs",
     "build": "vite build",
     "test:unit": "vitest run",
-    "lint": "eslint ."
+    "lint": "eslint . --fix"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",
