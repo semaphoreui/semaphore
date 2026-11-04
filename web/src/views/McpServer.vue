@@ -18,8 +18,14 @@
 
     <v-tabs v-if="available" v-model="tab" class="px-4">
       <v-tab key="tokens" href="#tokens" data-testid="mcp-tab-tokens">{{ $t('mcp_tokens') }}</v-tab>
-      <v-tab key="connect" href="#connect" data-testid="mcp-tab-connect">
-        {{ $t('mcp_connection') }}
+      <v-tab key="project" href="#project" data-testid="mcp-tab-project">
+        {{ $t('mcp_tab_project') }}
+      </v-tab>
+      <v-tab v-if="canUseAdminMcp" key="admin" href="#admin" data-testid="mcp-tab-admin">
+        {{ $t('mcp_tab_admin') }}
+      </v-tab>
+      <v-tab v-if="canManageSystem" key="settings" href="#settings" data-testid="mcp-tab-settings">
+        {{ $t('mcp_tab_settings') }}
       </v-tab>
     </v-tabs>
 
@@ -36,7 +42,15 @@
         embedded
       />
 
-      <div v-else class="pa-4" data-testid="mcp-connect">
+      <McpSettings
+        v-else-if="tab === 'settings'"
+        :value="mcpSettings"
+        :load-error="mcpSettingsError"
+        @input="mcpSettings = $event"
+      />
+
+      <!-- The project and the admin tabs: one layout, the set of the tab fills it. -->
+      <div v-else class="pa-4" :data-testid="`mcp-connect-${mcpSet.id}`">
         <v-alert
           v-if="plainRemoteHttp"
           type="warning"
@@ -57,6 +71,35 @@
           <pre class="McpServer__code">{{ endpoint }}</pre>
           <CopyClipboardButton :text="endpoint" class="McpServer__copy" />
         </div>
+
+        <div class="mt-4">{{ $t('mcp_connection_tools') }}:</div>
+        <div class="text-caption">{{ $t('mcp_connection_tools_hint') }}</div>
+        <v-switch
+          v-for="s in connectionSwitches"
+          :key="s.key"
+          :input-value="s.on"
+          :label="$t(s.label)"
+          :hint="s.allowed
+            ? $t('mcp_connection_header_hint', { header: s.header })
+            : $t('mcp_connection_switched_off_by_admin')"
+          :disabled="!s.allowed"
+          :data-testid="`mcp-connection-${mcpSet.id}-${s.key}`"
+          persistent-hint
+          inset
+          class="mt-2"
+          @change="connection[mcpSet.id][s.key] = !!$event"
+        />
+
+        <template v-if="mcpSet.id === 'admin'">
+          <div class="mt-4 text-caption" data-testid="mcp-admin-groups">
+            <div v-for="s in connectionSwitches" :key="s.key">
+              <b>{{ $t(s.label) }}</b>: {{ $t(s.tools) }}
+            </div>
+          </div>
+          <div class="mt-1 text-caption" data-testid="mcp-admin-hidden-tools">
+            {{ $t('mcp_admin_hidden_tools') }}
+          </div>
+        </template>
 
         <v-select
           v-model="clientId"
@@ -142,6 +185,19 @@
     >
       <div class="px-4 pt-4">{{ $t('mcp_tokens_without_mcp') }}</div>
     </Tokens>
+
+    <!-- The settings hold for every user who has MCP, so a system manager prepares them even
+         while MCP is not available to them: switched off, or no Pro seat of their own. -->
+    <template v-if="!available && settingsWithoutMcp">
+      <v-subheader class="px-4 mt-4">{{ $t('mcp_tab_settings') }}</v-subheader>
+      <div class="px-4 text-caption">{{ $t('mcp_settings_without_mcp') }}</div>
+      <McpSettings
+        :value="mcpSettings"
+        :load-error="mcpSettingsError"
+        data-testid="mcp-settings-without-mcp"
+        @input="mcpSettings = $event"
+      />
+    </template>
   </div>
 </template>
 
@@ -152,10 +208,24 @@ import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import PageMixin from '@/components/PageMixin';
 import { GLOBAL_PERMISSIONS } from '@/lib/constants';
 import { hasGlobalPermission } from '@/lib/role-permissions';
-import { mcpClients, isPlainRemoteHttp } from '@/lib/mcpClients';
+import axios from 'axios';
+import McpSettings, { MCP_SETTINGS_URL, MCP_SETTINGS_SWITCHES } from '@/components/McpSettings.vue';
+import { getErrorMessage } from '@/lib/error';
+import {
+  MCP_SETS, mcpClients, mcpConnectionHeaders, isPlainRemoteHttp,
+} from '@/lib/mcpClients';
 
-const TOKENS_PATH = '/mcp';
-const CONNECT_PATH = '/mcp/connect';
+// The tab is the address. /mcp/connect, the old address of the project tab, redirects to
+// /mcp/project.
+const TAB_PATHS = {
+  tokens: '/mcp',
+  project: '/mcp/project',
+  admin: '/mcp/admin',
+  settings: '/mcp/settings',
+};
+
+// The tabs not every user sees, and the computed property that says who does.
+const RESTRICTED_TABS = { admin: 'canUseAdminMcp', settings: 'canManageSystem' };
 
 export default {
   mixins: [PageMixin],
@@ -163,6 +233,7 @@ export default {
   components: {
     Tokens,
     CopyClipboardButton,
+    McpSettings,
   },
 
   inheritAttrs: false,
@@ -196,20 +267,68 @@ export default {
       return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageSystem);
     },
 
+    // Every tool of the admin set needs a global permission, and the server hides the tools the
+    // user's permissions do not cover: the tab is for an admin or anyone with at least one.
+    canUseAdminMcp() {
+      return !!this.user && (!!this.user.admin || !!this.user.global_permissions);
+    },
+
+    // The set of MCP tools the tab connects to; the tabs without one show the project set.
+    mcpSet() {
+      return MCP_SETS[this.tab] || MCP_SETS.project;
+    },
+
+    // Without MCP for this user, a system manager still sees the settings when the instance has
+    // MCP in its license: the user only lacks a Pro seat, or MCP is switched off. Without the
+    // license nobody has MCP, and the page only offers the upgrade.
+    settingsWithoutMcp() {
+      return this.canManageSystem && (!!this.features.mcp || this.proLicenseWithoutSeat);
+    },
+
+    // The switches of the tab's set, in the order of the settings. A group the administrator
+    // switched off cannot be turned on for a connection, and its switch shows off.
+    connectionSwitches() {
+      const connection = this.connection[this.mcpSet.id] || {};
+      return this.mcpSet.groups.map((group) => {
+        const setting = MCP_SETTINGS_SWITCHES.find((s) => s.key === group.setting);
+        const allowed = !!this.mcpSettings?.[group.setting];
+        return {
+          key: group.key,
+          header: group.header,
+          label: setting.label,
+          tools: setting.hint,
+          allowed,
+          on: allowed && !!connection[group.key],
+        };
+      });
+    },
+
+    // A header goes out only for a group that is switched on here and allowed by the server.
+    connectionHeaders() {
+      return mcpConnectionHeaders(this.mcpSet, Object.fromEntries(
+        this.connectionSwitches.map((s) => [s.key, s.on]),
+      ));
+    },
+
     // The server mounts its routes under the path of web_host, so the endpoint keeps that path
-    // (https://host/semaphore → https://host/semaphore/api/mcp) and drops a trailing slash that
-    // would give "//api/mcp". Without web_host the routes are at the root of the page's origin.
+    // (https://host/semaphore → https://host/semaphore/api/mcp/project) and drops a trailing slash
+    // that would give "//api/mcp". Without web_host the routes are at the root of the page's
+    // origin.
     endpoint() {
       const host = this.systemInfo?.web_host;
+      const { path } = this.mcpSet;
       try {
-        return new URL('api/mcp', host ? `${host.replace(/\/+$/, '')}/` : document.baseURI).href;
+        return new URL(path, host ? `${host.replace(/\/+$/, '')}/` : document.baseURI).href;
       } catch (e) {
-        return new URL('api/mcp', document.baseURI).href;
+        return new URL(path, document.baseURI).href;
       }
     },
 
     clients() {
-      return mcpClients(this.endpoint);
+      return mcpClients(this.endpoint, {
+        headers: this.connectionHeaders,
+        serverName: this.mcpSet.serverName,
+      });
     },
 
     client() {
@@ -220,13 +339,14 @@ export default {
       return isPlainRemoteHttp(this.endpoint);
     },
 
-    // The tab is the address: /mcp/connect shows how to connect, /mcp the tokens.
+    // The tab is the address; a restricted tab falls back to the tokens for anyone else.
     tab: {
       get() {
-        return this.$route.path === CONNECT_PATH ? 'connect' : 'tokens';
+        const tab = Object.keys(TAB_PATHS).find((t) => TAB_PATHS[t] === this.$route.path) || 'tokens';
+        return RESTRICTED_TABS[tab] && !this[RESTRICTED_TABS[tab]] ? 'tokens' : tab;
       },
       set(value) {
-        const path = value === 'connect' ? CONNECT_PATH : TOKENS_PATH;
+        const path = TAB_PATHS[value] || TAB_PATHS.tokens;
         if (this.$route.path !== path) {
           this.$router.push(path);
         }
@@ -237,10 +357,35 @@ export default {
   data() {
     return {
       clientId: 'claude-code',
+      // Every group starts off for a connection, as a client without the headers has them.
+      connection: Object.fromEntries(Object.values(MCP_SETS).map((set) => [
+        set.id, Object.fromEntries(set.groups.map((group) => [group.key, false])),
+      ])),
+      mcpSettings: null,
+      mcpSettingsError: null,
     };
   },
 
+  async created() {
+    await this.loadMcpSettings();
+  },
+
   methods: {
+    // Every signed-in user reads the server settings: the project and admin tabs need them for
+    // their switches.
+    async loadMcpSettings() {
+      try {
+        this.mcpSettings = (await axios({
+          method: 'get',
+          url: MCP_SETTINGS_URL,
+          responseType: 'json',
+        })).data;
+        this.mcpSettingsError = null;
+      } catch (err) {
+        this.mcpSettingsError = getErrorMessage(err);
+      }
+    },
+
     returnToProjects() {
       EventBus.$emit('i-open-last-project');
     },

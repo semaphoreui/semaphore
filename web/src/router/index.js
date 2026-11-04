@@ -239,7 +239,20 @@ const routes = [
     component: McpServer,
   },
   {
+    // The old address of the project tab.
     path: '/mcp/connect',
+    redirect: '/mcp/project',
+  },
+  {
+    path: '/mcp/project',
+    component: McpServer,
+  },
+  {
+    path: '/mcp/admin',
+    component: McpServer,
+  },
+  {
+    path: '/mcp/settings',
     component: McpServer,
   },
   {
