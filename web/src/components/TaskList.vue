@@ -95,8 +95,15 @@
   </div>
 </template>
 <style lang="scss">
-.TaskListTable td {
+.TaskListTable td:not(.v-data-table__mobile-row) {
   height: 60px !important;
+}
+
+.TaskListTable td.v-data-table__mobile-row {
+  height: auto !important;
+  min-height: 48px;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
 }
 </style>
 <script>
