@@ -515,6 +515,16 @@
   padding: 0 12px;
 }
 
+// A chip or a button in a slide group (`v-chip-group`, `v-tabs`) keeps its text on one line, as a
+// chip of Vuetify 2 did (`.v-chip`: nowrap). Vuetify 4 sets `white-space: initial` on the children
+// of `.v-slide-group__content`, in the same layer as the nowrap of VChip and VBtn: which one wins
+// depends on the order Vite writes the component files, and the production build differs from the
+// dev server there (a chip «+ Add variable» wrapped only on the built binary).
+.v-slide-group__content > .v-chip,
+.v-slide-group__content > .v-btn {
+  white-space: nowrap;
+}
+
 // The close button of a chip: 6 px from the text, 4 px into the padding
 // (`.v-chip .v-icon--right`); on a chip without a colour the cross is an icon of the theme
 // (`.theme--light.v-icon`: .54, white in the dark theme), on a coloured one the chip's text colour.
