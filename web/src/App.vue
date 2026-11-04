@@ -153,6 +153,7 @@
       <v-menu
         location="top start"
         origin="overlap"
+        transition="fade-transition"
         :offset="[0, -12]"
         min-width="235"
         max-width="235"
@@ -446,6 +447,7 @@
           <v-menu
             location="bottom start"
             origin="overlap"
+            transition="fade-transition"
             :offset="[-12, -12]"
             min-width="235"
             max-width="235"
