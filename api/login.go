@@ -189,7 +189,7 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 
 	entry := convertEntryToMap(sr.Entries[0])
 	// memberUid holds the uid of the directory, which the login may not be.
-	uid, _ := entry["uid"].(string)
+	uid := sr.Entries[0].GetEqualFoldAttributeValue("uid")
 
 	prepareClaims(entry)
 
