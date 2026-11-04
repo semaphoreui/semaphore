@@ -389,3 +389,17 @@ func TestLocalExecutor_extraVarsDebugLog(t *testing.T) {
 func regexpQuote(s string) string {
 	return strings.NewReplacer(`.`, `\.`, `/`, `/`, `-`, `\-`).Replace(s)
 }
+
+func TestLocalExecutor_installVaultKeyFiles_EmptyNameIsDefault(t *testing.T) {
+	executor := newExtraVarsExecutor(t)
+	empty := ""
+	script := "vault-client.py"
+	executor.Template.Vaults = []db.TemplateVault{
+		{Type: db.TemplateVaultScript, Name: &empty, Script: &script},
+	}
+
+	require.NoError(t, executor.installVaultKeyFiles())
+
+	assert.Contains(t, executor.vaultFileInstallations, "default")
+	assert.NotContains(t, executor.vaultFileInstallations, "")
+}

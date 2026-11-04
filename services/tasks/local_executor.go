@@ -1388,7 +1388,7 @@ func (t *LocalExecutor) installVaultKeyFiles() (err error) {
 
 	for _, vault := range t.Template.Vaults {
 		var name string
-		if vault.Name != nil {
+		if vault.Name != nil && *vault.Name != "" {
 			name = *vault.Name
 		} else {
 			name = "default"

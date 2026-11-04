@@ -275,3 +275,43 @@ func TestTemplateSuppressAlertsRoundTrip(t *testing.T) {
 	assert.True(t, loaded.SuppressSuccessAlerts)
 	assert.False(t, loaded.SuppressErrorAlerts)
 }
+
+func TestUpdateTemplateVaultsStoresEmptyNameAsNull(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, repositoryID := newTemplateTestProject(t, store)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &projectID,
+		Type:      db.AccessKeyLoginPassword,
+	})
+	require.NoError(t, err)
+
+	empty := ""
+	named := "prod"
+	created, err := store.CreateTemplate(db.Template{
+		ProjectID:    projectID,
+		RepositoryID: repositoryID,
+		Name:         "with-vaults",
+		Playbook:     "site.yml",
+		Vaults: []db.TemplateVault{
+			{Type: db.TemplateVaultPassword, VaultKeyID: &key.ID, Name: &empty},
+			{Type: db.TemplateVaultPassword, VaultKeyID: &key.ID, Name: &named},
+		},
+	})
+	require.NoError(t, err)
+
+	vaults, err := store.GetTemplateVaults(projectID, created.ID)
+	require.NoError(t, err)
+	require.Len(t, vaults, 2)
+
+	var gotEmpty, gotNamed int
+	for _, v := range vaults {
+		if v.Name == nil {
+			gotEmpty++
+		} else if *v.Name == "prod" {
+			gotNamed++
+		}
+	}
+	assert.Equal(t, 1, gotEmpty, "empty name must be stored as NULL")
+	assert.Equal(t, 1, gotNamed, "a real name must be kept")
+}
