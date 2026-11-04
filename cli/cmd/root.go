@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/semaphoreui/semaphore/api"
+	"github.com/semaphoreui/semaphore/api/health"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/cli/cmd/client"
@@ -399,6 +400,21 @@ func runService() {
 	http.Handle("/", router)
 
 	fmt.Println("Server is running")
+
+	healthAddr := util.Config.Interface + util.Config.HealthListenAddr()
+	go func() {
+		healthSrv := &http.Server{
+			Addr:              healthAddr,
+			Handler:           health.New(store, haRedis).Handler(),
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       5 * time.Second,
+			WriteTimeout:      5 * time.Second,
+		}
+		log.WithField("addr", healthAddr).Info("health endpoints listening (/livez, /readyz)")
+		if healthErr := healthSrv.ListenAndServe(); healthErr != nil {
+			log.WithError(healthErr).Fatal("health server failed")
+		}
+	}()
 
 	var err error
 	if util.Config.TLS.Enabled {

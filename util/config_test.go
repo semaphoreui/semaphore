@@ -861,3 +861,11 @@ func TestListenPort_Addr(t *testing.T) {
 		})
 	}
 }
+
+func TestHealthListenAddr(t *testing.T) {
+	assert.Equal(t, ":8081", (*ConfigType)(nil).HealthListenAddr())
+	assert.Equal(t, ":8081", (&ConfigType{}).HealthListenAddr())
+	assert.Equal(t, ":8081", (&ConfigType{Health: &HealthConfig{}}).HealthListenAddr())
+	assert.Equal(t, ":9090", (&ConfigType{Health: &HealthConfig{Port: "9090"}}).HealthListenAddr())
+	assert.Equal(t, ":9090", (&ConfigType{Health: &HealthConfig{Port: ":9090"}}).HealthListenAddr())
+}

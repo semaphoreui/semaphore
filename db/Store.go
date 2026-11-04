@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -189,6 +190,9 @@ type ConnectionManager interface {
 	// Token used for debugging of session connections.
 	Connect()
 	Close()
+	// Ping reports whether the database is reachable. Used by Kubernetes
+	// readiness probes (/readyz).
+	Ping(ctx context.Context) error
 }
 
 // MigrationManager handles database migrations
