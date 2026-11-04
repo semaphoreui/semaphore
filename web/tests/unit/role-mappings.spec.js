@@ -19,10 +19,13 @@ const MAPPING = {
 };
 
 const ROUTES = {
-  '/api/auth/login': { oidc_providers: [{ id: 'okta', name: 'Okta' }] },
+  '/api/auth/login': {
+    oidc_providers: [{ id: 'okta', name: 'Okta' }],
+    ldap_providers: [{ id: 'corp', name: 'Corp AD' }, { id: 'okta', name: 'Okta LDAP' }],
+  },
   '/api/role_mappings': [MAPPING, {
     ...MAPPING, id: 4, provider: 'gone', provider_configured: false,
-  }],
+  }, { ...MAPPING, id: 5, provider: 'corp' }],
   '/api/projects': [{ id: 1, name: 'Demo' }],
   '/api/project/1/roles/all': [{
     slug: 'deployer', name: 'Deployer', builtin: false, project_id: null,
@@ -70,6 +73,19 @@ describe('RoleMappings.vue', () => {
     expect(rows.at(0).text()).not.to.contain('Provider not configured');
     expect(rows.at(1).text()).to.contain('gone');
     expect(rows.at(1).text()).to.contain('Provider not configured');
+  });
+
+  it('lists LDAP providers after OIDC ones without duplicates', async () => {
+    const wrapper = await mountWith(RoleMappings, {
+      isAdmin: true, features: { custom_roles_management: true },
+    });
+
+    const rows = wrapper.findAll('tbody tr');
+    expect(rows.at(2).text()).to.contain('Corp AD');
+    expect(wrapper.vm.providers).to.deep.equal([
+      { id: 'okta', name: 'Okta' },
+      { id: 'corp', name: 'Corp AD' },
+    ]);
   });
 
   it('deletes a mapping', async () => {

@@ -138,6 +138,17 @@ properties:
     description: >
       Disable verification of the LDAP server's TLS certificate for the legacy
       flat ldap_* config. Defaults to false (certificates are verified).
+  ldap_group_search_dn:
+    type: string
+    description: "Base DN of the group search. Empty: groups are not read."
+  ldap_group_search_filter:
+    type: string
+    default: "(|(member={{ .dn }})(uniqueMember={{ .dn }})(memberUid={{ .username }}))"
+    description: Group search filter, with {{ .dn }} and {{ .username }} of the user.
+  ldap_group_name_attribute:
+    type: string
+    default: cn
+    description: Group attribute that holds the group name.
   ldap_providers:
     type: object
     additionalProperties: { $ref: "#/$defs/LdapProvider" }
@@ -446,6 +457,17 @@ $defs:
         description: LDAP bind password (sensitive).
       search_dn:     { type: string }
       search_filter: { type: string }
+      group_search_dn:
+        type: string
+        description: "Base DN of the group search. Empty: groups are not read."
+      group_search_filter:
+        type: string
+        default: "(|(member={{ .dn }})(uniqueMember={{ .dn }})(memberUid={{ .username }}))"
+        description: Group search filter, with {{ .dn }} and {{ .username }} of the user.
+      group_name_attribute:
+        type: string
+        default: cn
+        description: Group attribute that holds the group name.
       mappings:     { $ref: "#/$defs/LdapMappings" }
       color:        { type: string }
       icon:         { type: string, description: MDI icon name without the mdi- prefix. }

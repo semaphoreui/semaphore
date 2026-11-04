@@ -77,3 +77,22 @@ func TestLdapProvider_GetMappings_DefaultsWhenNil(t *testing.T) {
 	assert.Equal(t, "uid", m.UID)
 	assert.Equal(t, "cn", m.CN)
 }
+
+func TestActiveLdapProviders_GroupSettingsFromFlatConfig(t *testing.T) {
+	conf := &ConfigType{LdapEnable: true, LdapGroupSearchDN: "ou=groups,dc=e2e,dc=test",
+		LdapGroupSearchFilter: "(memberUid={{ .username }})", LdapGroupNameAttribute: "description"}
+
+	p := conf.ActiveLdapProviders()[0].Provider
+
+	assert.Equal(t, "ou=groups,dc=e2e,dc=test", p.GroupSearchDN)
+	assert.Equal(t, "(memberUid={{ .username }})", p.GroupSearchFilter)
+	assert.Equal(t, "description", p.GroupNameAttribute)
+}
+
+func TestLdapProvider_GroupDefaults(t *testing.T) {
+	assert.Equal(t, "(|(member={{ .dn }})(uniqueMember={{ .dn }})(memberUid={{ .username }}))", LdapProvider{}.GetGroupSearchFilter())
+	assert.Equal(t, "cn", LdapProvider{}.GetGroupNameAttribute())
+	custom := LdapProvider{GroupSearchFilter: "(member={{ .dn }})", GroupNameAttribute: "memberOf"}
+	assert.Equal(t, "(member={{ .dn }})", custom.GetGroupSearchFilter())
+	assert.Equal(t, "memberOf", custom.GetGroupNameAttribute())
+}
