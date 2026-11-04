@@ -193,9 +193,8 @@ func TestStartSSHAgent_UsesConfiguredSocketsDir(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { os.RemoveAll(socketsDir) }) //nolint:errcheck
 
-	tmpPath, err := os.MkdirTemp("/tmp", "tmp")
-	require.NoError(t, err)
-	t.Cleanup(func() { os.RemoveAll(tmpPath) }) //nolint:errcheck
+	// No socket lives here, so the long t.TempDir() path is fine.
+	tmpPath := t.TempDir()
 
 	util.Config = &util.ConfigType{
 		TmpPath: tmpPath,
