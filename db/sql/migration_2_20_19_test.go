@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMigration_2_20_18_LinksLegacyGroupSecrets(t *testing.T) {
+func TestMigration_2_20_19_LinksLegacyGroupSecrets(t *testing.T) {
 	before := "2.20.16"
 	store := InitConfigCreateTestStoreAt(&before)
 
@@ -35,7 +35,7 @@ func TestMigration_2_20_18_LinksLegacyGroupSecrets(t *testing.T) {
 	insertKey("shared", db.AccessKeyShared, nil)
 	insertKey("vault-key", db.AccessKeySecretStorage, &envID)
 
-	target := "2.20.18"
+	target := "2.20.19"
 	require.NoError(t, db.Migrate(store, &target))
 
 	secrets, err := store.GetEnvironmentSecretKeys(project.ID, envID)

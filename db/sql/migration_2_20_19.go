@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type migration_2_20_18 struct {
+type migration_2_20_19 struct {
 	db *SqlDb
 }
 
@@ -16,7 +16,7 @@ type migration_2_20_18 struct {
 // Until now a group's secrets were "all access keys with its environment_id"; the type came from the
 // key owner and the name from the key name, with a legacy `var.` / `env.` prefix on old rows. The
 // key rows are left as they are: owner and environment_id keep marking the key as owned by the group.
-func (m migration_2_20_18) PostApply(tx *gorp.Transaction) error {
+func (m migration_2_20_19) PostApply(tx *gorp.Transaction) error {
 	var keys []struct {
 		ID            int    `db:"id"`
 		ProjectID     int    `db:"project_id"`
@@ -69,7 +69,7 @@ func (m migration_2_20_18) PostApply(tx *gorp.Transaction) error {
 		if prev, dup := winners[s]; dup {
 			log.WithFields(log.Fields{
 				"context":        "migration",
-				"version":        "2.20.18",
+				"version":        "2.20.19",
 				"environment_id": k.EnvironmentID,
 				"type":           typ,
 				"name":           name,

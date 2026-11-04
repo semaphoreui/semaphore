@@ -98,7 +98,7 @@ only when the task touches that topic. Keep this file under 150 lines.
   quotes ignored: `!unsafe "2026.08"` is a float, `"00123"` the int 83. Tag only strings holding a
   Jinja2 delimiter or a `#jinja2:` header (`isPossiblyTemplate`, `services/tasks/extra_vars_file.go`);
   check a generated extra-vars file with the real loader, not yaml.v3 (`extra_vars_ansible_test.go`).
-- Variable Group secrets are links (`project__environment_secret` → `string` access key) since 2.20.18;
+- Variable Group secrets are links (`project__environment_secret` → `string` access key) since 2.20.19;
   `access_key.owner`/`environment_id` only mark ownership. A `key_id` FK without `on delete` blocks a group
   delete whose owned key another group links — `EnvironmentService.Delete` refuses first. Details in
   `AGENTS/work/secrets-and-task-vars/variable-group-secret-refs.md`.

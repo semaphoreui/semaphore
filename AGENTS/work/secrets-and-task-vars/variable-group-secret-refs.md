@@ -53,8 +53,8 @@ Pro Docker/K8s executors) is untouched.
 
 ## Traps
 
-- Migration `2.20.18` (`db/sql/migration_2_20_18.go`): `2.20.17` is taken by the branch
-  `prod-10-logs-for-intergrations`; renumber if that branch merges first.
+- Migration `2.20.19` (`db/sql/migration_2_20_19.go`): `2.20.17` and `2.20.18` are taken on `develop`
+  (renumbered from `2.20.18` on 2026-11-04); renumber again if another migration lands first.
 - Duplicate `(environment_id, type, name)` among legacy keys: the newer key is linked, the older one is left
   as an unlinked owned key (logged). Before the change the last row in query order won — undefined.
 - `removeSecret` in `EnvironmentForm.vue` used to match rows by name, so two fresh unnamed rows vanished
