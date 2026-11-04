@@ -34,7 +34,8 @@ func GetViewTemplates(w http.ResponseWriter, r *http.Request) {
 	view := helpers.GetFromContext(r, "view").(db.View)
 	user := helpers.UserFromContext(r)
 
-	templates, err := helpers.Store(r).GetTemplatesWithPermissions(project.ID, user.ID, db.TemplateFilter{ViewID: &view.ID}, helpers.QueryParams(r.URL))
+	filter := db.TemplateFilter{ViewID: &view.ID, Viewer: &db.Viewer{UserID: user.ID, Admin: user.Admin}}
+	templates, err := helpers.Store(r).GetTemplatesWithPermissions(project.ID, user.ID, filter, helpers.QueryParams(r.URL))
 
 	if err != nil {
 		helpers.WriteError(w, err)

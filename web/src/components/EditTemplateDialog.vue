@@ -29,6 +29,8 @@
         :app="itemApp"
         :features="features"
         :task-type="taskType"
+        :jwt="jwt"
+        :can-read="canRead"
       />
     </template>
   </EditDialog>
@@ -57,6 +59,11 @@ export default {
     sourceItemId: Number,
     features: Object,
     taskType: String,
+    jwt: Object,
+    canRead: {
+      type: Boolean,
+      default: true,
+    },
     // Builds data-testid of the dialog card only, no behaviour.
     testId: { type: String, default: 'templateDialog' },
   },

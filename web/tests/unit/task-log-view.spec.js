@@ -8,12 +8,51 @@ async function flush() {
   await new Promise((resolve) => { setTimeout(resolve, 0); });
 }
 
-function mountView(item) {
+function mountView(item, props = {}) {
   return shallowMount(TaskLogView, {
-    props: { item, projectId: 7 },
+    props: { item, projectId: 7, ...props },
     global: { mocks: { $t: (k) => k } },
   });
 }
+
+describe('TaskLogView.vue task origin', () => {
+  let http;
+  let wrapper;
+
+  beforeEach(() => {
+    http = mockAxios();
+    http.respond((config) => (config.url.endsWith('/output') ? [] : { id: 5 }));
+  });
+
+  afterEach(() => {
+    wrapper.unmount();
+    http.restore();
+  });
+
+  it('loads the schedule and the integration with read_project', async () => {
+    wrapper = mountView({
+      id: 42, status: 'success', schedule_id: 5, integration_id: 6,
+    }, { canRead: true });
+    await flush();
+
+    const urls = http.requests.map((r) => r.url);
+    expect(urls).to.include('/api/project/7/schedules/5');
+    expect(urls).to.include('/api/project/7/integrations/6');
+    expect(wrapper.vm.schedule.status).to.equal('ready');
+  });
+
+  it('shows the origin ids only without read_project', async () => {
+    wrapper = mountView({
+      id: 42, status: 'success', schedule_id: 5, integration_id: 6,
+    });
+    await flush();
+
+    const urls = http.requests.map((r) => r.url);
+    expect(urls).to.deep.equal(['/api/project/7/tasks/42/output']);
+    expect(wrapper.vm.schedule).to.equal(null);
+    expect(wrapper.vm.integration).to.equal(null);
+  });
+});
 
 describe('TaskLogView.vue websocket handling', () => {
   let http;

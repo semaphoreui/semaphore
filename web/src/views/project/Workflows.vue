@@ -41,7 +41,7 @@
         color="primary"
         class="mr-1"
         @click="openEditor('new')"
-        v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        v-if="can(USER_PERMISSIONS.editWorkflows)"
         data-testid="workflows-new"
       >
         {{ $t('newWorkflow') }}
@@ -125,7 +125,7 @@
           data-testid="workflows-rowActions"
         >
           <v-btn
-            v-if="can(USER_PERMISSIONS.runProjectTasks)"
+            v-if="can(USER_PERMISSIONS.runWorkflows, item)"
             @click="runWorkflow(item)"
             :title="$t('workflowRunNow')"
             data-testid="workflows-rowRun"
@@ -299,6 +299,11 @@ export default {
   },
 
   methods: {
+    // The row holds the play button, which has its own rule.
+    allowActions() {
+      return true;
+    },
+
     statusColor(status) {
       switch (status) {
         case 'success':

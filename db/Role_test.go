@@ -26,7 +26,7 @@ func TestValidateRole(t *testing.T) {
 		{"reserved slug", Role{Slug: string(ProjectOwner), Name: "D"}, true, true},
 		{"reserved slug in other case", Role{Slug: "Task_Runner", Name: "D"}, true, true},
 		{"reserved slug all", Role{Slug: "ALL", Name: "D"}, true, true},
-		{"unknown permission bit", Role{Slug: "d", Name: "D", Permissions: 16}, true, true},
+		{"unknown permission bit", Role{Slug: "d", Name: "D", Permissions: 1024}, true, true},
 		{"negative permissions", Role{Slug: "d", Name: "D", Permissions: -1}, true, true},
 		{"old slug stays editable", Role{Slug: "my role", Name: "D"}, false, false},
 		{"update still needs a name", Role{Slug: "my role"}, false, true},
@@ -92,6 +92,14 @@ func TestRoleAssignments_Impact(t *testing.T) {
 			want: RoleImpact{Members: 3, Projects: 3, TemplateGrants: 1},
 		},
 		{name: "nothing", want: RoleImpact{}},
+		{
+			name: "workflow grant in a project of its own",
+			assigned: RoleAssignments{
+				Members:        []RoleMember{{ProjectID: 1, UserID: 1}},
+				WorkflowGrants: []WorkflowRolePerm{{ProjectID: 4}},
+			},
+			want: RoleImpact{Members: 1, Projects: 2, WorkflowGrants: 1},
+		},
 		{
 			name: "manual member, mapped member and mapping",
 			assigned: RoleAssignments{

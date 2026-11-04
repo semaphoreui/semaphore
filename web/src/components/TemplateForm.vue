@@ -201,7 +201,7 @@
             density="compact"
             :required="isFieldRequired('repository')"
             :disabled="formSaving"
-            v-if="needField('repository')"
+            v-if="canRead && needField('repository')"
             data-testid="templateForm-repositoryId"
           >
           </v-autocomplete>
@@ -364,7 +364,7 @@
           density="compact"
           required
           :disabled="formSaving"
-          v-if="needField('inventory')"
+          v-if="canRead && needField('inventory')"
           data-testid="templateForm-inventoryId"
         ></v-autocomplete>
 
@@ -386,7 +386,7 @@
           variant="outlined"
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
-          v-if="needField('environment')"
+          v-if="canRead && needField('environment')"
           class="TemplateForm__chips"
           data-testid="templateForm-environmentIds"
         ></v-autocomplete>
@@ -412,7 +412,7 @@
 
         <div class="mb-4">
           <v-autocomplete
-            v-if="features.project_runners"
+            v-if="canRead && features.project_runners"
             v-model="item.runner_tag"
             :items="runnerTags"
             :label="fieldLabel('runner_tag')"
@@ -467,7 +467,7 @@
             </template>
           </v-checkbox>
 
-          <template v-if="systemInfo && systemInfo.jwt && systemInfo.jwt.enabled">
+          <template v-if="jwt?.enabled">
             <v-checkbox
               class="mt-0"
               v-model="item.jwt_params.enabled"
@@ -528,10 +528,11 @@
             class="mt-0"
             :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
             v-model="cronVisible"
+            v-if="canRead"
             data-testid="templateForm-cronVisible"
           />
 
-          <DropdownCard v-if="cronVisible" data-testid="templateForm-cronCard">
+          <DropdownCard v-if="canRead && cronVisible" data-testid="templateForm-cronCard">
             <v-select
               v-model="cronRepositoryId"
               :label="$t('repository2')"
@@ -671,7 +672,7 @@
           />
 
           <TemplateVaults
-            v-if="needField('vault')"
+            v-if="hasVaults"
             :project-id="projectId"
             :vaults="vaults"
             @change="setTemplateVaults"
@@ -1001,6 +1002,12 @@ export default {
     app: String,
     features: Object,
     taskType: String,
+    jwt: Object,
+    // Project resources are not asked for without read_project, the grant covers the template only.
+    canRead: {
+      type: Boolean,
+      default: true,
+    },
   },
 
   data() {
@@ -1034,7 +1041,6 @@ export default {
         task_params: {},
         jwt_params: { enabled: false, audience: [], ttl: '' },
       },
-      systemInfo: null,
       inventory: null,
       repositories: null,
       environment: null,
@@ -1120,6 +1126,11 @@ export default {
   },
 
   computed: {
+    // A vault picks a project key, so the block needs read like the other selectors.
+    hasVaults() {
+      return this.canRead && this.needField('vault');
+    },
+
     galaxyBadge() {
       const n = this.galaxyCustomizedCount;
       return n ? this.$t('galaxyCustomized', { n }) : null;
@@ -1158,7 +1169,7 @@ export default {
     },
 
     jwtTtlHint() {
-      const max = this.systemInfo?.jwt?.max_ttl;
+      const max = this.jwt?.max_ttl;
       if (!max) {
         return this.$t('jwt_ttl_hint_no_max');
       }
@@ -1288,7 +1299,7 @@ export default {
 
   methods: {
     async loadBranches() {
-      if (this.repositoryId == null) {
+      if (this.repositoryId == null || !this.canRead) {
         return;
       }
 
@@ -1333,7 +1344,7 @@ export default {
     },
 
     async loadPlaybooks() {
-      if (this.repositoryId == null) {
+      if (this.repositoryId == null || !this.canRead) {
         this.playbooks = null;
         return;
       }
@@ -1437,14 +1448,14 @@ export default {
         templates,
         this.runnerTags,
       ] = await Promise.all([
-        this.loadProjectResources('repositories'),
-        this.loadProjectEndpoint(`/inventory?app=${this.app}&template_id=${this.itemId}`),
-        this.loadProjectEndpoint(`/inventory?app=${this.app}`),
-        this.isNew ? [] : this.loadProjectEndpoint(`/templates/${this.itemId}/schedules`),
+        this.canRead ? this.loadProjectResources('repositories') : [],
+        this.canRead ? this.loadProjectEndpoint(`/inventory?app=${this.app}&template_id=${this.itemId}`) : [],
+        this.canRead ? this.loadProjectEndpoint(`/inventory?app=${this.app}`) : [],
+        this.isNew || !this.canRead ? [] : this.loadProjectEndpoint(`/templates/${this.itemId}/schedules`),
         this.loadProjectResources('views'),
-        this.loadProjectResources('environment'),
+        this.canRead ? this.loadProjectResources('environment') : [],
         this.loadProjectResources('templates'),
-        this.loadProjectResources('runner_tags'),
+        this.canRead ? this.loadProjectResources('runner_tags') : [],
       ]);
 
       this.inventory = [...inventory1, ...inventory2];
@@ -1490,9 +1501,10 @@ export default {
           }
         }
 
-        const sourceSchedule = (
+        // The schedule controls are hidden without read, so a copy must not carry one over.
+        const sourceSchedule = this.canRead ? (
           await this.loadProjectEndpoint(`/templates/${this.sourceItemId}/schedules`)
-        )[0];
+        )[0] : null;
 
         if (sourceSchedule != null) {
           this.cronFormat = sourceSchedule.cron_format;
@@ -1538,18 +1550,6 @@ export default {
         if (typeof this.item.jwt_params.ttl !== 'string') {
           this.item.jwt_params.ttl = '';
         }
-      }
-
-      try {
-        this.systemInfo = (
-          await axios({
-            method: 'get',
-            url: '/api/info',
-            responseType: 'json',
-          })
-        ).data;
-      } catch (e) {
-        this.systemInfo = null;
       }
 
       if (!Array.isArray(this.item.environment_ids)) {

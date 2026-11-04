@@ -168,6 +168,7 @@
             :template="item"
             :limit="5"
             :hide-footer="true"
+            :can-read="can(USER_PERMISSIONS.readProject)"
           />
         </td>
       </template>

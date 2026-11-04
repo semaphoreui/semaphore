@@ -1,0 +1,94 @@
+# Redis Sentinel failover stand: master + replica + one sentinel, PostgreSQL, two Semaphore HA
+# nodes (Pro binary from this checkout) on http://localhost:3110 and :3111.
+name: semaphore-sentinel-stand
+
+services:
+  redis-master:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  redis-replica:
+    image: redis:7-alpine
+    command: ["redis-server", "--replicaof", "redis-master", "6379", "--appendonly", "no", "--save", ""]
+    depends_on:
+      redis-master:
+        condition: service_healthy
+
+  sentinel:
+    image: redis:7-alpine
+    # Sentinel rewrites its config file, so it gets a private copy.
+    command: ["sh", "-c", "cp /sentinel.conf /tmp/sentinel.conf && exec redis-sentinel /tmp/sentinel.conf"]
+    volumes:
+      - ./sentinel.conf:/sentinel.conf:ro
+    ports:
+      - "26379:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica:
+        condition: service_started
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: semaphore
+      POSTGRES_PASSWORD: semaphore
+      POSTGRES_DB: semaphore
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U semaphore"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  semaphore-a:
+    build: .
+    image: semaphore-sentinel-stand:local
+    environment: &node-env
+      SEMAPHORE_DB_DIALECT: postgres
+      SEMAPHORE_DB_HOST: postgres:5432
+      SEMAPHORE_DB: semaphore
+      SEMAPHORE_DB_USER: semaphore
+      SEMAPHORE_DB_PASS: semaphore
+      SEMAPHORE_DB_OPTIONS: '{"sslmode":"disable"}'
+      SEMAPHORE_PORT: ":3000"
+      SEMAPHORE_TMP_PATH: /tmp/semaphore
+      SEMAPHORE_COOKIE_HASH: ${SEMAPHORE_COOKIE_HASH}
+      SEMAPHORE_COOKIE_ENCRYPTION: ${SEMAPHORE_COOKIE_ENCRYPTION}
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION}
+      SEMAPHORE_SUBSCRIPTION_KEY: ${SEMAPHORE_SUBSCRIPTION_KEY}
+      SEMAPHORE_HA_ENABLED: "true"
+      SEMAPHORE_HA_ENGINE: ${SEMAPHORE_HA_ENGINE:-redis_sentinel}
+      SEMAPHORE_HA_REDIS_SENTINEL_MASTER_NAME: mymaster
+      SEMAPHORE_HA_REDIS_SENTINEL_ADDRS: '["sentinel:26379"]'
+      # Only read when SEMAPHORE_HA_ENGINE=redis (compatibility run).
+      SEMAPHORE_HA_REDIS_ADDR: ${SEMAPHORE_HA_REDIS_ADDR:-}
+      SEMAPHORE_HA_NODE_ID: node-a
+    ports:
+      - "127.0.0.1:3110:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      sentinel:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/api/ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  semaphore-b:
+    image: semaphore-sentinel-stand:local
+    environment:
+      <<: *node-env
+      SEMAPHORE_HA_NODE_ID: node-b
+    ports:
+      - "127.0.0.1:3111:3000"
+    depends_on:
+      # Node A runs the migrations first; B only starts once A answers.
+      semaphore-a:
+        condition: service_healthy

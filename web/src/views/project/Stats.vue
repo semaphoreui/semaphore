@@ -12,9 +12,15 @@
       :project-id="projectId"
       :project-type="projectType"
       :can-update-project="can(USER_PERMISSIONS.updateProject)"
+      :can-read="can(USER_PERMISSIONS.readProject)"
     />
 
-    <TaskStats class="mt-4" :project-id="projectId" data-testid="stats-taskStats" />
+    <TaskStats
+      class="mt-4"
+      :project-id="projectId"
+      :can-read="can(USER_PERMISSIONS.readProject)"
+      data-testid="stats-taskStats"
+    />
 
   </div>
 </template>

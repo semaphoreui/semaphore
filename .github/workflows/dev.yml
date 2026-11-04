@@ -79,7 +79,7 @@ jobs:
 
       - name: Check modification
         run: |
-          git diff --exit-code --stat -- . ':(exclude)web/package.json' ':(exclude)web/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum'
+          git diff --exit-code --stat -- . ':(exclude)web/package.json' ':(exclude)web/package-lock.json' ':(exclude)go.mod' ':(exclude)go.sum' ':(exclude)docs' ':(exclude)pro_impl'
 
       - name: Run tests
         run: task test

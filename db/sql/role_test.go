@@ -150,6 +150,9 @@ func TestDeleteRoleWithAssignments(t *testing.T) {
 	require.NoError(t, store.SetProjectUserRoles(projectID, both.ID, []int{role.ID, guest.ID}))
 	grant, err := store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: projectID, TemplateID: templateID, RoleID: role.ID, Permissions: db.CanRunProjectTasks})
 	require.NoError(t, err)
+	workflowID := insertWorkflow(t, store, projectID, "release")
+	workflowGrant, err := store.CreateWorkflowRole(db.WorkflowRolePerm{ProjectID: projectID, WorkflowID: workflowID, RoleID: role.ID, Permissions: db.CanRunWorkflows})
+	require.NoError(t, err)
 	check := func(assigned db.RoleAssignments) {
 		t.Helper()
 		require.Len(t, assigned.Members, 2)
@@ -159,7 +162,9 @@ func TestDeleteRoleWithAssignments(t *testing.T) {
 		assert.ElementsMatch(t, []string{"deployer", "guest"}, slugsOf(assigned.Members[1].Roles))
 		require.Len(t, assigned.Grants, 1)
 		assert.Equal(t, grant.ID, assigned.Grants[0].ID)
-		assert.Equal(t, db.RoleImpact{Members: 2, Projects: 1, TemplateGrants: 1}, assigned.Impact())
+		require.Len(t, assigned.WorkflowGrants, 1)
+		assert.Equal(t, workflowGrant.ID, assigned.WorkflowGrants[0].ID)
+		assert.Equal(t, db.RoleImpact{Members: 2, Projects: 1, TemplateGrants: 1, WorkflowGrants: 1}, assigned.Impact())
 	}
 
 	assigned, err := store.GetRoleAssignments(role.ID)
@@ -181,6 +186,9 @@ func TestDeleteRoleWithAssignments(t *testing.T) {
 	grants, err := store.GetTemplateRoles(projectID, templateID)
 	require.NoError(t, err)
 	assert.Empty(t, grants)
+	workflowGrants, err := store.GetWorkflowRoles(projectID, workflowID)
+	require.NoError(t, err)
+	assert.Empty(t, workflowGrants, "the workflow grants go with the role")
 }
 
 func TestDeleteRoleWithAssignments_BuiltinRole(t *testing.T) {

@@ -17,6 +17,7 @@
       >{{ $t('project_stats') }}</v-tab>
 
       <v-tab
+        v-if="canRead"
         key="activity"
         :to="`/project/${projectId}/activity`"
         data-testid="dashboard-activity"
@@ -50,6 +51,7 @@ export default {
     projectId: Number,
     projectType: String,
     canUpdateProject: Boolean,
+    canRead: Boolean,
   },
 
   computed: {

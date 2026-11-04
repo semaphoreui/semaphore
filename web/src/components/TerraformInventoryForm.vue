@@ -29,7 +29,7 @@
       :rules="[v => !!v || 'Key is required']"
       density="compact"
       required
-      :items="keys"
+      :items="sshKeys"
       item-value="id"
       item-title="name"
       :disabled="formSaving"
@@ -91,6 +91,17 @@ export default {
       // 304 px high (Vuetify 2 `menuProps`; Vuetify 4: 310).
       keyMenu: { location: 'top', origin: 'top', maxHeight: 304 },
     };
+  },
+
+  computed: {
+    // A string key is a bare value with no login or private key, so it can not
+    // authenticate a user; the picker offers only the types the executor accepts.
+    sshKeys() {
+      if (this.keys == null) {
+        return null;
+      }
+      return this.keys.filter((key) => ['ssh', 'login_password', 'none'].includes(key.type));
+    },
   },
 
   async created() {

@@ -6,29 +6,14 @@
       v-model="restoreProjectResultDialog"
       hide-no-button
       :yes-button-title="$t('close')"
-      :max-width="400"
+      :max-width="640"
     >
-      <div class="pt-3" v-if="restoreProjectResult">
-        <v-alert
-          density="compact"
-          variant="outlined"
-          type="success"
-          data-testid="appRestoreResultDialog-success"
-        >
-          {{ $t('projectWithNameRestored', { projectName: restoreProjectResult.projectName }) }}
-        </v-alert>
-
-        <v-alert
-          density="compact"
-          variant="outlined"
-          type="error"
-          class="mb-0"
-          data-testid="appRestoreResultDialog-emptyKeys"
-        >
-          <b>{{ $t('emptyKeysRestored', { emptyKeys: restoreProjectResult.emptyKeys }) }}</b>
-          {{ $t('pleaseUpdateAccessKeys') }}
-        </v-alert>
-      </div>
+      <RestoreProjectResult
+        v-if="restoreProjectResult"
+        :key="restoreProjectResult.project.id"
+        :project="restoreProjectResult.project"
+        :empty-keys="restoreProjectResult.emptyKeys"
+      />
     </YesNoDialog>
 
     <EditDialog
@@ -64,6 +49,7 @@
       :project-id="projectId"
       :item-id="taskId"
       :system-info="systemInfo"
+      :can-read="canReadProject"
     />
 
     <EditDialog
@@ -684,6 +670,7 @@
         :isAdmin="(user || {}).admin"
         :user="user"
         :features="(systemInfo || { features: {} }).features"
+        :jwt="(systemInfo || {}).jwt"
         :authMethods="(systemInfo || { auth_methods: {} }).auth_methods"
         :systemInfo="systemInfo"
       ></router-view>
@@ -1238,7 +1225,7 @@ html.WorkflowEditor-html body {
 import axios from 'axios';
 import { parseQuery } from 'vue-router';
 import { getErrorMessage } from '@/lib/error';
-import { GLOBAL_PERMISSIONS } from '@/lib/constants';
+import { GLOBAL_PERMISSIONS, USER_PERMISSIONS } from '@/lib/constants';
 import { hasGlobalPermission } from '@/lib/role-permissions';
 import EditDialog from '@/components/EditDialog.vue';
 import ProjectForm from '@/components/ProjectForm.vue';
@@ -1249,6 +1236,7 @@ import socket from '@/socket';
 
 import SubscriptionForm from '@/components/SubscriptionForm.vue';
 import RestoreProjectForm from '@/components/RestoreProjectForm.vue';
+import RestoreProjectResult from '@/components/RestoreProjectResult.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import TaskLogDialog from '@/components/TaskLogDialog.vue';
 import SystemInfoDialog from '@/components/SystemInfoDialog.vue';
@@ -1331,6 +1319,7 @@ export default {
     TaskLogDialog,
     YesNoDialog,
     RestoreProjectForm,
+    RestoreProjectResult,
     UserForm,
     EditDialog,
     ProjectForm,
@@ -1486,10 +1475,17 @@ export default {
       return `/project/${this.projectId}/templates`;
     },
 
+    canReadProject() {
+      return (this.user && this.user.admin)
+        || (((this.userRole || {}).permissions || 0) & USER_PERMISSIONS.readProject) !== 0;
+    },
+
     navItems() {
       if (!this.project) return [];
       const base = `/project/${this.projectId}`;
       const items = [];
+      // Without read_project only the templates and workflows granted to the member are there.
+      const canRead = this.canReadProject;
 
       if (this.project.type === '') {
         items.push(
@@ -1507,6 +1503,11 @@ export default {
             to: `${base}/workflows`,
             testId: 'sidebar-workflows',
           },
+        );
+      }
+
+      if (this.project.type === '' && canRead) {
+        items.push(
           {
             key: 'schedule',
             icon: 'mdi-clock-outline',
@@ -1559,15 +1560,17 @@ export default {
         );
       }
 
-      items.push({
-        key: 'team',
-        icon: 'mdi-account-multiple',
-        title: this.$t('team'),
-        to: `${base}/team`,
-        testId: 'sidebar-team',
-      });
+      if (canRead) {
+        items.push({
+          key: 'team',
+          icon: 'mdi-account-multiple',
+          title: this.$t('team'),
+          to: `${base}/team`,
+          testId: 'sidebar-team',
+        });
+      }
 
-      if (this.isPro && this.project.type === '') {
+      if (this.isPro && this.project.type === '' && canRead) {
         items.push({
           key: 'runners',
           icon: 'mdi-cogs',
@@ -1727,7 +1730,7 @@ export default {
         ).data.filter((k) => k.empty);
 
         this.restoreProjectResult = {
-          projectName,
+          project: e.item,
           emptyKeys: emptyKeys.length,
         };
         this.restoreProjectResultDialog = true;
@@ -1833,33 +1836,6 @@ export default {
       this.$i18n.locale = locale;
     },
 
-    async loadUserOptions() {
-      const options = (
-        await axios({
-          method: 'get',
-          url: '/api/user/options',
-          responseType: 'json',
-        })
-      ).data;
-
-      if (options['nav.unpinnedItems'] != null) {
-        try {
-          this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
-        } catch {
-          // do nothing
-        }
-      }
-
-      if (options.lang != null) {
-        const currentLang = localStorage.getItem('lang');
-        try {
-          this.applyLanguage(JSON.parse(options.lang));
-        } catch {
-          this.applyLanguage(currentLang);
-        }
-      }
-    },
-
     async selectLanguage(lang) {
       const previousLang = localStorage.getItem('lang');
       this.applyLanguage(lang);
@@ -1894,7 +1870,6 @@ export default {
 
     async loadData() {
       await this.loadUserInfo();
-      await this.loadUserOptions();
 
       // Activate session and start socket only after confirming user is authenticated
       socket.setSessionActive(true);
@@ -2006,21 +1981,45 @@ export default {
     },
 
     async loadUserInfo() {
-      this.user = (
-        await axios({
+      const [user, systemInfo, optionsResponse] = await Promise.all([
+        axios({
           method: 'get',
           url: '/api/user',
           responseType: 'json',
-        })
-      ).data;
-
-      this.systemInfo = (
-        await axios({
+        }),
+        axios({
           method: 'get',
           url: '/api/info',
           responseType: 'json',
-        })
-      ).data;
+        }),
+        axios({
+          method: 'get',
+          url: '/api/user/options',
+          responseType: 'json',
+        }),
+      ]);
+
+      this.user = user.data;
+      this.systemInfo = systemInfo.data;
+
+      const options = optionsResponse.data || {};
+
+      if (options['nav.unpinnedItems'] != null) {
+        try {
+          this.unpinnedNavKeys = JSON.parse(options['nav.unpinnedItems']);
+        } catch {
+          // do nothing
+        }
+      }
+
+      if (options.lang != null) {
+        const currentLang = localStorage.getItem('lang');
+        try {
+          this.applyLanguage(JSON.parse(options.lang));
+        } catch {
+          this.applyLanguage(currentLang);
+        }
+      }
     },
 
     getProjectColor(projectData) {

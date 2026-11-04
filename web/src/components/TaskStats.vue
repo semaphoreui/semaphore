@@ -27,6 +27,7 @@
       />
 
       <v-select
+        v-if="canRead"
         hide-details
         density="compact"
         :items="users"
@@ -68,6 +69,7 @@ export default {
   props: {
     templateId: Number,
     projectId: Number,
+    canRead: Boolean,
   },
 
   data() {
@@ -129,20 +131,23 @@ export default {
   async created() {
     await this.refreshData();
 
-    this.users = [{
-      text: 'All users',
-      value: null,
-    }, ...(await axios({
-      method: 'get',
-      url: `/api/project/${this.projectId}/users`,
-      responseType: 'json',
-    })).data.map((x) => ({
-      value: x.id,
-      text: x.name,
-    }))];
+    if (this.canRead) {
+      this.users = [...this.users, ...await this.loadUsers()];
+    }
   },
 
   methods: {
+    async loadUsers() {
+      return (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/users`,
+        responseType: 'json',
+      })).data.map((x) => ({
+        value: x.id,
+        text: x.name,
+      }));
+    },
+
     async refreshData() {
       let url;
 

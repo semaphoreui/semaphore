@@ -13,12 +13,12 @@
         class="text-truncate"
         style="max-width: calc(100% - 36px);"
         data-testid="taskLog-title"
-        :data-state="item == null || template == null ? 'loading' : 'ready'"
+        :data-state="item == null || (template == null && !templateHidden) ? 'loading' : 'ready'"
       >
         <!-- The button bone fills the loader; an inline-block loader without a width shrinks it
              to nothing. The bone is 64 × 36 without margins, as in Vuetify 2 (style below). -->
         <v-skeleton-loader
-          v-if="template == null"
+          v-if="template == null && !templateHidden"
           class="task-log-dialog__titleLoader"
           data-testid="taskLog-titleLoading"
           type="button"
@@ -26,7 +26,7 @@
           style="display: inline-block; margin-right: 10px; vertical-align: middle;"
         ></v-skeleton-loader>
         <router-link
-          v-else
+          v-else-if="template != null"
           class="breadcrumbs__item breadcrumbs__item--link"
           :to="`/project/${projectId}/templates/${template ? template.id : null}`"
           data-testid="taskLog-templateLink"
@@ -45,6 +45,7 @@
         :project-id="projectId"
         :item="item"
         :system-info="systemInfo"
+        :can-read="canRead"
       />
 
       <v-skeleton-loader
@@ -161,6 +162,7 @@ export default {
     projectId: Number,
     itemId: Number,
     systemInfo: Object,
+    canRead: Boolean,
   },
 
   emits: ['update:modelValue', 'close'],
@@ -173,6 +175,7 @@ export default {
     async modelValue(val) {
       this.item = null;
       this.template = null;
+      this.templateHidden = false;
       this.dialog = val;
       await this.loadData();
     },
@@ -187,6 +190,7 @@ export default {
       item: null,
       dialog: null,
       template: null,
+      templateHidden: false,
     };
   },
 
@@ -203,7 +207,12 @@ export default {
         return;
       }
       this.item = await this.loadProjectResource('tasks', this.itemId);
-      this.template = await this.loadProjectResource('templates', this.item.template_id);
+      // A task seen through its workflow run may belong to a template the member may not read.
+      try {
+        this.template = await this.loadProjectResource('templates', this.item.template_id);
+      } catch (e) {
+        this.templateHidden = true;
+      }
     },
 
     onClose() {

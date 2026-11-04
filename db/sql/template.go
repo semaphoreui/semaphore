@@ -299,6 +299,11 @@ func (d *SqlDb) getTemplates(
 
 	q := sq.Select(fields...).From("project__template pt")
 
+	if filtered(filter.Viewer) {
+		where, args := visibleTemplatesWhere(projectID, filter.Viewer.UserID, "pt")
+		q = q.Where(where, args...)
+	}
+
 	if filter.App != nil {
 		q = q.Where("pt.app=?", *filter.App)
 	}
@@ -401,7 +406,8 @@ func (d *SqlDb) getTemplates(
 	}
 
 	var tasks []db.TaskWithTpl
-	err = d.getTasks(projectID, nil, nil, taskIDs, db.RetrieveQueryParams{}, &tasks)
+	// The viewer filter leaves out a build task the member may not read.
+	err = d.getTasks(projectID, nil, nil, taskIDs, db.RetrieveQueryParams{TaskFilter: &db.TaskFilter{Viewer: filter.Viewer}}, &tasks)
 
 	if err != nil {
 		return
@@ -604,6 +610,15 @@ func (d *SqlDb) CreateTemplateRole(role db.TemplateRolePerm) (newRole db.Templat
 	}
 	if available == 0 {
 		err = &common_errors.ValidationError{Message: "Role is not available in this project"}
+		return
+	}
+	granted, err := d.Sql().SelectInt(d.PrepareQuery(
+		"select count(*) from project__template_role where template_id=? and role_id=?"), role.TemplateID, role.RoleID)
+	if err != nil {
+		return
+	}
+	if granted > 0 {
+		err = &common_errors.ValidationError{Message: "Role already has permissions on this template"}
 		return
 	}
 

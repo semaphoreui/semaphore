@@ -114,3 +114,33 @@
 .FixedPageSizeTable .v-data-table-footer__items-per-page {
   display: none;
 }
+
+// The hints and messages of the text-field family 1 px in from the left and 2 px lower, on a 1.2
+// line (develop `a8ab549b`, written for `.v-text-field__details` of Vuetify 2 with `!important`).
+// The details row of Vuetify 4 is laid out in vuetify2.scss: these rules repeat its selectors, so
+// they win by coming later in the same layer — 8 + 2 px above, 4 + 2 px in a compact field.
+.v-text-field,
+.v-select,
+.v-autocomplete,
+.v-combobox,
+.v-textarea,
+.v-file-input {
+  > .v-input__details:not(.v-input__details--hidden) {
+    padding-top: 10px;
+    padding-inline-start: 1px;
+  }
+
+  &.v-input--density-compact > .v-input__details:not(.v-input__details--hidden) {
+    padding-top: 6px;
+  }
+
+  &:not(:has(> .v-input__control > .v-field--variant-underlined, > .v-input__control > .v-field--variant-plain)) {
+    > .v-input__details:not(.v-input__details--hidden) {
+      padding-inline-start: 1px;
+    }
+  }
+
+  .v-messages__message {
+    line-height: 1.2;
+  }
+}

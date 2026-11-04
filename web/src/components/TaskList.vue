@@ -6,6 +6,7 @@
       :project-id="template.project_id"
       :template="template"
       :source-task="sourceTask"
+      :can-read="canRead"
       test-id="taskListRerunDialog"
     />
 
@@ -183,6 +184,7 @@ export default {
     limit: Number,
     hideFooter: Boolean,
     needUpdate: Boolean,
+    canRead: Boolean,
   },
   data() {
     return {
