@@ -216,3 +216,67 @@ func TestTemplateValidate_GalaxyArgs(t *testing.T) {
 	tpl = newTemplate(MapStringAnyField{"galaxy_collection_args": "--pre"})
 	assert.ErrorContains(t, tpl.Validate(), "invalid task params")
 }
+
+func TestTemplateValidate_MessageMode(t *testing.T) {
+	util.Config = &util.ConfigType{Apps: map[string]util.App{string(AppAnsible): {}}}
+	defer func() { util.Config = nil }()
+
+	inventoryID := 1
+	newTemplate := func(taskParams MapStringAnyField) Template {
+		return Template{
+			Name:        "test",
+			Playbook:    "playbook.yml",
+			App:         AppAnsible,
+			InventoryID: &inventoryID,
+			TaskParams:  taskParams,
+		}
+	}
+
+	for _, mode := range []string{"optional", "required", "hidden", ""} {
+		tpl := newTemplate(MapStringAnyField{"message_mode": mode})
+		assert.NoError(t, tpl.Validate(), mode)
+	}
+
+	tpl := newTemplate(nil)
+	assert.NoError(t, tpl.Validate())
+
+	tpl = newTemplate(MapStringAnyField{"message_mode": "mandatory"})
+	assert.ErrorContains(t, tpl.Validate(), `unknown message_mode "mandatory"`)
+
+	tpl = newTemplate(MapStringAnyField{"message_mode": true})
+	assert.ErrorContains(t, tpl.Validate(), "message_mode must be a string")
+}
+
+func TestTemplateMessageMode(t *testing.T) {
+	for _, tc := range []struct {
+		params MapStringAnyField
+		want   TemplateMessageMode
+	}{
+		{nil, TemplateMessageOptional},
+		{MapStringAnyField{}, TemplateMessageOptional},
+		{MapStringAnyField{"message_mode": nil}, TemplateMessageOptional},
+		{MapStringAnyField{"message_mode": ""}, TemplateMessageOptional},
+		{MapStringAnyField{"message_mode": "required"}, TemplateMessageRequired},
+		{MapStringAnyField{"message_mode": "hidden"}, TemplateMessageHidden},
+	} {
+		tpl := Template{TaskParams: tc.params}
+		mode, err := tpl.MessageMode()
+		assert.NoError(t, err)
+		assert.Equal(t, tc.want, mode)
+	}
+}
+
+func TestTemplateValidateTaskMessage(t *testing.T) {
+	required := Template{TaskParams: MapStringAnyField{"message_mode": "required"}}
+	assert.NoError(t, required.ValidateTaskMessage("RITM123456"))
+	assert.ErrorContains(t, required.ValidateTaskMessage(""), "template requires a task message")
+	assert.ErrorContains(t, required.ValidateTaskMessage("  \t"), "template requires a task message")
+
+	for _, params := range []MapStringAnyField{nil, {"message_mode": "optional"}, {"message_mode": "hidden"}} {
+		tpl := Template{TaskParams: params}
+		assert.NoError(t, tpl.ValidateTaskMessage(""))
+	}
+
+	bad := Template{TaskParams: MapStringAnyField{"message_mode": "mandatory"}}
+	assert.Error(t, bad.ValidateTaskMessage("any"))
+}
