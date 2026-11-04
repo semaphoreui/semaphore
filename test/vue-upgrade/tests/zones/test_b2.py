@@ -574,9 +574,10 @@ def test_restore_result_keys(ui, project):
 
 @pytest.mark.snapshot
 def test_restore_result_zero_keys(ui, project):
-    """0 empty keys: the red alert is shown anyway (JOURNAL@670EE83D65)."""
+    """0 empty keys: no red alert — develop fdb90969 fixed JOURNAL@670EE83D65 (shown before)."""
     page, result = restore_result(ui, project, [])
-    expect(tid(result, "appRestoreResultDialog-emptyKeys")).to_contain_text("0 empty keys added.")
+    expect(tid(result, "appRestoreResultDialog-success")).to_be_visible()
+    expect(tid(result, "appRestoreResultDialog-emptyKeys")).to_have_count(0)
     snap(page, ZONE, "restore-result", "zero-keys", element="appRestoreResultDialog")
 
 

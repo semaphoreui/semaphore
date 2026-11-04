@@ -518,7 +518,9 @@ def test_permission_chips_default_none(ui, project):
     page = ui("admin")
     open_roles(page, project)
     cell = chips_cell(page, "roles-table", "roles", "B4 no perms")
-    expect(tid(cell, "permissionChips-none")).to_be_visible()
+    # Migration 2.20.18 gives every stored role read_project (128): the chip instead of the dash.
+    expect(tid(cell, "permissionChips-128")).to_have_text("Can read project")
+    expect(tid(cell, "permissionChips-none")).to_have_count(0)
     snap(page, ZONE, "permission-chips", "default-none", element=cell)
 
 
@@ -527,7 +529,7 @@ def test_permission_chips_template(ui, project, api):
     page = ui("admin")
     goto(page, f"/project/{project(DEMO)}/templates/{template_id(api, project)}/perms", "templatePerms-page", "ready")
     cell = chips_cell(page, "templatePerms-table", "templatePerms", "guest")
-    expect(tid(cell, "permissionChips-1")).to_have_text("Can run tasks")
+    expect(tid(cell, "permissionChips-1")).to_have_text("Can run this template")  # develop: i18n label
     snap(page, ZONE, "permission-chips", "template", element=cell)
 
 
@@ -898,29 +900,33 @@ def test_rich_editor_save_environment(ui, project, api, cleanup):
 def test_permission_chips_bits(ui, project):
     page = ui("admin")
     open_roles(page, project)
+    # develop: eight project verbs (read 128, workflows 16/32/64); migrations 2.20.17/2.20.18 add
+    # the workflow verbs to «run tasks» / «manage resources» and read to every stored role.
     cell = chips_cell(page, "roles-table", "roles", "B4 all perms")
-    expect(cell.locator("[data-testid^=permissionChips-]")).to_have_count(4)
-    for bit in (1, 2, 4, 8):
+    expect(cell.locator("[data-testid^=permissionChips-]")).to_have_count(8)
+    for bit in (128, 1, 2, 4, 8, 16, 32, 64):
         expect(tid(cell, f"permissionChips-{bit}")).to_be_visible()
     expect(tid(cell, "permissionChips-none")).to_have_count(0)
     none = chips_cell(page, "roles-table", "roles", "B4 no perms")
-    expect(tid(none, "permissionChips-none")).to_have_text("—")
+    expect(none.locator("[data-testid^=permissionChips-]")).to_have_count(1)
+    expect(tid(none, "permissionChips-128")).to_be_visible()
     one = chips_cell(page, "roles-table", "roles", "Seed People Admin")
-    expect(one.locator("[data-testid^=permissionChips-]")).to_have_count(1)
+    expect(one.locator("[data-testid^=permissionChips-]")).to_have_count(2)
     expect(tid(one, "permissionChips-8")).to_be_visible()
+    expect(tid(one, "permissionChips-128")).to_be_visible()
 
 
 @pytest.mark.functional
 def test_permission_chips_template_scope(ui, project, api):
-    """Template scope knows bits 1 and 4 only: 5 gives two chips with untranslated labels."""
+    """Template scope: 5 gives two chips; develop translates their labels (and adds bit 128)."""
     page = ui("admin")
     pid, tpl = project(DEMO), template_id(api, project)
     answer_api(page, "GET", "**/api/project/*/templates/*/perms", [
         {"id": 1, "role_slug": "guest", "template_id": tpl, "project_id": pid, "permissions": 5}])
     goto(page, f"/project/{pid}/templates/{tpl}/perms", "templatePerms-page", "ready")
     cell = chips_cell(page, "templatePerms-table", "templatePerms", "guest")
-    expect(tid(cell, "permissionChips-1")).to_have_text("Can run tasks")
-    expect(tid(cell, "permissionChips-4")).to_have_text("Can update the template")
+    expect(tid(cell, "permissionChips-1")).to_have_text("Can run this template")
+    expect(tid(cell, "permissionChips-4")).to_have_text("Can edit this template")
     expect(cell.locator("[data-testid^=permissionChips-]")).to_have_count(2)
 
 

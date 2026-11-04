@@ -1311,7 +1311,11 @@ def test_survey_drag_reorder(ui, project):
     page = open_page(ui)
     bodies = capture_put(page)
     card = open_edit(page, project, "Survey script")
+    settle(page)  # the dialog still enters: a drag measured mid-transition misses the target chip
     tid(card, "surveyVars-chip-REPLICAS").drag_to(tid(card, "surveyVars-chip-TARGET"))
+    # The drop reorders the chips after the drag ends; saving before that sends the old order.
+    expect(card.locator("[data-testid^=surveyVars-chip-]").first).to_have_attribute(
+        "data-testid", re.compile("REPLICAS"))
     button(card, "editDialog-save").click()
     wait_until(page, lambda: bodies, "PUT template")
     assert [v["name"] for v in bodies[0]["survey_vars"]] == ["REPLICAS", "TARGET"]

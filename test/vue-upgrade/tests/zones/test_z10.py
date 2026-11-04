@@ -309,15 +309,17 @@ def test_dialog_load_error(ui, data):
 
 @pytest.mark.snapshot
 def test_dialog_template_error(ui, data):
-    """GET template 500: the title stays a skeleton, the log works."""
+    """GET template 500: the title has neither the skeleton nor the template link (develop 05d5c0b7:
+    the template counts as hidden), the log works."""
     page = ui("admin")
     item = data.ansible
     hits = fail_api(page, "GET", m_template(item["template_id"]))
     open_task(page, data, item["id"], ready=False)
     wait_until(page, lambda: hits, "the failed GET template")
     wait_log(page, data, item)
-    expect(tid(page, "taskLog-titleLoading")).to_be_visible()
-    expect(tid(page, "taskLog-title")).to_have_attribute("data-state", "loading")
+    expect(tid(page, "taskLog-titleLoading")).to_have_count(0)
+    expect(tid(page, "taskLog-templateLink")).to_have_count(0)
+    expect(tid(page, "taskLog-title")).to_have_attribute("data-state", "ready")
     shot(page, "dialog", "template-error")
 
 
@@ -794,11 +796,11 @@ def test_summary_load_error(ui, data):
 
 @pytest.mark.functional
 def test_not_found(ui, data):
-    """A task that does not exist: 400 (JOURNAL@DDC6693349), the skeleton forever."""
+    """A task that does not exist: 404 (develop; was 400, JOURNAL@DDC6693349), the skeleton forever."""
     page = ui("admin")
     with page.expect_response(lambda r: m_task(99999)(r.url)) as resp:
         open_task(page, data, 99999, ready=False)
-    assert resp.value.status == 400
+    assert resp.value.status == 404
     expect(tid(page, "taskLog-loading")).to_be_visible()
     expect(tid(page, "taskLog-title")).to_have_attribute("data-state", "loading")
 

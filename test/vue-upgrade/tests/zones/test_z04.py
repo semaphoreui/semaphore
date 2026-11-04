@@ -392,7 +392,8 @@ def test_list_columns_hidden(ui, project, api):
 @pytest.mark.snapshot
 def test_list_unknown_repository(ui, project, api):
     """z04__list__unknown-repository — a template pointing at a missing repository (patched answer):
-    the render of the table fails, the error is in the console (.json)."""
+    the repository cell shows «—» and the table renders (develop 4e507070; before: the render failed
+    with an error in the console)."""
     page = ui("admin")
 
     def break_repo(data):
@@ -403,7 +404,8 @@ def test_list_unknown_repository(ui, project, api):
     hits = patch_json(page, VIEW_TEMPLATES, break_repo)
     goto(page, views_path(project, api, "Scripts"), "templates-page", "ready")
     wait_until(page, lambda: hits, "the patched GET templates")
-    wait_until(page, lambda: page.vu.console_errors, "the render error in the console")
+    expect(tid(page, "templates-table")).to_contain_text("—")
+    assert not page.vu.console_errors, page.vu.console_errors
     snap(page, ZONE, "list", "unknown-repository")
 
 

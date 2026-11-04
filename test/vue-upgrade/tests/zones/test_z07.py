@@ -346,7 +346,8 @@ def test_z07__dialog__error_400(ui, api, project):
     pick_role(page, card, "owner", "Owner")
     button(card, "editDialog-save").click()
     wait_until(page, lambda: hits, "the failed POST")
-    expect(tid(card, "templatePerm-error")).to_have_text("Request failed with status code 400")
+    # develop: the server answers the refusal with its own message
+    expect(tid(card, "templatePerm-error")).to_have_text("Role already has permissions on this template")
     expect(tid(card, "templatePerm-form")).to_have_attribute("data-state", "error")
     snap(page, ZONE, "dialog", "error-400", element="templatePermDialog")
 
@@ -416,7 +417,7 @@ def test_z07__delete__confirm(ui, api, project):
         rule_row(page, "task_runner").get_by_test_id("templatePerms-rowDelete").click()
     assert refs.value.status == 404
     card = dialog(page, "templatePermsDeleteDialog")
-    expect(tid(card, "yesNoDialog-title")).to_have_text("deleteTemplatePermission")
+    expect(tid(card, "yesNoDialog-title")).to_have_text("Remove permission")  # develop added the key
     snap(page, ZONE, "delete", "confirm", element="templatePermsDeleteDialog")
 
 
@@ -493,7 +494,7 @@ def test_create_body(ui, api, project):
     assert len(reqs) == 1
     body = reqs[0].post_data_json
     assert body["role_slug"] == "guest"
-    assert body["permissions"] == 5
+    assert body["permissions"] == 5 | 128  # develop: a verb includes «Can see»
     assert body["project_id"] == project(DEMO)
 
 
@@ -515,7 +516,7 @@ def test_edit_body(ui, api, project):
     expect(card).to_be_hidden()
     assert len(reqs) == 1
     body = reqs[0].post_data_json
-    assert body["permissions"] == 1
+    assert body["permissions"] == 1 | 128  # develop: a verb includes «Can see»
     assert body["role_slug"] == "guest"
 
 
@@ -558,7 +559,8 @@ def test_duplicate_role_400(ui, api, project):
     card = new_dialog(page)
     pick_role(page, card, "owner", "Owner")
     button(card, "editDialog-save").click()
-    expect(tid(card, "templatePerm-error")).to_have_text("Request failed with status code 400")
+    # develop: the server answers the refusal with its own message
+    expect(tid(card, "templatePerm-error")).to_have_text("Role already has permissions on this template")
     expect(tid(card, "templatePerm-form")).to_have_attribute("data-state", "error")
     rules = api.get(f"/project/{project(DEMO)}/templates/{template_id(api, project, PERMS)}/perms")
     assert [r["role_slug"] for r in rules] == RULES
@@ -611,7 +613,7 @@ def test_delete_cancel(ui, api, project):
     deletes = count_requests(page, "DELETE", r"/perms/\d+$")
     rule_row(page, "manager").get_by_test_id("templatePerms-rowDelete").click()
     card = dialog(page, "templatePermsDeleteDialog")
-    expect(tid(card, "yesNoDialog-text")).to_have_text("askDeleteTemplatePermission")
+    expect(tid(card, "yesNoDialog-text")).to_have_text("Remove the role from this object?")  # develop added the key
     button(card, "yesNoDialog-no").click()
     expect(card).to_be_hidden()
     expect(tid(page, "templatePerms-rowSlug")).to_have_count(len(RULES))
@@ -645,7 +647,7 @@ def test_create_edit_delete(ui, api, project, cleanup):
     button(card, "editDialog-save").click()
     expect(card).to_be_hidden()
     created = api.find(path, "guest", key="role_slug")
-    assert created and created["permissions"] == 5
+    assert created and created["permissions"] == 5 | 128  # develop: a verb includes «Can see»
     cleanup(f"{path}/{created['id']}")
     expect(tid(page, "templatePerms-page")).to_have_attribute("data-state", "ready")
     expect(tid(page, "templatePerms-rowSlug")).to_have_text(["guest"])
@@ -658,7 +660,7 @@ def test_create_edit_delete(ui, api, project, cleanup):
     cell = rule_row(page, "guest").get_by_test_id("templatePerms-rowPermissions")
     expect(tid(cell, "permissionChips-4")).to_have_count(0)
     expect(tid(cell, "permissionChips-1")).to_have_count(1)
-    assert api.find(path, "guest", key="role_slug")["permissions"] == 1
+    assert api.find(path, "guest", key="role_slug")["permissions"] == 1 | 128
 
     deletes = count_requests(page, "DELETE", r"/perms/\d+$")
     rule_row(page, "guest").get_by_test_id("templatePerms-rowDelete").click()

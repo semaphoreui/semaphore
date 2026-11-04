@@ -48,7 +48,8 @@ CANNOT_GRANT = "Cannot grant permissions that exceed your own"
 
 def impact(mappings=0):
     return {"error": "assigned",
-            "impact": {"members": 1, "projects": 1, "template_grants": 0, "mappings": mappings}}
+            "impact": {"members": 1, "projects": 1, "template_grants": 0, "workflow_grants": 0,
+                       "mappings": mappings}}
 
 
 # The snackbar of App.vue (B2) is fully shown when the close button and every ancestor up to the
@@ -254,7 +255,10 @@ def test_list_chips(ui, project):
     full = role_row(page, "z23_all")
     for bit in (1, 2, 4, 8):
         expect(full.get_by_test_id(f"permissionChips-{bit}")).to_be_visible()
-    expect(role_row(page, "z23_none").get_by_test_id("permissionChips-none")).to_be_visible()
+    # Migration 2.20.18 gives every stored role read_project (128): a chip instead of the dash.
+    none = role_row(page, "z23_none")
+    expect(none.get_by_test_id("permissionChips-128")).to_be_visible()
+    expect(none.get_by_test_id("permissionChips-none")).to_have_count(0)
     snap(page, ZONE, "list", "chips")
 
 
@@ -573,7 +577,7 @@ def test_dialog_force_delete_ready(ui, project):
     wait_console(page, "409")
     card = dialog(page, FORCE_DIALOG)
     expect(tid(card, "yesNoDialog-text")).to_contain_text(
-        "Members: 1. Projects: 1. Template permissions: 0. Group mappings: 0.")
+        "Members: 1. Projects: 1. Template permissions: 0. Workflow permissions: 0. Group mappings: 0.")
     expect(button(card, "yesNoDialog-yes")).to_contain_text("Delete with assignments")
     expect(tid(page, DELETE_DIALOG)).to_be_hidden()
     snap(page, ZONE, "dialog-force-delete", "ready", element=FORCE_DIALOG)

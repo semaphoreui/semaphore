@@ -348,7 +348,7 @@ def test_list_ready(ui, feed_page):
     expect(tid(page, "audit-rowOutcome-failure")).to_have_count(1)
     expect(tid(page, "audit-rowOutcome-reason")).to_have_count(1)
     expect(tid(page, "audit-rowOutcome-success")).to_have_count(6)
-    expect(row(page, TABLE, "iam.global_role/create")).to_contain_text("Project #999")
+    expect(row(page, TABLE, "Global role created")).to_contain_text("Project #999")
     snap(page, ZONE, "list", "ready")
 
 
@@ -489,7 +489,7 @@ def test_list_names_error(ui, feed_page, project):
     close_snackbar(page, "Z30 names failure")
     expect(row(page, TABLE, "Template updated")).to_contain_text(f"Project #{project(DEMO)}")
     expect(row(page, TABLE, "Integration updated")).to_contain_text(f"Project #{project(OTHER)}")
-    expect(row(page, TABLE, "iam.global_role/create")).to_contain_text("Project #999")
+    expect(row(page, TABLE, "Global role created")).to_contain_text("Project #999")
     snap(page, ZONE, "list", "names-error")
 
 

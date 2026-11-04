@@ -785,15 +785,16 @@ def test_links_under_view(ui, project, api):
 
 @pytest.mark.functional
 def test_unknown_template(ui, project):
-    """/templates/99999: GET 404, the screen stays loading, no error state."""
+    """/templates/99999: GET 404 — develop b2363eeb shows «Template not found» instead of the screen
+    loading forever."""
     page = ui("admin")
     pid = project(DEMO)
     with page.expect_response(lambda r: r.url.endswith(f"/api/project/{pid}/templates/99999")) as resp:
         page.goto(f"/project/{pid}/templates/99999")
     assert resp.value.status == 404
     expect(tid(page, "app-page")).to_have_attribute("data-state", "ready", timeout=20000)
-    expect(tid(page, "template-page")).to_have_attribute("data-state", "loading")
-    expect(tid(page, "template-loading")).to_be_visible()
+    expect(tid(page, "template-notFound")).to_have_text("Template not found or not available to you.")
+    expect(tid(page, "template-page")).to_have_count(0)
 
 
 @pytest.mark.functional

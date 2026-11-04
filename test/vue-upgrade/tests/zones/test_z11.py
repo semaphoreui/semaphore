@@ -257,11 +257,13 @@ def test_list__empty(ui, data):
 
 @pytest.mark.snapshot
 def test_list__runner(ui, data):
-    """seed_runner: no «New workflow», no actions column (JOURNAL@C98479DABD)."""
+    """seed_runner: no «New workflow»; the Run button in every row — develop 6d4503fc drives it by
+    run_workflows, which task_runner holds (migration 2.20.17), and shows the actions column always
+    (before: no actions column, JOURNAL@C98479DABD)."""
     page = ui("runner")
     open_list(page, data)
     expect(tid(page, "workflows-new")).to_have_count(0)
-    expect(tid(page, "workflows-rowActions")).to_have_count(0)
+    expect(tid(page, "workflows-rowRun").first).to_be_visible()
     snap(page, ZONE, "list", "runner", masks=[M_LAST_RUN])
 
 
@@ -1121,12 +1123,12 @@ def test_node_click_opens_task(ui, data, api):
 
 @pytest.mark.functional
 def test_runner_rights(ui, data):
-    """seed_runner: list without New and actions; view with Run only; runs a survey workflow."""
+    """seed_runner: list without New, Run in the rows (develop 6d4503fc: run_workflows, which
+    task_runner holds); view with Run only; runs a survey workflow."""
     page = ui("runner")
     open_list(page, data)
     expect(tid(page, "workflows-new")).to_have_count(0)
-    expect(tid(page, "workflows-rowActions")).to_have_count(0)
-    expect(tid(page, "workflows-rowRun")).to_have_count(0)
+    expect(tid(page, "workflows-rowRun").first).to_be_visible()
     sent = answer_api(page, "POST", data.p_runs(data.wV), 200, {"id": data.rV})
     tid(wf_row(page, SURVEY), "workflows-rowName").click()
     wait_state(page, "workflowRuns-page", "ready")
