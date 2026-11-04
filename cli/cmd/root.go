@@ -412,7 +412,8 @@ func runService() {
 		}
 		log.WithField("addr", healthAddr).Info("health endpoints listening (/livez, /readyz)")
 		if healthErr := healthSrv.ListenAndServe(); healthErr != nil {
-			log.WithError(healthErr).Fatal("health server failed")
+			// Do not take down the main API if the health port is already bound.
+			log.WithError(healthErr).Error("health server failed")
 		}
 	}()
 
