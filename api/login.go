@@ -63,10 +63,15 @@ func ldapGroupFilter(tpl, dn, username string) (string, error) {
 
 func ldapGroupName(value string) string {
 	dn, err := ldap.ParseDN(value)
-	if err != nil || len(dn.RDNs) < 2 || len(dn.RDNs[0].Attributes) == 0 {
+	if err != nil || len(dn.RDNs) < 2 {
 		return value
 	}
-	return dn.RDNs[0].Attributes[0].Value
+	for _, attr := range dn.RDNs[0].Attributes {
+		if strings.EqualFold(attr.Type, "cn") {
+			return attr.Value
+		}
+	}
+	return value
 }
 
 func ldapGroupNames(entries []*ldap.Entry, attr string) []string {
@@ -85,7 +90,7 @@ func ldapGroupNames(entries []*ldap.Entry, attr string) []string {
 	return names
 }
 
-// ldapGroups reads the names of the user's groups, a group DN gives the value of its first RDN.
+// ldapGroups reads the names of the user's groups, a group DN gives the value of its cn.
 func ldapGroups(l *ldap.Conn, provider util.LdapProvider, userDN, username string) ([]string, error) {
 	if provider.GroupSearchDN == "" {
 		return nil, nil

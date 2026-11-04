@@ -58,6 +58,8 @@ func TestLdapGroupName(t *testing.T) {
 		"CN=Dev\\, Ops,OU=Groups":            "Dev, Ops",
 		"devops":                             "devops",
 		"team=ops":                           "team=ops",
+		"team=ops,region=west":               "team=ops,region=west",
+		"ou=groups,dc=corp":                  "ou=groups,dc=corp",
 		"not a dn, really":                   "not a dn, really",
 	} {
 		assert.Equal(t, want, ldapGroupName(in), in)
