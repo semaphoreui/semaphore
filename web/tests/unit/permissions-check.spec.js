@@ -57,6 +57,16 @@ describe('PermissionsCheck mixin', () => {
     });
   });
 
+  it('denies when the item has no permissions at all', () => {
+    expect(can({ userPermissions: 15, item: { permissions: 0 } }, runProjectTasks)).to.equal(false);
+  });
+
+  it('checks the item it is given instead of its own', () => {
+    const vm = shallowMount(Host, { propsData: { userPermissions: 0 } }).vm;
+    expect(vm.can(runProjectTasks, { permissions: runProjectTasks })).to.equal(true);
+    expect(vm.can(runProjectTasks, { permissions: 0 })).to.equal(false);
+  });
+
   it('prefers item.permissions over userPermissions when the item has them', () => {
     const props = { userPermissions: 15, item: { permissions: runProjectTasks } };
     expect(can(props, runProjectTasks)).to.equal(true);

@@ -180,8 +180,12 @@ func codeList(items []string) string {
 	return strings.Join(out, ", ")
 }
 
+// escape makes a flag usage or a description safe inside an MDX table cell:
+// `|` would end the cell, a newline the row, and `{`, `}` and `<` would be
+// parsed by MDX as an expression or a JSX tag.
 func escape(s string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(s, "|", `\|`), "\n", " ")
+	r := strings.NewReplacer("|", `\|`, "\n", " ", "{", `\{`, "}", `\}`, "<", `\<`)
+	return r.Replace(s)
 }
 
 var nonAnchor = regexp.MustCompile(`[^a-z0-9]+`)

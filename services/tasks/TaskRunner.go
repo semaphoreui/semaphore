@@ -597,30 +597,10 @@ func (t *TaskRunner) populateDetails() error {
 	t.alert = project.Alert
 	t.alertChat = project.AlertChat
 
-	// get project users
-	projectUsers, err := t.pool.store.GetProjectUsers(t.Template.ProjectID, db.RetrieveQueryParams{})
+	// Live updates and alerts go to whoever may see the task.
+	t.users, err = t.pool.store.GetTaskViewers(t.Template.ProjectID, t.Template.ID, t.Task.WorkflowRunID)
 	if err != nil {
 		return t.prepareError(err, "Users not found!")
-	}
-
-	users := make(map[int]bool)
-
-	for _, user := range projectUsers {
-		users[user.ID] = true
-	}
-
-	admins, err := t.pool.store.GetAllAdmins()
-	if err != nil {
-		return err
-	}
-
-	for _, admin := range admins {
-		users[admin.ID] = true
-	}
-
-	t.users = []int{}
-	for userID := range users {
-		t.users = append(t.users, userID)
 	}
 
 	// get inventory

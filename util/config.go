@@ -1013,14 +1013,6 @@ func (conf *ConfigType) RunnersReconcileInterval() time.Duration {
 	return time.Duration(sec) * time.Second
 }
 
-type SubscriptionConfig struct {
-	// Key is a subscription key or token that can be set via config.
-	// When this is set, subscription activation from the web interface is disabled.
-	Key       string `json:"key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY,sensitive"`
-	KeyFile   string `json:"key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
-	ServerURL string `json:"server_url,omitempty" env:"SEMAPHORE_SUBSCRIPTION_SERVER_URL" default:"https://portal.semaphoreui.com/billing"`
-}
-
 func NewConfigType() *ConfigType {
 	return &ConfigType{
 		LdapMappings: &LdapMappings{},
@@ -1338,8 +1330,7 @@ func cloneStruct(origValue reflect.Value) reflect.Value {
 func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) error {
 	structType := structValue.Type()
 
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
+	for field := range structType.Fields() {
 
 		// Skip fields with db:"-" tag
 		dbTag := field.Tag.Get("db")
@@ -2044,10 +2035,8 @@ func validateConfig() {
 		panic(err)
 	}
 
-	if Config.Auth != nil {
-		if err := validate(Config.Auth); err != nil {
-			panic(err)
-		}
+	if err := validate(Config.Auth); err != nil {
+		panic(err)
 	}
 
 	if _, err := validateHAConfig(Config.HA); err != nil {
@@ -2055,6 +2044,10 @@ func validateConfig() {
 	}
 
 	if err := Config.Audit.Validate(); err != nil {
+		panic(err)
+	}
+
+	if err := Config.Subscription.Validate(); err != nil {
 		panic(err)
 	}
 

@@ -312,6 +312,8 @@ type TemplateFilter struct {
 	BuildTemplateID *int
 	AutorunOnly     bool
 	App             *TemplateApp
+	// Viewer keeps only the templates this member may see; nil lists them all.
+	Viewer *Viewer
 }
 
 // Template is a user defined model that is used to run a task

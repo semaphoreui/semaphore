@@ -532,6 +532,7 @@ func TestValidateConfig(t *testing.T) {
 	Config.CookieEncryption = testCookieHash
 	Config.AccessKeyEncryption = testCookieHash
 	Config.EmailTlsMinVersion = testEmailTlsMinVersion
+	Config.Auth = &AuthConfig{}
 	validateConfig()
 
 	Config.Port = "INVALID"

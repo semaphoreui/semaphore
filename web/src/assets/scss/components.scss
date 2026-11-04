@@ -71,3 +71,11 @@
     border-bottom-right-radius: 0 !important;
   }
 }
+
+.v-text-field__details {
+  padding-left: 1px !important;
+  padding-top: 2px !important;
+  .v-messages__message {
+    line-height: 1.2 !important;
+  }
+}

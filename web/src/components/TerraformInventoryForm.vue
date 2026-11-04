@@ -25,7 +25,7 @@
       :rules="[v => !!v || 'Key is required']"
       dense
       required
-      :items="keys"
+      :items="sshKeys"
       item-value="id"
       item-text="name"
       :disabled="formSaving"
@@ -57,6 +57,17 @@ export default {
     return {
       keys: null,
     };
+  },
+
+  computed: {
+    // A string key is a bare value with no login or private key, so it can not
+    // authenticate a user; the picker offers only the types the executor accepts.
+    sshKeys() {
+      if (this.keys == null) {
+        return null;
+      }
+      return this.keys.filter((key) => ['ssh', 'login_password', 'none'].includes(key.type));
+    },
   },
 
   async created() {
