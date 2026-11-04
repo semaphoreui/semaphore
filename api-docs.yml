@@ -489,6 +489,40 @@ definitions:
             env:
               type: string
 
+  MCPSettings:
+    type: object
+    description: >
+      Server-wide ceiling for the tools of the built-in MCP server (Pro), one
+      pair of switches per tool set: the project set at /api/mcp/project and
+      the admin set at /api/mcp/admin. A group a setting allows is on for a
+      connection only when the connection also asks for it with its header
+      set to "on" (X-Semaphore-MCP-Run, X-Semaphore-MCP-Write,
+      X-Semaphore-MCP-Destroy). The settings limit the MCP tools only: the
+      same token still works on the REST API.
+    properties:
+      allow_run:
+        type: boolean
+        description: Project set. Allows the tools that run and control tasks (run_task, stop_task, confirm_task, reject_task, save_schedule); header X-Semaphore-MCP-Run. Defaults to false.
+        example: false
+      allow_destroy:
+        type: boolean
+        description: Project set. Allows the delete_* tools; header X-Semaphore-MCP-Destroy. Defaults to false.
+        example: false
+      admin_allow_write:
+        type: boolean
+        description: Admin set. Allows the save_* tools; header X-Semaphore-MCP-Write. Defaults to false.
+        example: false
+      admin_allow_destroy:
+        type: boolean
+        description: Admin set. Allows the delete_* tools, delete_active_task included; header X-Semaphore-MCP-Destroy. Defaults to false.
+        example: false
+    required:
+      - allow_run
+      - allow_destroy
+      - admin_allow_write
+      - admin_allow_destroy
+    additionalProperties: false
+
   APIToken:
     type: object
     properties:
@@ -2395,6 +2429,43 @@ paths:
           description: Revoked MCP Tokens
         404:
           description: No MCP token of the user starts with the prefix
+
+  /mcp/settings:
+    get:
+      summary: Fetch the MCP server settings
+      description: >
+        Any signed-in user may read the settings: they hold no secret. A
+        setting without a stored value has its default. Works in every build;
+        the settings take effect only in the MCP server of a Pro build.
+      responses:
+        200:
+          description: MCP server settings
+          schema:
+            $ref: "#/definitions/MCPSettings"
+    put:
+      summary: Update the MCP server settings
+      description: >
+        Needs an administrator or the global permission to manage the system.
+        All four fields are required and no other field is accepted. The change
+        is recorded in the audit log and takes effect on every node at the
+        next MCP request.
+      consumes:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/MCPSettings"
+      responses:
+        200:
+          description: Stored MCP server settings
+          schema:
+            $ref: "#/definitions/MCPSettings"
+        400:
+          description: The body is not an object with exactly the four boolean fields
+        403:
+          description: The user may not manage the system
 
   /user/options:
     get:

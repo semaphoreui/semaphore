@@ -227,6 +227,11 @@ func Route(
 
 	authenticatedAPI.Path("/apps").HandlerFunc(getApps).Methods("GET", "HEAD")
 
+	// The server-wide MCP settings: every signed-in user reads them (the connection tab needs them),
+	// only systemAPI writes them. r.Path(".../api/mcp") above matches that exact path only, so this
+	// longer path never reaches the MCP handler.
+	authenticatedAPI.Path("/mcp/settings").HandlerFunc(getMCPSettings).Methods("GET", "HEAD")
+
 	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
 	tokenAPI.Path("/tokens").HandlerFunc(getAPITokens).Methods("GET", "HEAD")
 	tokenAPI.Path("/tokens").HandlerFunc(createAPIToken).Methods("POST")
@@ -248,6 +253,7 @@ func Route(
 	systemAPI.Use(globalPermissionMiddleware(db.CanManageGlobalSystem))
 	systemAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
 	systemAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
+	systemAPI.Path("/mcp/settings").HandlerFunc(setMCPSettings).Methods("PUT")
 	systemAPI.Path("/admin/info").HandlerFunc(getAdminInfo).Methods("GET", "HEAD")
 
 	systemAPI.Path("/cluster").HandlerFunc(getClusterStatus).Methods("GET", "HEAD")
