@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-<<<<<<< HEAD
 func TestMigration_2_20_18_LinksLegacyGroupSecrets(t *testing.T) {
 	before := "2.20.16"
 	store := InitConfigCreateTestStoreAt(&before)
@@ -35,30 +34,9 @@ func TestMigration_2_20_18_LinksLegacyGroupSecrets(t *testing.T) {
 	otherGroup := insertKey("token", db.AccessKeyVariable, &otherEnvID)
 	insertKey("shared", db.AccessKeyShared, nil)
 	insertKey("vault-key", db.AccessKeySecretStorage, &envID)
-=======
-func TestMigration_2_20_18_GivesReadToRolesAndGrants(t *testing.T) {
-	before := "2.20.17"
-	store := InitConfigCreateTestStoreAt(&before)
-	projectID, repositoryID := newTemplateTestProject(t, store)
-	template, err := store.CreateTemplate(db.Template{ProjectID: projectID, RepositoryID: repositoryID, Name: "deploy", Playbook: "site.yml"})
-	require.NoError(t, err)
-	workflowID := insertWorkflow(t, store, projectID, "release")
-	ops, err := store.CreateRole(db.Role{Slug: "ops", Name: "Ops", Permissions: 1 | 16 | 64, ProjectID: &projectID})
-	require.NoError(t, err)
-	nobody, err := store.CreateRole(db.Role{Slug: "nobody", Name: "Nobody", ProjectID: &projectID})
-	require.NoError(t, err)
-	templateGrant, err := store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: projectID, TemplateID: template.ID, RoleID: nobody.ID, Permissions: 1})
-	require.NoError(t, err)
-	workflowGrant, err := store.CreateWorkflowRole(db.WorkflowRolePerm{ProjectID: projectID, WorkflowID: workflowID, RoleID: nobody.ID, Permissions: 16})
-	require.NoError(t, err)
-	emptyGrant, err := store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: projectID, TemplateID: template.ID, RoleID: ops.ID, Permissions: 0})
-	require.NoError(t, err)
->>>>>>> develop
-
 	target := "2.20.18"
 	require.NoError(t, db.Migrate(store, &target))
 
-<<<<<<< HEAD
 	secrets, err := store.GetEnvironmentSecretKeys(project.ID, envID)
 	require.NoError(t, err)
 	require.Len(t, secrets, 2, "one env secret and one var secret, the duplicate name collapsed")
@@ -85,7 +63,29 @@ func TestMigration_2_20_18_GivesReadToRolesAndGrants(t *testing.T) {
 	total, err := store.Sql().SelectInt(store.PrepareQuery("select count(*) from project__environment_secret"))
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), total, "shared and storage keys are not group secrets")
-=======
+}
+
+func TestMigration_2_20_18_GivesReadToRolesAndGrants(t *testing.T) {
+	before := "2.20.17"
+	store := InitConfigCreateTestStoreAt(&before)
+	projectID, repositoryID := newTemplateTestProject(t, store)
+	template, err := store.CreateTemplate(db.Template{ProjectID: projectID, RepositoryID: repositoryID, Name: "deploy", Playbook: "site.yml"})
+	require.NoError(t, err)
+	workflowID := insertWorkflow(t, store, projectID, "release")
+	ops, err := store.CreateRole(db.Role{Slug: "ops", Name: "Ops", Permissions: 1 | 16 | 64, ProjectID: &projectID})
+	require.NoError(t, err)
+	nobody, err := store.CreateRole(db.Role{Slug: "nobody", Name: "Nobody", ProjectID: &projectID})
+	require.NoError(t, err)
+	templateGrant, err := store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: projectID, TemplateID: template.ID, RoleID: nobody.ID, Permissions: 1})
+	require.NoError(t, err)
+	workflowGrant, err := store.CreateWorkflowRole(db.WorkflowRolePerm{ProjectID: projectID, WorkflowID: workflowID, RoleID: nobody.ID, Permissions: 16})
+	require.NoError(t, err)
+	emptyGrant, err := store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: projectID, TemplateID: template.ID, RoleID: ops.ID, Permissions: 0})
+	require.NoError(t, err)
+
+	target := "2.20.18"
+	require.NoError(t, db.Migrate(store, &target))
+
 	for slug, mask := range map[string]db.ProjectUserPermission{"owner": 255, "guest": 128, "ops": 1 | 16 | 64 | 128, "nobody": 128} {
 		role, err := store.GetProjectOrSharedRoleBySlug(projectID, slug)
 		require.NoError(t, err)
@@ -108,5 +108,4 @@ func TestMigration_2_20_18_GivesReadToRolesAndGrants(t *testing.T) {
 	storedTemplateGrant, err = store.GetTemplateRole(projectID, template.ID, templateGrant.ID)
 	require.NoError(t, err)
 	assert.Equal(t, db.ProjectUserPermission(1), storedTemplateGrant.Permissions)
->>>>>>> develop
 }

@@ -941,7 +941,7 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 
 	for i, o := range backup.Environments {
 		if err := o.RestoreSecrets(&b); err != nil {
-			return &newProject, fmt.Errorf("error at environments[%d] secrets: %s", i, err.Error())
+			return &RestoredProject{Project: newProject, UnassignedRoles: b.unassigned}, fmt.Errorf("error at environments[%d] secrets: %w", i, err)
 		}
 	}
 

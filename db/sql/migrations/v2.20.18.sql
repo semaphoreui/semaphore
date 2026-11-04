@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 -- Variable Group secrets: one row per secret of a group — which Access Key reaches the group under which
 -- name and in which role (var / env). The value lives in `access_key`. A key is either owned by the group
 -- (`access_key.owner` = variable/environment, `access_key.environment_id` = the group) or linked: a shared
@@ -20,9 +19,8 @@ create table `project__environment_secret`
 );
 
 create index `project__environment_secret__key_id` on `project__environment_secret` (`key_id`);
-=======
+
 -- read_project (128): a member without it sees only the objects granted to their roles. Nobody loses access.
 update `role` set `permissions` = `permissions` | 128;
 update `project__template_role` set `permissions` = `permissions` | 128 where `permissions` <> 0;
 update `project__workflow_role` set `permissions` = `permissions` | 128 where `permissions` <> 0;
->>>>>>> develop
