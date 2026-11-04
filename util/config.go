@@ -311,8 +311,9 @@ type TLSConfig struct {
 // HealthConfig configures the dedicated Kubernetes probe listener (/livez, /readyz).
 type HealthConfig struct {
 	// Port for /livez and /readyz. Defaults to :8081 so it does not collide with
-	// the optional TLS HTTP redirect on 8080.
-	Port ListenPort `json:"port,omitempty" default:":8081" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_HEALTH_PORT"`
+	// the optional TLS HTTP redirect on 8080. Port 0 / :0 is rejected (ephemeral
+	// ports are not usable for Kubernetes probes).
+	Port ListenPort `json:"port,omitempty" default:":8081" rule:"^(:?[1-9][0-9]{0,4})?$" env:"SEMAPHORE_HEALTH_PORT"`
 }
 
 type TotpConfig struct {
@@ -2060,6 +2061,12 @@ func validateConfig() {
 
 	if err := validate(Config.Auth); err != nil {
 		panic(err)
+	}
+
+	if Config.Health != nil {
+		if err := validate(Config.Health); err != nil {
+			panic(err)
+		}
 	}
 
 	if _, err := validateHAConfig(Config.HA); err != nil {
