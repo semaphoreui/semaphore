@@ -5,7 +5,7 @@
     size="20"
     width="10"
     :rotate="rotate"
-    :value="value"
+    :model-value="value"
   >
   </v-progress-circular>
 </template>
@@ -100,7 +100,7 @@ export default {
     });
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     indeterminateTimer.removeListener(this.listenerId);
   },
 };

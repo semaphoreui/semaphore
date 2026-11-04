@@ -1,6 +1,11 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+<template>
+  <div
+    v-if="items != null"
+    data-testid="roles-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
+      test-id="roleDialog"
       v-model="editDialog"
       save-button-text="Save"
       :title="itemId === 'new' ? $t('newRole') : $t('editRole')"
@@ -20,6 +25,7 @@
     </EditDialog>
 
     <YesNoDialog
+      test-id="rolesDeleteDialog"
       :title="$t('deleteRole')"
       :text="$t('askDeleteRole')"
       v-model="deleteItemDialog"
@@ -27,6 +33,7 @@
     />
 
     <YesNoDialog
+      test-id="rolesForceDeleteDialog"
       :title="$t('deleteRole')"
       :text="roleImpact ? $t('askDeleteAssignedRole', roleImpact) : ''"
       :yes-button-title="$t('deleteWithAssignments')"
@@ -36,16 +43,21 @@
     />
 
     <v-toolbar flat>
-      <v-btn icon class="mr-4" @click="returnToProjects()">
+      <v-btn icon variant="text" class="mr-4" @click="returnToProjects()" data-testid="roles-back">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('Roles') }}</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="roles-title"
+      >{{ $t('Roles') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         v-if="canManageRoles"
         :disabled="!features.custom_roles_management"
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
+        data-testid="roles-new"
         >{{ $t('newRole') }}</v-btn
       >
     </v-toolbar>
@@ -54,49 +66,86 @@
 
     <v-divider style="margin-top: -1px" />
 
-    <v-alert v-if="!features.custom_roles_management" text color="amber darken-3" class="PageAlert">
-      <span class="mr-1" v-html="$t('roles_only_enterprise')"></span>
+    <v-alert
+      v-if="!features.custom_roles_management"
+      variant="tonal"
+      color="amber-darken-3"
+      class="PageAlert"
+      data-testid="roles-licenseAlert"
+    >
+      <span
+        class="mr-1"
+        v-html="$t('roles_only_enterprise')"
+        data-testid="roles-licenseAlertText"
+      ></span>
 
       <v-btn
-        dark
-        depressed
+        variant="flat"
         v-if="isAdmin"
-        color="amber darken-3"
+        color="amber-darken-3"
         href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_roles"
         target="_blank"
+        data-testid="roles-upgrade"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
 
-      <span v-else style="font-weight: bold">
+      <span v-else style="font-weight: bold" data-testid="roles-contactAdmin">
         {{ $t('contact_admin_to_upgrade_enterprise') }}
       </span>
     </v-alert>
 
     <v-data-table
+      data-testid="roles-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
       :headers="headers"
       :items="items"
-      item-key="slug"
-      class="mt-4"
-      :footer-props="{ itemsPerPageOptions: [20] }"
+      item-value="slug"
+      class="mt-4 FixedPageSizeTable RolesTable"
+      :items-per-page-options="[20]"
+      :items-per-page="20"
+      :page-text="items.length === 0 ? '–' : undefined"
     >
       <template v-slot:item.name="{ item }">
-        <div>{{ item.name }}</div>
-        <div class="text--secondary caption">{{ item.slug }}</div>
+        <div data-testid="roles-rowName">{{ item.name }}</div>
+        <div
+          class="text-medium-emphasis text-body-small"
+          data-testid="roles-rowSlug"
+        >{{ item.slug }}</div>
       </template>
       <template v-slot:item.scope="{ item }">
-        <v-chip small label>{{ $t(roleScope(item)) }}</v-chip>
+        <v-chip
+          size="small"
+          label
+          :data-testid="`roles-rowScope-${roleScope(item)}`"
+        >{{ $t(roleScope(item)) }}</v-chip>
       </template>
       <template v-slot:item.permissions="{ item }">
-        <TemplatePermissionsChips class="py-1" :permissions="item.permissions" />
+        <TemplatePermissionsChips
+          class="py-1"
+          :permissions="item.permissions"
+          data-testid="roles-rowPermissions"
+        />
       </template>
       <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap">
-          <v-btn icon class="mr-1" @click="askDeleteItem(item.slug)">
+        <div style="white-space: nowrap" data-testid="roles-rowActions">
+          <v-btn
+            icon
+            variant="text"
+            class="mr-1"
+            @click="askDeleteItem(item.slug)"
+            data-testid="roles-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn icon class="mr-1" @click="editItem(item.slug)">
+          <v-btn
+            icon
+            variant="text"
+            class="mr-1"
+            @click="editItem(item.slug)"
+            data-testid="roles-rowEdit"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>
@@ -104,6 +153,27 @@
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+.RolesTable {
+  // The small scope chip of Vuetify 2 is 24 px high (`.v-size--small`); Vuetify 4 makes it 26 px.
+  .v-chip.v-chip--size-small {
+    --v-chip-height: 24px;
+  }
+
+  // Mobile rows: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between, the header
+  // 16 px from the value), not the two grid columns of Vuetify 4; wrapping permission chips start
+  // right after the header.
+  .v-data-table__tr--mobile > td {
+    display: flex;
+    justify-content: space-between;
+    column-gap: 0;
+
+    > .v-data-table__td-title {
+      padding-right: 16px;
+    }
+  }
+}
+</style>
 <script>
 import axios from 'axios';
 import EventBus from '@/event-bus';
@@ -176,22 +246,22 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '50%',
         },
         {
-          text: this.$i18n.t('roleScope'),
-          value: 'scope',
+          title: this.$t('roleScope'),
+          key: 'scope',
           sortable: false,
         },
         {
-          text: this.$i18n.t('permissions'),
-          value: 'permissions',
+          title: this.$t('permissions'),
+          key: 'permissions',
         },
         {
-          text: this.$i18n.t('actions'),
-          value: 'actions',
+          title: this.$t('actions'),
+          key: 'actions',
           sortable: false,
         },
       ];
@@ -218,11 +288,11 @@ export default {
         const impact = err.response && err.response.status === 409
           && err.response.data && err.response.data.impact;
         if (impact && impact.mappings > 0 && !this.isAdmin) {
-          EventBus.$emit('i-snackbar', { color: 'error', text: this.$i18n.t('roleUsedByMappings') });
+          EventBus.$emit('i-snackbar', { color: 'error', text: this.$t('roleUsedByMappings') });
           return;
         }
         if (impact && this.projectId && !this.can(USER_PERMISSIONS.manageProjectUsers)) {
-          EventBus.$emit('i-snackbar', { color: 'error', text: this.$i18n.t('roleInUseNeedsManageUsers') });
+          EventBus.$emit('i-snackbar', { color: 'error', text: this.$t('roleInUseNeedsManageUsers') });
           return;
         }
         if (impact) {

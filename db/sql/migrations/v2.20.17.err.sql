@@ -1,1 +1,3 @@
-alter table `user__token` drop `type`;
+drop table `project__workflow_role`;
+
+update `role` set `permissions` = `permissions` & 15;

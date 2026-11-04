@@ -1,5 +1,5 @@
 <template>
-  <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <svg data-testid="icon-aws_sm" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
     <!-- eslint-disable max-len -->
     <path
       d="M30,19.152v1.273c0,2.307-2.545,4.693-5.648,4.693H7.648C4.506,25.118,2,22.771,2,20.424V19.152Z"

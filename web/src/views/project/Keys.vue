@@ -1,7 +1,12 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+<template>
+  <div
+    v-if="items != null"
+    data-testid="keystore-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="keystoreDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Key`"
       :max-width="450"
@@ -23,6 +28,7 @@
     <EditDialog
       :max-width="700"
       v-model="createdPublicKeyDialog"
+      test-id="keystorePublicKeyDialog"
       :save-button-text="null"
       title="Generated SSH Public Key"
       hide-buttons
@@ -40,12 +46,14 @@
                 white-space: normal;
               "
               class="pa-2"
+              data-testid="keystorePublicKey-value"
               >{{ createdPublicKey }}</pre
             >
 
             <CopyClipboardButton
               style="position: absolute; right: 0; top: 0"
               :text="createdPublicKey"
+              test-id="keystorePublicKey-copy"
             />
           </div>
         </div>
@@ -53,6 +61,7 @@
     </EditDialog>
 
     <ObjectRefsDialog
+      test-id="keystoreRefsDialog"
       object-title="access key"
       :object-refs="itemRefs"
       :project-id="projectId"
@@ -60,20 +69,28 @@
     />
 
     <YesNoDialog
+      test-id="keystoreDeleteDialog"
       :title="$t('deleteKey')"
       :text="$t('askDeleteKey')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('keyStore') }}</v-toolbar-title>
+    <v-toolbar flat>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="keystore-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title class="flex-0-1" data-testid="keystore-title">
+        {{ $t('keyStore') }}
+      </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        data-testid="keystore-new"
       >{{ $t('newKey') }}</v-btn>
     </v-toolbar>
 
@@ -84,43 +101,72 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
+      class="mt-4 KeysTable"
+      :items-per-page="-1"
+      data-testid="keystore-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.name="{ item }">
         {{ item.name }}
         <v-chip
           color="error"
           v-if="item.empty && item.type !== 'none'"
-          small
+          size="small"
           style="font-weight: bold;"
           class="ml-2"
+          data-testid="keystore-rowEmpty"
         >{{ $t('empty') }}</v-chip>
         <v-chip
           v-if="item.synchronized"
-          x-small
+          size="x-small"
           class="ml-2"
+          data-testid="keystore-rowSynchronized"
         >{{ $t('synchronized') }}</v-chip>
       </template>
       <template v-slot:item.type="{ item }">
-        <code>{{ item.type }}</code>
+        <code data-testid="keystore-rowType">{{ item.type }}</code>
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)">
+        <v-btn-group
+          density="compact"
+          data-testid="keystore-rowActions"
+        >
+          <v-btn
+            @click="askDeleteItem(item.id)"
+            data-testid="keystore-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-          <v-btn @click="editItem(item.id)">
+          <v-btn
+            @click="editItem(item.id)"
+            data-testid="keystore-rowEdit"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
 
   </div>
 
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.KeysTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+
+// The chips of the name column as high as in Vuetify 2 (`.v-size--small` 24 px,
+// `.v-size--x-small` 16 px); Vuetify 4 makes them 26 and 20 px.
+.KeysTable .v-chip.v-chip--size-small {
+  --v-chip-height: 24px;
+}
+
+.KeysTable .v-chip.v-chip--size-x-small {
+  --v-chip-height: 16px;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import KeyForm from '@/components/KeyForm.vue';
@@ -198,17 +244,17 @@ export default {
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
+        title: this.$t('name'),
+        key: 'name',
         width: '60%',
       },
       {
-        text: this.$i18n.t('type'),
-        value: 'type',
+        title: this.$t('type'),
+        key: 'type',
         width: '40%',
       },
       {
-        value: 'actions',
+        key: 'actions',
         sortable: false,
         width: '0%',
       },

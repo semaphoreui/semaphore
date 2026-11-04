@@ -1,7 +1,12 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null && isAppsLoaded">
+<template>
+  <div
+    v-if="items != null && isAppsLoaded"
+    data-testid="apps-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
         v-model="editDialog"
+        test-id="appsEditDialog"
         save-button-text="Save"
         :title="$t('Edit App')"
         @save="loadItems()"
@@ -19,48 +24,62 @@
     </EditDialog>
 
     <YesNoDialog
+        test-id="appsDeleteDialog"
         :title="$t('Delete App')"
         :text="$t('Do you really want to delete this app?')"
         v-model="deleteItemDialog"
         @yes="deleteItem(itemId)"
     />
 
-    <v-toolbar flat >
+    <v-toolbar flat>
       <v-btn
           icon
+          variant="text"
           class="mr-4"
           @click="returnToProjects()"
+          data-testid="apps-back"
       >
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('Applications') }}</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="apps-title"
+      >{{ $t('Applications') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
           :disabled="!canManageSystem"
           color="primary"
+          variant="elevated"
           @click="editItem('')"
+          data-testid="apps-new"
       >{{ $t('New App') }}</v-btn>
     </v-toolbar>
 
     <v-data-table
         :headers="headers"
         :items="items"
-        class="mt-4"
-        :footer-props="{ itemsPerPageOptions: [20] }"
+        class="mt-4 FixedPageSizeTable AppsTable"
+        :items-per-page-options="[20]"
+        :items-per-page="20"
+        :page-text="items.length === 0 ? '–' : undefined"
+        data-testid="apps-table"
+        :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.active="{ item }">
         <v-switch
             :disabled="!canManageSystem"
             v-model="item.active"
             inset
-            @change="setActive(item.id, item.active)"
+            @update:model-value="setActive(item.id, $event)"
+            data-testid="apps-rowActive"
         ></v-switch>
       </template>
 
       <template v-slot:item.title="{ item }">
         <v-icon
             class="mr-2"
-            small
+            size="small"
+            data-testid="apps-rowIcon"
         >
           {{ getAppIcon(item.id) }}
         </v-icon>
@@ -69,25 +88,29 @@
       </template>
 
       <template v-slot:item.id="{ item }">
-        <code>{{ item.id }}</code>
+        <code data-testid="apps-rowId">{{ item.id }}</code>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap">
+        <div style="white-space: nowrap" data-testid="apps-rowActions">
           <v-btn
               v-if="!isDefaultApp(item.id)"
               icon
+              variant="text"
               class="mr-1"
               @click="askDeleteItem(item.id)"
               :disabled="item.id === userId"
+              data-testid="apps-rowDelete"
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
           <v-btn
               icon
+              variant="text"
               class="mr-1"
               @click="editItem(item.id)"
+              data-testid="apps-rowEdit"
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
@@ -96,6 +119,63 @@
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// The applications table as Vuetify 2 drew it.
+.AppsTable {
+  // The inset switch of Vuetify 2 (`.v-input--switch--inset`): the control 48 × 24 px and 8 px
+  // after it, the track (48 × 28) 4 px out to the left at .32, a white thumb when off. Vuetify 4
+  // makes the control 40 px high (a row 16 px higher) and starts the track at the control.
+  // The column of the switch keeps its width: a Vuetify 4 `v-input` may shrink to 0 px beside the
+  // 100 % wide ID column (the switch then covered the names on a tablet).
+  .v-switch--inset {
+    min-width: max-content;
+
+    .v-selection-control__wrapper {
+      height: 24px;
+      margin-inline: -4px 12px;
+    }
+
+    .v-switch__track {
+      opacity: .32;
+    }
+  }
+
+  .v-switch--inset.v-theme--light
+    .v-selection-control:not(.v-selection-control--dirty) .v-switch__thumb {
+    background-color: #fff;
+  }
+
+  // The icon in front of the name is an icon of the theme (`.theme--light.v-icon`: .54, white in
+  // the dark theme), not the text colour.
+  > .v-table__wrapper > table > tbody > tr > td > .v-icon,
+  > .v-table__wrapper > table > tbody > tr > td > .v-data-table__td-value > .v-icon {
+    &.v-theme--light {
+      color: rgba(0, 0, 0, .54);
+    }
+
+    &.v-theme--dark {
+      color: #fff;
+    }
+  }
+
+  // Mobile rows: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between, the header
+  // 16 px from the value, the value at the right end), not the two equal grid columns of
+  // Vuetify 4.
+  .v-data-table__tr--mobile > td {
+    display: flex;
+    justify-content: space-between;
+    column-gap: 0;
+
+    > .v-data-table__td-title {
+      padding-right: 16px;
+    }
+
+    > .v-data-table__td-value {
+      text-align: right;
+    }
+  }
+}
+</style>
 <script>
 import axios from 'axios';
 import EventBus from '@/event-bus';
@@ -131,18 +211,18 @@ export default {
 
     getHeaders() {
       return [{
-        text: '',
-        value: 'active',
+        title: '',
+        key: 'active',
       }, {
-        text: this.$i18n.t('name'),
-        value: 'title',
+        title: this.$t('name'),
+        key: 'title',
       }, {
-        text: 'ID',
-        value: 'id',
+        title: 'ID',
+        key: 'id',
         width: '100%',
       }, {
-        text: this.$i18n.t('actions'),
-        value: 'actions',
+        title: this.$t('actions'),
+        key: 'actions',
         sortable: false,
       }];
     },

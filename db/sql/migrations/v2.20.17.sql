@@ -1,2 +1,21 @@
--- The type of a user token: `api` is accepted by the REST API, `mcp` by the MCP endpoint and the REST API.
-alter table `user__token` add `type` varchar(16) not null default 'api';
+-- Workflow verbs: run_workflows (16), edit_workflows (32), approve_workflows (64). Nobody loses access.
+update `role` set `permissions` = `permissions` | 16 | 64 where `permissions` & 1 <> 0;
+update `role` set `permissions` = `permissions` | 32 where `permissions` & 4 <> 0;
+
+-- The twin of project__template_role.
+create table `project__workflow_role`
+(
+    `id`          integer primary key autoincrement,
+    `workflow_id` int    not null,
+    `role_id`     int    not null,
+    `project_id`  int    not null,
+    `permissions` bigint not null default 0,
+
+    foreign key (`workflow_id`) references project__workflow_template (`id`) on delete cascade,
+    foreign key (`role_id`) references `role` (`id`) on delete restrict,
+    foreign key (`project_id`) references project (`id`) on delete cascade,
+    unique (`workflow_id`, `role_id`)
+);
+
+create index `project__workflow_role__role_id` on `project__workflow_role` (`role_id`);
+create index `project__workflow_role__project_id` on `project__workflow_role` (`project_id`);

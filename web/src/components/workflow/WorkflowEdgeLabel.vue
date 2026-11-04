@@ -1,6 +1,7 @@
 <template>
   <div
     class="WorkflowEdgeLabel"
+    data-testid="workflowCanvas-edge"
     :class="[
       `WorkflowEdgeLabel--${label.condition}`,
       label.state ? `WorkflowEdgeLabel--${label.state}` : '',
@@ -9,54 +10,65 @@
     @mousedown.stop
     @touchstart.stop
   >
-    <v-menu v-if="editable" offset-y nudge-top="-4" transition="fade-transition">
-      <template v-slot:activator="{ on, attrs }">
+    <v-menu v-if="editable" location="bottom start" offset="4" transition="fade-transition">
+      <template v-slot:activator="{ props }">
         <span
           class="WorkflowEdgeLabel__pill WorkflowEdgeLabel__pill--clickable"
-          v-bind="attrs"
-          v-on="on"
+          data-testid="workflowCanvas-edgePill"
+          v-bind="props"
         >
-          <v-icon x-small :color="current.color">{{ current.icon }}</v-icon>
-          <span class="WorkflowEdgeLabel__text">{{ current.text }}</span>
+          <v-icon size="x-small" :color="current.color">{{ current.icon }}</v-icon>
+          <span
+            class="WorkflowEdgeLabel__text"
+            :data-testid="`workflowCanvas-edgeCondition-${current.value}`"
+          >{{ current.text }}</span>
           <v-icon
             v-if="label.explicit"
-            x-small
+            size="x-small"
             class="WorkflowEdgeLabel__inputs"
+            data-testid="workflowCanvas-edgeInputs"
             :title="$t('workflowEdgeInputsExplicit')"
           >mdi-swap-horizontal-bold</v-icon>
           <button
             type="button"
             class="WorkflowEdgeLabel__del"
+            data-testid="workflowCanvas-edgeDelete"
             :title="$t('workflowEdgeDelete')"
             @mousedown.stop
             @click.stop="$emit('remove')"
           >
-            <v-icon x-small>mdi-close</v-icon>
+            <v-icon size="x-small">mdi-close</v-icon>
           </button>
         </span>
       </template>
-      <v-list dense>
+      <v-list density="compact" data-testid="workflowCanvas-edgeMenu">
         <v-list-item
           v-for="opt in options"
           :key="opt.value"
-          :input-value="opt.value === label.condition"
+          :data-testid="`workflowCanvas-edgeMenu-${opt.value}`"
+          :active="opt.value === label.condition"
+          prepend-gap="24"
           @click="$emit('change', opt.value)"
         >
-          <v-list-item-icon class="mr-2">
-            <v-icon small :color="opt.color">{{ opt.icon }}</v-icon>
-          </v-list-item-icon>
+          <template v-slot:prepend>
+            <v-icon size="small" :color="opt.color">{{ opt.icon }}</v-icon>
+          </template>
           <v-list-item-title>{{ opt.text }}</v-list-item-title>
         </v-list-item>
       </v-list>
     </v-menu>
 
-    <span v-else class="WorkflowEdgeLabel__pill">
-      <v-icon x-small :color="current.color">{{ current.icon }}</v-icon>
-      <span class="WorkflowEdgeLabel__text">{{ current.text }}</span>
+    <span v-else class="WorkflowEdgeLabel__pill" data-testid="workflowCanvas-edgePill">
+      <v-icon size="x-small" :color="current.color">{{ current.icon }}</v-icon>
+      <span
+        class="WorkflowEdgeLabel__text"
+        :data-testid="`workflowCanvas-edgeCondition-${current.value}`"
+      >{{ current.text }}</span>
       <v-icon
         v-if="label.explicit"
-        x-small
+        size="x-small"
         class="WorkflowEdgeLabel__inputs"
+        data-testid="workflowCanvas-edgeInputs"
         :title="$t('workflowEdgeInputsExplicit')"
       >mdi-swap-horizontal-bold</v-icon>
     </span>
@@ -72,6 +84,8 @@ export default {
     label: { type: Object, required: true },
     editable: { type: Boolean, default: false },
   },
+
+  emits: ['remove', 'change'],
 
   computed: {
     options() {
@@ -141,9 +155,15 @@ export default {
     border: 0;
     border-left: 1px solid var(--wf-divider);
     background: transparent;
-    color: var(--wf-text2);
+    // Vuetify 2: the reset (`[type="button"] { color: inherit }`) won over a colour here, and the
+    // cross was an icon of the theme (`.theme--light.v-icon`).
+    color: inherit;
     cursor: pointer;
     line-height: 1;
+
+    .v-icon {
+      color: var(--wf-icon);
+    }
   }
 
   &__pill:hover &__del {

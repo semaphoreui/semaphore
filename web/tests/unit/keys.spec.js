@@ -3,7 +3,7 @@ import { expect } from 'chai';
 describe('Keys.vue', () => {
   let Keys;
 
-  before(() => {
+  beforeAll(async () => {
     Object.defineProperty(global, 'localStorage', {
       configurable: true,
       value: {
@@ -16,8 +16,7 @@ describe('Keys.vue', () => {
         language: 'en-US',
       },
     });
-    // eslint-disable-next-line global-require
-    Keys = require('@/views/project/Keys.vue').default;
+    Keys = (await import('@/views/project/Keys.vue')).default;
   });
 
   it('does not show the generated public key dialog for manually entered keys on create', async () => {

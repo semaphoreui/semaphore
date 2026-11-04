@@ -1,6 +1,7 @@
 <template>
   <EditDialog
     v-model="dialog"
+    test-id="teamMemberDialog"
     :save-button-text="(
       itemId === 'new'
         ? (invitesEnabled ? 'Invite' : 'Link')
@@ -40,13 +41,15 @@ export default {
   },
 
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     projectId: Number,
     itemId: [String, Number],
     invitesEnabled: Boolean,
     inviteType: String,
     roles: Array,
   },
+
+  emits: ['update:modelValue', 'save'],
 
   data() {
     return {
@@ -56,10 +59,10 @@ export default {
 
   watch: {
     async dialog(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.dialog = val;
     },
   },

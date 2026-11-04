@@ -138,6 +138,17 @@ properties:
     description: >
       Disable verification of the LDAP server's TLS certificate for the legacy
       flat ldap_* config. Defaults to false (certificates are verified).
+  ldap_group_search_dn:
+    type: string
+    description: "Base DN of the group search. Empty: groups are not read."
+  ldap_group_search_filter:
+    type: string
+    default: "(|(member={{ .dn }})(uniqueMember={{ .dn }})(memberUid={{ .username }}))"
+    description: Group search filter, with {{ .dn }} and {{ .username }} of the user.
+  ldap_group_name_attribute:
+    type: string
+    default: cn
+    description: Group attribute that holds the group name.
   ldap_providers:
     type: object
     additionalProperties: { $ref: "#/$defs/LdapProvider" }
@@ -382,8 +393,16 @@ $defs:
         description: >-
           Absolute lifetime of a login session in hours, counted from login.
           Once exceeded the session is expired even if it was recently active.
-          0 means no absolute limit; sessions then expire only after 7 days
-          without activity.
+          0 means no absolute limit; sessions then expire only after the
+          inactivity timeout (session_inactivity_hours).
+      session_inactivity_hours:
+        type: integer
+        minimum: 0
+        default: 0
+        description: >-
+          How long a login session may stay unused, in hours, before it is
+          expired. Every authenticated request resets the counter. 0 means the
+          built-in 168 hours (7 days); the timeout cannot be disabled.
 
   MultifactorAuthConfig:
     type: object
@@ -439,6 +458,17 @@ $defs:
         description: LDAP bind password (sensitive).
       search_dn:     { type: string }
       search_filter: { type: string }
+      group_search_dn:
+        type: string
+        description: "Base DN of the group search. Empty: groups are not read."
+      group_search_filter:
+        type: string
+        default: "(|(member={{ .dn }})(uniqueMember={{ .dn }})(memberUid={{ .username }}))"
+        description: Group search filter, with {{ .dn }} and {{ .username }} of the user.
+      group_name_attribute:
+        type: string
+        default: cn
+        description: Group attribute that holds the group name.
       mappings:     { $ref: "#/$defs/LdapMappings" }
       color:        { type: string }
       icon:         { type: string, description: MDI icon name without the mdi- prefix. }
@@ -748,6 +778,27 @@ $defs:
         type: string
         format: uri
         default: "https://portal.semaphoreui.com/billing"
+      proxy: { $ref: "#/$defs/SubscriptionProxyConfig" }
+
+  SubscriptionProxyConfig:
+    type: object
+    description: >-
+      HTTP proxy used to reach the subscription server. Affects only those
+      requests. Unset falls back to the proxy variables of the server process
+      (HTTP_PROXY, HTTPS_PROXY, NO_PROXY).
+    properties:
+      url:
+        type: string
+        format: uri
+        description: >-
+          Proxy endpoint, for example http://proxy.example.com:3128. Schemes
+          http, https, socks5 and socks5h are supported.
+      username:
+        type: string
+        description: Proxy user name. Overrides a user name given in url.
+      password:
+        type: string
+        description: Proxy password (sensitive). Overrides a password given in url.
 
   ConfigDirs:
     type: object

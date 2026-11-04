@@ -1,7 +1,6 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { mount } from '@vue/test-utils';
 import i18n from '@/plugins/i18';
 import RoleMappings from '@/views/RoleMappings.vue';
 import RoleMappingForm from '@/components/RoleMappingForm.vue';
@@ -19,10 +18,13 @@ const MAPPING = {
 };
 
 const ROUTES = {
-  '/api/auth/login': { oidc_providers: [{ id: 'okta', name: 'Okta' }] },
+  '/api/auth/login': {
+    oidc_providers: [{ id: 'okta', name: 'Okta' }],
+    ldap_providers: [{ id: 'corp', name: 'Corp AD' }, { id: 'okta', name: 'Okta LDAP' }],
+  },
   '/api/role_mappings': [MAPPING, {
     ...MAPPING, id: 4, provider: 'gone', provider_configured: false,
-  }],
+  }, { ...MAPPING, id: 5, provider: 'corp' }],
   '/api/projects': [{ id: 1, name: 'Demo' }],
   '/api/project/1/roles/all': [{
     slug: 'deployer', name: 'Deployer', builtin: false, project_id: null,
@@ -44,16 +46,16 @@ describe('RoleMappings.vue', () => {
 
   afterEach(() => {
     http.restore();
-    wrappers.splice(0).forEach((w) => w.destroy());
+    wrappers.splice(0).forEach((w) => w.unmount());
   });
 
-  async function mountWith(component, propsData) {
+  async function mountWith(component, props) {
     const wrapper = mount(component, {
-      localVue: createLocalVue(),
-      vuetify: new Vuetify(),
-      i18n,
-      propsData,
-      stubs: { EditDialog: { template: '<div />' }, YesNoDialog: true },
+      props,
+      global: {
+        plugins: [i18n],
+        stubs: { EditDialog: { template: '<div />' }, YesNoDialog: true },
+      },
     });
     wrappers.push(wrapper);
     await flush();
@@ -66,10 +68,23 @@ describe('RoleMappings.vue', () => {
     });
 
     const rows = wrapper.findAll('tbody tr');
-    expect(rows.at(0).text()).to.contain('Okta');
-    expect(rows.at(0).text()).not.to.contain('Provider not configured');
-    expect(rows.at(1).text()).to.contain('gone');
-    expect(rows.at(1).text()).to.contain('Provider not configured');
+    expect(rows[0].text()).to.contain('Okta');
+    expect(rows[0].text()).not.to.contain('Provider not configured');
+    expect(rows[1].text()).to.contain('gone');
+    expect(rows[1].text()).to.contain('Provider not configured');
+  });
+
+  it('lists LDAP providers after OIDC ones without duplicates', async () => {
+    const wrapper = await mountWith(RoleMappings, {
+      isAdmin: true, features: { custom_roles_management: true },
+    });
+
+    const rows = wrapper.findAll('tbody tr');
+    expect(rows.at(2).text()).to.contain('Corp AD');
+    expect(wrapper.vm.providers).to.deep.equal([
+      { id: 'okta', name: 'Okta' },
+      { id: 'corp', name: 'Corp AD' },
+    ]);
   });
 
   it('deletes a mapping', async () => {

@@ -43,7 +43,7 @@ export default {
       }
 
       if (APP_ICONS[id]) {
-        return this.$vuetify.theme.dark ? APP_ICONS[id].darkColor : APP_ICONS[id].color;
+        return this.$vuetify.theme.current.dark ? APP_ICONS[id].darkColor : APP_ICONS[id].color;
       }
 
       return 'gray';

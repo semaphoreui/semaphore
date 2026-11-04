@@ -1,20 +1,36 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null && keys != null"
+    data-testid="hostConfigForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
+      data-testid="hostConfigForm-error"
     >{{ formError }}
     </v-alert>
 
-    <v-radio-group v-model="item.type" row class="mt-0" :disabled="formSaving">
-      <v-radio :label="$t('hostConfigTypeHost')" value="host"></v-radio>
-      <v-radio :label="$t('hostConfigTypeUrl')" value="url"></v-radio>
+    <v-radio-group
+      v-model="item.type"
+      inline
+      class="mt-0 HostConfigFormType"
+      :disabled="formSaving"
+      data-testid="hostConfigForm-type"
+    >
+      <v-radio
+        :label="$t('hostConfigTypeHost')"
+        value="host"
+        data-testid="hostConfigForm-type-host"
+      ></v-radio>
+      <v-radio
+        :label="$t('hostConfigTypeUrl')"
+        value="url"
+        data-testid="hostConfigForm-type-url"
+      ></v-radio>
     </v-radio-group>
 
     <v-text-field
@@ -26,8 +42,9 @@
       :rules="[v => !!v || $t('hostConfigHostRequired')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="hostConfigForm-host"
     ></v-text-field>
 
     <v-autocomplete
@@ -35,18 +52,26 @@
       :label="$t('credential')"
       :items="credentials"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :rules="[v => !!v || $t('hostConfigCredentialRequired')]"
       required
       :hint="isHost ? $t('hostConfigCredentialHostHint') : $t('hostConfigCredentialUrlHint')"
       persistent-hint
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       class="mt-4"
+      data-testid="hostConfigForm-sshKeyId"
     ></v-autocomplete>
   </v-form>
 </template>
+<style lang="scss">
+// The radios of a row group 16 px apart, as in Vuetify 2 (`.v-input--radio-group--row .v-radio`:
+// margin-right 16px); Vuetify 4 puts them side by side.
+.HostConfigFormType .v-radio {
+  margin-inline-end: 16px;
+}
+</style>
 <script>
 import axios from 'axios';
 import ItemFormBase from '@/components/ItemFormBase';

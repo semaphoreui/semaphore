@@ -1,5 +1,6 @@
 import './setup';
 import { expect } from 'chai';
+import { h } from 'vue';
 import { shallowMount } from '@vue/test-utils';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import EventBus from '@/event-bus';
@@ -8,12 +9,13 @@ import mockAxios, { httpError } from './helpers/axiosMock';
 
 const Host = {
   mixins: [ItemListPageBase],
-  render: (h) => h('div'),
+  render: () => h('div'),
   methods: {
     getHeaders() {
+      // v-data-table headers of Vuetify 3: title / key
       return [
-        { text: 'Name', value: 'name' },
-        { text: 'Actions', value: 'actions' },
+        { title: 'Name', key: 'name' },
+        { title: 'Actions', key: 'actions' },
       ];
     },
     getItemsUrl() {
@@ -36,12 +38,12 @@ async function flush() {
   await new Promise((resolve) => { setTimeout(resolve, 0); });
 }
 
-function mountHost(propsData = {}) {
+function mountHost(props = {}) {
   return shallowMount(Host, {
-    propsData: {
+    props: {
       projectId: 7,
       userPermissions: USER_PERMISSIONS.manageProjectResources,
-      ...propsData,
+      ...props,
     },
   });
 }
@@ -60,17 +62,17 @@ describe('ItemListPageBase mixin', () => {
 
   it('hides the actions column without manageProjectResources permission', () => {
     const wrapper = mountHost({ userPermissions: USER_PERMISSIONS.runProjectTasks });
-    expect(wrapper.vm.headers.map((h) => h.value)).to.deep.equal(['name']);
+    expect(wrapper.vm.headers.map((header) => header.key)).to.deep.equal(['name']);
   });
 
   it('keeps the actions column with manageProjectResources permission', () => {
     const wrapper = mountHost();
-    expect(wrapper.vm.headers.map((h) => h.value)).to.deep.equal(['name', 'actions']);
+    expect(wrapper.vm.headers.map((header) => header.key)).to.deep.equal(['name', 'actions']);
   });
 
   it('keeps the actions column for admins', () => {
     const wrapper = mountHost({ userPermissions: 0, isAdmin: true });
-    expect(wrapper.vm.headers.map((h) => h.value)).to.deep.equal(['name', 'actions']);
+    expect(wrapper.vm.headers.map((header) => header.key)).to.deep.equal(['name', 'actions']);
   });
 
   it('loads items on creation', async () => {

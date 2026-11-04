@@ -1,6 +1,6 @@
-// Global Vue filters used in templates (e.g. `{{ task.start | formatDate }}`).
-// The formatting functions are exported separately so they can be unit-tested
-// and reused outside templates.
+// Formatters used in templates through the global property `$filters`
+// (e.g. `{{ $filters.formatDate(task.start) }}`), set in main.js. The functions are exported
+// separately so they can be unit-tested and reused outside templates.
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -98,10 +98,4 @@ export const filters = {
   formatTime,
   formatLog,
   formatMilliseconds,
-};
-
-export default {
-  install(Vue) {
-    Object.entries(filters).forEach(([name, fn]) => Vue.filter(name, fn));
-  },
 };

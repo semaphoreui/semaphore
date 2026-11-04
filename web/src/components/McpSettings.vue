@@ -1,10 +1,21 @@
 <template>
   <div class="pa-4" data-testid="mcp-settings">
-    <v-alert type="info" dense text data-testid="mcp-settings-rest-note">
+    <v-alert
+      type="info"
+      density="compact"
+      variant="tonal"
+      data-testid="mcp-settings-rest-note"
+    >
       {{ $t('mcp_settings_rest_note') }}
     </v-alert>
 
-    <v-alert v-if="loadError" type="error" dense text data-testid="mcp-settings-load-error">
+    <v-alert
+      v-if="loadError"
+      type="error"
+      density="compact"
+      variant="tonal"
+      data-testid="mcp-settings-load-error"
+    >
       {{ loadError }}
     </v-alert>
 
@@ -16,7 +27,9 @@
         :key="section.key"
         :data-testid="`mcp-settings-section-${section.key}`"
       >
-        <v-subheader class="px-0">{{ $t(section.title) }}</v-subheader>
+        <div class="McpSubheader d-flex align-center text-medium-emphasis">
+          {{ $t(section.title) }}
+        </div>
         <v-switch
           v-for="s in section.switches"
           :key="s.key"
@@ -28,7 +41,7 @@
           persistent-hint
           inset
           class="mt-0 mb-4"
-          @change="save()"
+          @update:model-value="save()"
         />
       </div>
     </template>
@@ -66,22 +79,24 @@ export const MCP_SETTINGS_SECTIONS = [
 // Every switch of every section, by the setting it stores.
 export const MCP_SETTINGS_SWITCHES = MCP_SETTINGS_SECTIONS.flatMap((section) => section.switches);
 
-// Every setting as a boolean: a key the answer lacks would not be reactive in the draft.
+// Every setting as a boolean: a key the answer lacks still gets its switch and is sent on save.
 const allSettings = (value) => Object.fromEntries(
   MCP_SETTINGS_SWITCHES.map((s) => [s.key, !!value[s.key]]),
 );
 
 /**
- * The server-wide ceiling for the MCP tools: `value` is the `GET /api/mcp/settings` answer the
+ * The server-wide ceiling for the MCP tools: `v-model` is the `GET /api/mcp/settings` answer the
  * page loaded. Only a user who may manage the system sees it; the server checks that right again
- * on every change. A switch is saved as soon as it is toggled, and `input` gives the page what
- * the server stored.
+ * on every change. A switch is saved as soon as it is toggled, and `update:modelValue` gives the
+ * page what the server stored.
  */
 export default {
   props: {
-    value: Object,
+    modelValue: Object,
     loadError: String,
   },
+
+  emits: ['update:modelValue'],
 
   data() {
     return {
@@ -92,7 +107,7 @@ export default {
   },
 
   watch: {
-    value: {
+    modelValue: {
       immediate: true,
       handler(value) {
         this.draft = value ? allSettings(value) : null;
@@ -113,13 +128,13 @@ export default {
           data: allSettings(this.draft),
         })).data;
         this.draft = allSettings(stored);
-        this.$emit('input', stored);
+        this.$emit('update:modelValue', stored);
         EventBus.$emit('i-snackbar', {
           color: 'success',
           text: this.$t('mcp_settings_saved'),
         });
       } catch (err) {
-        this.draft = this.value ? allSettings(this.value) : null;
+        this.draft = this.modelValue ? allSettings(this.modelValue) : null;
         EventBus.$emit('i-snackbar', {
           color: 'error',
           text: getErrorMessage(err),
@@ -131,3 +146,13 @@ export default {
   },
 };
 </script>
+<style lang="scss">
+// v-subheader of Vuetify 2: a 48 px row, 14 px text in the letter spacing of the card text.
+// McpServer.vue uses it too.
+.McpSubheader {
+  height: 48px;
+  font-size: .875rem;
+  font-weight: 400;
+  letter-spacing: .0071428571em;
+}
+</style>

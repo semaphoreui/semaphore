@@ -1,42 +1,44 @@
 <template>
-  <span>
+  <span class="task-link">
     <v-icon
         v-if="status != null"
-        small
+        size="small"
         class="mr-1"
         :color="statusColor"
-    >
-      mdi-{{ statusIcon }}
-    </v-icon>
+        :icon="`mdi-${statusIcon}`"
+        :data-testid="`taskLink-status-${status}`"
+    />
 
-    <span v-if="disabled">{{ label }}</span>
+    <span v-if="disabled" data-testid="taskLink-label">{{ label }}</span>
 
     <v-tooltip
         v-else
-        right
+        location="right"
         max-width="350"
         transition="fade-transition"
         :disabled="!tooltip"
     >
-      <template v-slot:activator="{ on, attrs }">
+      <template v-slot:activator="{ props }">
         <a
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             @click="showTaskLog()"
             :class="{'task-link-with-tooltip': tooltip}"
+            data-testid="taskLink-open"
         >
-          {{ label }}
+          <!-- Vue 2 kept the spaces around the label (whitespace `condense`); after the status icon
+               the dashed underline starts with the space, Vue 3 drops it. -->
+          {{ ' ' }}{{ label }}{{ ' ' }}
         </a>
       </template>
 
-      <span>{{ tooltip }}</span>
+      <span data-testid="taskLink-tooltip">{{ tooltip }}</span>
 
     </v-tooltip>
   </span>
 </template>
 <style lang="scss">
-
-@import '~vuetify/src/styles/settings/_colors.scss';
+@use 'sass:map';
+@use '@/scss/variables' as settings;
 
 .task-link-with-tooltip {
   text-decoration: underline !important;
@@ -44,10 +46,20 @@
   text-decoration-color: gray !important;
 }
 
+// An icon without a colour is in the icon colour of the theme, as in Vuetify 2
+// (`.theme--light.v-icon`: .54 / white); Vuetify 4 gives it the text colour.
+.task-link > .v-icon.v-theme--light:not([class*="text-"]) {
+  color: rgba(0, 0, 0, .54);
+}
+
+.task-link > .v-icon.v-theme--dark:not([class*="text-"]) {
+  color: #fff;
+}
+
 a.task-link-with-tooltip {
   &:hover {
     text-decoration-style: solid !important;
-    text-decoration-color: map-deep-get($blue, 'darken-2') !important;
+    text-decoration-color: map.get(settings.$blue, 'darken-2') !important;
   }
 }
 
@@ -71,7 +83,9 @@ export default {
         case 'error':
           return 'red';
         default:
-          return 'gray';
+          // No colour of its own: the grey icon of the theme (style below), as `gray` gave in
+          // Vuetify 2, which has no such colour.
+          return undefined;
       }
     },
     statusIcon() {

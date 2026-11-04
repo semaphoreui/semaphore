@@ -1,21 +1,20 @@
 import './setup';
 import { expect } from 'chai';
-import { shallowMount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { shallowMount } from '@vue/test-utils';
 import i18n from '@/plugins/i18';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 
-const localVue = createLocalVue();
-
-function mountDialog(propsData = {}) {
+function mountDialog(props = {}) {
   return shallowMount(YesNoDialog, {
-    localVue,
-    vuetify: new Vuetify(),
-    i18n,
-    propsData,
-    stubs: {
-      'v-dialog': {
-        template: '<div><slot /></div>',
+    props,
+    global: {
+      plugins: [i18n],
+      // the stubs render their default slot, as the stubs of @vue/test-utils 1 did
+      renderStubDefaultSlot: true,
+      stubs: {
+        'v-dialog': {
+          template: '<div><slot /></div>',
+        },
       },
     },
   });
@@ -40,7 +39,7 @@ describe('YesNoDialog.vue', () => {
 
   it('emits yes and closes the dialog', async () => {
     const wrapper = mountDialog();
-    await wrapper.setProps({ value: true });
+    await wrapper.setProps({ modelValue: true });
     expect(wrapper.vm.dialog).to.equal(true);
 
     wrapper.vm.yes();
@@ -52,7 +51,7 @@ describe('YesNoDialog.vue', () => {
 
   it('emits no and closes the dialog', async () => {
     const wrapper = mountDialog();
-    await wrapper.setProps({ value: true });
+    await wrapper.setProps({ modelValue: true });
 
     wrapper.vm.no();
     await wrapper.vm.$nextTick();

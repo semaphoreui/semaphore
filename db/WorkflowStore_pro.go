@@ -3,7 +3,8 @@ package db
 type WorkflowManager interface {
 	GetWorkflowRunTasks(projectID int, runID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 
-	GetWorkflowTemplates(projectID int, params RetrieveQueryParams) ([]WorkflowTemplate, error)
+	// GetWorkflowTemplates lists the workflows the viewer may see; a nil viewer lists them all.
+	GetWorkflowTemplates(projectID int, viewer *Viewer, params RetrieveQueryParams) ([]WorkflowTemplate, error)
 	GetWorkflowTemplate(projectID int, workflowID int) (WorkflowTemplate, error)
 	CreateWorkflowTemplate(workflow WorkflowTemplate) (WorkflowTemplate, error)
 	UpdateWorkflowTemplate(workflow WorkflowTemplate) error

@@ -1,12 +1,9 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { mount } from '@vue/test-utils';
 import IntegrationForm from '@/components/IntegrationForm.vue';
 import EventBus from '@/event-bus';
 import mockAxios from './helpers/axiosMock';
-
-const localVue = createLocalVue();
 
 async function flush() {
   await new Promise((resolve) => { setTimeout(resolve, 0); });
@@ -27,13 +24,13 @@ function respondTo(url, item) {
   return {};
 }
 
-function mountForm(propsData) {
+function mountForm(props) {
   return mount(IntegrationForm, {
-    localVue,
-    vuetify: new Vuetify(),
-    propsData: { projectId: 7, ...propsData },
-    mocks: { $t: (k) => k },
-    stubs: { TaskParamsForm: true, HighlightedCard: true },
+    props: { projectId: 7, ...props },
+    global: {
+      mocks: { $t: (k) => k },
+      stubs: { TaskParamsForm: true, HighlightedCard: true },
+    },
   });
 }
 
@@ -146,7 +143,7 @@ describe('IntegrationForm.vue', () => {
     await flush();
 
     expect(wrapper.find('.IntegrationForm__target').exists()).to.equal(true, 'the toggle stays');
-    expect(wrapper.find('.IntegrationForm__workflow').classes()).to.include('v-input--is-disabled');
+    expect(wrapper.find('.IntegrationForm__workflow').classes()).to.include('v-input--disabled');
     const chip = wrapper.find('.IntegrationForm__upgrade');
     expect(chip.exists()).to.equal(true);
     expect(chip.text()).to.equal('Upgrade to PRO');
@@ -170,7 +167,7 @@ describe('IntegrationForm.vue', () => {
     });
     await flush();
 
-    expect(wrapper.find('.IntegrationForm__workflow').classes()).to.not.include('v-input--is-disabled');
+    expect(wrapper.find('.IntegrationForm__workflow').classes()).to.not.include('v-input--disabled');
     expect(wrapper.find('.IntegrationForm__upgrade').exists()).to.equal(false);
   });
 
@@ -182,7 +179,7 @@ describe('IntegrationForm.vue', () => {
     const wrapper = mountForm({ itemId: 3, features: { workflows: true } });
     await flush();
 
-    expect(wrapper.find('.IntegrationForm__workflow').classes()).to.include('v-input--is-disabled');
+    expect(wrapper.find('.IntegrationForm__workflow').classes()).to.include('v-input--disabled');
     expect(wrapper.find('.IntegrationForm__upgrade').exists()).to.equal(true);
 
     wrapper.vm.item.name = 'renamed';

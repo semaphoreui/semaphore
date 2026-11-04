@@ -1,7 +1,6 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { mount, flushPromises } from '@vue/test-utils';
 import WorkflowRunDialog from '@/components/WorkflowRunDialog.vue';
 import SurveyFields from '@/components/SurveyFields.vue';
 
@@ -28,13 +27,13 @@ const workflow = {
 };
 
 function mountDialog(props = {}) {
-  const localVue = createLocalVue();
   return mount(WorkflowRunDialog, {
-    localVue,
-    vuetify: new Vuetify(),
-    propsData: { value: true, workflow, ...props },
-    mocks: { $t: (k, params) => (params ? `${k}:${JSON.stringify(params)}` : k) },
-    stubs: { 'v-dialog': { template: '<div><slot /></div>' } },
+    // v-model of a Vue 3 component: modelValue / update:modelValue (Vue 2: value / input)
+    props: { modelValue: true, workflow, ...props },
+    global: {
+      mocks: { $t: (k, params) => (params ? `${k}:${JSON.stringify(params)}` : k) },
+      stubs: { 'v-dialog': { template: '<div><slot /></div>' } },
+    },
   });
 }
 
@@ -52,6 +51,8 @@ describe('WorkflowRunDialog.vue', () => {
   it('does not emit run while a required answer is missing', async () => {
     const w = mountDialog();
     await w.find('[data-testid="workflow-run-dialog-run"]').trigger('click');
+    // run() awaits the validation of the form (Vuetify 3: validate() is async)
+    await flushPromises();
     expect(w.emitted('run')).to.equal(undefined);
     expect(w.text()).to.contain('Image tag isRequired');
   });
@@ -62,23 +63,24 @@ describe('WorkflowRunDialog.vue', () => {
     w.vm.environment.env = 'prod';
     await w.vm.$nextTick();
     await w.find('[data-testid="workflow-run-dialog-run"]').trigger('click');
+    await flushPromises();
     expect(w.emitted('run')).to.deep.equal([[{
       env: 'prod', image_tag: '1.2.3', replicas: '2', subnets: ['a'], regions: [],
     }]]);
   });
 
   it('reseeds the answers every time it opens and mirrors v-model', async () => {
-    const w = mountDialog({ value: false });
+    const w = mountDialog({ modelValue: false });
     expect(w.vm.environment).to.equal(null);
-    await w.setProps({ value: true });
+    await w.setProps({ modelValue: true });
     expect(w.vm.environment.replicas).to.equal('2');
     w.vm.environment.replicas = '9';
-    await w.setProps({ value: false });
-    await w.setProps({ value: true });
+    await w.setProps({ modelValue: false });
+    await w.setProps({ modelValue: true });
     expect(w.vm.environment.replicas).to.equal('2');
 
     w.vm.dialog = false;
     await w.vm.$nextTick();
-    expect(w.emitted('input')).to.deep.equal([[false]]);
+    expect(w.emitted('update:modelValue')).to.deep.equal([[false]]);
   });
 });

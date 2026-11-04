@@ -1,26 +1,29 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null"
+    data-testid="tfAlias-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
+      data-testid="tfAlias-error"
     >{{ formError }}</v-alert>
 
     <v-select
       v-model="item.auth_key_id"
       :label="$t('Auth key')"
-      :items="keys"
+      :items="keys || []"
       item-value="id"
-      item-text="name"
-      outlined
-      dense
+      item-title="name"
+      variant="outlined"
+      density="compact"
       required
       :disabled="formSaving"
+      data-testid="tfAlias-authKeyId"
     ></v-select>
 
   </v-form>

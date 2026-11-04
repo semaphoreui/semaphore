@@ -709,13 +709,14 @@ type ConfigType struct {
 	SecretsPath string `json:"secrets_path,omitempty" env:"SEMAPHORE_SECRETS_PATH"`
 
 	// HomeDirMode controls how the HOME environment variable is set for tasks.
-	//   "template_home" (default) — HOME is set to a per-template directory,
-	//       isolating .ansible/ across parallel tasks. Repo is cloned into a
-	//       "src" subdirectory under HOME.
+	//   "template_dir" (default) — HOME is not overridden (keeps the HOME of the
+	//       server or runner process). Ansible tasks get ANSIBLE_HOME set to a
+	//       per-template "_home/.ansible" directory under the project temp
+	//       directory, isolating .ansible/ across parallel tasks.
 	//   "project_home" — HOME is set to the project temp directory (legacy
 	//       behavior). Parallel ansible-galaxy runs in the same project may conflict.
-	//   "user_home" — HOME is not overridden (keeps the real user HOME).
-	//       ANSIBLE_HOME is set per template to isolate .ansible/ for Ansible tasks.
+	//   "user_home" — HOME is not overridden (keeps the real user HOME) and
+	//       ANSIBLE_HOME is not set.
 	HomeDirMode string `json:"home_dir_mode,omitempty" rule:"^(user_home|project_home|template_dir)?$" env:"SEMAPHORE_HOME_DIR_MODE" default:"template_dir"`
 
 	// SshConfigPath is a path to the custom SSH config file.
@@ -786,6 +787,10 @@ type ConfigType struct {
 	// certificate for the legacy flat ldap_* config. Defaults to false
 	// (certificates are verified). See LdapProvider.TLSSkipVerify.
 	LdapTLSSkipVerify bool `json:"ldap_tls_skip_verify,omitempty" env:"SEMAPHORE_LDAP_TLS_SKIP_VERIFY"`
+	// LdapGroupSearchDN is the base DN of the group search. Empty: groups are not read.
+	LdapGroupSearchDN      string `json:"ldap_group_search_dn,omitempty" env:"SEMAPHORE_LDAP_GROUP_SEARCH_DN"`
+	LdapGroupSearchFilter  string `json:"ldap_group_search_filter,omitempty" env:"SEMAPHORE_LDAP_GROUP_SEARCH_FILTER"`
+	LdapGroupNameAttribute string `json:"ldap_group_name_attribute,omitempty" env:"SEMAPHORE_LDAP_GROUP_NAME_ATTRIBUTE"`
 
 	// LdapProviders configures multiple LDAP directories (like OidcProviders
 	// for OIDC). The key is the provider ID shown in identity records; the
@@ -1026,14 +1031,6 @@ func (conf *ConfigType) RunnersReconcileInterval() time.Duration {
 		sec = conf.Runners.ReconcileIntervalSec
 	}
 	return time.Duration(sec) * time.Second
-}
-
-type SubscriptionConfig struct {
-	// Key is a subscription key or token that can be set via config.
-	// When this is set, subscription activation from the web interface is disabled.
-	Key       string `json:"key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY,sensitive"`
-	KeyFile   string `json:"key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
-	ServerURL string `json:"server_url,omitempty" env:"SEMAPHORE_SUBSCRIPTION_SERVER_URL" default:"https://portal.semaphoreui.com/billing"`
 }
 
 func NewConfigType() *ConfigType {
@@ -1353,8 +1350,7 @@ func cloneStruct(origValue reflect.Value) reflect.Value {
 func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) error {
 	structType := structValue.Type()
 
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
+	for field := range structType.Fields() {
 
 		// Skip fields with db:"-" tag
 		dbTag := field.Tag.Get("db")
@@ -2059,10 +2055,8 @@ func validateConfig() {
 		panic(err)
 	}
 
-	if Config.Auth != nil {
-		if err := validate(Config.Auth); err != nil {
-			panic(err)
-		}
+	if err := validate(Config.Auth); err != nil {
+		panic(err)
 	}
 
 	if _, err := validateHAConfig(Config.HA); err != nil {
@@ -2070,6 +2064,10 @@ func validateConfig() {
 	}
 
 	if err := Config.Audit.Validate(); err != nil {
+		panic(err)
+	}
+
+	if err := Config.Subscription.Validate(); err != nil {
 		panic(err)
 	}
 

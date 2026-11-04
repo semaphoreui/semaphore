@@ -1,6 +1,11 @@
 <template>
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="secretStorages-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <ObjectRefsDialog
+      test-id="secretStoragesRefsDialog"
       object-title="storage"
       :object-refs="itemRefs"
       :project-id="projectId"
@@ -8,6 +13,7 @@
     />
 
     <YesNoDialog
+      test-id="secretStoragesDeleteDialog"
       :title="$t('deleteStorage')"
       :text="$t('askDeleteStorage')"
       v-model="deleteItemDialog"
@@ -16,6 +22,7 @@
 
     <EditDialog
       v-model="editDialog"
+      test-id="secretStoragesDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${itemType} Storage`"
       :max-width="450"
@@ -35,24 +42,32 @@
     </EditDialog>
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('keyStore') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="secretStorages-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title class="flex-0-1" data-testid="secretStorages-title">
+        {{ $t('keyStore') }}
+      </v-toolbar-title>
       <v-spacer></v-spacer>
 
-      <v-menu offset-y>
-        <template v-slot:activator="{ on, attrs }">
+      <!-- The menu is wider than the button: Vuetify 2 pushed it against the 12 px margin of the
+           window, Vuetify 4 lines it up with the end of the button, 4 px further left. -->
+      <v-menu location="bottom" :offset="[0, 4]">
+        <template v-slot:activator="{ props }">
           <v-btn
             class="pr-2"
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             color="primary"
+            variant="elevated"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
+            data-testid="secretStorages-new"
           >
             New Storage
             <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
-        <v-list>
+        <v-list class="SecretStoragesNewMenu" data-testid="secretStorages-newMenu">
           <v-list-item
             link
             @click="
@@ -60,10 +75,11 @@
               itemType = 'vault';
             "
             :disabled="!features.secret_storage_management"
+            data-testid="secretStorages-new-vault"
           >
-            <v-list-item-icon>
-              <v-icon>$vuetify.icons.hashicorp_vault</v-icon>
-            </v-list-item-icon>
+            <template v-slot:prepend>
+              <v-icon>$hashicorp_vault</v-icon>
+            </template>
             <v-list-item-title>Hashicorp Vault</v-list-item-title>
           </v-list-item>
 
@@ -74,14 +90,16 @@
               itemType = 'openbao';
             "
             :disabled="!features.secret_storage_management"
+            data-testid="secretStorages-new-openbao"
           >
-            <v-list-item-icon>
-              <v-icon>$vuetify.icons.openbao</v-icon>
-            </v-list-item-icon>
+            <template v-slot:prepend>
+              <v-icon>$openbao</v-icon>
+            </template>
             <v-list-item-title>OpenBao</v-list-item-title>
           </v-list-item>
 
           <div
+            data-testid="secretStorages-newEnterpriseGroup"
             :class="{
               SecretStoragesEnterpriseMenu:
                 features.secret_storage_management && !features.secret_storage_management_ex,
@@ -89,7 +107,7 @@
             :style="{
               backgroundColor:
                 features.secret_storage_management && !features.secret_storage_management_ex
-                  ? $vuetify.theme.dark
+                  ? $vuetify.theme.current.dark
                     ? '#3f3f3f'
                     : '#f0f0f0'
                   : '',
@@ -102,10 +120,11 @@
                 itemType = 'aws_sm';
               "
               :disabled="!features.secret_storage_management_ex"
+              data-testid="secretStorages-new-aws_sm"
             >
-              <v-list-item-icon>
-                <v-icon>$vuetify.icons.aws_sm</v-icon>
-              </v-list-item-icon>
+              <template v-slot:prepend>
+                <v-icon>$aws_sm</v-icon>
+              </template>
               <v-list-item-title>AWS Secrets Manager</v-list-item-title>
             </v-list-item>
 
@@ -116,10 +135,11 @@
                 itemType = 'azure_kv';
               "
               :disabled="!features.secret_storage_management_ex"
+              data-testid="secretStorages-new-azure_kv"
             >
-              <v-list-item-icon>
-                <v-icon>$vuetify.icons.azure_kv</v-icon>
-              </v-list-item-icon>
+              <template v-slot:prepend>
+                <v-icon>$azure_kv</v-icon>
+              </template>
               <v-list-item-title>Azure Key Vault</v-list-item-title>
             </v-list-item>
 
@@ -130,10 +150,11 @@
                 itemType = 'dvls';
               "
               :disabled="!features.secret_storage_management_ex"
+              data-testid="secretStorages-new-dvls"
             >
-              <v-list-item-icon>
-                <v-icon>$vuetify.icons.dvls</v-icon>
-              </v-list-item-icon>
+              <template v-slot:prepend>
+                <v-icon>$dvls</v-icon>
+              </template>
               <v-list-item-title>Devolutions Server</v-list-item-title>
             </v-list-item>
 
@@ -142,10 +163,11 @@
               class="SecretStoragesEnterpriseMenu__overlay"
               href="https://semaphoreui.com/enterprise"
               target="_blank"
+              data-testid="secretStorages-enterpriseLink"
             >
               <div class="SecretStoragesEnterpriseMenu__button">
                 Enterprise
-                <v-icon color="white" small class="ml-1">mdi-arrow-right</v-icon>
+                <v-icon color="white" size="small" class="ml-1">mdi-arrow-right</v-icon>
               </div>
             </a>
           </div>
@@ -153,7 +175,7 @@
       </v-menu>
     </v-toolbar>
 
-    <v-tabs class="pl-4">
+    <v-tabs class="pl-4" data-testid="secretStorages-tabs">
       <v-tab key="keys" :to="`/project/${projectId}/keys`" data-testid="keystore-keys">
         Keys
       </v-tab>
@@ -171,22 +193,23 @@
 
     <v-alert
       v-if="!features.secret_storage_management"
-      text
+      variant="tonal"
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
+      data-testid="secretStorages-proAlert"
     >
       <span class="mr-1" v-html="$t('secret_storage_only_pro')"></span>
 
       <v-btn
-        dark
         v-if="isAdmin"
         color="hsl(348deg, 86%, 61%)"
         @click="upgradeToPro('secret_storage_management')"
+        data-testid="secretStorages-upgrade"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
 
-      <span v-else style="font-weight: bold">
+      <span v-else style="font-weight: bold" data-testid="secretStorages-contactAdmin">
         {{ $t('contact_admin_to_upgrade') }}
       </span>
     </v-alert>
@@ -195,48 +218,85 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
+      class="mt-4 SecretStoragesTable"
+      :items-per-page="-1"
+      data-testid="secretStorages-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.name="{ item }">
-        <v-icon class="mr-3" small>
+        <v-icon class="mr-3" size="small" :data-testid="`secretStorages-rowIcon-${item.type}`">
           {{ getIcon(item.type) }}
         </v-icon>
 
-        <span class="mr-2">{{ item.name }}</span>
+        <span class="mr-2" data-testid="secretStorages-rowName">{{ item.name }}</span>
 
-        <v-chip v-if="item.readonly" style="transform: translateY(-1px)" color="info" small>
+        <v-chip
+          v-if="item.readonly"
+          class="SecretStoragesReadonly"
+          style="transform: translateY(-1px)"
+          color="info"
+          size="small"
+          data-testid="secretStorages-rowReadonly"
+        >
           Read only
         </v-chip>
       </template>
 
       <template v-slot:item.type="{ item }">
-        <code>{{ item.type }}</code>
+        <code data-testid="secretStorages-rowType">{{ item.type }}</code>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false" style="">
+        <v-btn-group
+          density="compact"
+          data-testid="secretStorages-rowActions"
+        >
           <v-btn
             v-if="item.sync_enabled"
             @click="syncItem(item.id)"
             :disabled="!(item.sync_paths && item.sync_paths.length > 0)"
+            data-testid="secretStorages-rowSync"
           >
             <v-icon>mdi-sync</v-icon>
           </v-btn>
-          <v-btn @click="askDeleteItem(item.id)">
+          <v-btn @click="askDeleteItem(item.id)" data-testid="secretStorages-rowDelete">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-          <v-btn @click="editItem(item.id)">
+          <v-btn @click="editItem(item.id)" data-testid="secretStorages-rowEdit">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
 </template>
 
 <style scoped lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.SecretStoragesTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+
+// The storage logos of the menu in their own colours, as the SVG icons of Vuetify 2 were (the
+// grey of `.v-list-item__icon` does not touch an SVG fill); Vuetify 4 dims the icon in front of an
+// item to the medium emphasis.
+.v-list.SecretStoragesNewMenu :deep(.v-list-item__prepend > .v-icon) {
+  opacity: 1;
+}
+
+// A disabled item (no licence) has its text in the disabled text colour and its logo as it is
+// (`.theme--light.v-list-item--disabled`: color .38); Vuetify 4 fades the whole item to .6.
+.v-list.SecretStoragesNewMenu :deep(.v-list-item--disabled) {
+  opacity: 1;
+  color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+}
+
+// The small chip of Vuetify 2 is 24 px high (`$chip-sizes` small), not 26.
+.SecretStoragesReadonly.v-chip {
+  --v-chip-height: 24px;
+}
+
 .SecretStoragesEnterpriseMenu {
   position: relative;
   cursor: not-allowed;
@@ -324,15 +384,15 @@ export default {
     getIcon(type) {
       switch (type) {
         case 'vault':
-          return '$vuetify.icons.hashicorp_vault';
+          return '$hashicorp_vault';
         case 'openbao':
-          return '$vuetify.icons.openbao';
+          return '$openbao';
         case 'dvls':
-          return '$vuetify.icons.dvls';
+          return '$dvls';
         case 'aws_sm':
-          return '$vuetify.icons.aws_sm';
+          return '$aws_sm';
         case 'azure_kv':
-          return '$vuetify.icons.azure_kv';
+          return '$azure_kv';
         default:
           return '';
       }
@@ -341,17 +401,17 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '60%',
         },
         {
-          text: this.$i18n.t('type'),
-          value: 'type',
+          title: this.$t('type'),
+          key: 'type',
           width: '40%',
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
           align: 'end',

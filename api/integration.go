@@ -138,10 +138,21 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			return
 		}
 
+		// A key that cannot provide the shared secret refuses the request here,
+		// before the method-specific check.
+		secret, ok := integration.VerificationSecret()
+		if !ok {
+			log.WithFields(log.Fields{
+				"context":       "integrations",
+				"integrationId": integration.ID,
+			}).Error("auth secret is empty or its key type does not fit the auth method")
+			continue
+		}
+
 		switch integration.AuthMethod {
 		case db.IntegrationAuthGitHub:
 			ok := isValidHmacPayload(
-				integration.AuthSecret.LoginPassword.Password,
+				secret,
 				r.Header.Get("X-Hub-Signature-256"),
 				payload,
 				"sha256=",
@@ -155,7 +166,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			}
 		case db.IntegrationAuthBitbucket:
 			ok := isValidHmacPayload(
-				integration.AuthSecret.LoginPassword.Password,
+				secret,
 				r.Header.Get("x-hub-signature"),
 				payload,
 				"sha256=",
@@ -169,7 +180,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			}
 		case db.IntegrationAuthHmac:
 			ok := isValidHmacPayload(
-				integration.AuthSecret.LoginPassword.Password,
+				secret,
 				r.Header.Get(integration.AuthHeader),
 				payload,
 				"",
@@ -183,7 +194,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			}
 		case db.IntegrationAuthHmacSha512:
 			ok := isValidHmacPayload(
-				integration.AuthSecret.LoginPassword.Password,
+				secret,
 				r.Header.Get(integration.AuthHeader),
 				payload,
 				"",
@@ -196,13 +207,20 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 				continue
 			}
 		case db.IntegrationAuthToken:
-			if integration.AuthSecret.LoginPassword.Password != r.Header.Get(integration.AuthHeader) {
+			if secret != r.Header.Get(integration.AuthHeader) {
 				log.WithFields(log.Fields{
 					"context": "integrations",
 				}).Error("Invalid verification token")
 				continue
 			}
 		case db.IntegrationAuthBasic:
+			if integration.AuthSecret.Type != db.AccessKeyLoginPassword {
+				log.WithFields(log.Fields{
+					"context":       "integrations",
+					"integrationId": integration.ID,
+				}).Error("BasicAuth needs a login/password credential")
+				continue
+			}
 			var username, password, auth = r.BasicAuth()
 			if !auth || integration.AuthSecret.LoginPassword.Password != password || integration.AuthSecret.LoginPassword.Login != username {
 				log.WithFields(log.Fields{

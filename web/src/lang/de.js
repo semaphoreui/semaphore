@@ -23,6 +23,11 @@ export default {
   keyFormSshKey: 'SSH-Schlüssel',
   keyFormLoginPassword: 'Login mit Passwort',
   keyFormNone: 'Keine',
+  keyFormString: 'Zeichenkette',
+  keyFormStringValue: 'Wert',
+  value_required: 'Wert ist erforderlich',
+  keyFormStringHint: 'Verwenden Sie diesen Schlüsseltyp für einen einzelnen geheimen Wert ohne Login: ein Token, einen API-Schlüssel oder ein Passwort. Er kann nicht als SSH-Schlüssel, Sudo-Zugangsdaten oder Vault-Passwort verwendet werden.',
+  integrationAuthSecret: 'Auth-Secret',
   incorrectUrl: 'Ungültige URL',
   username: 'Benutzername',
   username_required: 'Benutzername ist erforderlich',
@@ -160,7 +165,7 @@ export default {
   pleaseAllowOverridingCliArgumentInTaskTemplateSett:
     'Erlauben Sie das Überschreiben von CLI-Argumenten in den Task-Template-Einstellungen.',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe:
-    'CLI-Argumente (JSON Array). Beispiel: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
+    'CLI-Argumente (JSON Array). Beispiel: [ "-i", "{\'@\'}myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   started: 'Gestartet',
   author: 'Autor',
   duration: 'Dauer',
@@ -209,7 +214,7 @@ export default {
   suppressSuccessAlerts: 'Erfolgsbenachrichtigungen unterdrücken',
   suppressErrorAlerts: 'Fehlerbenachrichtigungen unterdrücken',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2:
-    'CLI-Argumente (JSON Array). Beispiel: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
+    'CLI-Argumente (JSON Array). Beispiel: [ "-i", "{\'@\'}myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   allowCliArgsInTask: 'CLI-Argumente',
   docs: 'Dokumentation',
   editViews: 'Ansichten bearbeiten',

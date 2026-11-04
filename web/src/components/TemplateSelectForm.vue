@@ -1,14 +1,17 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="items != null"
+    class="TemplateSelectForm"
+    data-testid="inventoryAttach-form"
+    :data-state="formError ? 'error' : 'ready'"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
+      data-testid="inventoryAttach-error"
     >{{ formError }}
     </v-alert>
 
@@ -18,12 +21,12 @@
       v-model="itemId"
       label="Template"
       item-value="id"
-      item-text="name"
+      item-title="name"
+      :menu-props="underlinedMenu"
+      data-testid="inventoryAttach-templateId"
     />
   </v-form>
 </template>
-<style>
-</style>
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
 
@@ -40,6 +43,8 @@ export default {
   },
 
   components: {},
+
+  emits: ['error', 'save'],
 
   watch: {
     async needSave(val) {
@@ -60,6 +65,12 @@ export default {
       items: null,
       formValid: false,
       formError: null,
+      // The list of an underlined select opens over the input, below the label (Vuetify 2: the
+      // menu covers `.v-input__slot`, 16 px under the top of the field), not over the label;
+      // at most 304 px high (Vuetify 2 `menuProps`; Vuetify 4: 310).
+      underlinedMenu: {
+        location: 'top', origin: 'top', offset: -16, maxHeight: 304,
+      },
     };
   },
 
@@ -96,7 +107,8 @@ export default {
     async save() {
       this.formError = null;
 
-      if (!this.$refs.form.validate()) {
+      const { valid } = await this.$refs.form.validate();
+      if (!valid) {
         this.$emit('error', {});
         return null;
       }

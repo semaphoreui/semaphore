@@ -5,7 +5,7 @@
     v-model="formValid"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
     >{{ formError }}</v-alert>

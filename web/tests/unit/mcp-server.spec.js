@@ -1,8 +1,7 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
-import VueRouter from 'vue-router';
+import { mount } from '@vue/test-utils';
+import { createRouter, createMemoryHistory } from 'vue-router';
 import i18n from '@/plugins/i18';
 import mockAxios from './helpers/axiosMock';
 
@@ -10,11 +9,9 @@ describe('McpServer.vue', () => {
   let McpServer;
   let MCP_SETS;
 
-  before(() => {
-    // eslint-disable-next-line global-require
-    McpServer = require('@/views/McpServer.vue').default;
-    // eslint-disable-next-line global-require
-    ({ MCP_SETS } = require('@/lib/mcpClients'));
+  beforeAll(async () => {
+    McpServer = (await import('@/views/McpServer.vue')).default;
+    ({ MCP_SETS } = await import('@/lib/mcpClients'));
   });
 
   const available = (features, mcp) => McpServer.computed.available.call({
@@ -77,9 +74,8 @@ describe('McpServer.vue', () => {
     expect(pushed).to.deep.equal(['/mcp/project', '/mcp/admin', '/mcp/settings', '/mcp']);
   });
 
-  it('keeps the old address of the project tab', () => {
-    // eslint-disable-next-line global-require
-    const routes = require('@/router').default.options.routes;
+  it('keeps the old address of the project tab', async () => {
+    const { routes } = (await import('@/router')).default.options;
     expect(routes.find((r) => r.path === '/mcp/connect').redirect).to.equal('/mcp/project');
     ['/mcp', '/mcp/project', '/mcp/admin', '/mcp/settings'].forEach((path) => {
       expect(routes.find((r) => r.path === path).component, path).to.equal(McpServer);
@@ -230,9 +226,8 @@ describe('McpServer.vue', () => {
 describe('Tokens.vue kinds', () => {
   let Tokens;
 
-  before(() => {
-    // eslint-disable-next-line global-require
-    Tokens = require('@/views/Tokens.vue').default;
+  beforeAll(async () => {
+    Tokens = (await import('@/views/Tokens.vue')).default;
   });
 
   const urls = (kind) => {
@@ -287,11 +282,10 @@ describe('lib/mcpClients', () => {
   let isPlainRemoteHttp;
   let MCP_SETS;
 
-  before(() => {
+  beforeAll(async () => {
     ({
       mcpClients, mcpConnectionHeaders, isPlainRemoteHttp, MCP_SETS,
-    // eslint-disable-next-line global-require
-    } = require('@/lib/mcpClients'));
+    } = await import('@/lib/mcpClients'));
   });
 
   const url = 'https://semaphore.example.com/api/mcp/project';
@@ -473,9 +467,8 @@ describe('McpServer.vue connection tabs', () => {
   let http;
   const wrappers = [];
 
-  before(() => {
-    // eslint-disable-next-line global-require
-    McpServer = require('@/views/McpServer.vue').default;
+  beforeAll(async () => {
+    McpServer = (await import('@/views/McpServer.vue')).default;
   });
 
   beforeEach(() => {
@@ -484,24 +477,22 @@ describe('McpServer.vue connection tabs', () => {
 
   afterEach(() => {
     http.restore();
-    wrappers.splice(0).forEach((w) => w.destroy());
+    wrappers.splice(0).forEach((w) => w.unmount());
   });
 
   async function mountAt(path, settings) {
     http.respond(() => settings);
-    const localVue = createLocalVue();
-    localVue.use(VueRouter);
-    const router = new VueRouter({ mode: 'abstract' });
-    await router.push(path).catch(() => {});
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }],
+    });
+    await router.push(path);
     const wrapper = mount(McpServer, {
-      localVue,
-      router,
-      vuetify: new Vuetify(),
-      i18n,
-      propsData: {
+      props: {
         user: { admin: true },
         systemInfo: { features: { mcp: true }, mcp: { enabled: true }, web_host: 'https://semaphore.example.com' },
       },
+      global: { plugins: [router, i18n] },
     });
     wrappers.push(wrapper);
     await new Promise((resolve) => { setTimeout(resolve, 0); });
@@ -509,8 +500,9 @@ describe('McpServer.vue connection tabs', () => {
   }
 
   const switchOf = (wrapper, set, key) => wrapper.find(`[data-testid="mcp-connection-${set}-${key}"]`);
-  const disabled = (wrapper, set, key) => switchOf(wrapper, set, key).attributes('disabled') === 'disabled';
-  const codes = (wrapper) => wrapper.findAll('pre').wrappers.map((w) => w.text());
+  // Vuetify 3+: the test id is on the root of the switch, `disabled` on its checkbox
+  const disabled = (wrapper, set, key) => switchOf(wrapper, set, key).find('input').element.disabled;
+  const codes = (wrapper) => wrapper.findAll('pre').map((w) => w.text());
 
   it('shows the admin set with its switches limited by the admin settings', async () => {
     const wrapper = await mountAt('/mcp/admin', {
@@ -528,8 +520,10 @@ describe('McpServer.vue connection tabs', () => {
     expect(wrapper.find('[data-testid="mcp-admin-hidden-tools"]').exists()).to.equal(true);
     expect(codes(wrapper).join('\n')).to.not.contain('X-Semaphore-MCP');
 
-    wrapper.vm.connection.admin.write = true;
-    await wrapper.vm.$nextTick();
+    const write = switchOf(wrapper, 'admin', 'write').find('input');
+    write.element.checked = true;
+    await write.trigger('input');
+    expect(wrapper.vm.connection.admin.write).to.equal(true);
     expect(codes(wrapper)[1]).to.contain('--header "X-Semaphore-MCP-Write: on"');
     expect(codes(wrapper).join('\n')).to.not.contain('X-Semaphore-MCP-Destroy');
   });
@@ -544,5 +538,86 @@ describe('McpServer.vue connection tabs', () => {
     expect(disabled(wrapper, 'project', 'run')).to.equal(true);
     expect(disabled(wrapper, 'project', 'destroy')).to.equal(true);
     expect(wrapper.find('[data-testid="mcp-admin-groups"]').exists()).to.equal(false);
+  });
+});
+
+describe('McpServer.vue tokens and banners', () => {
+  let McpServer;
+  let http;
+  const wrappers = [];
+  const settings = {
+    allow_run: false, allow_destroy: false, admin_allow_write: false, admin_allow_destroy: false,
+  };
+
+  beforeAll(async () => {
+    McpServer = (await import('@/views/McpServer.vue')).default;
+  });
+
+  beforeEach(() => {
+    http = mockAxios();
+  });
+
+  afterEach(() => {
+    http.restore();
+    wrappers.splice(0).forEach((w) => w.unmount());
+  });
+
+  async function mountWith(systemInfo, tokens, user = { admin: true }) {
+    http.respond((config) => (config.url === '/api/mcp/settings' ? settings : tokens));
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }],
+    });
+    await router.push('/mcp');
+    const wrapper = mount(McpServer, {
+      props: { user, systemInfo },
+      global: { plugins: [router, i18n] },
+    });
+    wrappers.push(wrapper);
+    await new Promise((resolve) => { setTimeout(resolve, 0); });
+    return wrapper;
+  }
+
+  const has = (wrapper, id) => wrapper.find(`[data-testid="${id}"]`).exists();
+  const token = { id: 'abcdefgh', name: 'agent', created: '2026-11-01T10:00:00Z' };
+
+  it('lists the MCP tokens under the page toolbar of its own', async () => {
+    const wrapper = await mountWith({ features: { mcp: true }, mcp: { enabled: true } }, [token]);
+    expect(http.requests.map((r) => r.url)).to.include('/api/user/mcp-tokens');
+    expect(has(wrapper, 'mcp-tab-tokens')).to.equal(true);
+    expect(has(wrapper, 'mcp-new-token')).to.equal(true);
+    expect(has(wrapper, 'tokens-table')).to.equal(true);
+    expect(has(wrapper, 'tokens-title'), 'the toolbar of the API tokens page').to.equal(false);
+  });
+
+  it('offers the upgrade without a license and lists the tokens left for revoking', async () => {
+    const wrapper = await mountWith({ features: {}, mcp: { enabled: true } }, [token]);
+    expect(has(wrapper, 'mcp-only-pro')).to.equal(true);
+    expect(has(wrapper, 'mcp-tabs')).to.equal(false);
+    expect(has(wrapper, 'mcp-new-token')).to.equal(false);
+    expect(has(wrapper, 'mcp-revoke-only')).to.equal(true);
+    expect(has(wrapper, 'tokens-rowDelete')).to.equal(true);
+    expect(has(wrapper, 'mcp-settings-without-mcp'), 'no license: no settings').to.equal(false);
+  });
+
+  it('asks for a Pro seat and still shows a system manager the settings', async () => {
+    const wrapper = await mountWith({
+      features: { task_summary: true, mcp: false },
+      subscription_state: 'active',
+      mcp: { enabled: true },
+    }, []);
+    expect(has(wrapper, 'mcp-needs-pro-seat')).to.equal(true);
+    expect(has(wrapper, 'mcp-assign-pro-seat')).to.equal(true);
+    expect(has(wrapper, 'mcp-revoke-only'), 'no tokens to revoke').to.equal(false);
+    expect(has(wrapper, 'mcp-settings-without-mcp')).to.equal(true);
+  });
+
+  it('says MCP is switched off', async () => {
+    const wrapper = await mountWith({ features: { mcp: true }, mcp: { enabled: false } }, [], {
+      admin: false,
+    });
+    expect(has(wrapper, 'mcp-disabled')).to.equal(true);
+    expect(has(wrapper, 'mcp-only-pro')).to.equal(false);
+    expect(has(wrapper, 'mcp-settings-without-mcp'), 'not a system manager').to.equal(false);
   });
 });

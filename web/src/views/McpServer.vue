@@ -1,13 +1,14 @@
 <template>
-  <div>
+  <div data-testid="mcp-page">
     <v-toolbar flat>
-      <v-btn icon class="mr-4" @click="returnToProjects()">
+      <v-btn icon variant="text" class="mr-4" @click="returnToProjects()" data-testid="mcp-back">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('mcp_server') }}</v-toolbar-title>
+      <v-toolbar-title data-testid="mcp-title">{{ $t('mcp_server') }}</v-toolbar-title>
       <v-spacer />
       <v-btn
         v-if="available && tab === 'tokens'"
+        variant="elevated"
         color="primary"
         data-testid="mcp-new-token"
         @click="$refs.tokens.newToken()"
@@ -16,15 +17,15 @@
       </v-btn>
     </v-toolbar>
 
-    <v-tabs v-if="available" v-model="tab" class="px-4">
-      <v-tab key="tokens" href="#tokens" data-testid="mcp-tab-tokens">{{ $t('mcp_tokens') }}</v-tab>
-      <v-tab key="project" href="#project" data-testid="mcp-tab-project">
+    <v-tabs v-if="available" v-model="tab" class="px-4" data-testid="mcp-tabs">
+      <v-tab key="tokens" value="tokens" data-testid="mcp-tab-tokens">{{ $t('mcp_tokens') }}</v-tab>
+      <v-tab key="project" value="project" data-testid="mcp-tab-project">
         {{ $t('mcp_tab_project') }}
       </v-tab>
-      <v-tab v-if="canUseAdminMcp" key="admin" href="#admin" data-testid="mcp-tab-admin">
+      <v-tab v-if="canUseAdminMcp" key="admin" value="admin" data-testid="mcp-tab-admin">
         {{ $t('mcp_tab_admin') }}
       </v-tab>
-      <v-tab v-if="canManageSystem" key="settings" href="#settings" data-testid="mcp-tab-settings">
+      <v-tab v-if="canManageSystem" key="settings" value="settings" data-testid="mcp-tab-settings">
         {{ $t('mcp_tab_settings') }}
       </v-tab>
     </v-tabs>
@@ -44,9 +45,8 @@
 
       <McpSettings
         v-else-if="tab === 'settings'"
-        :value="mcpSettings"
+        v-model="mcpSettings"
         :load-error="mcpSettingsError"
-        @input="mcpSettings = $event"
       />
 
       <!-- The project and the admin tabs: one layout, the set of the tab fills it. -->
@@ -55,29 +55,33 @@
           v-if="plainRemoteHttp"
           type="warning"
           icon="mdi-alert"
-          dense
-          text
+          density="compact"
+          variant="tonal"
           data-testid="mcp-plain-http"
         >
           {{ $t('mcp_plain_http_warning') }}
         </v-alert>
 
-        <v-alert type="info" dense text>
+        <v-alert type="info" density="compact" variant="tonal" data-testid="mcp-cloud-clients">
           {{ $t('mcp_cloud_clients_info') }}
         </v-alert>
 
         <div>{{ $t('mcp_endpoint') }}:</div>
         <div style="position: relative">
-          <pre class="McpServer__code">{{ endpoint }}</pre>
-          <CopyClipboardButton :text="endpoint" class="McpServer__copy" />
+          <pre class="McpServer__code" data-testid="mcp-endpoint">{{ endpoint }}</pre>
+          <CopyClipboardButton
+            :text="endpoint"
+            class="McpServer__copy"
+            test-id="mcp-endpoint-copy"
+          />
         </div>
 
         <div class="mt-4">{{ $t('mcp_connection_tools') }}:</div>
-        <div class="text-caption">{{ $t('mcp_connection_tools_hint') }}</div>
+        <div class="text-body-small">{{ $t('mcp_connection_tools_hint') }}</div>
         <v-switch
           v-for="s in connectionSwitches"
           :key="s.key"
-          :input-value="s.on"
+          :model-value="s.on"
           :label="$t(s.label)"
           :hint="s.allowed
             ? $t('mcp_connection_header_hint', { header: s.header })
@@ -86,17 +90,17 @@
           :data-testid="`mcp-connection-${mcpSet.id}-${s.key}`"
           persistent-hint
           inset
-          class="mt-2"
-          @change="connection[mcpSet.id][s.key] = !!$event"
+          class="McpServer__switch mt-2"
+          @update:model-value="connection[mcpSet.id][s.key] = !!$event"
         />
 
         <template v-if="mcpSet.id === 'admin'">
-          <div class="mt-4 text-caption" data-testid="mcp-admin-groups">
+          <div class="mt-4 text-body-small" data-testid="mcp-admin-groups">
             <div v-for="s in connectionSwitches" :key="s.key">
               <b>{{ $t(s.label) }}</b>: {{ $t(s.tools) }}
             </div>
           </div>
-          <div class="mt-1 text-caption" data-testid="mcp-admin-hidden-tools">
+          <div class="mt-1 text-body-small" data-testid="mcp-admin-hidden-tools">
             {{ $t('mcp_admin_hidden_tools') }}
           </div>
         </template>
@@ -104,13 +108,13 @@
         <v-select
           v-model="clientId"
           :items="clients"
-          item-text="name"
+          item-title="name"
           item-value="id"
           :label="$t('mcp_client')"
           class="mt-4"
           style="max-width: 400px"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           hide-details
           data-testid="mcp-client"
         />
@@ -119,55 +123,71 @@
           <div>{{ snippet.title }}:</div>
           <div style="position: relative">
             <pre class="McpServer__code">{{ snippet.code }}</pre>
-            <CopyClipboardButton :text="snippet.code" class="McpServer__copy" />
+            <CopyClipboardButton
+              :text="snippet.code"
+              class="McpServer__copy"
+              test-id="mcp-snippet-copy"
+            />
           </div>
         </div>
 
-        <div v-if="client.note" class="mt-2 text-caption">{{ client.note }}</div>
+        <div v-if="client.note" class="mt-2 text-body-small">{{ client.note }}</div>
 
       </div>
     </template>
 
     <v-alert
       v-else-if="needsProSeat"
-      text
+      variant="tonal"
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
       data-testid="mcp-needs-pro-seat"
     >
       <span v-html="$t('mcp_needs_pro_seat')"></span>
-      <v-btn dark v-if="user && user.admin" class="ml-2" color="hsl(348deg, 86%, 61%)" to="/users">
+      <v-btn
+        v-if="user && user.admin"
+        class="ml-2 text-white"
+        color="hsl(348deg, 86%, 61%)"
+        to="/users"
+        data-testid="mcp-assign-pro-seat"
+      >
         {{ $t('mcp_assign_pro_seat') }}
       </v-btn>
-      <span v-else style="font-weight: bold">
+      <span v-else style="font-weight: bold" data-testid="mcp-contact-admin-for-seat">
         {{ $t('mcp_contact_admin_for_seat') }}
       </span>
     </v-alert>
 
     <v-alert
       v-else-if="!features.mcp && !proLicenseWithoutSeat"
-      text
+      variant="tonal"
       color="hsl(348deg, 86%, 61%)"
       class="PageAlert"
       data-testid="mcp-only-pro"
     >
       <span v-html="$t('mcp_only_pro')"></span>
       <v-btn
-        dark
         v-if="canManageSystem"
-        class="ml-2"
+        class="ml-2 text-white"
         color="hsl(348deg, 86%, 61%)"
         @click="upgradeToPro('mcp')"
+        data-testid="mcp-upgrade"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
-      <span v-else style="font-weight: bold">
+      <span v-else style="font-weight: bold" data-testid="mcp-contact-admin">
         {{ $t('contact_admin_to_upgrade') }}
       </span>
     </v-alert>
 
     <!-- Less prominent than the Pro banner above: the feature is paid, only switched off. -->
-    <v-alert v-else text color="grey darken-1" class="PageAlert" data-testid="mcp-disabled">
+    <v-alert
+      v-else
+      variant="tonal"
+      color="grey-darken-1"
+      class="PageAlert"
+      data-testid="mcp-disabled"
+    >
       <span v-html="$t('mcp_disabled_banner')"></span>
     </v-alert>
 
@@ -189,13 +209,14 @@
     <!-- The settings hold for every user who has MCP, so a system manager prepares them even
          while MCP is not available to them: switched off, or no Pro seat of their own. -->
     <template v-if="!available && settingsWithoutMcp">
-      <v-subheader class="px-4 mt-4">{{ $t('mcp_tab_settings') }}</v-subheader>
-      <div class="px-4 text-caption">{{ $t('mcp_settings_without_mcp') }}</div>
+      <div class="McpSubheader d-flex align-center text-medium-emphasis px-4 mt-4">
+        {{ $t('mcp_tab_settings') }}
+      </div>
+      <div class="px-4 text-body-small">{{ $t('mcp_settings_without_mcp') }}</div>
       <McpSettings
-        :value="mcpSettings"
+        v-model="mcpSettings"
         :load-error="mcpSettingsError"
         data-testid="mcp-settings-without-mcp"
-        @input="mcpSettings = $event"
       />
     </template>
   </div>
@@ -405,6 +426,12 @@ export default {
   color: white;
   border-radius: 10px;
   margin-top: 5px;
+}
+
+// A disabled switch dims the whole field, and Vuetify dims its hint once more; the hint says why
+// the switch is off, so it keeps only the field's dimming.
+.McpServer__switch.v-input--disabled .v-input__details {
+  opacity: 1;
 }
 
 .McpServer__copy {

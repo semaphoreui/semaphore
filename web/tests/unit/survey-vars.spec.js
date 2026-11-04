@@ -1,25 +1,42 @@
 import './setup';
 import { expect } from 'chai';
-import { shallowMount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { h } from 'vue';
+import { shallowMount } from '@vue/test-utils';
 import SurveyVars from '@/components/SurveyVars.vue';
 
 let formValid = true;
 
+// The default stub of @vue/test-utils 2 hands every declared prop of the real component to its
+// `<v-…-stub>` element, `prefix: undefined` of the Vuetify 3 fields among them. `prefix` is a
+// read-only property of Element, so Vue fails to set it and warns with the TypeError and its
+// source-mapped stack — about 150 ms a warning, six per saveVar test, past the 2000 ms timeout
+// on a loaded machine. These stubs declare no props: only what SurveyVars passes reaches the DOM.
+const fieldStub = (name, tag) => ({
+  name,
+  render() {
+    return h(tag, this.$slots.default && this.$slots.default());
+  },
+});
+
 function mountVars(vars = []) {
-  const localVue = createLocalVue();
   return shallowMount(SurveyVars, {
-    localVue,
-    vuetify: new Vuetify(),
-    propsData: { vars },
-    mocks: { $t: (k) => k },
-    stubs: {
-      'v-dialog': { template: '<div><slot /></div>' },
-      'v-form': {
-        template: '<form><slot /></form>',
-        methods: {
-          validate: () => formValid,
-          resetValidation: () => {},
+    props: { vars },
+    global: {
+      // the stubs render their default slot, as the stubs of @vue/test-utils 1 did
+      renderStubDefaultSlot: true,
+      mocks: { $t: (k) => k },
+      stubs: {
+        'v-dialog': { template: '<div><slot /></div>' },
+        'v-text-field': fieldStub('VTextField', 'v-text-field-stub'),
+        'v-textarea': fieldStub('VTextarea', 'v-textarea-stub'),
+        'v-select': fieldStub('VSelect', 'v-select-stub'),
+        // v-form of Vuetify 3: validate() resolves to { valid }, saveVar() awaits it
+        'v-form': {
+          template: '<form><slot /></form>',
+          methods: {
+            validate: async () => ({ valid: formValid }),
+            resetValidation: () => {},
+          },
         },
       },
     },
@@ -100,7 +117,7 @@ describe('SurveyVars.vue', () => {
       await wrapper.vm.$nextTick();
       Object.assign(wrapper.vm.editedVar, { name: 'host', title: 'Host', type: 'string' });
 
-      wrapper.vm.saveVar();
+      await wrapper.vm.saveVar();
 
       expect(wrapper.vm.editDialog).to.equal(false);
       expect(wrapper.vm.formError).to.equal(null);
@@ -119,7 +136,7 @@ describe('SurveyVars.vue', () => {
       await wrapper.vm.$nextTick();
       wrapper.vm.editedVar.title = 'B2';
 
-      wrapper.vm.saveVar();
+      await wrapper.vm.saveVar();
 
       expect(wrapper.emitted().change[0][0].map((v) => v.title)).to.deep.equal(['A', 'B2']);
     });
@@ -131,7 +148,7 @@ describe('SurveyVars.vue', () => {
       Object.assign(wrapper.vm.editedVar, { name: 'e', type: 'enum' });
       await wrapper.vm.$nextTick();
 
-      wrapper.vm.saveVar();
+      await wrapper.vm.saveVar();
 
       expect(wrapper.vm.formError).to.equal('Enumeration must have values.');
       expect(wrapper.emitted().change).to.equal(undefined);
@@ -145,11 +162,11 @@ describe('SurveyVars.vue', () => {
       await wrapper.vm.$nextTick();
 
       wrapper.vm.editedValues.push({ name: 'x', value: '1' }, { name: 'x', value: '2' });
-      wrapper.vm.saveVar();
+      await wrapper.vm.saveVar();
       expect(wrapper.vm.formError).to.equal('Select must have unique names.');
 
       wrapper.vm.editedValues.splice(0, 2, { name: '', value: '1' });
-      wrapper.vm.saveVar();
+      await wrapper.vm.saveVar();
       expect(wrapper.vm.formError).to.equal('Value name cannot be empty.');
     });
 
@@ -162,7 +179,7 @@ describe('SurveyVars.vue', () => {
       wrapper.vm.editedValues.push({ name: 'One', value: '1' });
       wrapper.vm.editedVar.default_value = '1';
 
-      wrapper.vm.saveVar();
+      await wrapper.vm.saveVar();
 
       expect(wrapper.emitted().change[0][0][0].default_value).to.deep.equal(['1']);
     });
@@ -173,7 +190,7 @@ describe('SurveyVars.vue', () => {
       wrapper.vm.editVar(null);
       await wrapper.vm.$nextTick();
 
-      wrapper.vm.saveVar();
+      await wrapper.vm.saveVar();
 
       expect(wrapper.vm.editDialog).to.equal(true);
       expect(wrapper.emitted().change).to.equal(undefined);

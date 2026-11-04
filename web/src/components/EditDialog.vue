@@ -3,12 +3,14 @@ Modal dialog which contains slot "form" and two buttons ("Cancel" and "OK").
 Should be used to wrap forms which need to be displayed in modal dialog.
 Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
 -->
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <v-dialog
     ref="dialog"
     v-model="dialog"
     :max-width="maxWidth || 400"
     persistent
+    :eager="booted"
+    :close-on-back="false"
     :fullscreen="expandable && fullscreen"
     :transition="false"
     :content-class="
@@ -16,8 +18,11 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
       item-dialog--${position} ${contentClass || ''}`
     "
   >
-    <v-card :data-testid="testId">
-      <v-card-title>
+    <v-card
+      :data-testid="testId"
+      :data-state="needSave ? 'loading' : 'ready'"
+    >
+      <v-card-title data-testid="editDialog-title">
         <slot name="title">
           <v-icon v-if="icon" :color="iconColor" class="mr-3">{{ icon }}</v-icon>
           {{ title }}
@@ -28,19 +33,28 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         <div class="item-dialog__title-actions">
           <v-btn
             icon
+            variant="text"
             @click="toggleHelp()"
             class="mr-3"
             :style="{opacity: needHelp ? 1 : 0.3}"
             v-if="helpButton"
+            data-testid="editDialog-help"
           >
             <v-icon>mdi-help-box</v-icon>
           </v-btn>
 
-          <v-btn icon @click="toggleFullscreen()" class="mr-3" v-if="expandable">
+          <v-btn
+            icon
+            variant="text"
+            @click="toggleFullscreen()"
+            class="mr-3"
+            v-if="expandable"
+            data-testid="editDialog-fullscreen"
+          >
             <v-icon>mdi-arrow-{{ fullscreen ? 'collapse' : 'expand' }}</v-icon>
           </v-btn>
 
-          <v-btn icon @click="close()" data-testid="editDialog-close">
+          <v-btn icon variant="text" @click="close()" data-testid="editDialog-close">
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </div>
@@ -48,6 +62,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
       </v-card-title>
 
       <v-card-text
+        data-testid="editDialog-body"
         :class="{
           'pb-0': !hideButtons,
           'pa-0': noBodyPaddings,
@@ -66,20 +81,21 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         ></slot>
       </v-card-text>
 
-      <v-card-actions v-if="!hideButtons">
+      <v-card-actions v-if="!hideButtons" data-testid="editDialog-actions">
         <v-spacer></v-spacer>
 
         <v-btn
-          color="blue darken-1"
-          text
+          color="blue-darken-1"
+          variant="text"
           @click="close()"
+          data-testid="editDialog-cancel"
         >
           {{ cancelButtonText || $t('cancel') }}
         </v-btn>
 
         <v-btn
-          color="blue darken-1"
-          text
+          color="blue-darken-1"
+          variant="text"
           @click="needSave = true"
           v-if="saveButtonText != null"
           data-testid="editDialog-save"
@@ -101,7 +117,9 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
   }
 
   .item-dialog {
-    .v-card__title {
+    .v-card-title {
+      display: flex;
+      align-items: center;
       white-space: nowrap;
       overflow: hidden;
       margin-right: 12px;
@@ -109,13 +127,13 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     }
   }
 
-  .theme--dark {
+  .v-theme--dark {
     .item-dialog__title-actions {
         background: #1E1E1E;
     }
   }
 
-  .theme--light {
+  .v-theme--light {
     .item-dialog__title-actions {
       background: white;
     }
@@ -133,7 +151,7 @@ export default {
     title: String,
     icon: String,
     iconColor: String,
-    value: Boolean,
+    modelValue: Boolean,
     maxWidth: Number,
     minContentHeight: Number,
     eventName: String,
@@ -151,9 +169,14 @@ export default {
     noEscape: Boolean,
   },
 
+  emits: ['update:modelValue', 'save', 'close'],
+
   data() {
     return {
       dialog: false,
+      // The content is rendered on the first open and then kept, as `v-dialog` of Vuetify 2 did:
+      // Vuetify 3 unmounts it on close, and the form would be created again on every open.
+      booted: false,
       needSave: false,
       needReset: false,
       fullscreen: null,
@@ -163,8 +186,11 @@ export default {
 
   watch: {
     async dialog(val) {
+      if (val) {
+        this.booted = true;
+      }
       this.needReset = val;
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
       if (val) {
         window.addEventListener('keydown', this.handleEscape);
       } else {
@@ -172,7 +198,7 @@ export default {
       }
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.dialog = val;
     },
 
@@ -227,15 +253,15 @@ export default {
 
     /**
      * Returns true if this dialog is the topmost active overlay (dialog or menu).
-     * Uses the same check as Vuetify's VDialog (activeZIndex vs getMaxZIndex),
+     * Uses the same check as Vuetify's VDialog (`globalTop` of the overlay stack),
      * so a nested dialog or an open dropdown menu makes the parent non-topmost.
      */
     isTopmost() {
       const dialog = this.$refs.dialog;
-      if (!dialog || typeof dialog.getMaxZIndex !== 'function') {
+      if (!dialog || typeof dialog.globalTop !== 'boolean') {
         return true;
       }
-      return dialog.activeZIndex >= dialog.getMaxZIndex();
+      return dialog.globalTop;
     },
 
     handleEscape(ev) {

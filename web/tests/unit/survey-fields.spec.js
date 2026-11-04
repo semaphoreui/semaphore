@@ -1,7 +1,7 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { toRaw } from 'vue';
+import { mount } from '@vue/test-utils';
 import SurveyFields from '@/components/SurveyFields.vue';
 import WorkflowVarAssign from '@/components/workflow/WorkflowVarAssign.vue';
 
@@ -26,20 +26,23 @@ const workflowVars = [
 ];
 
 function mountFields(props = {}) {
-  const localVue = createLocalVue();
   return mount(SurveyFields, {
-    localVue,
-    vuetify: new Vuetify(),
-    propsData: {
+    props: {
       vars, value: { image_tag: 'static', subnets: ['a', 'b'] }, secretValue: {}, ...props,
     },
-    mocks: { $t: (k, params) => (params ? `${k}:${JSON.stringify(params)}` : k) },
-    stubs: { WorkflowVarAssign: true },
+    global: {
+      mocks: { $t: (k, params) => (params ? `${k}:${JSON.stringify(params)}` : k) },
+      stubs: { WorkflowVarAssign: true },
+    },
   });
 }
 
+// The label of a field. Vuetify 3 draws an outlined field's label twice: in the field and,
+// floating, in the notch of the outline (aria-hidden) — the second one is left out.
+const LABEL = '.v-field-label:not(.v-field-label--floating)';
+
 function labels(w) {
-  return w.findAll('.v-label').wrappers.map((l) => l.text());
+  return w.findAll(LABEL).map((l) => l.text());
 }
 
 describe('SurveyFields.vue', () => {
@@ -48,7 +51,8 @@ describe('SurveyFields.vue', () => {
       const w = mountFields();
       expect(labels(w)).to.deep.equal(['Image tag *', 'Replicas', 'Env', 'Subnets', 'Notes', 'Token']);
       expect(w.findAll('.v-select').length).to.equal(2);
-      expect(w.findAll('textarea').length).to.equal(1);
+      // Vuetify 3: an auto-grow v-textarea measures itself with a hidden sizer textarea
+      expect(w.findAll('textarea:not(.v-textarea__sizer)').length).to.equal(1);
       expect(w.find('.masked-secret-input').exists()).to.equal(true);
     });
 
@@ -57,7 +61,7 @@ describe('SurveyFields.vue', () => {
       const secretValue = {};
       const w = mountFields({ value, secretValue });
       const inputs = w.findAll('input[type="text"], input:not([type])');
-      await inputs.at(0).setValue('1.2.3');
+      await inputs[0].setValue('1.2.3');
       expect(value.image_tag).to.equal('1.2.3');
       await w.find('.masked-secret-input input').setValue('s3cr3t');
       expect(secretValue.token).to.equal('s3cr3t');
@@ -67,7 +71,8 @@ describe('SurveyFields.vue', () => {
       const w = mountFields();
       const next = { image_tag: 'next', subnets: [] };
       await w.setProps({ value: next });
-      expect(w.vm.env).to.equal(next);
+      // Vue 3 hands out the reactive proxy of the object; the object behind it is `next` itself
+      expect(toRaw(w.vm.env)).to.equal(next);
       expect(w.find('input').element.value).to.equal('next');
     });
 
@@ -94,7 +99,7 @@ describe('SurveyFields.vue', () => {
       expect(empty.findAllComponents(WorkflowVarAssign).length).to.equal(5);
       const w = mountFields({ workflowVars });
       expect(w.findAllComponents(WorkflowVarAssign).length).to.equal(5);
-      w.findAllComponents(WorkflowVarAssign).wrappers.forEach((a) => {
+      w.findAllComponents(WorkflowVarAssign).forEach((a) => {
         expect(a.props('vars')).to.deep.equal(workflowVars);
       });
     });
@@ -102,7 +107,7 @@ describe('SurveyFields.vue', () => {
     it('emits bind(var, workflow_var) when a workflow variable is picked for a field', () => {
       const w = mountFields({ workflowVars });
       // Assign buttons follow the survey order: image_tag, replicas, env, subnets, notes.
-      w.findAllComponents(WorkflowVarAssign).at(1).vm.$emit('select', 'count');
+      w.findAllComponents(WorkflowVarAssign)[1].vm.$emit('select', 'count');
       expect(w.emitted('bind')).to.deep.equal([['replicas', 'count']]);
     });
 
@@ -111,9 +116,9 @@ describe('SurveyFields.vue', () => {
       const bound = w.find('.SurveyFields__bound');
       expect(bound.exists()).to.equal(true);
       const input = bound.find('input');
-      expect(input.attributes('readonly')).to.equal('readonly');
+      expect(input.attributes('readonly')).to.equal('');
       expect(input.element.value).to.equal('Release tag (tag)');
-      expect(bound.find('.v-label').text()).to.equal('Image tag *');
+      expect(bound.find(LABEL).text()).to.equal('Image tag *');
       expect(bound.find('.mdi-link-variant').exists()).to.equal(true);
       expect(bound.text()).to.contain('workflowNodeSurveyInputsBoundHint');
       expect(w.findAllComponents(WorkflowVarAssign).length)
@@ -128,7 +133,8 @@ describe('SurveyFields.vue', () => {
       const bound = w.find('.SurveyFields__bound');
       expect(bound.find('input').element.value).to.equal('gone');
       expect(bound.text()).to.contain('workflowNodeSurveyInputsUnknown:{"name":"gone"}');
-      expect(bound.classes()).to.include('error--text');
+      // Vuetify 3: a field in error carries v-input--error (2: error--text)
+      expect(bound.classes()).to.include('v-input--error');
     });
 
     it('never offers to bind a secret field', () => {
@@ -141,29 +147,30 @@ describe('SurveyFields.vue', () => {
 
 describe('WorkflowVarAssign.vue', () => {
   function mountAssign(list) {
-    const localVue = createLocalVue();
     return mount(WorkflowVarAssign, {
-      localVue,
-      vuetify: new Vuetify(),
-      propsData: { vars: list },
-      mocks: { $t: (k) => k },
+      props: { vars: list },
+      global: { mocks: { $t: (k) => k } },
     });
   }
 
+  // Vuetify 3 teleports the (eager) menu content out of the component's element: the list is
+  // looked up through its component.
+  const list = (w) => w.findComponent({ name: 'VList' });
+
   it('lists the workflow variables with name and type and emits select', async () => {
     const w = mountAssign(workflowVars);
-    const items = w.findAll('.WorkflowVarAssign__item');
+    const items = list(w).findAll('.WorkflowVarAssign__item');
     expect(items.length).to.equal(2);
-    expect(items.at(0).text()).to.contain('Release tag');
-    expect(items.at(0).text()).to.contain('tag · string');
-    expect(items.at(1).text()).to.contain('count · int');
-    await items.at(1).trigger('click');
+    expect(items[0].text()).to.contain('Release tag');
+    expect(items[0].text()).to.contain('tag · string');
+    expect(items[1].text()).to.contain('count · int');
+    await items[1].trigger('click');
     expect(w.emitted('select')).to.deep.equal([['count']]);
   });
 
   it('explains an empty list', () => {
     const w = mountAssign([]);
-    expect(w.findAll('.WorkflowVarAssign__item').length).to.equal(0);
-    expect(w.text()).to.contain('workflowNodeSurveyInputsNoWorkflowVars');
+    expect(list(w).findAll('.WorkflowVarAssign__item').length).to.equal(0);
+    expect(list(w).text()).to.contain('workflowNodeSurveyInputsNoWorkflowVars');
   });
 });

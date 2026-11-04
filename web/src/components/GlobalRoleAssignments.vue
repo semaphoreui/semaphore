@@ -1,26 +1,37 @@
 <template>
-  <div>
-    <v-alert :value="!!error" color="error" class="pb-2">{{ error }}</v-alert>
+  <div
+    data-testid="globalRoleAssign-root"
+    :data-state="error
+      ? 'error'
+      : (!loaded || loading ? 'loading' : (assignments.length === 0 ? 'empty' : 'ready'))"
+  >
+    <v-alert
+      :model-value="!!error"
+      color="error"
+      class="pb-2"
+      data-testid="globalRoleAssign-error"
+    >{{ error }}</v-alert>
 
     <v-alert
       v-if="loaded && availableRoles.length === 0 && assignments.length === 0"
-      text
-      dense
+      variant="tonal"
+      density="compact"
       type="info"
+      data-testid="globalRoleAssign-noRoles"
     >
       {{ $t('noGlobalRolesAvailable') }}
     </v-alert>
 
-    <v-row align="center" v-if="availableRoles.length > 0">
+    <v-row class="align-center" v-if="availableRoles.length > 0">
       <v-col cols="12" sm="8">
         <v-select
           v-model="newRoleId"
           :items="availableRoles"
           item-value="id"
-          item-text="name"
+          item-title="name"
           :label="$t('globalRole')"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           hide-details
           :disabled="loading"
           data-testid="global-role-select"
@@ -33,58 +44,131 @@
           :disabled="!newRoleId || loading"
           :loading="loading"
           @click="assign()"
+          data-testid="globalRoleAssign-assign"
         >
           {{ $t('assignGlobalRole') }}
         </v-btn>
       </v-col>
     </v-row>
 
-    <v-list v-if="assignments.length > 0" class="px-0">
-      <v-list-item v-for="assignment in assignments" :key="assignment.id" class="px-0">
-        <v-list-item-content>
-          <v-list-item-title>{{ assignment.role_name }}</v-list-item-title>
-          <TemplatePermissionsChips
-            class="pt-1"
-            scope="global"
-            :permissions="assignment.global_permissions || 0"
-          />
-        </v-list-item-content>
-        <v-list-item-action>
+    <v-list
+      v-if="assignments.length > 0"
+      class="px-0 GlobalRoleAssign__list"
+      data-testid="globalRoleAssign-list"
+    >
+      <v-list-item
+        v-for="assignment in assignments"
+        :key="assignment.id"
+        class="px-0"
+        data-testid="globalRoleAssign-item"
+      >
+        <v-list-item-title
+          data-testid="globalRoleAssign-itemName"
+        >{{ assignment.role_name }}</v-list-item-title>
+        <TemplatePermissionsChips
+          class="pt-1"
+          scope="global"
+          :permissions="assignment.global_permissions || 0"
+          data-testid="globalRoleAssign-itemPermissions"
+        />
+        <template v-slot:append>
           <v-btn
             icon
+            variant="text"
             :disabled="loading"
             :aria-label="$t('removeGlobalRole', { role: assignment.role_name })"
             @click="remove(assignment)"
+            data-testid="globalRoleAssign-itemRemove"
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-        </v-list-item-action>
+        </template>
       </v-list-item>
     </v-list>
-    <v-alert v-else-if="availableRoles.length > 0" text dense type="info" class="mt-4">
+    <v-alert
+      v-else-if="availableRoles.length > 0"
+      variant="tonal"
+      density="compact"
+      type="info"
+      class="mt-4"
+      data-testid="globalRoleAssign-noAssignments"
+    >
       {{ $t('noGlobalRolesAssigned') }}
     </v-alert>
 
-    <v-subheader class="px-0 mt-4">{{ $t('effectiveGlobalPermissions') }}</v-subheader>
-    <v-list dense class="px-0">
+    <v-list-subheader
+      class="px-0 mt-4"
+      data-testid="globalRoleAssign-effectiveTitle"
+    >{{ $t('effectiveGlobalPermissions') }}</v-list-subheader>
+    <v-list
+      density="compact"
+      class="px-0 GlobalRoleAssign__list"
+      data-testid="globalRoleAssign-effective"
+    >
       <v-list-item
         v-for="decision in effective.decisions || []"
         :key="decision.permission"
         class="px-0"
+        :data-testid="`globalRoleAssign-effective-${decision.permission}`"
       >
-        <v-list-item-icon class="mr-3">
-          <v-icon :color="decision.allowed ? 'success' : 'grey'">
+        <template v-slot:prepend>
+          <v-icon
+            :color="decision.allowed ? 'success' : 'grey'"
+            :data-testid="decision.allowed
+              ? 'globalRoleAssign-effectiveIcon-allowed'
+              : 'globalRoleAssign-effectiveIcon-denied'"
+          >
             {{ decision.allowed ? 'mdi-check-circle' : 'mdi-minus-circle-outline' }}
           </v-icon>
-        </v-list-item-icon>
-        <v-list-item-content>
-          <v-list-item-title>{{ permissionTitle(decision.permission) }}</v-list-item-title>
-          <v-list-item-subtitle>{{ provenance(decision) }}</v-list-item-subtitle>
-        </v-list-item-content>
+        </template>
+        <v-list-item-title
+          data-testid="globalRoleAssign-effectiveName"
+        >{{ permissionTitle(decision.permission) }}</v-list-item-title>
+        <v-list-item-subtitle
+          data-testid="globalRoleAssign-effectiveSource"
+        >{{ provenance(decision) }}</v-list-item-subtitle>
       </v-list-item>
     </v-list>
   </div>
 </template>
+
+<style lang="scss" scoped>
+// Items of Vuetify 2 (`.v-list-item__content`): the text 12 px from the item edges, 8 px in a
+// dense list, the title 2 px above what follows it; so the held role is 73 px high and an
+// effective permission 50 px (Vuetify 4: 48 and 40, the text centred).
+.GlobalRoleAssign__list > .v-list-item {
+  > :deep(.v-list-item__content) {
+    padding-block: 12px;
+
+    > .v-list-item-title:not(:last-child) {
+      margin-bottom: 2px;
+    }
+  }
+
+  // The icon in front of an item stays at the top, 8 px down (`.v-list-item__icon`).
+  > :deep(.v-list-item__prepend) {
+    align-self: flex-start;
+  }
+
+  &.v-list-item--density-compact > :deep(.v-list-item__content) {
+    padding-block: 8px;
+
+    // The dense title and subtitle (`.v-list--dense .v-list-item .v-list-item__subtitle`): 16 px
+    // lines, the subtitle 13 px medium in the secondary text colour.
+    > .v-list-item-title {
+      line-height: 1rem;
+    }
+
+    > .v-list-item-subtitle {
+      font-size: .8125rem;
+      font-weight: 500;
+      line-height: 1rem;
+      opacity: 1;
+      color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    }
+  }
+}
+</style>
 
 <script>
 import axios from 'axios';
