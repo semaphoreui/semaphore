@@ -46,7 +46,74 @@ func convertEntryToMap(entity *ldap.Entry) map[string]any {
 	return res
 }
 
-func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db.User, string, error) {
+var errLdapGroups = errors.New("could not read the LDAP groups")
+
+func ldapGroupFilter(tpl, dn, username string) (string, error) {
+	t, err := template.New("group_search_filter").Option("missingkey=error").Parse(tpl)
+	if err != nil {
+		return "", err
+	}
+	var filter bytes.Buffer
+	err = t.Execute(&filter, map[string]string{
+		"dn":       ldap.EscapeFilter(dn),
+		"username": ldap.EscapeFilter(username),
+	})
+	return filter.String(), err
+}
+
+func ldapGroupName(value string) string {
+	dn, err := ldap.ParseDN(value)
+	if err != nil || len(dn.RDNs) < 2 {
+		return value
+	}
+	for _, attr := range dn.RDNs[0].Attributes {
+		if strings.EqualFold(attr.Type, "cn") {
+			return attr.Value
+		}
+	}
+	return value
+}
+
+func ldapGroupNames(entries []*ldap.Entry, attr string) []string {
+	names := []string{}
+	seen := map[string]bool{}
+	for _, entry := range entries {
+		for _, value := range entry.GetEqualFoldAttributeValues(attr) {
+			name := ldapGroupName(value)
+			if name == "" || seen[name] {
+				continue
+			}
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+// ldapGroups reads the names of the user's groups, a group DN gives the value of its cn.
+func ldapGroups(l *ldap.Conn, provider util.LdapProvider, userDN, username string) ([]string, error) {
+	if provider.GroupSearchDN == "" {
+		return nil, nil
+	}
+	filter, err := ldapGroupFilter(provider.GetGroupSearchFilter(), userDN, username)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errLdapGroups, err)
+	}
+	attr := provider.GetGroupNameAttribute()
+	sr, err := l.SearchWithPaging(ldap.NewSearchRequest(
+		provider.GroupSearchDN,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		filter,
+		[]string{attr},
+		nil,
+	), 1000)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errLdapGroups, err)
+	}
+	return ldapGroupNames(sr.Entries, attr), nil
+}
+
+func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db.User, string, []string, error) {
 	var l *ldap.Conn
 	var err error
 	if provider.NeedTLS {
@@ -63,13 +130,13 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 	}
 
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 	defer l.Close() //nolint:errcheck
 
 	// First bind with a read only user
 	if err = l.Bind(provider.BindDN, provider.BindPassword); err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 
 	mappings := provider.GetMappings()
@@ -85,26 +152,26 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 
 	if len(sr.Entries) < 1 {
-		return nil, "", nil
+		return nil, "", nil, nil
 	}
 
 	if len(sr.Entries) > 1 {
-		return nil, "", fmt.Errorf("too many entries returned")
+		return nil, "", nil, fmt.Errorf("too many entries returned")
 	}
 
 	// Bind as the user
 	userDN := sr.Entries[0].DN
 	if err = l.Bind(userDN, password); err != nil {
-		return nil, "", ldapUserBindError(err)
+		return nil, "", nil, ldapUserBindError(err)
 	}
 
 	// Second time bind as read only user
 	if err = l.Bind(provider.BindDN, provider.BindPassword); err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 
 	// Get user info
@@ -112,26 +179,28 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 		provider.SearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		fmt.Sprintf(provider.SearchFilter, ldap.EscapeFilter(username)),
-		[]string{mappings.DN, mappings.Mail, mappings.UID, mappings.CN},
+		[]string{mappings.DN, mappings.Mail, mappings.UID, mappings.CN, "uid"},
 		nil,
 	)
 
 	sr, err = l.Search(searchRequest)
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 
 	if len(sr.Entries) <= 0 {
-		return nil, "", fmt.Errorf("ldap search returned no entries")
+		return nil, "", nil, fmt.Errorf("ldap search returned no entries")
 	}
 
 	entry := convertEntryToMap(sr.Entries[0])
+	// memberUid holds the uid of the directory, which the login may not be.
+	uid := sr.Entries[0].GetEqualFoldAttributeValue("uid")
 
 	prepareClaims(entry)
 
 	claims, err := parseClaims(entry, mappings)
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 
 	ldapUser := db.User{
@@ -147,11 +216,19 @@ func tryFindLDAPUser(provider util.LdapProvider, username, password string) (*db
 	if err != nil {
 		jsonBytes, _ := json.Marshal(ldapUser)
 		log.Error("LDAP returned incorrect user data: " + string(jsonBytes))
-		return nil, "", err
+		return nil, "", nil, err
+	}
+
+	if uid == "" {
+		uid = claims.username
+	}
+	groups, err := ldapGroups(l, provider, userDN, uid)
+	if err != nil {
+		return nil, "", nil, err
 	}
 
 	log.Info("User " + ldapUser.Name + " with email " + ldapUser.Email + " authorized via LDAP correctly")
-	return &ldapUser, userDN, nil
+	return &ldapUser, userDN, groups, nil
 }
 
 // createSession creates session for passed user and stores session details
@@ -431,6 +508,9 @@ func login(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var user db.User
 	var resolution externalResolution
+	var ldapProviderID string
+	// A password sign-in brings no groups, so its mapped roles go.
+	providerGroups := []string{}
 	meta := audit.AuthMethodMetadata{Method: audit.LoginMethodPassword}
 
 	switch login.Method {
@@ -456,7 +536,17 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 		meta = audit.AuthMethodMetadata{Method: audit.LoginMethodLDAP, Provider: providerID}
 
-		ldapUser, ldapUserDN, ldapErr := tryFindLDAPUser(provider, login.Auth, login.Password)
+		ldapUser, ldapUserDN, groups, ldapErr := tryFindLDAPUser(provider, login.Auth, login.Password)
+		if errors.Is(ldapErr, errLdapGroups) {
+			log.WithError(ldapErr).WithFields(log.Fields{
+				"context":  "ldap",
+				"provider": providerID,
+				"auth":     login.Auth,
+			}).Error("Failed to read the user's groups from LDAP")
+			recordLoginFailure(r, login.Auth, meta, audit.ReasonProviderError)
+			helpers.WriteErrorStatus(w, "LDAP sign-in failed: could not read the groups. Contact your administrator.", http.StatusBadGateway)
+			return
+		}
 		if ldapErr != nil || ldapUser == nil {
 			if ldapErr != nil {
 				log.WithError(ldapErr).WithFields(log.Fields{
@@ -469,6 +559,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
+		ldapProviderID, providerGroups = providerID, groups
 		user, resolution, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, providerID)
 
 	default:
@@ -476,10 +567,21 @@ func login(w http.ResponseWriter, r *http.Request) {
 		// try the legacy flat LDAP first, fall back to password.
 		var ldapUser *db.User
 		var ldapUserDN string
+		var groups []string
 
 		if legacy, ok := util.Config.GetLdapProvider("ldap"); ok {
 			meta = audit.AuthMethodMetadata{Method: audit.LoginMethodLDAP, Provider: "ldap"}
-			ldapUser, ldapUserDN, err = tryFindLDAPUser(legacy, login.Auth, login.Password)
+			ldapUser, ldapUserDN, groups, err = tryFindLDAPUser(legacy, login.Auth, login.Password)
+			if errors.Is(err, errLdapGroups) {
+				log.WithError(err).WithFields(log.Fields{
+					"context":  "ldap",
+					"provider": "ldap",
+					"auth":     login.Auth,
+				}).Error("Failed to read the user's groups from LDAP")
+				recordLoginFailure(r, login.Auth, meta, audit.ReasonProviderError)
+				helpers.WriteErrorStatus(w, "LDAP sign-in failed: could not read the groups. Contact your administrator.", http.StatusBadGateway)
+				return
+			}
 			if err != nil {
 				log.WithError(err).WithFields(log.Fields{
 					"context": "ldap",
@@ -500,6 +602,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 			}
 			user, err = loginByPassword(helpers.Store(r), login.Auth, login.Password)
 		} else {
+			ldapProviderID, providerGroups = "ldap", groups
 			user, resolution, err = loginByLDAP(helpers.Store(r), *ldapUser, ldapUserDN, "ldap")
 		}
 	}
@@ -526,13 +629,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Roles from group mappings come only from a sign-in that brings the groups.
-	if err = syncLoginRoles(r, user, "", nil); err != nil {
+	service := helpers.GetFromContext(r, "role_sync").(pro_interfaces.RoleSyncService)
+	added, removed, err := service.SyncGroupRoles(user.ID, ldapProviderID, providerGroups)
+	if err != nil {
 		log.WithError(err).WithField("user_id", user.ID).Error("Failed to apply group role mappings")
 		recordLoginFailure(r, login.Auth, meta, audit.ReasonInternalError)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	recordMappedRoles(r, added, removed)
 
 	verified, err := createSession(w, r, user, meta)
 	if err != nil {
@@ -935,14 +1040,18 @@ func claimOidcToken(idToken *oidc.IDToken, provider util.OidcProvider) (res clai
 	return
 }
 
-// syncLoginRoles applies the group role mappings of the provider and records each change. An empty provider takes
-// away all mapped roles.
+// syncLoginRoles applies the group role mappings of the OIDC provider and records each change.
 func syncLoginRoles(r *http.Request, user db.User, provider string, claims map[string]any) error {
 	service := helpers.GetFromContext(r, "role_sync").(pro_interfaces.RoleSyncService)
 	added, removed, err := service.SyncLoginRoles(user.ID, provider, claims)
 	if err != nil {
 		return err
 	}
+	recordMappedRoles(r, added, removed)
+	return nil
+}
+
+func recordMappedRoles(r *http.Request, added, removed []db.MappedRole) {
 	ctx := audit.WithActor(r.Context(), audit.SystemActor(audit.ComponentServer))
 	for _, m := range added {
 		helpers.Audit(r).Record(ctx, audit.NewMappedRoleEvent(audit.IAMMappedRoleAdd, m, audit.MappedRoleCauseLogin))
@@ -950,7 +1059,6 @@ func syncLoginRoles(r *http.Request, user db.User, provider string, claims map[s
 	for _, m := range removed {
 		helpers.Audit(r).Record(ctx, audit.NewMappedRoleEvent(audit.IAMMappedRoleRemove, m, audit.MappedRoleCauseLogin))
 	}
-	return nil
 }
 
 func getRandomUsername() string {

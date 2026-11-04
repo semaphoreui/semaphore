@@ -28,6 +28,8 @@
   "jwt.max_ttl": "Hard upper bound on per-template JWT TTL, as a Go duration. Default: 24h",
   "ldap_binddn": "The distinguished name (DN) used to bind to the LDAP server for authentication.",
   "ldap_bindpassword": "Password of the bind account used to search the directory.",
+  "ldap_group_name_attribute": "Group attribute that holds the group name. Default: cn",
+  "ldap_group_search_filter": "The filter used to find the groups of a user, with `{{ .dn }}` and `{{ .username }}` available. Default matches member, uniqueMember and memberUid.",
   "ldap_mappings.cn": "LDAP attribute to use as the common name (CN) mapping for user authentication.",
   "ldap_mappings.dn": "LDAP attribute to use as the distinguished name (DN) mapping for user authentication.",
   "ldap_mappings.mail": "LDAP attribute to use as the email address mapping for user authentication.",
