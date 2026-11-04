@@ -46,6 +46,16 @@
   `extended-rbac`, …), or `<Pro />` / `<Enterprise />`; they are global MDX components. A badge
   works inside a table cell too. New pages start from `docs/templates/<type>.md`
   (`reference.md` ends with a `## Related pages {#related-pages}` list).
+- `task docs:gen` regenerates and `task docs:check` fails on drift; the `docs-reference` CI job
+  that ran it is commented out in `.github/workflows/dev.yml` since 2026-09-28, so run the check
+  by hand before committing. Both pages are English only — `ENGLISH_ONLY` in
+  `docs/scripts/check-docs.mjs` exempts them.
+- `task docs:check` compares `git -C docs status --porcelain -- docs/reference`, so it stays red
+  until the regenerated pages are committed in the submodule — a clean regeneration with
+  uncommitted output is still "out of date" (seen 2026-10-27).
+- A fresh worktree's `docs/` has no `node_modules`; `npm run build` then prints
+  `sh: docusaurus: command not found` but still exits 0 — run `npm ci` first and check for
+  `build/<locale>/…/index.html`, not the exit code.
 
 ## Content conventions
 

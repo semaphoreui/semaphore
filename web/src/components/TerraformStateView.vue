@@ -8,8 +8,9 @@
             max-height: 400px;
             margin-top: 5px;"
          class="pa-2"
+         data-testid="tfState-json"
     >{{ state.state }}</pre>
-    <div v-else-if="error" class="text-center">{{ error.message }}</div>
+    <div v-else-if="error" class="text-center" data-testid="tfState-error">{{ error.message }}</div>
 </template>
 
 <script>

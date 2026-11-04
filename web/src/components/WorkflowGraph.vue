@@ -3,12 +3,14 @@
     class="WorkflowGraph"
     :class="{
       'WorkflowGraph--editable': editable,
-      'WorkflowGraph--dark': $vuetify.theme.dark,
+      'WorkflowGraph--dark': $vuetify.theme.current.dark,
     }"
   >
     <div
       ref="canvas"
       class="WorkflowGraph__canvas"
+      data-testid="workflowCanvas-canvas"
+      :data-state="!built ? 'loading' : (isEmpty ? 'empty' : 'ready')"
       @drop="onDrop"
       @dragover.prevent
     ></div>
@@ -18,7 +20,7 @@
       start() (and again after every clear()), so the condition pills pan and
       zoom together with the nodes. Coordinates are canvas-space.
     -->
-    <div ref="overlay" class="WorkflowGraph__overlay">
+    <div ref="overlay" class="WorkflowGraph__overlay" data-testid="workflowCanvas-edges">
       <svg class="WorkflowGraph__defs" width="0" height="0" aria-hidden="true">
         <defs>
           <marker
@@ -57,23 +59,38 @@
 
     <v-btn
       v-if="editable"
-      fab
-      small
-      depressed
+      icon
+      size="small"
+      variant="flat"
       color="primary"
+      width="40"
+      height="40"
       class="WorkflowGraph__fab"
+      data-testid="workflowCanvas-quickAdd"
       :title="$t('workflowQuickAdd')"
       @click="openQuickAddAtCenter()"
     >
       <v-icon>mdi-plus</v-icon>
     </v-btn>
 
-    <div v-if="editable && isEmpty" class="WorkflowGraph__empty">
+    <div v-if="editable && isEmpty" class="WorkflowGraph__empty" data-testid="workflowCanvas-empty">
       <v-icon size="40" class="WorkflowGraph__emptyIcon">mdi-sitemap-outline</v-icon>
-      <div class="text-subtitle-1">{{ $t('workflowEmptyTitle') }}</div>
-      <div class="text-body-2 text--secondary mb-3">{{ $t('workflowEmptyHint') }}</div>
-      <v-btn color="primary" depressed small @click="openQuickAddAtCenter()">
-        <v-icon left small>mdi-plus</v-icon>
+      <div
+        class="WorkflowGraph__emptyTitle"
+        data-testid="workflowCanvas-emptyTitle"
+      >{{ $t('workflowEmptyTitle') }}</div>
+      <div
+        class="text-body-medium text-medium-emphasis mb-3"
+        data-testid="workflowCanvas-emptyHint"
+      >{{ $t('workflowEmptyHint') }}</div>
+      <v-btn
+        color="primary"
+        variant="flat"
+        size="small"
+        data-testid="workflowCanvas-emptyAdd"
+        @click="openQuickAddAtCenter()"
+      >
+        <v-icon start size="small">mdi-plus</v-icon>
         {{ $t('workflowQuickAdd') }}
       </v-btn>
     </div>
@@ -90,7 +107,7 @@
 </template>
 
 <script>
-import Vue from 'vue';
+import { h, markRaw, render } from 'vue';
 import Drawflow from 'drawflow';
 import 'drawflow/dist/drawflow.min.css';
 import WorkflowNodeCard from '@/components/workflow/WorkflowNodeCard.vue';
@@ -117,8 +134,6 @@ const AUTO_FIT_WINDOW_MS = 1500;
 const KEY_PAN_STEP = 40;
 const KEY_PAN_STEP_FAST = 200;
 
-const NodeCard = Vue.extend(WorkflowNodeCard);
-
 export default {
   components: { WorkflowEdgeLabel, WorkflowCanvasControls, WorkflowQuickAddMenu },
   mixins: [AppsMixin],
@@ -138,6 +153,15 @@ export default {
     // Run view: show Approve / Reject on pending approval cards.
     canResolveApprovals: { type: Boolean, default: false },
   },
+
+  emits: [
+    'node-selected',
+    'node-click',
+    'resolve-approval',
+    'change',
+    'connection-selected',
+    'blocked',
+  ],
 
   data() {
     return {
@@ -220,7 +244,9 @@ export default {
   },
 
   mounted() {
-    const editor = new Drawflow(this.$refs.canvas);
+    // Drawflow stays outside reactivity: a reactive proxy would wrap every
+    // call and every mouse handler of the library.
+    const editor = markRaw(new Drawflow(this.$refs.canvas));
     editor.reroute = false;
     editor.curvature = 0.35;
     editor.zoom_min = ZOOM_MIN;
@@ -287,7 +313,7 @@ export default {
     this.buildCanvas();
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     const canvas = this.$refs.canvas;
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
@@ -395,7 +421,7 @@ export default {
         false,
       );
       this.nodeIdByDf[dfId] = node.id;
-      this.$set(this.store.nodes, node.id, this.stripPosition(node));
+      this.store.nodes[node.id] = this.stripPosition(node);
       this.mountCard(dfId, node.id);
       return dfId;
     },
@@ -403,23 +429,31 @@ export default {
     mountCard(dfId, nodeId) {
       const el = this.$refs.canvas.querySelector(`#node-${dfId} .WorkflowGraph__mount`);
       if (!el) return;
-      const vm = new NodeCard({
-        parent: this,
-        propsData: { store: this.store, nodeId, editable: this.editable },
+      // The card is rendered into Drawflow's node element with the context of this app
+      // (Vuetify, i18n, router); `cards` keeps the element to unmount it.
+      const vnode = h(WorkflowNodeCard, {
+        store: this.store,
+        nodeId,
+        editable: this.editable,
+        onQuickAdd: () => this.openQuickAddFromNode(nodeId),
+        onSelect: () => this.$emit('node-click', nodeId),
+        onActivate: () => {
+          if (this.editable) this.selectNode(nodeId);
+          else this.$emit('node-click', nodeId);
+        },
+        onResolveApproval: (status) => this.$emit('resolve-approval', { nodeId, status }),
       });
-      vm.$on('quick-add', () => this.openQuickAddFromNode(nodeId));
-      vm.$on('select', () => this.$emit('node-click', nodeId));
-      vm.$on('activate', () => {
-        if (this.editable) this.selectNode(nodeId);
-        else this.$emit('node-click', nodeId);
-      });
-      vm.$on('resolve-approval', (status) => this.$emit('resolve-approval', { nodeId, status }));
-      vm.$mount(el);
-      this.cards[dfId] = vm;
+      vnode.appContext = this.$.appContext;
+      render(vnode, el);
+      this.cards[dfId] = el;
+    },
+
+    unmountCard(el) {
+      render(null, el);
     },
 
     destroyCards() {
-      Object.keys(this.cards).forEach((dfId) => this.cards[dfId].$destroy());
+      Object.keys(this.cards).forEach((dfId) => this.unmountCard(this.cards[dfId]));
       this.cards = {};
       this.nodeIdByDf = {};
     },
@@ -499,7 +533,7 @@ export default {
       const dfId = this.dfIdOf(nodeId);
       if (dfId == null) return;
       this.editor.updateNodeDataFromId(dfId, { nodeId, node: this.stripPosition(node) });
-      this.$set(this.store.nodes, nodeId, this.stripPosition(node));
+      this.store.nodes[nodeId] = this.stripPosition(node);
       const wrapper = this.$refs.canvas.querySelector(`#node-${dfId}`);
       if (wrapper) {
         const selected = wrapper.classList.contains('selected');
@@ -847,15 +881,15 @@ export default {
     // ---- Drawflow event handlers ---------------------------------------------
 
     onNodeRemoved(dfId) {
-      const vm = this.cards[dfId];
-      if (vm) {
-        vm.$destroy();
+      const el = this.cards[dfId];
+      if (el) {
+        this.unmountCard(el);
         delete this.cards[dfId];
       }
       const nodeId = this.nodeIdByDf[dfId];
       delete this.nodeIdByDf[dfId];
       if (nodeId != null) {
-        this.$delete(this.store.nodes, nodeId);
+        delete this.store.nodes[nodeId];
         Object.keys(this.conditions).forEach((key) => {
           const [s, d] = key.split('->').map(Number);
           if (s === nodeId || d === nodeId) {
@@ -1048,12 +1082,13 @@ export default {
 </script>
 
 <style lang="scss">
-@import '~@/components/workflow/palette';
+@use 'workflow/palette' as *;
 
 .WorkflowGraph {
   --wf-surface: #{$wf-surface};
   --wf-text: #{$wf-text};
   --wf-text2: #{$wf-text2};
+  --wf-icon: #{$wf-icon};
   --wf-divider: #{$wf-divider};
   --wf-divider-strong: #{$wf-divider-strong};
   --wf-dot: #{$wf-dot};
@@ -1080,6 +1115,7 @@ export default {
     --wf-surface: #{$wf-surface-dark};
     --wf-text: #{$wf-text-dark};
     --wf-text2: #{$wf-text2-dark};
+    --wf-icon: #{$wf-icon-dark};
     --wf-divider: #{$wf-divider-dark};
     --wf-divider-strong: #{$wf-divider-strong-dark};
     --wf-dot: #{$wf-dot-dark};
@@ -1145,11 +1181,30 @@ export default {
     .v-btn {
       pointer-events: auto;
     }
+
+    // `<v-icon left small>` of Vuetify 2: a 16 px glyph in an 18 px box, 4 px out to the left and
+    // 8 px to the text.
+    .v-btn .v-icon--start {
+      --v-icon-size-multiplier: 1;
+      width: 18px;
+      height: 18px;
+      margin-inline: -4px 8px;
+    }
   }
 
   &__emptyIcon {
     opacity: 0.5;
     margin-bottom: 4px;
+    color: var(--wf-icon);
+  }
+
+  // `text-subtitle-1` of Vuetify 2 (the template's class before the rename; Vuetify 4 has no
+  // 16 px class with a 28 px line).
+  &__emptyTitle {
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.75rem;
+    letter-spacing: .009375em;
   }
 
   // ---- Drawflow overrides ----------------------------------------------------

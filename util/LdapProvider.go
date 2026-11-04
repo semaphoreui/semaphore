@@ -2,6 +2,8 @@ package util
 
 import "sort"
 
+const DefaultLdapGroupSearchFilter = "(|(member={{ .dn }})(uniqueMember={{ .dn }})(memberUid={{ .username }}))"
+
 // LdapProvider is one LDAP directory configured under `ldap_providers`
 // (analog of OidcProvider for `oidc_providers`). Field JSON names mirror
 // the legacy flat ldap_* config options.
@@ -22,6 +24,10 @@ type LdapProvider struct {
 	Color         string        `json:"color"`
 	Icon          string        `json:"icon"`
 	Order         int           `json:"order"`
+	// GroupSearchDN is the base DN of the group search, empty means groups are not read.
+	GroupSearchDN      string `json:"group_search_dn"`
+	GroupSearchFilter  string `json:"group_search_filter"`
+	GroupNameAttribute string `json:"group_name_attribute"`
 }
 
 // GetMappings returns the attribute mappings, falling back to the same
@@ -31,6 +37,22 @@ func (p LdapProvider) GetMappings() *LdapMappings {
 		return p.Mappings
 	}
 	return &LdapMappings{DN: "dn", Mail: "mail", UID: "uid", CN: "cn"}
+}
+
+// GetGroupSearchFilter returns the group search filter or the default that
+// covers AD, OpenLDAP and FreeIPA.
+func (p LdapProvider) GetGroupSearchFilter() string {
+	if p.GroupSearchFilter != "" {
+		return p.GroupSearchFilter
+	}
+	return DefaultLdapGroupSearchFilter
+}
+
+func (p LdapProvider) GetGroupNameAttribute() string {
+	if p.GroupNameAttribute != "" {
+		return p.GroupNameAttribute
+	}
+	return "cn"
 }
 
 // LdapProviderEntry couples a provider with its stable ID (the config map
@@ -58,6 +80,10 @@ func (conf *ConfigType) ActiveLdapProviders() (res []LdapProviderEntry) {
 				SearchDN:      conf.LdapSearchDN,
 				SearchFilter:  conf.LdapSearchFilter,
 				Mappings:      conf.LdapMappings,
+
+				GroupSearchDN:      conf.LdapGroupSearchDN,
+				GroupSearchFilter:  conf.LdapGroupSearchFilter,
+				GroupNameAttribute: conf.LdapGroupNameAttribute,
 			},
 		})
 	}

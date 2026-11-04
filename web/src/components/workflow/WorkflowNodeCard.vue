@@ -2,6 +2,7 @@
   <div
     v-if="isNote"
     class="WorkflowNodeCard WorkflowNodeCard--note"
+    data-testid="workflowNode-note"
     tabindex="0"
     role="button"
     :aria-label="ariaLabel"
@@ -10,9 +11,14 @@
     @keydown.enter.prevent="activate"
     @keydown.space.prevent="activate"
   >
-    <v-icon x-small class="WorkflowNodeCard__noteIcon">mdi-note-text-outline</v-icon>
+    <v-icon
+      size="x-small"
+      class="WorkflowNodeCard__noteIcon"
+      data-testid="workflowCanvas-nodeNoteIcon"
+    >mdi-note-text-outline</v-icon>
     <div
       class="WorkflowNodeCard__noteText"
+      data-testid="workflowCanvas-nodeNoteText"
       :class="{ 'WorkflowNodeCard__noteText--empty': !node.note }"
     >{{ node.note || $t('workflowNotePlaceholder') }}</div>
   </div>
@@ -21,6 +27,7 @@
     v-else
     class="WorkflowNodeCard"
     :class="stateClasses"
+    :data-testid="`workflowNode-${kind}`"
     tabindex="0"
     role="button"
     :aria-label="ariaLabel"
@@ -29,66 +36,92 @@
     @keydown.enter.prevent="activate"
     @keydown.space.prevent="activate"
   >
-    <div class="WorkflowNodeCard__tile" :class="`WorkflowNodeCard__tile--${kind}`">
+    <div
+      class="WorkflowNodeCard__tile"
+      :class="`WorkflowNodeCard__tile--${kind}`"
+      data-testid="workflowCanvas-nodeTile"
+    >
       <v-icon :color="tileColor">{{ icon }}</v-icon>
     </div>
 
     <div class="WorkflowNodeCard__body">
       <div
         class="WorkflowNodeCard__title"
+        data-testid="workflowCanvas-nodeTitle"
         :class="{ 'WorkflowNodeCard__title--placeholder': titleIsPlaceholder }"
         :title="title"
       >{{ title }}</div>
-      <div class="WorkflowNodeCard__sub" :title="subtitle">{{ subtitle }}</div>
+      <div
+        class="WorkflowNodeCard__sub"
+        data-testid="workflowCanvas-nodeSub"
+        :title="subtitle"
+      >{{ subtitle }}</div>
 
-      <div v-if="showApprovalActions" class="WorkflowNodeCard__actions">
+      <div
+        v-if="showApprovalActions"
+        class="WorkflowNodeCard__actions"
+        data-testid="workflowCanvas-nodeActions"
+      >
         <v-btn
-          x-small
-          depressed
+          size="x-small"
+          variant="flat"
           color="success"
-          @mousedown.native.stop
+          data-testid="workflowCanvas-nodeApprove"
+          @mousedown.stop
           @click.stop="resolve('approved')"
         >{{ $t('workflowApprove') }}</v-btn>
         <v-btn
-          x-small
-          outlined
+          size="x-small"
+          variant="outlined"
           color="error"
           class="ml-1"
-          @mousedown.native.stop
+          data-testid="workflowCanvas-nodeReject"
+          @mousedown.stop
           @click.stop="resolve('rejected')"
         >{{ $t('workflowReject') }}</v-btn>
       </div>
     </div>
 
-    <div v-if="statusIcon" class="WorkflowNodeCard__status">
+    <div v-if="statusIcon" class="WorkflowNodeCard__status" data-testid="workflowCanvas-nodeStatus">
       <v-progress-circular
         v-if="statusIcon === 'spinner'"
         indeterminate
         size="14"
         width="2"
         color="primary"
+        :data-testid="`workflowCanvas-nodeStatus-${status}`"
       />
-      <v-icon v-else small :color="statusColor">{{ statusIcon }}</v-icon>
+      <v-icon
+        v-else
+        size="small"
+        :color="statusColor"
+        :data-testid="`workflowCanvas-nodeStatus-${status}`"
+      >{{ statusIcon }}</v-icon>
     </div>
 
-    <v-tooltip v-if="problem" bottom max-width="280">
-      <template v-slot:activator="{ on, attrs }">
-        <span class="WorkflowNodeCard__badge" v-bind="attrs" v-on="on">
-          <v-icon x-small color="white">mdi-alert</v-icon>
+    <v-tooltip v-if="problem" location="bottom" max-width="280">
+      <template v-slot:activator="{ props }">
+        <span
+          class="WorkflowNodeCard__badge"
+          data-testid="workflowCanvas-nodeProblem"
+          v-bind="props"
+        >
+          <v-icon size="x-small" color="white">mdi-alert</v-icon>
         </span>
       </template>
-      <span>{{ problem }}</span>
+      <span data-testid="workflowCanvas-nodeProblemText">{{ problem }}</span>
     </v-tooltip>
 
     <button
       v-if="editable"
       type="button"
       class="WorkflowNodeCard__plus"
+      data-testid="workflowCanvas-nodePlus"
       :title="$t('workflowQuickAdd')"
       @mousedown.stop
       @click.stop="$emit('quick-add', nodeId)"
     >
-      <v-icon small color="primary">mdi-plus</v-icon>
+      <v-icon size="small" color="primary">mdi-plus</v-icon>
     </button>
   </div>
 </template>
@@ -107,6 +140,8 @@ export default {
     nodeId: { type: Number, required: true },
     editable: { type: Boolean, default: false },
   },
+
+  emits: ['quick-add', 'resolve-approval', 'activate', 'select'],
 
   data() {
     return {
@@ -161,7 +196,7 @@ export default {
       const apps = this.store.apps || {};
       if (this.app && apps[this.app] && apps[this.app].color) return apps[this.app].color;
       if (this.app && APP_ICONS[this.app]) {
-        const dark = this.$vuetify && this.$vuetify.theme.dark;
+        const dark = this.$vuetify && this.$vuetify.theme.current.dark;
         return (dark ? APP_ICONS[this.app].darkColor : APP_ICONS[this.app].color) || null;
       }
       return null;
@@ -202,7 +237,7 @@ export default {
         if (this.appTitle) parts.push(this.appTitle);
         if (this.hasParamOverrides) parts.push(this.$t('workflowParamsOverridden'));
         const bound = Array.isArray(this.node.survey_inputs) ? this.node.survey_inputs.length : 0;
-        if (bound > 0) parts.push(this.$tc('workflowNodeSurveyInputsCount', bound, { count: bound }));
+        if (bound > 0) parts.push(this.$t('workflowNodeSurveyInputsCount', { count: bound }, bound));
       } else if (this.kind === 'approval') {
         parts.push(this.node.approval_timeout
           ? this.$t('workflowApprovalTimeoutShort', {
@@ -233,7 +268,7 @@ export default {
         parts.push(formatDurationLong(end - new Date(this.run.start).getTime()));
       }
       if (this.run.outputs) {
-        parts.push(this.$tc('workflowNodeOutputsCount', this.run.outputs, { count: this.run.outputs }));
+        parts.push(this.$t('workflowNodeOutputsCount', { count: this.run.outputs }, this.run.outputs));
       }
       return parts.join(' · ');
     },
@@ -312,7 +347,7 @@ export default {
     },
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.timer) clearInterval(this.timer);
   },
 
@@ -346,7 +381,7 @@ export default {
 </script>
 
 <style lang="scss">
-@import '~@/components/workflow/palette';
+@use 'palette' as *;
 
 .WorkflowNodeCard {
   position: relative;
@@ -515,11 +550,13 @@ export default {
     border-radius: 10px;
     background: var(--wf-note-bg);
     border-color: var(--wf-note-border);
-    color: var(--wf-note-text);
+    // No note colour on the text: the card is a `[role="button"]`, and the reset of Vuetify 2
+    // (`color: inherit`, unlayered, after this file) gave it the text colour of the canvas.
   }
 
   &__noteIcon {
     opacity: 0.55;
+    color: var(--wf-icon);
   }
 
   &__noteText {

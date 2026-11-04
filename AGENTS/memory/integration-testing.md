@@ -1,4 +1,4 @@
-# integration-testing — SMTP, Dredd and the Bookwright repo
+# integration-testing — SMTP, subscription proxy, Dredd and the Bookwright repo
 
 ## SMTP integration tests (`util/mailer/integration/`)
 
@@ -17,6 +17,24 @@
 - License regen: `go-licenses` in `~/go/bin`; `license-checker` is not installed — a PATH shim
   `exec npx --yes license-checker "$@"` makes the collect script work. Test-only deps behind a
   build tag never appear in `THIRD-PARTY-LICENSES.md`.
+
+## Subscription proxy container tests (`pro_impl/services/server/`)
+
+- `subscription_svc_proxy_container_test.go`, behind `//go:build integration`:
+  `go test -tags integration ./services/server/ -run TestSubscriptionProxy` (~8 s, three
+  containers). testcontainers-go v0.44 + `modules/mockserver` live in `pro_impl/go.mod` only —
+  the community module has no testcontainers dependency.
+- The portal (`mockserver/mockserver:5.15.0`) gets the network alias `portal` and
+  `subscription.server_url` points at `http://portal:1080/billing`: the host cannot resolve that
+  name, so a request that skips the proxy fails with `lookup portal: no such host`. That is what
+  proves the proxy is used and not merely configured.
+- The proxy is `mitmproxy/mitmproxy:12.1.2` run as `mitmdump --mode regular --listen-host 0.0.0.0
+  --listen-port 8080 --set block_global=false` (the client is the Docker host, so `block_global`
+  must be off); `--proxyauth user:pass` gives the authenticating variant, which answers 407 — not
+  a transport error — when the password is wrong.
+- Portal state goes through the MockServer control API on the mapped port: `PUT /mockserver/reset`,
+  `/mockserver/expectation`, `/mockserver/retrieve?type=REQUESTS&format=JSON` (returns the matching
+  requests, so counting them is the assertion).
 
 ## Dredd contract tests (`.dredd/`)
 

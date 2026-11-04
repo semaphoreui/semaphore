@@ -96,6 +96,9 @@ type WorkflowTemplate struct {
 	Nodes []WorkflowNode `db:"-" bolt:"include" json:"nodes" backup:"-"`
 	Edges []WorkflowEdge `db:"-" bolt:"include" json:"edges" backup:"edges"`
 
+	// What the caller may do with this workflow, filled by the API, never stored.
+	Permissions *ProjectUserPermission `db:"-" json:"permissions,omitempty" backup:"-"`
+
 	// SurveyVars is the survey a run asks for before it starts, the same
 	// shape as Template.SurveyVars. It belongs to the revision together with
 	// the graph (the node bindings of a revision refer to its names), so it is

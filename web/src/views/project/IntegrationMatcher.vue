@@ -1,7 +1,12 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+<template>
+  <div
+    v-if="items != null"
+    data-testid="integrationMatcher-section"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="integrationMatcherDialog"
       :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
       :title="`${itemId === 'new' ? 'New' : 'Edit'} Matcher`"
       :max-width="450"
@@ -22,6 +27,7 @@
     </EditDialog>
 
     <ObjectRefsDialog
+      test-id="integrationMatcherRefsDialog"
       object-title="matcher"
       :object-refs="itemRefs"
       :integration-id="integrationId"
@@ -29,6 +35,7 @@
     />
 
     <YesNoDialog
+      test-id="integrationMatcherDeleteDialog"
       title="Delete Integration Matcher"
       text="Are you sure you want to delete this Integration Matcher?"
       v-model="deleteItemDialog"
@@ -36,44 +43,74 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>Matcher</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="integrationMatcher-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="integrationMatcher-title"
+      >Matcher</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
+        data-testid="integrationMatcher-new"
         >New Matcher</v-btn
       >
     </v-toolbar>
 
-    <v-data-table :headers="headers" :items="items" class="mt-4" :items-per-page="Number.MAX_VALUE">
+    <!-- A dash for the range of an empty table, as the footer of Vuetify 2 wrote it. -->
+    <v-data-table
+      :headers="headers"
+      :items="items"
+      class="mt-4 IntegrationExtractorTable"
+      :items-per-page="-1"
+      :items-per-page-text="$t('rowsPerPage')"
+      :page-text="items.length === 0 ? '–' : undefined"
+      data-testid="integrationMatcher-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
+    >
       <template v-slot:item.name="{ item }">
         {{ item.name }}
       </template>
       <template v-slot:item.match_type="{ item }">
-        <code>{{ item.match_type }}</code>
+        <code data-testid="integrationMatcher-rowMatchType">{{ item.match_type }}</code>
       </template>
       <template v-slot:item.method="{ item }">
-        <code>{{ item.method }}</code>
+        <code data-testid="integrationMatcher-rowMethod">{{ item.method }}</code>
       </template>
       <template v-slot:item.body_data_type="{ item }">
         {{ item.body_data_type || 'N/A' }}
       </template>
       <template v-slot:item.key="{ item }">
-        <code>{{ item.key }}</code>
+        <code data-testid="integrationMatcher-rowKey">{{ item.key }}</code>
       </template>
       <template v-slot:item.value="{ item }">
-        <code>{{ item.value }}</code>
+        <code data-testid="integrationMatcher-rowValue">{{ item.value }}</code>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap">
-          <v-btn icon class="mr-1" @click="askDeleteItem(item.id)">
+        <div style="white-space: nowrap" data-testid="integrationMatcher-rowActions">
+          <v-btn
+            icon
+            variant="text"
+            class="mr-1"
+            @click="askDeleteItem(item.id)"
+            data-testid="integrationMatcher-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
 
-          <v-btn icon class="mr-1" @click="editItem(item.id)">
+          <v-btn
+            icon
+            variant="text"
+            class="mr-1"
+            @click="editItem(item.id)"
+            data-testid="integrationMatcher-rowEdit"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
         </div>
@@ -110,38 +147,38 @@ export default {
     getHeaders() {
       return [
         {
-          text: 'Name',
-          value: 'name',
+          title: 'Name',
+          key: 'name',
           sortable: true,
         },
         {
-          text: 'Match Type',
-          value: 'match_type',
+          title: 'Match Type',
+          key: 'match_type',
           sortable: true,
         },
         {
-          text: 'Body Data Type',
-          value: 'body_data_type',
+          title: 'Body Data Type',
+          key: 'body_data_type',
           sortable: false,
         },
         {
-          text: 'Key',
-          value: 'key',
+          title: 'Key',
+          key: 'key',
           sortable: true,
         },
         {
-          text: 'Method',
-          value: 'method',
+          title: 'Method',
+          key: 'method',
           sortable: true,
         },
         {
-          text: 'Value',
-          value: 'value',
+          title: 'Value',
+          key: 'value',
           sortable: true,
         },
         {
-          text: '',
-          value: 'actions',
+          title: '',
+          key: 'actions',
           sortable: false,
         },
       ];

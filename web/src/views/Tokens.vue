@@ -1,33 +1,62 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+<template>
+  <div
+    v-if="items != null"
+    data-testid="tokens-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <v-dialog v-model="newTokenDialog" max-width="480" persistent>
-      <v-card>
-        <v-card-title>{{ $t('New Token') }}</v-card-title>
+      <v-card
+        class="TokensNewDialog"
+        data-testid="tokensNewDialog"
+        :data-state="creatingToken ? 'loading' : 'ready'"
+      >
+        <v-card-title data-testid="tokensNewDialog-title">{{ $t('New Token') }}</v-card-title>
         <v-card-text class="pb-0 pt-4">
-          <v-text-field v-model="newTokenName" :label="$t('tokenName')" outlined dense />
+          <v-text-field
+            v-model="newTokenName"
+            :label="$t('tokenName')"
+            variant="outlined"
+            density="compact"
+            data-testid="token-name"
+          />
 
           <v-select
             v-model="expiresInDays"
             :items="expiryOptions"
+            item-title="text"
             :label="$t('Expires')"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
+            data-testid="token-expires"
           />
           <v-text-field
             v-if="expiresInDays === 'custom'"
             v-model="customExpiresAt"
             type="datetime-local"
             :label="$t('Expiration date')"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
+            data-testid="token-expiresAt"
           />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn text color="primary" @click="newTokenDialog = false" :disabled="creatingToken">
+          <v-btn
+            variant="text"
+            color="primary"
+            @click="newTokenDialog = false"
+            :disabled="creatingToken"
+            data-testid="tokensNewDialog-cancel"
+          >
             {{ $t('Cancel') }}
           </v-btn>
-          <v-btn text color="primary" @click="createToken()" :loading="creatingToken">
+          <v-btn
+            variant="text"
+            color="primary"
+            @click="createToken()"
+            :loading="creatingToken"
+            data-testid="tokensNewDialog-create"
+          >
             {{ $t('Create') }}
           </v-btn>
         </v-card-actions>
@@ -35,21 +64,30 @@
     </v-dialog>
 
     <v-toolbar flat>
-      <v-btn icon class="mr-4" @click="returnToProjects()">
+      <v-btn icon variant="text" class="mr-4" @click="returnToProjects()" data-testid="tokens-back">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('api_tokens') }}</v-toolbar-title>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="tokens-title"
+      >{{ $t('api_tokens') }}</v-toolbar-title>
       <v-spacer></v-spacer>
 
       <a
-        :href="`${this.systemInfo?.web_host || ''}/swagger/index.html`"
+        :href="`${systemInfo?.web_host || ''}/swagger/index.html`"
         class="mr-6"
         target="_blank"
+        data-testid="tokens-apiReference"
       >
         {{ $t('API Reference') }}
       </a>
 
-      <v-btn color="primary" @click="newToken()">{{ $t('New Token') }}</v-btn>
+      <v-btn
+        color="primary"
+        variant="elevated"
+        @click="newToken()"
+        data-testid="tokens-new"
+      >{{ $t('New Token') }}</v-btn>
     </v-toolbar>
 
     <v-divider />
@@ -57,14 +95,28 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      class="mt-4"
-      :footer-props="{ itemsPerPageOptions: [20] }"
+      class="mt-4 FixedPageSizeTable TokensTable"
+      :items-per-page-options="[20]"
+      :items-per-page="20"
+      :page-text="items.length === 0 ? '–' : undefined"
+      data-testid="tokens-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.id="{ item }">
-        <code v-if="item.token_id && item.show_token_id" class="mr-2">{{ item.token_id }}</code>
-        <code v-else class="mr-2">{{ item.id }}***</code>
+        <code
+          v-if="item.token_id && item.show_token_id"
+          class="mr-2"
+          data-testid="tokens-rowToken"
+        >{{ item.token_id }}</code>
+        <code v-else class="mr-2" data-testid="tokens-rowId">{{ item.id }}***</code>
 
-        <v-btn icon v-if="item.token_id && !item.show_token_id" @click="showToken(item.id)">
+        <v-btn
+          icon
+          variant="text"
+          v-if="item.token_id && !item.show_token_id"
+          @click="showToken(item.id)"
+          data-testid="tokens-rowShow"
+        >
           <v-icon>mdi-eye</v-icon>
         </v-btn>
 
@@ -72,6 +124,7 @@
           v-if="item.token_id"
           :text="item.token_id"
           success-message="The token has been copied to the clipboard."
+          test-id="tokens-rowCopy"
         />
       </template>
 
@@ -80,31 +133,62 @@
       </template>
 
       <template v-slot:item.created="{ item }">
-        {{ item.created | formatDate }}
+        {{ $filters.formatDate(item.created) }}
       </template>
 
       <template v-slot:item.expires_at="{ item }">
-        <span v-if="item.expires_at">{{ item.expires_at | formatDate }}</span>
-        <span v-else class="text--disabled">{{ $t('Never') }}</span>
+        <span
+          v-if="item.expires_at"
+          data-testid="tokens-rowExpiresAt"
+        >{{ $filters.formatDate(item.expires_at) }}</span>
+        <span
+          v-else
+          class="text-disabled"
+          data-testid="tokens-rowExpiresNever"
+        >{{ $t('Never') }}</span>
       </template>
 
       <template v-slot:item.expired="{ item }">
         <div class="pr-4">
-          <v-chip v-if="item.expired" style="font-weight: bold" color="error">
+          <v-chip
+            v-if="item.expired"
+            style="font-weight: bold"
+            variant="flat"
+            color="error"
+            data-testid="tokens-rowStatus-revoked"
+          >
             {{ $t('Revoked') }}
           </v-chip>
-          <v-chip v-else-if="isExpiredByTime(item)" style="font-weight: bold" color="warning">
+          <v-chip
+            v-else-if="isExpiredByTime(item)"
+            style="font-weight: bold"
+            variant="flat"
+            color="warning"
+            data-testid="tokens-rowStatus-expired"
+          >
             {{ $t('Expired') }}
           </v-chip>
-          <v-chip v-else style="font-weight: bold" color="success">
+          <v-chip
+            v-else
+            style="font-weight: bold"
+            variant="flat"
+            color="success"
+            data-testid="tokens-rowStatus-active"
+          >
             {{ $t('Active') }}
           </v-chip>
         </div>
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <div style="white-space: nowrap">
-          <v-btn icon class="mr-1" @click="deleteItem(item.id)">
+        <div style="white-space: nowrap" data-testid="tokens-rowActions">
+          <v-btn
+            icon
+            variant="text"
+            class="mr-1"
+            @click="deleteItem(item.id)"
+            data-testid="tokens-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </div>
@@ -112,6 +196,35 @@
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// «Expiration date»: the calendar button at the right end of the input and the field 40 px high,
+// as in Vuetify 2. The input of Vuetify 4 is a flex box, which leaves the button right after the
+// date, and its 24 px line makes a date input 42 px high.
+.TokensNewDialog input[type="datetime-local"].v-field__input {
+  display: block;
+  line-height: 20px;
+}
+
+// The tokens table as Vuetify 2 drew it.
+.TokensTable {
+  // Mobile rows: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between, the header
+  // 16 px from the value, the value at the right end), not the two equal grid columns of
+  // Vuetify 4 (a long token then stood 6 px closer to its header).
+  .v-data-table__tr--mobile > td {
+    display: flex;
+    justify-content: space-between;
+    column-gap: 0;
+
+    > .v-data-table__td-title {
+      padding-right: 16px;
+    }
+
+    > .v-data-table__td-value {
+      text-align: right;
+    }
+  }
+}
+</style>
 <script>
 import EventBus from '@/event-bus';
 import ItemListPageBase from '@/components/ItemListPageBase';
@@ -132,11 +245,11 @@ export default {
   computed: {
     expiryOptions() {
       return [
-        { text: this.$i18n.t('Never'), value: 0 },
+        { text: this.$t('Never'), value: 0 },
         { text: '30 days', value: 30 },
         { text: '90 days', value: 90 },
         { text: '1 year', value: 365 },
-        { text: this.$i18n.t('Custom'), value: 'custom' },
+        { text: this.$t('Custom'), value: 'custom' },
       ];
     },
   },
@@ -220,28 +333,28 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
         },
         {
-          text: this.$i18n.t('token'),
-          value: 'id',
+          title: this.$t('token'),
+          key: 'id',
         },
         {
-          text: this.$i18n.t('created'),
-          value: 'created',
+          title: this.$t('created'),
+          key: 'created',
         },
         {
-          text: this.$i18n.t('Expires'),
-          value: 'expires_at',
+          title: this.$t('Expires'),
+          key: 'expires_at',
         },
         {
-          text: this.$i18n.t('status'),
-          value: 'expired',
+          title: this.$t('status'),
+          key: 'expired',
         },
         {
-          text: '',
-          value: 'actions',
+          title: '',
+          key: 'actions',
           sortable: false,
           width: 70,
         },

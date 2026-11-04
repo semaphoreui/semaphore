@@ -776,6 +776,10 @@ type ConfigType struct {
 	// certificate for the legacy flat ldap_* config. Defaults to false
 	// (certificates are verified). See LdapProvider.TLSSkipVerify.
 	LdapTLSSkipVerify bool `json:"ldap_tls_skip_verify,omitempty" env:"SEMAPHORE_LDAP_TLS_SKIP_VERIFY"`
+	// LdapGroupSearchDN is the base DN of the group search. Empty: groups are not read.
+	LdapGroupSearchDN      string `json:"ldap_group_search_dn,omitempty" env:"SEMAPHORE_LDAP_GROUP_SEARCH_DN"`
+	LdapGroupSearchFilter  string `json:"ldap_group_search_filter,omitempty" env:"SEMAPHORE_LDAP_GROUP_SEARCH_FILTER"`
+	LdapGroupNameAttribute string `json:"ldap_group_name_attribute,omitempty" env:"SEMAPHORE_LDAP_GROUP_NAME_ATTRIBUTE"`
 
 	// LdapProviders configures multiple LDAP directories (like OidcProviders
 	// for OIDC). The key is the provider ID shown in identity records; the
@@ -1012,14 +1016,6 @@ func (conf *ConfigType) RunnersReconcileInterval() time.Duration {
 		sec = conf.Runners.ReconcileIntervalSec
 	}
 	return time.Duration(sec) * time.Second
-}
-
-type SubscriptionConfig struct {
-	// Key is a subscription key or token that can be set via config.
-	// When this is set, subscription activation from the web interface is disabled.
-	Key       string `json:"key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY,sensitive"`
-	KeyFile   string `json:"key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
-	ServerURL string `json:"server_url,omitempty" env:"SEMAPHORE_SUBSCRIPTION_SERVER_URL" default:"https://portal.semaphoreui.com/billing"`
 }
 
 func NewConfigType() *ConfigType {
@@ -1339,8 +1335,7 @@ func cloneStruct(origValue reflect.Value) reflect.Value {
 func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) error {
 	structType := structValue.Type()
 
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
+	for field := range structType.Fields() {
 
 		// Skip fields with db:"-" tag
 		dbTag := field.Tag.Get("db")
@@ -2045,10 +2040,8 @@ func validateConfig() {
 		panic(err)
 	}
 
-	if Config.Auth != nil {
-		if err := validate(Config.Auth); err != nil {
-			panic(err)
-		}
+	if err := validate(Config.Auth); err != nil {
+		panic(err)
 	}
 
 	if _, err := validateHAConfig(Config.HA); err != nil {
@@ -2056,6 +2049,10 @@ func validateConfig() {
 	}
 
 	if err := Config.Audit.Validate(); err != nil {
+		panic(err)
+	}
+
+	if err := Config.Subscription.Validate(); err != nil {
 		panic(err)
 	}
 

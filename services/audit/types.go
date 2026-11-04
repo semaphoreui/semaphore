@@ -19,7 +19,7 @@ func validTypes() []Type {
 }
 
 func validCategories() []string {
-	return []string{"auth", "iam", "resource", "secret", "task", "runner", "system", "audit"}
+	return []string{"auth", "iam", "resource", "secret", "task", "workflow", "runner", "system", "audit"}
 }
 
 type Outcome string
@@ -53,8 +53,6 @@ const (
 	ReasonActivationFailed         Reason = "activation_failed"
 	ReasonSecretFailed             Reason = "secret_failed"
 	ReasonInventoryFailed          Reason = "inventory_failed"
-	ReasonSetupFailed              Reason = "setup_failed"
-	ReasonRestoreFailed            Reason = "restore_failed"
 	ReasonInvalidRegistrationToken Reason = "invalid_registration_token"
 	ReasonInvalidStatus            Reason = "invalid_status"
 )
@@ -65,7 +63,7 @@ func knownReasons() []Reason {
 		ReasonInvalidState, ReasonInternalError, ReasonInvalidPasscode, ReasonInvalidRecoveryCode,
 		ReasonCodeExpired, ReasonTooManyAttempts, ReasonTokenUnknown, ReasonTokenExpired,
 		ReasonForbidden, ReasonCrossOrigin, ReasonInvalidCurrentPassword, ReasonLastOwner,
-		ReasonActivationFailed, ReasonSecretFailed, ReasonInventoryFailed, ReasonSetupFailed, ReasonRestoreFailed,
+		ReasonActivationFailed, ReasonSecretFailed, ReasonInventoryFailed,
 		ReasonInvalidRegistrationToken, ReasonInvalidStatus,
 	}
 }
@@ -95,6 +93,7 @@ const (
 	TargetGlobalRole            = "global_role"
 	TargetProjectRoleDefinition = "project_role_definition"
 	TargetTemplatePermission    = "template_permission"
+	TargetWorkflowPermission    = "workflow_permission"
 	TargetRoleMapping           = "role_mapping"
 	TargetLicense               = "license"
 	TargetProject               = "project"
