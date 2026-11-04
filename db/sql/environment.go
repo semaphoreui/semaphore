@@ -126,7 +126,7 @@ func (d *SqlDb) DeleteEnvironment(projectID int, environmentID int) error {
 	return d.deleteObject(projectID, db.EnvironmentProps, environmentID)
 }
 
-func (d *SqlDb) GetEnvironmentSecrets(projectID int, environmentID int) (keys []db.AccessKey, err error) {
+func (d *SqlDb) GetEnvironmentOwnedKeys(projectID int, environmentID int) (keys []db.AccessKey, err error) {
 	keys = make([]db.AccessKey, 0)
 
 	q, err := d.makeObjectsQuery(projectID, db.AccessKeyProps, db.RetrieveQueryParams{})

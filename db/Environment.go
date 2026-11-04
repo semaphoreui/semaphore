@@ -34,12 +34,33 @@ func (t EnvironmentSecretType) GetAccessKeyOwner() AccessKeyOwner {
 	}
 }
 
+// EnvironmentSecret is one secret of a Variable Group: which Access Key reaches the group under which
+// name and in which role. The value always lives in a `string` Access Key. The key is owned by the group
+// when it was created from the group form with a value (AccessKey.Owner = variable/environment,
+// AccessKey.EnvironmentID = the group); otherwise it is linked — a shared Key Store key or the owned key
+// of another group.
 type EnvironmentSecret struct {
-	ID        int                        `json:"id"`
-	Type      EnvironmentSecretType      `json:"type"`
-	Name      string                     `json:"name"`
-	Secret    string                     `json:"secret"`
-	Operation EnvironmentSecretOperation `json:"operation"`
+	ID            int                   `db:"id" json:"id"`
+	ProjectID     int                   `db:"project_id" json:"-"`
+	EnvironmentID int                   `db:"environment_id" json:"-"`
+	Type          EnvironmentSecretType `db:"type" json:"type"`
+	Name          string                `db:"name" json:"name"`
+	KeyID         int                   `db:"key_id" json:"key_id,omitempty"`
+
+	// Secret is the value of a new or changed owned key. Input only: it is filled from the API request and
+	// at task start, never when the group is read back.
+	Secret    string                     `db:"-" json:"secret,omitempty"`
+	Operation EnvironmentSecretOperation `db:"-" json:"operation,omitempty"`
+
+	// Output only, for the form: the name of the linked key and whether this group owns it.
+	KeyName string `db:"-" json:"key_name,omitempty"`
+	Owned   bool   `db:"-" json:"owned"`
+}
+
+// EnvironmentSecretWithKey is a secret row together with the Access Key it points to.
+type EnvironmentSecretWithKey struct {
+	EnvironmentSecret
+	Key AccessKey
 }
 
 // Environment is used to pass additional arguments, in json form to ansible
@@ -66,16 +87,58 @@ type Environment struct {
 }
 
 func (s *EnvironmentSecret) Validate() error {
-
-	if s.Type == EnvironmentSecretVar || s.Type == EnvironmentSecretEnv {
-		return nil
+	switch s.Type {
+	case EnvironmentSecretVar, EnvironmentSecretEnv:
+	default:
+		return common_errors.NewValidationError("invalid environment secret type")
 	}
 
-	if s.Secret == "" {
-		return errors.New("missing secret")
+	switch s.Operation {
+	case EnvironmentSecretCreate:
+		if s.Name == "" {
+			return common_errors.NewValidationError("secret name can not be empty")
+		}
+		if s.Secret == "" && s.KeyID == 0 {
+			return common_errors.NewValidationError("secret " + s.Name + ": either a value or a key is required")
+		}
+		if s.Secret != "" && s.KeyID != 0 {
+			return common_errors.NewValidationError("secret " + s.Name + ": a value and a key can not be set together")
+		}
+	case EnvironmentSecretUpdate:
+		if s.Name == "" {
+			return common_errors.NewValidationError("secret name can not be empty")
+		}
+		if s.Secret != "" && s.KeyID != 0 {
+			return common_errors.NewValidationError("secret " + s.Name + ": a value and a key can not be set together")
+		}
+	case EnvironmentSecretDelete:
+	default:
+		return common_errors.NewValidationError("invalid environment secret operation")
 	}
 
-	return errors.New("invalid environment secret type")
+	return nil
+}
+
+// ValidateEnvironmentSecretKey tells whether an Access Key may back a Variable Group secret: only a
+// `string` key of the project that is shared or owned by a group. Task-bound survey secrets and keys of
+// a secret storage are not meant to be read by a group. Checked when a link is written and again when the
+// value is resolved — the key may have been overwritten with another type since.
+func ValidateEnvironmentSecretKey(key AccessKey) error {
+	if key.Type != AccessKeyString {
+		return common_errors.NewValidationError("key " + key.Name + " is " + string(key.Type) + ", only string keys can be used as a secret")
+	}
+
+	switch key.Owner {
+	case AccessKeyShared, AccessKeyVariable, AccessKeyEnvironment:
+	default:
+		return common_errors.NewValidationError("key " + key.Name + " can not be used as a variable group secret")
+	}
+
+	if key.TaskID != nil {
+		return common_errors.NewValidationError("key " + key.Name + " belongs to a task")
+	}
+
+	return nil
 }
 
 func validateJSON(s string, mustValuesBeScalar bool) error {
