@@ -152,7 +152,7 @@
             dense
             :required="isFieldRequired('repository')"
             :disabled="formSaving"
-            v-if="needField('repository')"
+            v-if="canRead && needField('repository')"
           >
           </v-autocomplete>
           <v-tooltip
@@ -297,7 +297,7 @@
           dense
           required
           :disabled="formSaving"
-          v-if="needField('inventory')"
+          v-if="canRead && needField('inventory')"
         ></v-autocomplete>
 
         <v-autocomplete
@@ -319,7 +319,7 @@
           small-chips
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
-          v-if="needField('environment')"
+          v-if="canRead && needField('environment')"
         ></v-autocomplete>
 
         <v-autocomplete
@@ -342,7 +342,7 @@
 
         <div class="mb-4">
           <v-autocomplete
-            v-if="features.project_runners"
+            v-if="canRead && features.project_runners"
             v-model="item.runner_tag"
             :items="runnerTags"
             :label="fieldLabel('runner_tag')"
@@ -430,9 +430,10 @@
             class="mt-0"
             :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
             v-model="cronVisible"
+            v-if="canRead"
           />
 
-          <DropdownCard v-if="cronVisible">
+          <DropdownCard v-if="canRead && cronVisible">
             <v-select
               v-model="cronRepositoryId"
               :label="$t('repository2')"
@@ -557,7 +558,7 @@
           />
 
           <TemplateVaults
-            v-if="needField('vault')"
+            v-if="hasVaults"
             :project-id="this.projectId"
             :vaults="vaults"
             @change="setTemplateVaults"
@@ -733,6 +734,11 @@ export default {
     features: Object,
     taskType: String,
     jwt: Object,
+    // Project resources are not asked for without read_project, the grant covers the template only.
+    canRead: {
+      type: Boolean,
+      default: true,
+    },
   },
 
   data() {
@@ -859,6 +865,11 @@ export default {
   },
 
   computed: {
+    // A vault picks a project key, so the block needs read like the other selectors.
+    hasVaults() {
+      return this.canRead && this.needField('vault');
+    },
+
     galaxyBadge() {
       const n = this.galaxyCustomizedCount;
       return n ? this.$t('galaxyCustomized', { n }) : null;
@@ -1031,7 +1042,7 @@ export default {
 
   methods: {
     async loadBranches() {
-      if (this.repositoryId == null) {
+      if (this.repositoryId == null || !this.canRead) {
         return;
       }
 
@@ -1076,7 +1087,7 @@ export default {
     },
 
     async loadPlaybooks() {
-      if (this.repositoryId == null) {
+      if (this.repositoryId == null || !this.canRead) {
         this.playbooks = null;
         return;
       }
@@ -1180,14 +1191,14 @@ export default {
         templates,
         this.runnerTags,
       ] = await Promise.all([
-        this.loadProjectResources('repositories'),
-        this.loadProjectEndpoint(`/inventory?app=${this.app}&template_id=${this.itemId}`),
-        this.loadProjectEndpoint(`/inventory?app=${this.app}`),
-        this.isNew ? [] : this.loadProjectEndpoint(`/templates/${this.itemId}/schedules`),
+        this.canRead ? this.loadProjectResources('repositories') : [],
+        this.canRead ? this.loadProjectEndpoint(`/inventory?app=${this.app}&template_id=${this.itemId}`) : [],
+        this.canRead ? this.loadProjectEndpoint(`/inventory?app=${this.app}`) : [],
+        this.isNew || !this.canRead ? [] : this.loadProjectEndpoint(`/templates/${this.itemId}/schedules`),
         this.loadProjectResources('views'),
-        this.loadProjectResources('environment'),
+        this.canRead ? this.loadProjectResources('environment') : [],
         this.loadProjectResources('templates'),
-        this.loadProjectResources('runner_tags'),
+        this.canRead ? this.loadProjectResources('runner_tags') : [],
       ]);
 
       this.inventory = [...inventory1, ...inventory2];
@@ -1233,9 +1244,10 @@ export default {
           }
         }
 
-        const sourceSchedule = (
+        // The schedule controls are hidden without read, so a copy must not carry one over.
+        const sourceSchedule = this.canRead ? (
           await this.loadProjectEndpoint(`/templates/${this.sourceItemId}/schedules`)
-        )[0];
+        )[0] : null;
 
         if (sourceSchedule != null) {
           this.cronFormat = sourceSchedule.cron_format;

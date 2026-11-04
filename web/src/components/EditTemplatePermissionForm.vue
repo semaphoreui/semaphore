@@ -40,7 +40,7 @@
       class="mt-0"
       v-model="permissions[p.permission]"
       :label="$t(p.label)"
-      :disabled="formSaving"
+      :disabled="formSaving || (p.permission === SEE && verbChecked)"
     ></v-checkbox>
 
   </v-form>
@@ -53,20 +53,29 @@ import { getErrorMessage } from '@/lib/error';
 import { ROLE_PERMISSIONS } from '@/lib/constants';
 import groupRolesForSelect from '@/lib/roles';
 
+// Seeing the object: a verb on it includes it.
+const SEE = 128;
+
+function pack(checked) {
+  const mask = Object.keys(checked).filter((k) => checked[k]).reduce((res, k) => res | k, 0);
+  return mask === 0 ? 0 : mask | SEE;
+}
+
 export default {
   mixins: [ItemFormBase],
 
   props: {
-    templateId: [Number, String],
+    objectId: [Number, String],
     scope: {
       type: String,
-      default: 'default',
+      default: 'template',
     },
   },
 
   data() {
     return {
       ROLE_PERMISSIONS,
+      SEE,
       availableRoles: [],
       permissions: {},
     };
@@ -75,6 +84,10 @@ export default {
   computed: {
     groupedRoles() {
       return groupRolesForSelect(this.availableRoles, (key) => this.$i18n.t(key));
+    },
+
+    verbChecked() {
+      return Object.keys(this.permissions).some((k) => Number(k) !== SEE && this.permissions[k]);
     },
   },
 
@@ -89,9 +102,7 @@ export default {
       handler(newPermissions) {
         if (!this.item) return;
 
-        this.item.permissions = Object.keys(newPermissions)
-          .filter((k) => newPermissions[k])
-          .reduce((res, k) => res | k, 0);
+        this.item.permissions = pack(newPermissions);
       },
       deep: true,
     },
@@ -101,9 +112,9 @@ export default {
       handler(newPermissions) {
         if (newPermissions === undefined || newPermissions === null) return;
 
-        this.permissions = [1, 2, 4, 8].reduce((res, k) => ({
+        this.permissions = ROLE_PERMISSIONS[this.scope].reduce((res, p) => ({
           ...res,
-          [k]: !!(this.item.permissions & k),
+          [p.permission]: !!(this.item.permissions & p.permission),
         }), {});
       },
       immediate: true,
@@ -121,11 +132,11 @@ export default {
     },
 
     getItemsUrl() {
-      return `/api/project/${this.projectId}/templates/${this.templateId}/perms`;
+      return `/api/project/${this.projectId}/${this.scope}s/${this.objectId}/perms`;
     },
 
     getSingleItemUrl() {
-      return `/api/project/${this.projectId}/templates/${this.templateId}/perms/${this.itemId}`;
+      return `${this.getItemsUrl()}/${this.itemId}`;
     },
 
     getNewItem() {
@@ -138,18 +149,16 @@ export default {
     beforeSave() {
       // Ensure permissions are properly set before saving
       if (this.item) {
-        this.item.permissions = Object.keys(this.permissions)
-          .filter((k) => this.permissions[k])
-          .reduce((res, k) => res | k, 0);
+        this.item.permissions = pack(this.permissions);
       }
     },
 
     afterLoadData() {
       // Initialize permissions checkboxes after loading data
       if (this.item && this.item.permissions !== undefined) {
-        this.permissions = [1, 2, 4, 8].reduce((res, k) => ({
+        this.permissions = ROLE_PERMISSIONS[this.scope].reduce((res, p) => ({
           ...res,
-          [k]: !!(this.item.permissions & k),
+          [p.permission]: !!(this.item.permissions & p.permission),
         }), {});
       }
     },

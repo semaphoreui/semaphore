@@ -37,7 +37,7 @@ func (brokenLicense) GetToken() (pro_interfaces.SubscriptionToken, error) {
 // allFeatures and noFeatures stand in for the build's feature table, so the tests hold for the
 // open-source stub and for Pro alike.
 func allFeatures(*db.User, string) pro_interfaces.Features {
-	return pro_interfaces.Features{Workflows: true, WorkflowIntegrationsManagement: true}
+	return pro_interfaces.Features{Workflows: true, WorkflowIntegrationsManagement: true, CustomRolesManagement: true}
 }
 
 func noFeatures(*db.User, string) pro_interfaces.Features {
@@ -179,6 +179,7 @@ func TestRestore_WorkflowIntegrationIsProOnly(t *testing.T) {
 		pro:           proFeatureGate{subscription: noLicense{}, getFeatures: noFeatures},
 	}
 	backup := projectService.BackupFormat{
+		Version:     projectService.BackupFormatVersion,
 		Meta:        projectService.BackupMeta{Project: db.Project{Name: "restored"}},
 		Workflows:   []projectService.BackupWorkflow{{WorkflowTemplate: db.WorkflowTemplate{Name: "wf"}}},
 		Integration: []projectService.BackupIntegration{{Integration: db.Integration{Name: "hook"}, Workflow: new("wf")}},

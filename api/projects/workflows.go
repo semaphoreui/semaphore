@@ -33,6 +33,14 @@ func (c *WorkflowController) WorkflowsMiddleware(next http.Handler) http.Handler
 			return
 		}
 
+		// A workflow the member may not read is not there for them.
+		user := helpers.GetFromContext(r, "user").(*db.User)
+		permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+		if !user.Admin && permissions&db.CanReadProject == 0 {
+			helpers.WriteError(w, db.ErrNotFound)
+			return
+		}
+
 		r = helpers.SetContextValue(r, "workflow", workflow)
 		next.ServeHTTP(w, r)
 	})

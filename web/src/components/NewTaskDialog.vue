@@ -24,6 +24,7 @@
         :need-save="needSave"
         :need-reset="needReset"
         :source-task="sourceTask"
+        :can-read="canRead"
       />
     </template>
   </EditDialog>
@@ -45,6 +46,7 @@ export default {
     projectId: Number,
     template: Object,
     sourceTask: Object,
+    canRead: Boolean,
   },
   data() {
     return {

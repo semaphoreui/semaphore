@@ -6,7 +6,7 @@ import TaskList from '@/components/TaskList.vue';
 import TemplateDetails from '@/views/project/template/TemplateDetails.vue';
 import TemplateTerraformState from '@/views/project/template/TemplateTerraformState.vue';
 import Invites from '@/views/project/Invites.vue';
-import TemplatePerms from '@/views/project/template/TemplatePerms.vue';
+import ObjectPerms from '@/views/project/ObjectPerms.vue';
 import Roles from '@/views/Roles.vue';
 import RoleMappings from '@/views/RoleMappings.vue';
 import AuditLog from '@/views/AuditLog.vue';
@@ -114,6 +114,9 @@ const routes = [
     }, {
       path: 'stats',
       component: WorkflowStats,
+    }, {
+      path: 'perms',
+      component: ObjectPerms,
     }],
   },
   {
@@ -132,7 +135,7 @@ const routes = [
       component: TemplateDetails,
     }, {
       path: 'perms',
-      component: TemplatePerms,
+      component: ObjectPerms,
     }, {
       path: 'state',
       component: TemplateTerraformState,
@@ -150,7 +153,7 @@ const routes = [
       component: TemplateDetails,
     }, {
       path: 'perms',
-      component: TemplatePerms,
+      component: ObjectPerms,
     }, {
       path: 'state',
       component: TemplateTerraformState,

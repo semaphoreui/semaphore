@@ -19,6 +19,37 @@ const (
 	IntegrationAuthBasic      = "basic"
 )
 
+// usesVerificationSecret reports whether the auth method checks the request
+// against one shared secret string: token, HMAC-SHA256, HMAC-SHA512, GitHub
+// and Bitbucket do. BasicAuth compares a login and a password instead, and
+// none checks nothing.
+func (m IntegrationAuthMethod) usesVerificationSecret() bool {
+	switch m {
+	case IntegrationAuthToken, IntegrationAuthHmac, IntegrationAuthHmacSha512,
+		IntegrationAuthGitHub, IntegrationAuthBitbucket:
+		return true
+	default:
+		return false
+	}
+}
+
+// AcceptsKeyType reports whether a credential of type t can back the auth
+// method. A method that verifies one shared secret takes a string key or
+// the password of a login/password key; BasicAuth needs a login as well, so
+// only a login/password key fits. A method that reads no key — none, or one
+// the webhook receiver does not know and refuses outright (clients send
+// "none" as well as "") — accepts any key.
+func (m IntegrationAuthMethod) AcceptsKeyType(t AccessKeyType) bool {
+	switch {
+	case m == IntegrationAuthBasic:
+		return t == AccessKeyLoginPassword
+	case m.usesVerificationSecret():
+		return t == AccessKeyLoginPassword || t == AccessKeyString
+	default:
+		return true
+	}
+}
+
 type IntegrationMatchType string
 
 const (
@@ -122,6 +153,31 @@ func (alias IntegrationAlias) ToAlias() Alias {
 		Alias:     alias.Alias,
 		ProjectID: alias.ProjectID,
 	}
+}
+
+// VerificationSecret is the shared secret an incoming webhook is verified
+// against by the token, HMAC, GitHub and Bitbucket methods: the value of a
+// string key, or the password of a login/password key.
+//
+// ok is false when the auth method needs that secret and the key cannot
+// provide it — wrong key type, unloaded key or an empty value — so the
+// request must be refused. It is never reported as an empty secret: with
+// the token method that would match a request carrying no header at all.
+// For none and BasicAuth, which do not use a shared secret, the secret is
+// empty and ok is true.
+func (env *Integration) VerificationSecret() (secret string, ok bool) {
+	if !env.AuthMethod.usesVerificationSecret() {
+		return "", true
+	}
+
+	switch env.AuthSecret.Type {
+	case AccessKeyString:
+		secret = env.AuthSecret.String
+	case AccessKeyLoginPassword:
+		secret = env.AuthSecret.LoginPassword.Password
+	}
+
+	return secret, secret != ""
 }
 
 func (env *Integration) Validate() error {

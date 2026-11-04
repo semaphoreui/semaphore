@@ -11,12 +11,12 @@
     <template v-slot:title={}>
       <div class="text-truncate" style="max-width: calc(100% - 36px);">
         <v-skeleton-loader
-          v-if="template == null"
+          v-if="template == null && !templateHidden"
           type="button"
           style="display: inline-block; margin-right: 10px;"
         ></v-skeleton-loader>
         <router-link
-          v-else
+          v-else-if="template != null"
           class="breadcrumbs__item breadcrumbs__item--link"
           :to="`/project/${projectId}/templates/${template ? template.id : null}`"
           @click="close()"
@@ -32,6 +32,7 @@
         :project-id="projectId"
         :item="item"
         :system-info="systemInfo"
+        :can-read="canRead"
       />
 
       <v-skeleton-loader
@@ -74,6 +75,7 @@ export default {
     projectId: Number,
     itemId: Number,
     systemInfo: Object,
+    canRead: Boolean,
   },
 
   watch: {
@@ -84,6 +86,7 @@ export default {
     async value(val) {
       this.item = null;
       this.template = null;
+      this.templateHidden = false;
       this.dialog = val;
       await this.loadData();
     },
@@ -98,6 +101,7 @@ export default {
       item: null,
       dialog: null,
       template: null,
+      templateHidden: false,
     };
   },
 
@@ -114,7 +118,12 @@ export default {
         return;
       }
       this.item = await this.loadProjectResource('tasks', this.itemId);
-      this.template = await this.loadProjectResource('templates', this.item.template_id);
+      // A task seen through its workflow run may belong to a template the member may not read.
+      try {
+        this.template = await this.loadProjectResource('templates', this.item.template_id);
+      } catch (e) {
+        this.templateHidden = true;
+      }
     },
 
     onClose() {
