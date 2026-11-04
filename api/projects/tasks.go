@@ -76,6 +76,7 @@ func sanitizeClientTask(task db.Task) db.Task {
 	task.WorkflowRunID = nil
 	task.WorkflowNodeID = nil
 	task.WorkflowTemplateID = nil
+	task.WorkflowVersion = nil
 	task.Artifacts = nil
 	task.RunnerID = nil
 	return task

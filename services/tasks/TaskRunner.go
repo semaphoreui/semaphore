@@ -571,6 +571,10 @@ func (t *TaskRunner) populateWorkflowDetails() error {
 		t.Task.WorkflowTemplateID = &run.WorkflowTemplateID
 	}
 
+	if run.Version != nil && *run.Version != "" {
+		t.Task.WorkflowVersion = run.Version
+	}
+
 	return nil
 }
 

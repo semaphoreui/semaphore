@@ -90,6 +90,11 @@ type Task struct {
 	// the task starts so that executors (local or on a remote runner) can expose
 	// the workflow in the task environment without a database.
 	WorkflowTemplateID *int `db:"-" json:"workflow_template_id,omitempty"`
+	// WorkflowVersion is the version of the workflow run of WorkflowRunID.
+	// Like WorkflowTemplateID it is not stored with the task but resolved from
+	// the run before the task starts, so executors can expose it as
+	// SEMAPHORE_WORKFLOW_VERSION.
+	WorkflowVersion *string `db:"-" json:"workflow_version,omitempty"`
 	// Version is a build version.
 	// This field available only for Build tasks.
 	Version *string `db:"version" json:"version,omitempty"`
