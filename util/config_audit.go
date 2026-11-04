@@ -41,6 +41,10 @@ func (c *AuditConfig) IsEnabled() bool {
 }
 
 func (c *AuditConfig) Validate() error {
+	// The trusted proxies apply to every request, not only to audit events.
+	if _, err := c.TrustedProxies(); err != nil {
+		return err
+	}
 	if !c.IsEnabled() {
 		return nil
 	}
@@ -50,8 +54,7 @@ func (c *AuditConfig) Validate() error {
 	if c.RetentionDays < 0 {
 		return errors.New("audit.retention_days must be 0 to keep every event, or a number of days")
 	}
-	_, err := c.TrustedProxies()
-	return err
+	return nil
 }
 
 func (c *AuditConfig) TrustedProxies() ([]netip.Prefix, error) {
