@@ -1,7 +1,8 @@
 # Performance bottlenecks — consolidated findings
 
 Source: two static studies dated 2026-06-04 (`develop`), formerly `AGENTS/research/performance-*.md`, removed 2026-09-27 and kept only in git history. Every
-finding re-checked on `feat/refactor_workflows` on 2026-09-27 (line numbers from that day); verdicts
+finding re-checked on `develop` on 2026-09-27 (line numbers from that day; workflows redesign
+merged 2026-09-28 as PR #4287); verdicts
 **present** / **fixed** / **partly fixed** / **unverified**. Nothing was measured — see `scenarios.md`.
 Amplifiers: `max_parallel_tasks` defaults to `9999` (TP-7) and the MySQL/Postgres pool is unbounded (DB-8).
 
