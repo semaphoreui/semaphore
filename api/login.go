@@ -95,13 +95,13 @@ func ldapGroups(l *ldap.Conn, provider util.LdapProvider, userDN, username strin
 		return nil, fmt.Errorf("%w: %w", errLdapGroups, err)
 	}
 	attr := provider.GetGroupNameAttribute()
-	sr, err := l.Search(ldap.NewSearchRequest(
+	sr, err := l.SearchWithPaging(ldap.NewSearchRequest(
 		provider.GroupSearchDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		filter,
 		[]string{attr},
 		nil,
-	))
+	), 1000)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errLdapGroups, err)
 	}
