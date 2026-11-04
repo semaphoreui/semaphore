@@ -152,3 +152,31 @@ func TestMCPSettings_InvalidBodies(t *testing.T) {
 		})
 	}
 }
+
+// The two MCP endpoints are mounted with exact paths, so the settings route next
+// to them is served by its own handler, and nothing else under /api/mcp exists.
+func TestMCPSettings_RoutedApartFromTheMCPEndpoints(t *testing.T) {
+	f := newGlobalRoutesFixture(t)
+
+	w, _ := f.send(t, mcpSettingsRequest(http.MethodGet, ""), f.plain)
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("content-type"))
+	decodeMCPSettings(t, w.Body.Bytes())
+
+	// mcp.enabled is off in the fixture: the MCP handlers answer 501 in both
+	// builds, which no /api route of the core does.
+	for _, path := range []string{"/api/mcp/project", "/api/mcp/admin"} {
+		for _, method := range []string{http.MethodPost, http.MethodGet} {
+			w, _ = f.send(t, globalRoute{method: method, path: path, body: `{}`}, f.plain)
+			assert.Equal(t, http.StatusNotImplemented, w.Code, "%s %s reaches the MCP handler", method, path)
+			assert.Equal(t, "no-store", w.Header().Get("Cache-Control"), "%s %s reaches the MCP handler", method, path)
+		}
+	}
+
+	// The bare path of the first MCP release and any path below the endpoints
+	// or the settings is no route at all.
+	for _, path := range []string{"/api/mcp", "/api/mcp/", "/api/mcp/settings/x", "/api/mcp/project/x", "/api/mcp/admin/x", "/api/mcp/other"} {
+		w, _ = f.send(t, globalRoute{method: http.MethodPost, path: path, body: `{}`}, f.plain)
+		assert.Equal(t, http.StatusNotFound, w.Code, path)
+	}
+}

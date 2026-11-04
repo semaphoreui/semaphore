@@ -159,8 +159,11 @@ func Route(
 	// MCP checks access itself and answers with its own content types, so it
 	// stays outside the shared /api groups (JSON responses, session and API-token auth).
 	// Its tools call the REST API through r with the token of the MCP request.
-	mcpController := proApi.NewMCPController(util.MCPEnabled(), store, subscriptionService, r, webPath)
-	r.Path(webPath + "api/mcp").Handler(mcpController)
+	// Each tool set has its own endpoint, mounted with an exact path, so the REST
+	// route /api/mcp/settings next to them never reaches an MCP handler.
+	mcpController := proApi.NewMCPController(util.MCPEnabled(), store, globalRoleStore, subscriptionService, r, webPath)
+	r.Path(webPath + "api/mcp/project").Handler(mcpController.ProjectHandler())
+	r.Path(webPath + "api/mcp/admin").Handler(mcpController.AdminHandler())
 
 	metricsRouter := r.Path(webPath + "api/metrics").Subrouter()
 	metricsRouter.Use(metricsAuthMiddleware)
@@ -228,8 +231,7 @@ func Route(
 	authenticatedAPI.Path("/apps").HandlerFunc(getApps).Methods("GET", "HEAD")
 
 	// The server-wide MCP settings: every signed-in user reads them (the connection tab needs them),
-	// only systemAPI writes them. r.Path(".../api/mcp") above matches that exact path only, so this
-	// longer path never reaches the MCP handler.
+	// only systemAPI writes them. The MCP endpoints above match their exact paths only.
 	authenticatedAPI.Path("/mcp/settings").HandlerFunc(getMCPSettings).Methods("GET", "HEAD")
 
 	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
