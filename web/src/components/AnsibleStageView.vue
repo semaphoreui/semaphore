@@ -1,68 +1,113 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div style="overflow: hidden" class="pb-5">
-    <v-alert text color="hsl(348deg, 86%, 61%)" class="PageAlert" v-if="!features.task_summary">
+<template>
+  <div
+    style="overflow: hidden"
+    class="pb-5"
+    data-testid="taskSummary-panel"
+    :data-state="hosts == null ? 'loading' : (hosts.length === 0 ? 'empty' : 'ready')"
+  >
+    <v-alert
+      variant="tonal"
+      color="hsl(348deg, 86%, 61%)"
+      class="AnsibleStageView__demo PageAlert"
+      v-if="!features.task_summary"
+      data-testid="taskSummary-demoAlert"
+    >
       <span class="mr-2">
         This is <b>DEMO</b> data. Task summary available only in <b>PRO</b> version.
       </span>
 
-      <v-btn dark class="ml-2" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro('task_summary')">
+      <v-btn
+        class="ml-2"
+        color="hsl(348deg, 86%, 61%)"
+        @click="upgradeToPro('task_summary')"
+        data-testid="taskSummary-upgrade"
+      >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
     </v-alert>
 
     <div class="pl-5 pt-5 d-flex" style="column-gap: 10px">
       <div class="AnsibleServerStatus AnsibleServerStatus--ok">
-        <div class="AnsibleServerStatus__count">{{ okServers }}</div>
+        <div
+          class="AnsibleServerStatus__count"
+          data-testid="taskSummary-okServers"
+        >{{ okServers }}</div>
         <div class="AnsibleServerStatus__title">OK SERVERS</div>
       </div>
 
       <div class="AnsibleServerStatus AnsibleServerStatus--bad">
-        <div class="AnsibleServerStatus__count">{{ notOkServers }}</div>
+        <div
+          class="AnsibleServerStatus__count"
+          data-testid="taskSummary-notOkServers"
+        >{{ notOkServers }}</div>
         <div class="AnsibleServerStatus__title">NOT OK SERVERS</div>
       </div>
     </div>
 
-    <v-btn-toggle class="pl-5 mt-8 mb-3" dense v-model="tab" mandatory>
-      <v-btn value="notOkServers"> Not ok servers </v-btn>
-      <v-btn value="allServers"> All servers </v-btn>
+    <v-btn-toggle
+      class="AnsibleStageView__filter pl-5 mt-8 mb-3"
+      density="compact"
+      v-model="tab"
+      mandatory
+      data-testid="taskSummary-filter"
+    >
+      <v-btn
+        value="notOkServers"
+        data-testid="taskSummary-filter-notOkServers"
+      > Not ok servers </v-btn>
+      <v-btn value="allServers" data-testid="taskSummary-filter-allServers"> All servers </v-btn>
     </v-btn-toggle>
 
     <v-data-table
       v-if="tab === 'notOkServers'"
       hide-default-footer
-      single-expand
       show-expand
+      v-model:expanded="expanded"
+      expand-strategy="single"
       :headers="notOkServersHeaders"
       :items="failedTasks"
-      :items-per-page="Number.MAX_VALUE"
-      class="w-100"
+      :items-per-page="-1"
+      class="AnsibleStageView__errors w-100"
+      data-testid="taskSummary-errorsTable"
+      :data-state="hosts == null ? 'loading' : (failedTasks.length === 0 ? 'empty' : 'ready')"
     >
       <template v-slot:item.error="{ item }">
-        <div style="overflow: hidden; color: #ff5252; max-width: 400px; text-overflow: ellipsis">
+        <div
+          style="overflow: hidden; color: #ff5252; max-width: 400px; text-overflow: ellipsis"
+          data-testid="taskSummary-errorText"
+        >
           {{ item.error }}
         </div>
       </template>
-      <template v-slot:expanded-item="{ headers, item }">
-        <td :colspan="headers.length">
-          <pre
-            style="
-              overflow: auto;
-              background: gray;
-              font-size: 14px;
-              color: white;
-              border-radius: 10px;
-              white-space: pre-wrap;
-              margin-top: 5px;
-              margin-bottom: 5px;
-            "
-            class="pa-2"
-            >{{ item.error.trim() }}</pre
-          >
-        </td>
+      <!-- the slot draws the whole row: Vuetify 3 does not wrap it in a <tr> -->
+      <template v-slot:expanded-row="{ columns, item }">
+        <tr class="AnsibleStageView__expandedRow">
+          <td :colspan="columns.length">
+            <pre
+              style="
+                overflow: auto;
+                background: gray;
+                font-size: 14px;
+                color: white;
+                border-radius: 10px;
+                white-space: pre-wrap;
+                margin-top: 5px;
+                margin-bottom: 5px;
+              "
+              class="pa-2"
+              data-testid="taskSummary-errorDetails"
+              >{{ item.error.trim() }}</pre
+            >
+          </td>
+        </tr>
       </template>
     </v-data-table>
 
-    <v-simple-table v-else-if="tab === 'allServers'">
+    <v-table
+      v-else-if="tab === 'allServers'"
+      data-testid="taskSummary-hostsTable"
+      :data-state="hosts == null ? 'loading' : (hosts.length === 0 ? 'empty' : 'ready')"
+    >
       <template v-slot:default>
         <thead>
           <tr>
@@ -78,13 +123,14 @@
         </thead>
         <tbody>
           <tr v-for="(host, index) in hosts" :key="index">
-            <td>{{ host.host }}</td>
+            <td data-testid="taskSummary-hostName">{{ host.host }}</td>
 
             <td
               :style="{
                 color: host.changed > 0 ? 'rgb(170,85,0)' : undefined,
                 'font-weight': host.changed > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostChanged"
             >
               {{ host.changed }}
             </td>
@@ -94,6 +140,7 @@
                 color: host.failed > 0 ? 'red' : undefined,
                 'font-weight': host.failed > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostFailed"
             >
               {{ host.failed }}
             </td>
@@ -103,6 +150,7 @@
                 color: host.ignored > 0 ? 'red' : undefined,
                 'font-weight': host.ignored > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostIgnored"
             >
               {{ host.ignored }}
             </td>
@@ -112,6 +160,7 @@
                 color: host.ok > 0 ? 'green' : undefined,
                 'font-weight': host.ok > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostOk"
             >
               {{ host.ok }}
             </td>
@@ -120,6 +169,7 @@
               :style="{
                 'font-weight': host.rescued > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostRescued"
             >
               {{ host.rescued }}
             </td>
@@ -129,6 +179,7 @@
                 color: host.skipped > 0 ? 'rgb(0,170,170)' : undefined,
                 'font-weight': host.skipped > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostSkipped"
             >
               {{ host.skipped }}
             </td>
@@ -138,16 +189,77 @@
                 color: host.unreachable > 0 ? 'red' : undefined,
                 'font-weight': host.unreachable > 0 ? 'bold' : undefined,
               }"
+              data-testid="taskSummary-hostUnreachable"
             >
               {{ host.unreachable }}
             </td>
           </tr>
         </tbody>
       </template>
-    </v-simple-table>
+    </v-table>
   </div>
 </template>
 <style lang="scss">
+// The active filter button under the .18 overlay of Vuetify 2 (`$btn-states` activated), not the
+// .12 of Vuetify 4.
+.AnsibleStageView__filter > .v-btn--active > .v-btn__overlay {
+  opacity: calc(.18 * var(--v-theme-overlay-multiplier));
+}
+
+// The shadow of the Upgrade button is not cut by the alert content (Vuetify 4 clips
+// `.v-alert__content`, Vuetify 2 did not).
+.AnsibleStageView__demo > .v-alert__content {
+  overflow: visible;
+}
+
+// The expand column of Vuetify 2: a 24 px icon (`.v-data-table__expand-icon`), 16 px to the next
+// column; Vuetify 4 has a 28 px button and 8 px. A focused icon (the one just clicked) has the
+// circle of `.v-icon--link:focus::after`: the icon colour at .12, 1.3 times the icon.
+.AnsibleStageView__errors thead th:first-child {
+  padding-right: 16px;
+}
+
+.AnsibleStageView__errors .v-data-table__td--expanded-row {
+  padding-right: 16px;
+
+  > .v-btn {
+    width: 24px;
+    height: 24px;
+    // the circle is wider than the icon
+    overflow: visible;
+
+    &:focus > .v-btn__overlay {
+      border-radius: 50%;
+      opacity: .12;
+      transform: scale(1.3);
+    }
+  }
+}
+
+// Rows as cards on a phone: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between,
+// the header 16 px from the value), not the two equal grid columns of Vuetify 4; the expand icon at
+// the right end. The value takes the width of its content, so a long error widens the table as it
+// did.
+.AnsibleStageView__errors .v-data-table__tr--mobile > td {
+  display: flex;
+  justify-content: space-between;
+  column-gap: 0;
+
+  > .v-data-table__td-title {
+    padding-right: 16px;
+  }
+
+  &.v-data-table__td--expanded-row {
+    justify-content: flex-end;
+  }
+}
+
+// The opened error on a phone is as wide as its text (Vuetify 2: the rows are blocks of a flex
+// column, `.v-data-table--mobile tbody`, so the lone cell of this row shrinks to its content).
+.AnsibleStageView__errors .v-data-table__tr--mobile + .AnsibleStageView__expandedRow {
+  display: block;
+}
+
 .AnsibleServerStatus {
   text-align: center;
   width: 250px;
@@ -197,20 +309,28 @@ export default {
       tab: 'notOkServers',
       failedTasks: [],
       hosts: null,
+      // opened rows of the errors table (expand-strategy="single": one at a time)
+      expanded: [],
       notOkServersHeaders: [
         {
-          text: 'Server',
-          value: 'host',
+          key: 'data-table-expand',
+          // as narrow as its content: the 24 px icon with 2 px before it (App.vue) and 16 px
+          // after (Vuetify 2: `width: 1px`; Vuetify 4: 48 px)
+          width: 1,
+        },
+        {
+          title: 'Server',
+          key: 'host',
           sortable: false,
         },
         {
-          text: 'Task',
-          value: 'task',
+          title: 'Task',
+          key: 'task',
           sortable: false,
         },
         {
-          text: 'Error',
-          value: 'error',
+          title: 'Error',
+          key: 'error',
           sortable: false,
         },
       ],
@@ -218,6 +338,11 @@ export default {
   },
 
   watch: {
+    // the errors table is drawn anew on every switch of the filter: no row comes back opened
+    tab() {
+      this.expanded = [];
+    },
+
     async taskId() {
       await this.loadData();
       this.calcStats();

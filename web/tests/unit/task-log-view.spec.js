@@ -1,7 +1,6 @@
 import './setup';
 import { expect } from 'chai';
-import { shallowMount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { shallowMount } from '@vue/test-utils';
 import TaskLogView from '@/components/TaskLogView.vue';
 import mockAxios from './helpers/axiosMock';
 
@@ -10,12 +9,9 @@ async function flush() {
 }
 
 function mountView(item, props = {}) {
-  const localVue = createLocalVue();
   return shallowMount(TaskLogView, {
-    localVue,
-    vuetify: new Vuetify(),
-    propsData: { item, projectId: 7, ...props },
-    mocks: { $t: (k) => k },
+    props: { item, projectId: 7, ...props },
+    global: { mocks: { $t: (k) => k } },
   });
 }
 
@@ -29,7 +25,7 @@ describe('TaskLogView.vue task origin', () => {
   });
 
   afterEach(() => {
-    wrapper.destroy();
+    wrapper.unmount();
     http.restore();
   });
 
@@ -70,7 +66,7 @@ describe('TaskLogView.vue websocket handling', () => {
   });
 
   afterEach(() => {
-    wrapper.destroy();
+    wrapper.unmount();
     http.restore();
   });
 

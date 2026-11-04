@@ -1,8 +1,15 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items">
+  <div
+    v-if="items"
+    data-testid="activity-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="activity-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="activity-title">{{ $t('dashboard') }}</v-toolbar-title>
     </v-toolbar>
 
     <DashboardMenu
@@ -15,16 +22,25 @@
     <v-data-table
       :headers="headers"
       :items="items"
-      class="mt-4 CenterToScreen"
-      :footer-props="{ itemsPerPageOptions: [20] }"
-      style="max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width)); margin: auto;"
+      class="mt-4 CenterToScreen FixedPageSizeTable ActivityTable"
+      :items-per-page-options="[20]"
+      :items-per-page="20"
+      data-testid="activity-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.created="{ item }">
-        {{ item.created | formatDate }}
+        {{ $filters.formatDate(item.created) }}
       </template>
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.ActivityTable {
+  max-width: calc(var(--breakpoint-lg) - var(--nav-drawer-width));
+  margin: auto;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import DashboardMenu from '@/components/DashboardMenu.vue';
@@ -38,20 +54,20 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('time'),
-          value: 'created',
+          title: this.$t('time'),
+          key: 'created',
           sortable: false,
           width: '20%',
         },
         {
-          text: this.$i18n.t('user'),
-          value: 'username',
+          title: this.$t('user'),
+          key: 'username',
           sortable: false,
           width: '10%',
         },
         {
-          text: this.$i18n.t('description'),
-          value: 'description',
+          title: this.$t('description'),
+          key: 'description',
           sortable: false,
           width: '70%',
         },

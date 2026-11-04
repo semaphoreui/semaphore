@@ -1,5 +1,9 @@
 <template>
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="templatePerms-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditTemplatePermissionDialog
       v-model="editDialog"
       :project-id="projectId"
@@ -14,23 +18,34 @@
       :text="$t('askDeleteTemplatePermission')"
       v-model="deleteItemDialog"
       @yes="deleteItem(itemId)"
+      test-id="templatePermsDeleteDialog"
     />
 
-    <v-alert v-if="!features.custom_roles_management" text color="amber darken-3" class="PageAlert">
-      <span class="mr-1" v-html="$t('roles_only_enterprise')"></span>
+    <v-alert
+      v-if="!features.custom_roles_management"
+      variant="tonal"
+      color="amber-darken-3"
+      class="PageAlert"
+      data-testid="templatePerms-licenseAlert"
+    >
+      <span
+        class="mr-1"
+        v-html="$t('roles_only_enterprise')"
+        data-testid="templatePerms-licenseText"
+      ></span>
 
       <v-btn
-        dark
-        depressed
+        variant="flat"
         v-if="isAdmin"
-        color="amber darken-3"
+        color="amber-darken-3"
         href="https://semaphoreui.com/enterprise?utm_source=app&utm_content=feature_roles"
         target="_blank"
+        data-testid="templatePerms-upgrade"
       >
         {{ $t('upgrade_to_pro') }}
       </v-btn>
 
-      <span v-else style="font-weight: bold">
+      <span v-else style="font-weight: bold" data-testid="templatePerms-contactAdmin">
         {{ $t('contact_admin_to_upgrade_enterprise') }}
       </span>
     </v-alert>
@@ -40,28 +55,35 @@
       color="primary"
       @click="editItem('new')"
       style="position: absolute; right: 16px"
+      data-testid="templatePerms-new"
       >{{ $t('Add Role') }}
     </v-btn>
 
     <v-data-table
       :headers="headers"
       :items="items"
-      item-key="role_slug"
+      item-value="role_slug"
       hide-default-footer
-      class="mt-4"
+      class="mt-4 template-perms__table"
       :items-per-page="Number.MAX_VALUE"
+      data-testid="templatePerms-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.role_slug="{ item }">
         <div class="d-flex align-center">
           <div>
-            <div>{{ getRoleName(item.role_slug) }}</div>
-            <div class="text--secondary caption">{{ item.role_slug }}</div>
+            <div data-testid="templatePerms-rowName">{{ getRoleName(item.role_slug) }}</div>
+            <div
+              class="text-medium-emphasis text-body-small"
+              data-testid="templatePerms-rowSlug"
+            >{{ item.role_slug }}</div>
           </div>
           <v-chip
             v-if="getRole(item.role_slug)"
-            x-small
+            size="x-small"
             label
-            class="ml-2"
+            class="ml-2 template-perms__scope"
+            data-testid="templatePerms-rowScope"
           >
             {{ $t(roleScope(getRole(item.role_slug))) }}
           </v-chip>
@@ -69,22 +91,52 @@
       </template>
 
       <template v-slot:item.permissions="{ item }">
-        <TemplatePermissionsChips :permissions="item.permissions" :scope="scope" />
+        <TemplatePermissionsChips
+          :permissions="item.permissions"
+          :scope="scope"
+          data-testid="templatePerms-rowPermissions"
+        />
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="editItem(item.id)">
+        <v-btn-group
+          density="compact"
+          data-testid="templatePerms-rowActions"
+        >
+          <v-btn @click="editItem(item.id)" data-testid="templatePerms-rowEdit">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-          <v-btn @click="askDeleteItem(item.id)">
+          <v-btn @click="askDeleteItem(item.id)" data-testid="templatePerms-rowDelete">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
 </template>
+
+<style lang="scss">
+// Mobile rows: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between, the header
+// 16 px from the value), not the two equal grid columns of Vuetify 4. The value takes the width its
+// content needs at the right end of the row, so a single chip or the dash of no permissions ends
+// at the right edge, and wrapped permission chips start right after the header.
+.template-perms__table .v-data-table__tr--mobile > td {
+  display: flex;
+  justify-content: space-between;
+  column-gap: 0;
+
+  > .v-data-table__td-title {
+    padding-right: 16px;
+  }
+}
+
+// The scope chip: an x-small chip of Vuetify 2 is 16 px high (`.v-chip.v-size--x-small`), not 20,
+// with the 20 px line of every chip (`.v-chip`), so its text sits as high as there.
+.template-perms__scope.v-chip {
+  --v-chip-height: 16px;
+  line-height: 20px;
+}
+</style>
 
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
@@ -165,17 +217,17 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('role'),
-          value: 'role_slug',
+          title: this.$t('role'),
+          key: 'role_slug',
           width: '25%',
         },
         {
-          text: this.$i18n.t('permissions'),
-          value: 'permissions',
+          title: this.$t('permissions'),
+          key: 'permissions',
           width: '65%',
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '10%',
         },

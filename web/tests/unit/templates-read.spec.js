@@ -2,6 +2,11 @@ import './setup';
 import { expect } from 'chai';
 import { USER_PERMISSIONS } from '@/lib/constants';
 import PermissionsCheck from '@/components/PermissionsCheck';
+import Templates from '@/views/project/Templates.vue';
+import TemplateView from '@/views/project/TemplateView.vue';
+import TemplateForm from '@/components/TemplateForm.vue';
+import TemplateTerraformState from '@/views/project/template/TemplateTerraformState.vue';
+import TaskLogDialog from '@/components/TaskLogDialog.vue';
 
 function ctxWithoutRead(loaded) {
   return {
@@ -17,25 +22,6 @@ function ctxWithoutRead(loaded) {
 }
 
 describe('template pages without read_project', () => {
-  let Templates;
-  let TemplateView;
-  let TemplateForm;
-  let TemplateTerraformState;
-  let TaskLogDialog;
-
-  before(() => {
-    // eslint-disable-next-line global-require
-    Templates = require('@/views/project/Templates.vue').default;
-    // eslint-disable-next-line global-require
-    TemplateView = require('@/views/project/TemplateView.vue').default;
-    // eslint-disable-next-line global-require
-    TemplateForm = require('@/components/TemplateForm.vue').default;
-    // eslint-disable-next-line global-require
-    TemplateTerraformState = require('@/views/project/template/TemplateTerraformState.vue').default;
-    // eslint-disable-next-line global-require
-    TaskLogDialog = require('@/components/TaskLogDialog.vue').default;
-  });
-
   it('Templates.vue loads the list without project resources', async () => {
     const loaded = [];
     const ctx = ctxWithoutRead(loaded);

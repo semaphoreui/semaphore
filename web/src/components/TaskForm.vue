@@ -1,34 +1,44 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="isLoaded()"
     @submit.prevent="save()"
+    data-testid="newTask-form"
+    :data-state="formSaving ? 'loading' : (formError
+      ? 'error'
+      : ((template.type === 'deploy' && buildTasks == null)
+        || (needInventory && inventory == null) ? 'loading' : 'ready'))"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
+      data-testid="newTask-error"
     >{{ formError }}
     </v-alert>
 
     <v-alert
       color="blue"
-      dark
-      dismissible
-      dense
-      @input="item.commit_hash=null"
+      theme="dark"
+      closable
+      density="compact"
+      @update:model-value="item.commit_hash=null"
       v-model="hasCommit"
-      class="overflow-hidden mt-2"
+      class="overflow-hidden mt-2 TaskForm__commit"
+      data-testid="newTask-commit"
     >
       <div
         style="font-weight: bold;"
+        data-testid="newTask-commitHash"
       >
-        <v-icon small>mdi-source-fork</v-icon>
+        <v-icon size="small">mdi-source-fork</v-icon>
         {{ (item.commit_hash || '').substr(0, 10) }}
       </div>
-      <div v-if="sourceTask && sourceTask.commit_message">
+      <div
+        v-if="sourceTask && sourceTask.commit_message"
+        data-testid="newTask-commitMessage"
+      >
         {{ sourceTask.commit_message.substring(0, 50) }}
       </div>
     </v-alert>
@@ -39,18 +49,21 @@
       :label="$t('buildVersion')"
       :items="buildTasks"
       item-value="id"
-      :item-text="(itm) => getTaskMessage(itm)"
+      :item-title="(itm) => getTaskMessage(itm)"
       :rules="[v => !!v || $t('build_version_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="newTask-buildTaskId"
     />
 
     <v-skeleton-loader
       v-else-if="template.type === 'deploy'"
       type="card"
       height="54"
+      class="overflow-hidden"
+      data-testid="newTask-buildTaskLoading"
       style="margin-bottom: 16px; margin-top: 4px;"
     ></v-skeleton-loader>
 
@@ -58,8 +71,9 @@
       v-model="item.message"
       :label="$t('messageOptional')"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="newTask-message"
     />
 
     <div v-for="(v) in template.survey_vars || []" :key="v.name">
@@ -71,11 +85,12 @@
         v-model="editedSecretEnvironment[v.name]"
         :required="v.required"
         class="masked-secret-input"
+        :data-testid="`newTask-survey-${v.name}`"
         :rules="[
             val => !v.required || !!val || v.title + $t('isRequired'),
           ]"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       />
 
       <v-select
@@ -90,18 +105,21 @@
           || v.title + ' ' + $t('isRequired')
         ]"
         :items="v.values"
-        item-text="name"
+        item-title="name"
         item-value="value"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         :multiple="v.type === 'select'"
         :chips="v.type === 'select'"
+        class="TaskForm__select"
+        :data-testid="`newTask-survey-${v.name}`"
       >
-      <template v-if="v.type === 'select'" v-slot:selection="{ item, index }">
+      <template v-if="v.type === 'select'" v-slot:chip="{ item, index }">
         <v-chip
-          small
-          close
+          size="small"
+          closable
           @click:close="deleteItem(v.name, index)"
+          :data-testid="`newTask-surveyChip-${v.name}`"
         >
           {{ item && item.name ? item.name : String(item) }}
         </v-chip>
@@ -119,8 +137,10 @@
         ]"
         rows="3"
         auto-grow
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
+        class="TaskForm__text"
+        :data-testid="`newTask-survey-${v.name}`"
       />
 
       <v-text-field
@@ -134,19 +154,21 @@
           val => !val || v.type !== 'int' || /^\d+$/.test(val) ||
           v.title + ' ' + $t('mustBeInteger'),
         ]"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
+        :data-testid="`newTask-survey-${v.name}`"
       />
     </div>
 
     <v-text-field
       v-model="git_branch"
       :label="fieldLabel('branch')"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       required
       :disabled="formSaving"
       v-if="canOverrideBranch"
+      data-testid="newTask-gitBranch"
     />
 
     <v-autocomplete
@@ -154,23 +176,27 @@
       :label="fieldLabel('inventory')"
       :items="inventory"
       item-value="id"
-      item-text="name"
-      outlined
-      dense
+      item-title="name"
+      variant="outlined"
+      density="compact"
       required
       :disabled="formSaving"
       v-if="inventory != null && needInventory"
+      data-testid="newTask-inventoryId"
     ></v-autocomplete>
 
     <v-skeleton-loader
       v-else-if="needInventory"
       type="card"
       height="46"
+      class="overflow-hidden"
+      data-testid="newTask-inventoryLoading"
       style="margin-bottom: 16px; margin-top: 4px;"
     ></v-skeleton-loader>
 
     <TaskParamsAnsibleForm
       v-if="template.app === 'ansible'"
+      data-testid="newTask-ansible"
       v-model="item.params"
       :app="template.app"
       :template-params="template.task_params || {}"
@@ -178,6 +204,7 @@
 
     <TaskParamsTerraformForm
       v-else-if="['terraform', 'tofu', 'terragrunt'].includes(template.app)"
+      data-testid="newTask-terraform"
       v-model="item.params"
       :app="template.app"
       :template-params="template.task_params || {}"
@@ -187,6 +214,7 @@
       v-if="template.allow_override_args_in_task"
       :vars="args"
       title="CLI args"
+      test-id="newTask-args"
       @change="setArgs"
     />
 
@@ -279,7 +307,9 @@ export default {
 
     git_branch: {
       get() {
-        return (this.item || {}).git_branch || this.template.git_branch;
+        // A cleared field keeps '' (sent as is): fall back to the template's branch only while
+        // the task has none — in Vue 3 the getter re-runs after every edit.
+        return (this.item || {}).git_branch ?? this.template.git_branch;
       },
       set(newValue) {
         this.item.git_branch = newValue;
@@ -481,12 +511,54 @@ export default {
         if (sv.type !== 'select') return;
         const cur = this.editedEnvironment[sv.name];
         if (cur == null || cur === '') {
-          this.$set(this.editedEnvironment, sv.name, []);
+          this.editedEnvironment[sv.name] = [];
         } else if (!Array.isArray(cur)) {
-          this.$set(this.editedEnvironment, sv.name, [cur]);
+          this.editedEnvironment[sv.name] = [cur];
         }
       });
     },
   },
 };
 </script>
+<style lang="scss">
+// The close button of the commit alert, as `.v-alert__dismissible` of Vuetify 2: centred on the
+// alert's height and pulled 8 px into its padding (margin -16px -8px -16px 8px). Vuetify 4 puts it
+// in the first row of the alert grid, 16 px from the text.
+.TaskForm__commit > .v-alert__close {
+  grid-row: 1 / -1;
+  align-self: center;
+  margin-inline: 8px -8px;
+}
+
+.TaskForm__commit > .v-alert__close > .v-btn {
+  margin-block: 0;
+}
+
+// The text survey variable: the dense outlined auto-grow textarea of Vuetify 2 (`.v-textarea
+// textarea`) — lines of 28 px, 6 px above the text, none below, at least rows × 24 px high (its
+// `rowHeight`): a 78 px box for three rows, not 88 px.
+.TaskForm__text.v-textarea--field-sizing textarea.v-field__input {
+  line-height: 28px;
+  padding-top: 6px;
+  padding-bottom: 0;
+  min-height: calc(3 * 24px + 6px);
+}
+
+// Its resting label stays 8 px down, where it was.
+.TaskForm__text .v-field-label:not(.v-field-label--floating) {
+  top: 8px;
+}
+
+// The chips of a multiple survey select 4 px apart from the field edge and from each other
+// (`.v-select__selections .v-chip`: margin 0 4px), not 0 and 2 px with a 2 px column gap of the
+// field input as in Vuetify 4.
+.TaskForm__select.v-select--chips {
+  .v-field__input {
+    column-gap: 0;
+  }
+
+  .v-select__selection {
+    margin-inline: 4px;
+  }
+}
+</style>

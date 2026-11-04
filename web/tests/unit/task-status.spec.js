@@ -3,7 +3,7 @@ import { shallowMount } from '@vue/test-utils';
 import TaskStatus from '@/components/TaskStatus.vue';
 
 function vm(status) {
-  return shallowMount(TaskStatus, { propsData: { status } }).vm;
+  return shallowMount(TaskStatus, { props: { status } }).vm;
 }
 
 describe('TaskStatus.vue', () => {

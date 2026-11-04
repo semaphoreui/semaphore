@@ -1,15 +1,17 @@
 import './setup';
 import { expect } from 'chai';
+import { h } from 'vue';
 import { mount } from '@vue/test-utils';
 import ItemFormBase from '@/components/ItemFormBase';
 import mockAxios, { httpError } from './helpers/axiosMock';
 
 let formValid = true;
 
+// v-form of Vuetify 3: validate() resolves to { valid }.
 const FormStub = {
-  render: (h) => h('form'),
+  render: () => h('form'),
   methods: {
-    validate: () => formValid,
+    validate: async () => ({ valid: formValid }),
     resetValidation: () => {},
   },
 };
@@ -17,8 +19,8 @@ const FormStub = {
 const Host = {
   mixins: [ItemFormBase],
   components: { FormStub },
-  render(h) {
-    return h('div', [h('form-stub', { ref: 'form' })]);
+  render() {
+    return h('div', [h(FormStub, { ref: 'form' })]);
   },
   methods: {
     getItemsUrl() {
@@ -37,8 +39,8 @@ async function flush() {
   await new Promise((resolve) => { setTimeout(resolve, 0); });
 }
 
-function mountHost(propsData) {
-  return mount(Host, { propsData: { projectId: 7, ...propsData } });
+function mountHost(props) {
+  return mount(Host, { props: { projectId: 7, ...props } });
 }
 
 describe('ItemFormBase mixin', () => {
@@ -159,7 +161,7 @@ describe('ItemFormBase mixin', () => {
       },
     };
     http.respond(() => ({ id: 1 }));
-    const wrapper = mount(HookedHost, { propsData: { projectId: 7, itemId: 'new' } });
+    const wrapper = mount(HookedHost, { props: { projectId: 7, itemId: 'new' } });
     await flush();
 
     await wrapper.vm.save();

@@ -1,14 +1,16 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null"
+    data-testid="templatePerm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
+      data-testid="templatePerm-error"
     >{{ formError }}
     </v-alert>
 
@@ -16,23 +18,31 @@
       v-model="item.role_slug"
       :items="groupedRoles"
       item-value="slug"
-      item-text="name"
+      item-title="name"
       :label="$t('role')"
       :rules="[v => !!v || $t('role_required')]"
       required
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       :disabled="formSaving"
+      :menu-props="{ location: 'top', origin: 'top', maxHeight: 304 }"
+      :list-props="{ class: 'template-perm-form__roles' }"
+      data-testid="templatePerm-roleSlug"
     >
-      <template v-slot:item="{ item: role }">
-        <v-list-item-content>
-          <v-list-item-title>{{ role.name }}</v-list-item-title>
-          <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
-        </v-list-item-content>
+      <template v-slot:item="{ item: role, props }">
+        <v-list-item v-bind="props" :title="undefined">
+          <div :data-testid="`templatePerm-roleSlug-${role.slug}`">
+            <v-list-item-title>{{ role.name }}</v-list-item-title>
+            <v-list-item-subtitle>{{ role.slug }}</v-list-item-subtitle>
+          </div>
+        </v-list-item>
       </template>
     </v-select>
 
-    <v-subheader class="pl-0">{{ $t('permissions') }}</v-subheader>
+    <v-list-subheader
+      class="pl-0"
+      data-testid="templatePerm-permissionsTitle"
+    >{{ $t('permissions') }}</v-list-subheader>
 
     <v-checkbox
       v-for="p in ROLE_PERMISSIONS[scope]"
@@ -41,6 +51,7 @@
       v-model="permissions[p.permission]"
       :label="$t(p.label)"
       :disabled="formSaving || (p.permission === SEE && verbChecked)"
+      :data-testid="`templatePerm-permission-${p.permission}`"
     ></v-checkbox>
 
   </v-form>
@@ -83,7 +94,7 @@ export default {
 
   computed: {
     groupedRoles() {
-      return groupRolesForSelect(this.availableRoles, (key) => this.$i18n.t(key));
+      return groupRolesForSelect(this.availableRoles, (key) => this.$t(key));
     },
 
     verbChecked() {
@@ -172,8 +183,51 @@ export default {
 </script>
 
 <style scoped>
-.v-subheader {
+.v-list-subheader {
   font-weight: 500;
   font-size: 14px;
+}
+</style>
+
+<style lang="scss">
+// The role list of the dense select is a dense list of Vuetify 2 (`.v-list--dense`): headers
+// 40 px high, 12 px, 8 px from the edge; two-line items 50 px (content padding 8 px, a title of
+// 16 px on a 16 px line — App.vue of Vuetify 2 kept the dense title at 1rem and normal weight —,
+// 2 px, then a subtitle of 13 px, weight 500, in the secondary text colour). The menu is at most
+// 304 px high (`menu-props` of the Vuetify 2 `v-select`; Vuetify 4: 310), opening over the field
+// as the VSelect defaults in plugins/vuetify.js say (a `menu-props` prop replaces them).
+.template-perm-form__roles {
+  > .v-list-subheader {
+    min-height: 40px;
+    padding-inline: 8px;
+    font-size: .75rem;
+  }
+
+  > .v-list-item .v-list-item__content {
+    padding-block: 8px;
+  }
+
+  > .v-list-item .v-list-item-title {
+    line-height: 1rem;
+
+    &:not(:last-child) {
+      margin-bottom: 2px;
+    }
+  }
+
+  > .v-list-item .v-list-item-subtitle {
+    font-size: .8125rem;
+    font-weight: 500;
+    line-height: 1rem;
+    opacity: 1;
+  }
+
+  > .v-list-item.v-theme--light .v-list-item-subtitle {
+    color: rgba(0, 0, 0, .6);
+  }
+
+  > .v-list-item.v-theme--dark .v-list-item-subtitle {
+    color: rgba(255, 255, 255, .7);
+  }
 }
 </style>

@@ -1,17 +1,18 @@
 import { expect } from 'chai';
+import { h } from 'vue';
 import { shallowMount } from '@vue/test-utils';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 
 const Host = {
   mixins: [AppFieldsMixin],
   props: { app: String },
-  render: (h) => h('div'),
+  render: () => h('div'),
 };
 
 function mountFor(app) {
   return shallowMount(Host, {
-    propsData: { app },
-    mocks: { $t: (k) => `t:${k}` },
+    props: { app },
+    global: { mocks: { $t: (k) => `t:${k}` } },
   }).vm;
 }
 

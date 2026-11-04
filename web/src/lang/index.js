@@ -1,8 +1,8 @@
-const files = require.context('.', false, /\.js$/);
+const files = import.meta.glob('./*.js', { eager: true });
 const messages = {};
-files.keys().forEach((key) => {
+Object.keys(files).forEach((key) => {
   if (key === './index.js') return;
-  messages[key.replace(/(\.\/|\.js)/g, '')] = files(key).default;
+  messages[key.replace(/(\.\/|\.js)/g, '')] = files[key].default;
 });
 const languages = Object.keys(messages);
 export { messages, languages };

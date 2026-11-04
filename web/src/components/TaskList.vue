@@ -1,4 +1,4 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
+<template>
   <div v-if="tasks != null">
 
     <NewTaskDialog
@@ -7,6 +7,7 @@
       :template="template"
       :source-task="sourceTask"
       :can-read="canRead"
+      test-id="taskListRerunDialog"
     />
 
     <v-data-table
@@ -16,18 +17,39 @@
       :loading="loading"
       hide-default-footer
       class="mt-0 TaskListTable"
+      data-testid="taskList-table"
+      :data-state="loading ? 'loading' : (tasks.length === 0 ? 'empty' : 'ready')"
     >
+      <!-- the loading line of Vuetify 2 tables: 4 px on a .3 track (Vuetify 4: 2 px) -->
+      <template v-slot:loader="{ color, isActive }">
+        <v-progress-linear
+          absolute
+          :active="isActive"
+          :color="color"
+          height="4"
+          bg-opacity=".3"
+          indeterminate
+        />
+      </template>
+
       <template v-slot:item.id="{ item }">
         <TaskLink
           :task-id="item.id"
           :label="'#' + item.id"
+          data-testid="taskList-rowTask"
         />
         <div style="font-size: 14px;">
-          <span v-if="item.message">
-            <v-icon x-small>mdi-message-outline</v-icon> {{ item.message }}
+          <span v-if="item.message" data-testid="taskList-rowMessage">
+            <v-icon
+              size="x-small"
+              class="TaskList__rowIcon"
+            >mdi-message-outline</v-icon> {{ item.message }}
           </span>
-          <span v-else-if="item.commit_hash">
-            <v-icon x-small>mdi-source-fork</v-icon> {{ item.commit_message }}
+          <span v-else-if="item.commit_hash" data-testid="taskList-rowCommit">
+            <v-icon
+              size="x-small"
+              class="TaskList__rowIcon"
+            >mdi-source-fork</v-icon> {{ item.commit_message }}
           </span>
         </div>
       </template>
@@ -40,9 +62,10 @@
             :tooltip="item.tpl_type === 'build' ? item.message : (item.build_task || {}).message"
             :label="item.tpl_type === 'build' ? item.version : (item.build_task || {}).version"
             :status="item.status"
+            data-testid="taskList-rowVersion"
           />
         </div>
-        <div v-else>&mdash;</div>
+        <div v-else data-testid="taskList-rowVersionEmpty">&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
@@ -50,45 +73,66 @@
       </template>
 
       <template v-slot:item.start="{ item }">
-        {{ item.start | formatDate }}
+        {{ $filters.formatDate(item.start) }}
       </template>
 
       <template v-slot:item.end="{ item }">
-        {{ [item.start, item.end] | formatMilliseconds }}
+        {{ $filters.formatMilliseconds([item.start, item.end]) }}
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="createTask(item)">
+        <v-btn-group density="compact">
+          <v-btn @click="createTask(item)" data-testid="taskList-rowRerun">
             <v-icon>mdi-replay</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
 
     <div
       v-if="!hideFooter"
       class="d-flex align-center justify-end mt-2 mr-2 mb-4 TaskListPagination"
+      data-testid="taskList-pagination"
     >
-      <span class="text--secondary mr-2">{{ $t('rowsPerPage') }}</span>
+      <span
+        class="text-medium-emphasis mr-2"
+        data-testid="taskList-perPageLabel"
+      >{{ $t('rowsPerPage') }}</span>
 
       <v-select
         v-model="perPage"
         :disabled="loading"
         :items="perPageOptions"
         class="TaskListPerPage mr-4"
-        dense
+        density="compact"
+        variant="underlined"
         hide-details
         style="max-width: 72px;"
+        data-testid="taskList-perPage"
       ></v-select>
 
-      <v-btn :disabled="loading || pageIndex === 0" icon @click="goPrev()">
+      <v-btn
+        :disabled="loading || pageIndex === 0"
+        icon
+        variant="text"
+        @click="goPrev()"
+        data-testid="taskList-prevPage"
+      >
         <v-icon>mdi-chevron-left</v-icon>
       </v-btn>
 
-      <span class="mx-2 text--secondary">{{ rangeStart }} - {{ rangeEnd }}</span>
+      <span
+        class="mx-2 text-medium-emphasis"
+        data-testid="taskList-range"
+      >{{ rangeStart }} - {{ rangeEnd }}</span>
 
-      <v-btn :disabled="loading || !hasNext" icon @click="goNext()">
+      <v-btn
+        :disabled="loading || !hasNext"
+        icon
+        variant="text"
+        @click="goNext()"
+        data-testid="taskList-nextPage"
+      >
         <v-icon>mdi-chevron-right</v-icon>
       </v-btn>
     </div>
@@ -97,6 +141,28 @@
 <style lang="scss">
 .TaskListTable td {
   height: 60px !important;
+}
+
+// The message and commit icons of a row are icons of the theme (`.theme--light.v-icon`: .54,
+// white in the dark one); Vuetify 4 draws them in the text colour.
+.TaskList__rowIcon.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.TaskList__rowIcon.v-theme--dark {
+  color: #fff;
+}
+
+// The rows-per-page select of Vuetify 2 (dense, no details): the number 1 px and the arrow 3 px
+// higher over the same line.
+.TaskListPerPage .v-field {
+  > .v-field__field > .v-field__input {
+    padding-top: 6px;
+  }
+
+  > .v-field__append-inner {
+    padding-top: 5px;
+  }
 }
 </style>
 <script>
@@ -124,38 +190,38 @@ export default {
     return {
       headers: [
         {
-          text: this.$i18n.t('taskId'),
-          value: 'id',
+          title: this.$t('taskId'),
+          key: 'id',
           sortable: false,
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
         },
         {
-          text: this.$i18n.t('version'),
-          value: 'version',
+          title: this.$t('version'),
+          key: 'version',
           sortable: false,
         },
         {
-          text: this.$i18n.t('status'),
-          value: 'status',
+          title: this.$t('status'),
+          key: 'status',
           sortable: false,
         },
         {
-          text: this.$i18n.t('user'),
-          value: 'user_name',
+          title: this.$t('user'),
+          key: 'user_name',
           sortable: false,
         },
         {
-          text: this.$i18n.t('start'),
-          value: 'start',
+          title: this.$t('start'),
+          key: 'start',
           sortable: false,
         },
         {
-          text: this.$i18n.t('duration'),
-          value: 'end',
+          title: this.$t('duration'),
+          key: 'end',
           sortable: false,
         },
       ],
@@ -219,7 +285,7 @@ export default {
   async mounted() {
     await this.loadData();
   },
-  beforeDestroy() {
+  beforeUnmount() {
     socket.removeListener(this.socketListenerId);
     if (this.reloadTimer) {
       clearTimeout(this.reloadTimer);
@@ -355,7 +421,7 @@ export default {
     },
 
     getActionButtonTitle() {
-      return this.$i18n.t(`Re${TEMPLATE_TYPE_ACTION_TITLES[this.template.type]}`);
+      return this.$t(`Re${TEMPLATE_TYPE_ACTION_TITLES[this.template.type]}`);
     },
 
     createTask(task) {

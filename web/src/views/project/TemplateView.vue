@@ -1,9 +1,20 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <v-alert v-if="notFound" type="info" text class="ma-4">{{ $t('templateNotFound') }}</v-alert>
-  <div v-else-if="!isLoaded">
-    <v-progress-linear indeterminate color="primary darken-2"></v-progress-linear>
+<template>
+  <v-alert
+    v-if="notFound"
+    type="info"
+    variant="tonal"
+    class="ma-4"
+    data-testid="template-notFound"
+  >{{ $t('templateNotFound') }}</v-alert>
+  <div v-else-if="!isLoaded" data-testid="template-page" data-state="loading">
+    <v-progress-linear
+      indeterminate
+      color="primary-darken-2"
+      bg-opacity=".3"
+      data-testid="template-loading"
+    ></v-progress-linear>
   </div>
-  <div v-else>
+  <div v-else data-testid="template-page" data-state="ready">
     <NewTaskDialog
       v-model="newTaskDialog"
       :project-id="projectId"
@@ -21,6 +32,7 @@
       :jwt="jwt"
       :task-type="item.type"
       :can-read="can(USER_PERMISSIONS.readProject, null)"
+      test-id="templateDialog"
     ></EditTemplateDialog>
 
     <EditTemplateDialog
@@ -34,6 +46,7 @@
       :jwt="jwt"
       :task-type="item.type"
       :can-read="can(USER_PERMISSIONS.readProject, null)"
+      test-id="templateCopyDialog"
     ></EditTemplateDialog>
 
     <ObjectRefsDialog
@@ -41,6 +54,7 @@
       :object-refs="itemRefs"
       :project-id="projectId"
       v-model="itemRefsDialog"
+      test-id="templateRefsDialog"
     />
 
     <YesNoDialog
@@ -48,6 +62,7 @@
       :text="$t('askDeleteTemp')"
       v-model="deleteDialog"
       @yes="remove()"
+      test-id="templateDeleteDialog"
     />
 
     <YesNoDialog
@@ -55,6 +70,7 @@
       :text="$t('askStopAllTasks')"
       v-model="stopAllDialog"
       @yes="stopAllTasks(false)"
+      test-id="templateStopAllDialog"
     />
 
     <YesNoDialog
@@ -62,13 +78,21 @@
       :text="$t('askForceStopAllTasks')"
       v-model="forceStopAllDialog"
       @yes="stopAllTasks(true)"
+      test-id="templateForceStopAllDialog"
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title class="breadcrumbs">
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="template-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title
+        class="breadcrumbs flex-0-1 TemplateView__title"
+        data-testid="template-title"
+      >
         <router-link
           class="breadcrumbs__item breadcrumbs__item--link"
+          data-testid="template-breadcrumbTemplates"
           :to="
             viewId
               ? `/project/${projectId}/views/${viewId}/templates/`
@@ -77,36 +101,42 @@
         >
           {{ $t('taskTemplates2') }}
         </router-link>
-        <v-icon>mdi-chevron-right</v-icon>
-        <span class="breadcrumbs__item">{{ item.name }}</span>
+        <v-icon class="TemplateView__crumbIcon">mdi-chevron-right</v-icon>
+        <span class="breadcrumbs__item" data-testid="template-name">{{ item.name }}</span>
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
 
-      <v-menu offset-y v-if="canStop">
-        <template v-slot:activator="{ on, attrs }">
+      <v-menu location="bottom" v-if="canStop">
+        <template v-slot:activator="{ props }">
           <v-btn
-            v-bind="attrs"
-            v-on="on"
-            color="grey"
-            class="mr-3 pr-2"
+            v-bind="props"
+            variant="elevated"
+            class="mr-3 pr-2 TemplateView__stopAll"
             :disabled="stopAllTasksProgress"
+            data-testid="template-stopAllMenu"
           >
             {{ $t('stopAll') }}
             <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
         <v-list>
-          <v-list-item @click="stopAllDialog = true">
-            <v-list-item-icon>
+          <v-list-item
+            @click="stopAllDialog = true"
+            data-testid="template-stopAllMenu-stop"
+          >
+            <template v-slot:prepend>
               <v-icon>mdi-stop</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>{{ $t('stop') }}</v-list-item-title>
           </v-list-item>
-          <v-list-item @click="forceStopAllDialog = true">
-            <v-list-item-icon>
+          <v-list-item
+            @click="forceStopAllDialog = true"
+            data-testid="template-stopAllMenu-forceStop"
+          >
+            <template v-slot:prepend>
               <v-icon>mdi-alert-octagon</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>{{ $t('forceStop') }}</v-list-item-title>
           </v-list-item>
         </v-list>
@@ -115,7 +145,7 @@
       <v-btn
         v-if="canRun"
         color="primary"
-        depressed
+        variant="flat"
         class="mr-3"
         @click="newTaskDialog = true"
         data-testid="template-run"
@@ -123,15 +153,34 @@
         {{ $t(TEMPLATE_TYPE_ACTION_TITLES[item.type]) }}
       </v-btn>
 
-      <v-btn icon color="error" @click="askDelete()" v-if="canUpdate">
+      <v-btn
+        icon
+        variant="text"
+        color="error"
+        @click="askDelete()"
+        v-if="canUpdate"
+        data-testid="template-delete"
+      >
         <v-icon>mdi-delete</v-icon>
       </v-btn>
 
-      <v-btn icon @click="copyDialog = true" v-if="canUpdate">
+      <v-btn
+        icon
+        variant="text"
+        @click="copyDialog = true"
+        v-if="canUpdate"
+        data-testid="template-copy"
+      >
         <v-icon>mdi-content-copy</v-icon>
       </v-btn>
 
-      <v-btn icon @click="editDialog = true" v-if="canUpdate">
+      <v-btn
+        icon
+        variant="text"
+        @click="editDialog = true"
+        v-if="canUpdate"
+        data-testid="template-edit"
+      >
         <v-icon>mdi-pencil</v-icon>
       </v-btn>
     </v-toolbar>
@@ -142,27 +191,32 @@
       @save="updateDescription()"
       v-if="item.description || can(USER_PERMISSIONS.manageProjectResources)"
       :can-edit="can(USER_PERMISSIONS.manageProjectResources)"
+      data-testid="template-description"
     />
 
-    <v-tabs>
+    <v-tabs data-testid="template-tabs">
       <v-tab
+        data-testid="template-tab-tasks"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
         }/templates/${item.id}/tasks`">{{ $t('template_tasks') }}
       </v-tab>
       <v-tab
+        data-testid="template-tab-details"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
         }/templates/${item.id}/details`">{{ $t('template_details') }}
       </v-tab>
       <v-tab
         v-if="isPro && can(USER_PERMISSIONS.manageProjectResources)"
+        data-testid="template-tab-perms"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
         }/templates/${item.id}/perms`">{{ $t('Permissions') }}
       </v-tab>
       <v-tab
         v-if="hasStateTab"
+        data-testid="template-tab-state"
         :to="`/project/${item.project_id}${
           $route.params.viewId ? `/views/${$route.params.viewId}` : ''
         }/templates/${item.id}/state`"
@@ -189,15 +243,36 @@
 </template>
 
 <style lang="scss">
+@use 'sass:map';
+@use '@/scss/variables' as settings;
 
-@import '~vuetify/src/styles/settings/_variables';
+// «Stop all» is a grey button with the text of the theme, as `color="grey"` was in Vuetify 2 (only
+// the theme colours got white text there); Vuetify 4 gives a grey button white text.
+.TemplateView__stopAll:not(.v-btn--disabled) {
+  background-color: #9e9e9e;
+}
+
+// Vue 2 kept the space after the link text of the breadcrumbs (`{{ … }}` then a line break),
+// Vue 3 drops it; the chevron is an icon of the theme (`.theme--light.v-icon`: .54, white in the
+// dark one).
+.TemplateView__title .breadcrumbs__item--link {
+  margin-inline-end: .2476em; // the space of Roboto
+}
+
+.TemplateView__crumbIcon.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.TemplateView__crumbIcon.v-theme--dark {
+  color: #fff;
+}
 
 .TemplateView__description {
   font-size: 14px;
   margin-bottom: 12px;
 }
 
-@media #{map-get($display-breakpoints, 'md-and-up')} {
+@media #{map.get(settings.$display-breakpoints, 'md-and-up')} {
   .TemplateView__description {
     transform: translateY(-12px);
     margin-bottom: 0;

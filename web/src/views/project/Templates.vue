@@ -1,22 +1,35 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="!isLoaded">
+  <div v-if="!isLoaded" data-testid="templates-page" data-state="loading">
     <v-progress-linear
       indeterminate
-      color="primary darken-2"
+      color="primary-darken-2"
+      data-testid="templates-loading"
     ></v-progress-linear>
   </div>
-  <div v-else>
+  <div
+    v-else
+    data-testid="templates-page"
+    :data-state="viewItemsLoading ? 'loading' : (items.length === 0 ? 'empty' : 'ready')"
+  >
+    <!-- eager after the first opening: Vuetify 3 unmounts the content of a closed dialog, Vuetify 2
+         kept it, so the form loads the views once and keeps its state between openings -->
     <v-dialog
       v-model="editViewsDialog"
       :max-width="400"
       persistent
       :transition="false"
+      :eager="editViewsDialog != null"
     >
-      <v-card>
-        <v-card-title>
+      <v-card data-testid="templatesViewsDialog">
+        <v-card-title class="d-flex align-center" data-testid="templatesViewsDialog-title">
           {{ $t('editViews') }}
           <v-spacer></v-spacer>
-          <v-btn icon @click="closeEditViewDialog()">
+          <v-btn
+            icon
+            variant="text"
+            @click="closeEditViewDialog()"
+            data-testid="templatesViewsDialog-close"
+          >
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </v-card-title>
@@ -35,6 +48,7 @@
       :features="features"
       :jwt="jwt"
       :can-read="can(USER_PERMISSIONS.readProject)"
+      test-id="templateDialog"
     ></EditTemplateDialog>
 
     <NewTaskDialog
@@ -45,45 +59,49 @@
       :template="template"
       :template-id="itemId"
       :can-read="can(USER_PERMISSIONS.readProject)"
+      test-id="newTaskDialog"
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="templates-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="templates-title">
         {{ $t('taskTemplates2') }}
       </v-toolbar-title>
       <v-spacer></v-spacer>
 
-      <v-menu
-        offset-y
-      >
-        <template v-slot:activator="{ on, attrs }">
+      <v-menu location="bottom">
+        <template v-slot:activator="{ props }">
           <v-btn
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             color="primary"
+            variant="elevated"
             class="mr-1 pr-2"
             v-if="canCreate"
             :disabled="!isAdmin && appsMixin.activeAppIds.length === 0"
+            data-testid="templates-new"
           >
             {{ $t('newTemplate') }}
             <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
-        <v-list>
+        <v-list data-testid="templates-newMenu">
           <v-list-item
             v-for="appID in appsMixin.activeAppIds"
             :key="appID"
             link
             @click="editItem('new'); itemApp = appID;"
+            :data-testid="`templates-new-${appID}`"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon
                 :color="getAppColor(appID)"
               >
                 {{ getAppIcon(appID) }}
               </v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>{{ getAppTitle(appID) }}</v-list-item-title>
           </v-list-item>
 
@@ -94,38 +112,56 @@
             key="other"
             link
             to="/apps"
+            data-testid="templates-appsLink"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon>mdi-cogs</v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>Applications</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
 
-      <v-btn icon @click="settingsSheet = true">
+      <v-btn
+        icon
+        variant="text"
+        @click="settingsSheet = true"
+        data-testid="templates-tableSettings"
+      >
         <v-icon>mdi-cog</v-icon>
       </v-btn>
     </v-toolbar>
 
-    <v-tabs show-arrows class="pl-4" v-model="viewTab">
+    <!-- The active tab follows the route, as in Vuetify 2. Vuetify 3/4 select a link tab only when
+         its link becomes active, and a group ignores the selection of a disabled tab: the tabs are
+         disabled while the view loads, so the tab of the new view stayed unselected. -->
+    <v-tabs
+      show-arrows
+      class="pl-4"
+      :model-value="viewId"
+      data-testid="templates-viewTabs"
+    >
 
       <v-tab
         v-for="(view) in views"
         :key="view.id"
+        :value="view.id"
         :to="getViewUrl(view.id)"
         :disabled="viewItemsLoading"
         :style="{
           'text-decoration': view.hidden ? 'line-through' : 'none',
         }"
+        data-testid="templates-viewTab"
       >{{ view.title }}
       </v-tab>
 
       <v-btn
         icon
+        variant="text"
         class="mt-2 ml-4"
         @click="editViewsDialog = true"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        data-testid="templates-editViews"
       >
         <v-icon>mdi-pencil</v-icon>
       </v-btn>
@@ -136,20 +172,23 @@
     <v-data-table
       hide-default-footer
       class="mt-4 templates-table"
-      single-expand
       show-expand
-      :headers="filteredHeaders"
+      :headers="tableHeaders"
       :items="items"
-      :items-per-page="Number.MAX_VALUE"
-      :expanded.sync="openedItems"
+      :items-per-page="-1"
+      v-model:expanded="openedItems"
+      expand-strategy="single"
       :style="{
         opacity: viewItemsLoading ? 0.3 : 1,
       }"
+      data-testid="templates-table"
+      :data-state="viewItemsLoading ? 'loading' : (items.length === 0 ? 'empty' : 'ready')"
     >
       <template v-slot:item.name="{ item }">
         <v-icon
-          class="mr-3"
-          small
+          class="mr-3 templates-table__app-icon"
+          size="small"
+          data-testid="templates-rowApp"
         >
           {{ getAppIcon(item.app) }}
         </v-icon>
@@ -162,6 +201,7 @@
           :to="viewId
               ? `/project/${projectId}/views/${viewId}/templates/${item.id}`
               : `/project/${projectId}/templates/${item.id}`"
+          data-testid="templates-rowName"
         >{{ item.name }}
         </router-link>
       </template>
@@ -183,15 +223,21 @@
           :tooltip="item.last_task.tpl_type === 'build'
               ? item.last_task.message
               : (item.last_task.build_task || {}).message"
+          data-testid="templates-rowVersion"
         />
-        <div v-else>&mdash;</div>
+        <div v-else data-testid="templates-rowVersionEmpty">&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
         <div class="mt-2 mb-2 d-flex" v-if="item.last_task != null">
-          <TaskStatus :status="item.last_task.status"/>
+          <TaskStatus :status="item.last_task.status" data-testid="templates-rowStatus"/>
         </div>
-        <div v-else class="mt-3 mb-2 d-flex" style="color: gray;">{{ $t('notLaunched') }}</div>
+        <div
+          v-else
+          class="mt-3 mb-2 d-flex"
+          style="color: gray;"
+          data-testid="templates-rowNotLaunched"
+        >{{ $t('notLaunched') }}</div>
       </template>
 
       <template v-slot:item.last_task="{ item }">
@@ -200,8 +246,9 @@
             :task-id="item.last_task.id"
             :label="'#' + item.last_task.id"
             :tooltip="item.last_task.message"
+            data-testid="templates-rowLastTask"
           />
-          <div style="color: gray; font-size: 14px;">
+          <div style="color: gray; font-size: 14px;" data-testid="templates-rowLastTaskUser">
             {{ $t('by', {user_name: item.last_task.user_name}) }}
           </div>
         </div>
@@ -220,29 +267,36 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
+        <v-btn-group
+          density="compact"
+          data-testid="templates-rowActions"
+        >
           <v-btn
             v-if="can(USER_PERMISSIONS.runProjectTasks, item)"
             @click="createTask(item.id)"
+            data-testid="templates-rowRun"
           >
             <v-icon>mdi-play</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
 
-      <template v-slot:expanded-item="{ headers, item }">
-        <td
-          :colspan="headers.length"
-          v-if="openedItems.some((template) => template.id === item.id)"
-        >
-          <TaskList
-            style="border: 1px solid lightgray; border-radius: 6px; margin: 10px 0;"
-            :template="item"
-            :limit="5"
-            :hide-footer="true"
-            :can-read="can(USER_PERMISSIONS.readProject)"
-          />
-        </td>
+      <!-- the slot draws the whole row: Vuetify 3 does not wrap it in a <tr> as Vuetify 2 did -->
+      <template v-slot:expanded-row="{ columns, item }">
+        <tr v-if="openedItems.includes(item.id)">
+          <td
+            :colspan="columns.length"
+            data-testid="templates-rowHistory"
+          >
+            <TaskList
+              style="border: 1px solid lightgray; border-radius: 6px; margin: 10px 0;"
+              :template="item"
+              :limit="5"
+              :hide-footer="true"
+              :can-read="can(USER_PERMISSIONS.readProject)"
+            />
+          </td>
+        </tr>
       </template>
     </v-data-table>
 
@@ -251,18 +305,47 @@
       table-name="project__template"
       :headers="headers"
       @change="onTableSettingsChange"
+      data-testid="templates-tableSettingsSheet"
     />
   </div>
 </template>
 <style lang="scss">
-@import '~vuetify/src/styles/settings/variables';
+@use 'sass:map';
+@use '@/scss/variables' as settings;
 
-.templates-table .text-start:first-child {
+// The expand column, first (Vuetify 3 adds it last unless the headers place it).
+.templates-table thead th:first-child,
+.templates-table .v-data-table__td--expanded-row {
   padding-right: 0 !important;
 }
 
-@media #{map-get($display-breakpoints, 'sm-and-down')} {
-  .templates-table .v-data-table__mobile-row:first-child {
+// The expand toggle: the 24 px chevron icon of Vuetify 2 (`.v-data-table__expand-icon`), not a
+// small icon button of 28 px, so the column is 26 px wide.
+.templates-table .v-data-table__td--expanded-row > .v-btn {
+  width: 24px;
+  height: 24px;
+}
+
+// The app icon in front of the name: an icon without a colour is grey (.54) in the light theme and
+// white in the dark one (`.theme--light.v-icon`), not the text colour of the cell.
+.templates-table__app-icon.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.templates-table__app-icon.v-theme--dark {
+  color: #fff;
+}
+
+// Mobile rows: the value sits at the right end of the row (`.v-data-table__mobile-row__cell`, a
+// shrink-to-fit flex item); Vuetify 4 stretches it over the second grid column, so a block value
+// (the "Not launched" line, the status chip) started at the middle of the row.
+.templates-table .v-data-table__tr--mobile > td > .v-data-table__td-value {
+  justify-self: end;
+}
+
+// Mobile rows: no expand cell (Vuetify 2 hid the first mobile row, the same cell).
+@media #{map.get(settings.$display-breakpoints, 'sm-and-down')} {
+  .templates-table .v-data-table__tr--mobile > .v-data-table__td--expanded-row {
     display: none !important;
   }
 }
@@ -313,7 +396,6 @@ export default {
       views: null,
       editViewsDialog: null,
       viewItemsLoading: null,
-      viewTab: null,
       apps: null,
       itemApp: '',
     };
@@ -339,6 +421,12 @@ export default {
         return null;
       }
       return this.items.find((x) => x.id === this.itemId);
+    },
+
+    // The expand column first and as narrow as its toggle (`width: '1px'` of the Vuetify 2
+    // default header), as Vuetify 2 drew it.
+    tableHeaders() {
+      return [{ key: 'data-table-expand', width: '1px' }, ...this.filteredHeaders];
     },
 
     isLoaded() {
@@ -371,7 +459,7 @@ export default {
     await this.loadData();
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     socket.removeListener(this.socketListenerId);
   },
 
@@ -485,47 +573,47 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
         },
         {
-          text: this.$i18n.t('version'),
-          value: 'version',
+          title: this.$t('version'),
+          key: 'version',
           sortable: false,
         },
         {
-          text: this.$i18n.t('status'),
-          value: 'status',
+          title: this.$t('status'),
+          key: 'status',
           sortable: false,
         },
         {
-          text: this.$i18n.t('lastTask'),
-          value: 'last_task',
+          title: this.$t('lastTask'),
+          key: 'last_task',
           sortable: false,
         },
         {
-          text: this.$i18n.t('playbook'),
-          value: 'playbook',
+          title: this.$t('playbook'),
+          key: 'playbook',
           sortable: false,
         },
         {
-          text: this.$i18n.t('inventory'),
-          value: 'inventory_id',
+          title: this.$t('inventory'),
+          key: 'inventory_id',
           sortable: false,
         },
         {
-          text: this.$i18n.t('environment'),
-          value: 'environment_ids',
+          title: this.$t('environment'),
+          key: 'environment_ids',
           sortable: false,
         },
         {
-          text: this.$i18n.t('repository2'),
-          value: 'repository_id',
+          title: this.$t('repository2'),
+          key: 'repository_id',
           sortable: false,
         },
       ];

@@ -1,31 +1,64 @@
 <template>
-  <v-card style="background: rgba(133, 133, 133, 0.06)" class="mx-4">
-    <v-card-title>
+  <v-card
+    style="background: rgba(133, 133, 133, 0.06)"
+    class="mx-4"
+    :data-state="stats == null
+      ? 'loading'
+      : (stats.every((p) => !Object.values(p.count_by_status || {}).some((n) => n > 0))
+        ? 'empty'
+        : 'ready')"
+  >
+    <v-card-title
+      class="task-stats__title d-flex flex-wrap align-center"
+      data-testid="taskStats-title"
+    >
       Task Status
       <v-spacer />
       <v-select
         hide-details
-        dense
+        density="compact"
         :items="dateRanges"
+        item-title="text"
         class="mr-6"
-        style="max-width: 200px"
+        style="width: 200px; max-width: 200px"
+        :menu-props="menuProps"
         v-model="dateRange"
+        data-testid="taskStats-period"
       />
 
       <v-select
         v-if="canRead"
         hide-details
-        dense
+        density="compact"
         :items="users"
-        style="max-width: 200px"
+        item-title="text"
+        style="width: 200px; max-width: 200px"
+        :menu-props="menuProps"
         v-model="user"
+        data-testid="taskStats-user"
       />
     </v-card-title>
     <v-card-text>
-      <LineChart :source-data="stats"/>
+      <LineChart :source-data="stats" data-testid="taskStats-chart"/>
     </v-card-text>
   </v-card>
 </template>
+<style lang="scss">
+// Vuetify 2 look: the lists take the weight of the title (`.v-input` of Vuetify 2 sets none,
+// Vuetify 4 sets 400). Their width of 200 px (template) is also their size in the line, as the
+// wider content of a Vuetify 2 select was: on a phone each list goes to its own line. A dense
+// select of Vuetify 2 takes 30 px of the line (4 px margin and a 26 px field), the compact field of
+// Vuetify 4 32 px: 2 px above it go into the line, the underline stays where it was.
+.task-stats__title > .v-input {
+  font-weight: inherit;
+  margin-top: -2px;
+
+  // The arrow in the middle of the 26 px field of Vuetify 2, 2 px above the text bottom.
+  .v-field__append-inner {
+    padding-top: 6px;
+  }
+}
+</style>
 <script>
 import axios from 'axios';
 import LineChart from '@/components/LineChart.vue';
@@ -41,6 +74,10 @@ export default {
 
   data() {
     return {
+      // The menu over the field (default of VSelect, plugins/vuetify.js) 6 px lower, where the
+      // menu of the dense Vuetify 2 select opened: the compact field of Vuetify 4 is 32 px high and
+      // starts 6 px above the 26 px field of Vuetify 2 (style below), the menu opens from its top.
+      menuProps: { location: 'top', origin: 'top', offset: -6 },
       dateRanges: [{
         text: 'Past week',
         value: 'last_week',

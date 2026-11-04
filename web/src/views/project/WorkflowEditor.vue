@@ -1,5 +1,9 @@
 <template>
-  <div class="WorkflowEditor">
+  <div
+    class="WorkflowEditor"
+    data-testid="workflowEditor-page"
+    :data-state="item == null || templates == null ? 'loading' : 'ready'"
+  >
     <YesNoDialog
       v-model="leaveDialog"
       :title="$t('workflowUnsavedChanges')"
@@ -7,12 +11,22 @@
       :yes-button-title="$t('workflowLeaveWithoutSaving')"
       @yes="confirmLeave()"
       @no="cancelLeave()"
+      test-id="workflowEditorLeaveDialog"
     />
 
-    <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title class="WorkflowEditor__title d-flex align-center">
-        <router-link :to="`/project/${projectId}/workflows`">
+    <v-toolbar flat class="WorkflowEditor__toolbar">
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="workflowEditor-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title
+        class="WorkflowEditor__title d-flex align-center"
+        data-testid="workflowEditor-title"
+      >
+        <router-link
+          :to="`/project/${projectId}/workflows`"
+          data-testid="workflowEditor-backToList"
+        >
           {{ $t('workflows') }}
         </router-link>
         <span class="mx-2">/</span>
@@ -21,7 +35,7 @@
           class="WorkflowEditor__nameWrap"
           :class="{ 'WorkflowEditor__nameWrap--disabled': !canManage }"
         >
-          <v-icon small class="WorkflowEditor__nameIcon">mdi-pencil</v-icon>
+          <v-icon size="small" class="WorkflowEditor__nameIcon">mdi-pencil</v-icon>
           <span class="WorkflowEditor__nameSizer" :data-value="item.name || $t('newWorkflow')">
             <input
               v-model="item.name"
@@ -30,87 +44,159 @@
               :aria-label="$t('name')"
               size="1"
               class="WorkflowEditor__nameField"
+              data-testid="workflowEditor-name"
             />
           </span>
         </span>
         <v-chip
           v-if="item != null && item.revision"
-          x-small
-          outlined
-          class="ml-3"
+          size="x-small"
+          variant="outlined"
+          class="WorkflowEditor__chip ml-3"
           :title="$t('workflowRevisionHint')"
+          data-testid="workflowEditor-revision"
         >{{ $t('workflowRevisionLabel', { number: item.revision }) }}</v-chip>
-        <v-tooltip v-if="activeRuns > 0" bottom>
-          <template v-slot:activator="{ on, attrs }">
-            <v-chip x-small outlined color="warning" class="ml-2" v-bind="attrs" v-on="on">
-              <v-icon x-small left>mdi-play-circle-outline</v-icon>
-              {{ $tc('workflowActiveRunsCount', activeRuns, { count: activeRuns }) }}
+        <v-tooltip v-if="activeRuns > 0" location="bottom">
+          <template v-slot:activator="{ props }">
+            <v-chip
+              size="x-small"
+              variant="outlined"
+              color="warning"
+              class="WorkflowEditor__chip ml-2"
+              v-bind="props"
+              data-testid="workflowEditor-activeRuns"
+            >
+              <v-icon size="x-small" start>mdi-play-circle-outline</v-icon>
+              {{ $t('workflowActiveRunsCount', { count: activeRuns }, activeRuns) }}
             </v-chip>
           </template>
-          <span>{{ $t('workflowActiveRunsHint') }}</span>
+          <span
+            data-testid="workflowEditor-activeRunsHint"
+          >{{ $t('workflowActiveRunsHint') }}</span>
         </v-tooltip>
       </v-toolbar-title>
 
       <v-spacer></v-spacer>
 
-      <v-btn icon :disabled="!canUndo" :title="$t('workflowUndo')" @click="undo()">
+      <v-btn
+        icon
+        variant="text"
+        :disabled="!canUndo"
+        :title="$t('workflowUndo')"
+        @click="undo()"
+        data-testid="workflowEditor-undo"
+      >
         <v-icon>mdi-undo</v-icon>
       </v-btn>
-      <v-btn icon :disabled="!canRedo" :title="$t('workflowRedo')" class="mr-2" @click="redo()">
+      <v-btn
+        icon
+        variant="text"
+        :disabled="!canRedo"
+        :title="$t('workflowRedo')"
+        class="mr-2"
+        @click="redo()"
+        data-testid="workflowEditor-redo"
+      >
         <v-icon>mdi-redo</v-icon>
       </v-btn>
 
-      <v-menu v-if="problems.length > 0" offset-y :close-on-content-click="true">
-        <template v-slot:activator="{ on, attrs }">
-          <v-chip small outlined color="warning" class="mr-4" v-bind="attrs" v-on="on">
-            <v-icon left small>mdi-alert</v-icon>
-            {{ $tc('workflowProblemsCount', problems.length, { count: problems.length }) }}
+      <!-- Vuetify 2 opened the menu under the chip and pushed it in to 12 px from the right edge
+           of the window (always so next to Save); Vuetify 4 flips it to end at the chip instead.
+           Placed at the end of Save (16 px from the edge) 4 px further right and 6 px up, at the
+           bottom of the chip. At most 80 % of the window wide (`.v-menu__content` of
+           Vuetify 2). -->
+      <v-menu
+        v-if="problems.length > 0"
+        location="bottom end"
+        target=".WorkflowEditor__save"
+        :offset="[-6, 4]"
+        max-width="80%"
+        :close-on-content-click="true"
+      >
+        <template v-slot:activator="{ props }">
+          <v-chip
+            size="small"
+            variant="outlined"
+            color="warning"
+            class="WorkflowEditor__chip mr-4"
+            v-bind="props"
+            data-testid="workflowEditor-problemsMenu"
+          >
+            <v-icon start size="small">mdi-alert</v-icon>
+            {{ $t('workflowProblemsCount', { count: problems.length }, problems.length) }}
           </v-chip>
         </template>
-        <v-list dense>
+        <v-list
+          density="compact"
+          class="WorkflowEditor__problems"
+          data-testid="workflowEditor-problemsMenu-list"
+        >
           <v-list-item
             v-for="(p, i) in problems"
             :key="`problem-${i}`"
             @click="focusProblem(p)"
+            data-testid="workflowEditor-problemsMenu-item"
           >
-            <v-list-item-icon class="mr-2">
-              <v-icon small color="warning">mdi-alert</v-icon>
-            </v-list-item-icon>
+            <template v-slot:prepend>
+              <v-icon size="small" color="warning">mdi-alert</v-icon>
+            </template>
             <v-list-item-title>{{ p.text }}</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
-      <v-chip v-else small outlined color="success" class="mr-4">
-        <v-icon left small>mdi-check</v-icon>
+      <v-chip
+        v-else
+        size="small"
+        variant="outlined"
+        color="success"
+        class="WorkflowEditor__chip mr-4"
+        data-testid="workflowEditor-validationPassed"
+      >
+        <v-icon start size="small">mdi-check</v-icon>
         {{ $t('workflowValidationPassed') }}
       </v-chip>
 
-      <v-badge :value="dirty" dot color="warning" overlap offset-x="8" offset-y="8">
+      <v-badge
+        :model-value="dirty"
+        dot
+        color="warning"
+        offset-x="0"
+        offset-y="0"
+        data-testid="workflowEditor-unsavedBadge"
+      >
         <v-btn
           color="primary"
-          depressed
+          variant="flat"
+          class="WorkflowEditor__save"
           :disabled="!canManage || saving || problems.length > 0"
           :loading="saving"
           @click="save()"
+          data-testid="workflowEditor-save"
         >{{ $t('save') }}</v-btn>
       </v-badge>
     </v-toolbar>
 
     <v-divider />
 
-    <div class="WorkflowEditor__body" v-if="item != null && templates != null">
+    <div
+      class="WorkflowEditor__body"
+      v-if="item != null && templates != null"
+      data-testid="workflowEditor-body"
+    >
       <!-- Palette + meta -->
       <div
         class="WorkflowEditor__side WorkflowEditor__side--left"
         :class="{ 'WorkflowEditor__side--collapsed': sideCollapsed }"
+        data-testid="workflowEditor-side"
       >
         <button
           type="button"
           class="WorkflowEditor__sideToggle"
           :title="$t(sideCollapsed ? 'workflowSidebarExpand' : 'workflowSidebarCollapse')"
           @click="toggleSide()"
+          data-testid="workflowEditor-sideToggle"
         >
-          <v-icon small>
+          <v-icon size="small">
             {{ sideCollapsed ? 'mdi-chevron-right' : 'mdi-chevron-left' }}
           </v-icon>
         </button>
@@ -123,8 +209,9 @@
                 :label="$t('startVersion')"
                 persistent-hint
                 :disabled="!canManage"
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
+                data-testid="workflowEditor-startVersion"
               />
 
               <SurveyVars
@@ -140,8 +227,14 @@
 
           <div class="pa-3">
             <template v-if="!sideCollapsed">
-              <div class="text-subtitle-2 mb-1">{{ $t('workflowEditorPalette') }}</div>
-              <div class="text-caption text--secondary mb-3">
+              <div
+                class="text-label-large mb-1"
+                data-testid="workflowEditor-paletteTitle"
+              >{{ $t('workflowEditorPalette') }}</div>
+              <div
+                class="text-body-small text-medium-emphasis mb-3"
+                data-testid="workflowEditor-paletteHint"
+              >
                 {{ $t('workflowPaletteClickHint') }}
               </div>
             </template>
@@ -154,12 +247,13 @@
               :title="sideCollapsed ? p.text : null"
               @dragstart="onDragStart($event, p.kind)"
               @click="addFromPalette(p.kind)"
+              :data-testid="`workflowEditor-palette-${p.kind}`"
             >
               <span
                 class="WorkflowEditor__paletteTile"
                 :class="`WorkflowEditor__paletteTile--${p.kind}`"
               >
-                <v-icon small :color="p.color">{{ p.icon }}</v-icon>
+                <v-icon size="small" :color="p.color">{{ p.icon }}</v-icon>
               </span>
               <span v-if="!sideCollapsed" class="WorkflowEditor__paletteText">{{ p.text }}</span>
             </div>
@@ -177,6 +271,7 @@
           :templates="templates"
           :node-problems="problemsByNode"
           editable
+          data-testid="workflowEditor-graph"
           @change="onGraphChange"
           @node-selected="onNodeSelected"
           @connection-selected="onConnectionSelected"
@@ -188,35 +283,37 @@
       <div
         v-if="editingNode || editingEdge"
         class="WorkflowEditor__side WorkflowEditor__side--right"
+        data-testid="workflowEditor-props"
       >
         <WorkflowNodeProperties
           v-if="editingNode"
           :key="`node-${editingNode.id}`"
-          :value="editingNode"
+          :model-value="editingNode"
           :templates="templates"
           :survey-vars="item.survey_vars"
           :can-manage="canManage"
-          @input="applyNodeEdit"
+          @update:model-value="applyNodeEdit"
           @delete="deleteSelectedNode()"
           @close="closePanel()"
         />
         <WorkflowEdgeProperties
           v-else
           :key="edgeKey(editingEdge)"
-          :value="editingEdge"
+          :model-value="editingEdge"
           :nodes="item.nodes"
           :templates="templates"
           :output-hints="outputHints"
           :can-manage="canManage"
-          @input="applyEdgeEdit"
+          @update:model-value="applyEdgeEdit"
           @delete="deleteSelectedEdge()"
           @close="closePanel()"
         />
       </div>
     </div>
 
-    <div v-else class="pa-4 text-center">
-      <v-progress-circular indeterminate color="primary" />
+    <div v-else class="pa-4 text-center" data-testid="workflowEditor-loading">
+      <!-- No track under the spinning arc: Vuetify 2 drew none for an indeterminate one -->
+      <v-progress-circular indeterminate color="primary" bg-color="transparent" />
     </div>
   </div>
 </template>
@@ -265,7 +362,7 @@ export default {
       editingEdge: null,
       // Collapses the palette and, through App.vue, the main navigation to
       // icon-only strips. Remembered per browser; App restores the navigation
-      // when the editor is left (see beforeDestroy).
+      // when the editor is left (see beforeUnmount).
       sideCollapsed: readSideCollapsed(),
       canUndo: false,
       canRedo: false,
@@ -438,7 +535,7 @@ export default {
     this.templates = await this.loadProjectResources('templates');
     await this.loadData();
   },
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('keydown', this.onWindowKeyDown);
     window.removeEventListener('beforeunload', this.onBeforeUnload);
     document.documentElement.classList.remove('WorkflowEditor-html');
@@ -781,6 +878,71 @@ $worklow_pallete_width_collapsed: 60px;
   // Inline, borderless name editor in the toolbar title.
   &__title {
     overflow: visible;
+    // Vuetify 3 lets the title shrink to nothing (flex: 1 1, min-width: 0); as in
+    // Vuetify 2 it keeps the width of its content.
+    flex: 0 1 auto;
+    min-width: auto;
+
+    // Vuetify 3 wraps the title slot in a placeholder that clips (ellipsis) and is not
+    // a flex box: keep the link, the name editor and the chips in one centred row.
+    :deep(.v-toolbar-title__placeholder) {
+      display: flex;
+      align-items: center;
+      overflow: visible;
+    }
+  }
+
+  // The toolbar does not clip what does not fit (a phone: the chips and Save past the right edge),
+  // as in Vuetify 2 (`.v-toolbar__content` without overflow); the toolbar has the layout
+  // containment of Vuetify 2 (`.v-toolbar { contain: layout }`), so what sticks out is painted but
+  // does not widen the page.
+  &__toolbar {
+    contain: layout;
+
+    :deep(.v-toolbar__content) {
+      overflow: visible;
+    }
+  }
+
+  // The chips of the toolbar as in Vuetify 2 (`.v-chip`): x-small 16 px high, small 24 px, a
+  // 20 px line, the weight of the text around them (the revision chip sits in the bold title); the
+  // icon at its own size (x-small 12 px, small 16 px), 6 px out to the left and 6 px to the text
+  // (`$chip-icon-margin-*`); an outlined chip without a colour has the thin border of the theme
+  // (`.theme--light.v-chip`: dividers), not one in the text colour.
+  &__chip.v-chip {
+    line-height: 20px;
+    font-weight: inherit;
+
+    &.v-chip--size-x-small {
+      --v-chip-height: 16px;
+    }
+
+    &.v-chip--size-small {
+      --v-chip-height: 24px;
+    }
+
+    :deep(.v-icon--start) {
+      --v-icon-size-multiplier: 1;
+      margin-inline: -6px 6px;
+    }
+
+    &.v-chip--variant-outlined:not([class*="text-"]) {
+      border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+    }
+  }
+
+  // The problems menu: the text 24 px after the icon (`v-list-item-icon` of Vuetify 2), not 16.
+  &__problems {
+    --v-list-prepend-gap: 24px;
+  }
+
+  // Icons without a colour of their own in the icon colour of Vuetify 2 (`.theme--light.v-icon`:
+  // .54, white in the dark theme), not in the text colour; a coloured one keeps its colour (an
+  // inline style).
+  &__nameIcon,
+  &__paletteTile > .v-icon,
+  &__sideToggle > .v-icon {
+    color: rgba(0, 0, 0, .54);
   }
 
   // Inline name editor: looks like a title, but the pencil + hover/focus
@@ -983,9 +1145,15 @@ $worklow_pallete_width_collapsed: 60px;
   }
 }
 
-.theme--dark {
+.v-theme--dark {
   .WorkflowEditor__sideToggle {
     background: #1e1e1e;
+  }
+
+  .WorkflowEditor__nameIcon,
+  .WorkflowEditor__paletteTile > .v-icon,
+  .WorkflowEditor__sideToggle > .v-icon {
+    color: #fff;
   }
 }
 

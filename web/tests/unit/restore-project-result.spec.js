@@ -1,7 +1,6 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { mount } from '@vue/test-utils';
 import i18n from '@/plugins/i18';
 import RestoreProjectResult from '@/components/RestoreProjectResult.vue';
 import mockAxios, { httpError } from './helpers/axiosMock';
@@ -56,15 +55,13 @@ describe('RestoreProjectResult.vue', () => {
 
   afterEach(() => {
     http.restore();
-    wrappers.splice(0).forEach((w) => w.destroy());
+    wrappers.splice(0).forEach((w) => w.unmount());
   });
 
   async function mountWith(project, emptyKeys = 0) {
     const wrapper = mount(RestoreProjectResult, {
-      localVue: createLocalVue(),
-      vuetify: new Vuetify(),
-      i18n,
-      propsData: { project, emptyKeys },
+      props: { project, emptyKeys },
+      global: { plugins: [i18n] },
     });
     wrappers.push(wrapper);
     await flush();
@@ -181,7 +178,7 @@ describe('RestoreProjectResult.vue', () => {
     await wrapper.vm.assign();
     await flush();
 
-    expect(wrapper.find('.v-select').classes()).to.include('v-input--is-disabled');
+    expect(wrapper.find('.v-select').classes()).to.include('v-input--disabled');
   });
 
   it('shows a role whose slug is an object property name', async () => {

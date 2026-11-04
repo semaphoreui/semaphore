@@ -4,6 +4,7 @@
     :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
     :title="title"
     @save="onSave"
+    test-id="templatePermDialog"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <EditTemplatePermissionForm
@@ -31,12 +32,14 @@ export default {
   },
 
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     projectId: Number,
     scope: String,
     objectId: [String, Number],
     itemId: [String, Number],
   },
+
+  emits: ['update:modelValue', 'save'],
 
   data() {
     return {
@@ -53,10 +56,10 @@ export default {
 
   watch: {
     async dialog(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.dialog = val;
     },
   },

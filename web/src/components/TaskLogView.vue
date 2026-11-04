@@ -2,73 +2,92 @@
   <div
     class="task-log-view"
     :class="{'task-log-view--with-message': item.message || item.commit_message}"
+    data-testid="taskLog-page"
   >
-    <div class="px-5 task-log-view__message">
+    <div class="px-5 task-log-view__message" data-testid="taskLog-messageBar">
       <span
         v-if="item.message"
-        class="mr-3"
+        class="task-log-view__messageText"
+        data-testid="taskLog-message"
       >
-        <v-icon small>mdi-message-outline</v-icon>
+        <v-icon size="small">mdi-message-outline</v-icon>
         {{ item.message }}
       </span>
 
       <span
         class="d-inline-block"
         v-if="item.commit_message"
+        data-testid="taskLog-commitMessage"
       >
-        <v-icon small>mdi-source-fork</v-icon>
+        <v-icon size="small">mdi-source-fork</v-icon>
         {{ item.commit_message }}
       </span>
     </div>
 
     <div
       class="overflow-auto text-no-wrap px-5 task-log-view__status"
+      data-testid="taskLog-statusBar"
     >
       <TaskStatus :status="item.status" data-testid="task-status" />
 
-      <span class="ml-3 hidden-xs-only task-log-view__status_part">
+      <span class="ml-3 hidden-xs task-log-view__status_part" data-testid="taskLog-started">
 
-        Started <span v-if="user">by <b>{{ user.name }}</b></span>
+        Started <span v-if="user" data-testid="taskLog-author">by <b>{{ user.name }}</b></span>
 
-        at <b>{{ item.start | formatDate }}</b>
+        at <b>{{ $filters.formatDate(item.start) }}</b>
       </span>
 
-      <span class="ml-3 hidden-sm-and-down task-log-view__status_part">
+      <span
+        class="ml-3 hidden-sm-and-down task-log-view__status_part"
+        data-testid="taskLog-duration"
+      >
         <v-icon
-          small style="transform: translateY(-1px)">mdi-clock-outline</v-icon>
-        {{ [item.start, item.end] | formatMilliseconds }}
+          size="small" style="transform: translateY(-1px)">mdi-clock-outline</v-icon>
+        {{ $filters.formatMilliseconds([item.start, item.end]) }}
       </span>
     </div>
 
-    <v-tabs class="task-log-view__tabs" right v-model="tab">
-      <v-tab>Log</v-tab>
-      <v-tab>Details</v-tab>
+    <v-tabs class="task-log-view__tabs" align-tabs="end" v-model="tab" data-testid="taskLog-tabs">
+      <v-tab :value="0" data-testid="taskLog-tab-log">Log</v-tab>
+      <v-tab :value="1" data-testid="taskLog-tab-details">Details</v-tab>
       <v-tab
         v-if="isPro"
+        :value="2"
         :disabled="!isTaskStopped"
+        data-testid="taskLog-tab-summary"
       >
         Summary
       </v-tab>
     </v-tabs>
 
-    <div v-if="tab === 0">
-      <VirtualList
+    <div v-if="tab === 0" data-testid="taskLog-logPanel">
+      <div
         class="task-log-records"
-        :data-key="'id'"
-        :data-sources="output"
-        :data-component="itemComponent"
-        :estimate-size="22"
-        :keeps="100"
+        data-testid="taskLog-output"
         ref="records"
       >
-        <div class="task-log-records__record" v-for="record in output" :key="record.id">
-          <div class="task-log-records__time">
-            {{ record.time | formatTime }}
-          </div>
-          <div class="task-log-records__output" v-html="$options.filters.formatLog(record.output)">
+        <div
+          role="group"
+          :style="{ position: 'relative', height: `${recordsVirtualizer.getTotalSize()}px` }"
+        >
+          <div
+            v-for="row in recordsVirtualizer.getVirtualItems()"
+            :key="output[row.index].id"
+            :ref="measureRecord"
+            :data-index="row.index"
+            role="listitem"
+            :style="{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              transform: `translateY(${row.start}px)`,
+            }"
+          >
+            <TaskLogViewRecord :index="row.index" :source="output[row.index]" />
           </div>
         </div>
-      </VirtualList>
+      </div>
 
       <v-btn
         color="success"
@@ -76,6 +95,7 @@
         style="right: 260px; width: 70px;"
         v-if="item.status === 'waiting_confirmation'"
         @click="confirmTask()"
+        data-testid="taskLog-confirm"
       >
         <v-icon>mdi-check</v-icon>
       </v-btn>
@@ -86,6 +106,7 @@
         style="right: 180px; width: 70px;"
         v-if="item.status === 'waiting_confirmation'"
         @click="rejectTask()"
+        data-testid="taskLog-reject"
       >
         <v-icon>mdi-close</v-icon>
       </v-btn>
@@ -96,15 +117,20 @@
         style="right: 20px; width: 150px;"
         v-if="canStop"
         @click="stopTask(item.status === 'stopping')"
+        :data-testid="item.status === 'stopping' ? 'taskLog-forceStop' : 'taskLog-stop'"
       >
         {{ item.status === 'stopping' ? $t('forceStop') : $t('stop') }}
       </v-btn>
 
+      <!-- A palette colour (not a theme one) kept the text colour of the light theme in Vuetify 2
+           (.87); Vuetify 4 writes white text on `bg-blue-grey`, a utility only an inline colour
+           overrides. -->
       <v-btn
         v-if="isTaskStopped"
         color="blue-grey"
         :href="rawLogURL"
         class="task-log-action-button"
+        :style="$vuetify.theme.current.dark ? undefined : { color: 'rgba(0, 0, 0, .87)' }"
         style="right: 20px; width: 150px;"
         target="_blank"
         data-testid="task-rawLog"
@@ -112,7 +138,7 @@
       </v-btn>
     </div>
 
-    <div v-else-if="tab === 1">
+    <div v-else-if="tab === 1" data-testid="taskLog-detailsPanel">
       <v-divider style="margin-top: -1px;" />
 
       <v-container fluid class="py-0 px-5 overflow-auto pt-4">
@@ -126,7 +152,7 @@
       </v-container>
     </div>
 
-    <div v-else-if="tab === 2">
+    <div v-else-if="tab === 2" data-testid="taskLog-summaryPanel">
       <v-divider style="margin-top: -1px;" />
 
       <AnsibleStageView
@@ -140,8 +166,6 @@
 </template>
 
 <style lang="scss">
-
-@import '~vuetify/src/styles/settings/_variables';
 
 $card-title-height: 68px;
 
@@ -165,6 +189,25 @@ $task-log-status-tab-height:
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+// `mr-3` and the space Vue 2 kept after the message text (the whitespace before `</span>`; the
+// Vue 3 compiler drops it), so the commit message starts where it did.
+.task-log-view__messageText {
+  margin-right: calc(12px + .25em + .1px);
+}
+
+// Icons without a colour in the icon colour of Vuetify 2 (`.theme--light.v-icon`: .54, white in
+// the dark theme), not the text colour around them.
+.task-log-view__message,
+.task-log-view__status_part {
+  .v-icon.v-theme--light {
+    color: rgba(0, 0, 0, .54);
+  }
+
+  .v-icon.v-theme--dark {
+    color: #fff;
+  }
 }
 
 .task-log-view__status {
@@ -241,15 +284,19 @@ $task-log-status-tab-height:
 import axios from 'axios';
 import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
-import VirtualList from 'vue-virtual-scroll-list';
+import { computed, ref } from 'vue';
+import { useVirtualizer } from '@tanstack/vue-virtual';
 import TaskLogViewRecord from '@/components/TaskLogViewRecord.vue';
 import ProjectMixin from '@/components/ProjectMixin';
 import AnsibleStageView from '@/components/AnsibleStageView.vue';
 import TaskDetails from '@/components/TaskDetails.vue';
 
+const LOG_KEEPS = 100;
+const LOG_BUFFER = Math.round(LOG_KEEPS / 3);
+
 export default {
   components: {
-    TaskDetails, AnsibleStageView, TaskStatus, VirtualList,
+    TaskDetails, AnsibleStageView, TaskStatus, TaskLogViewRecord,
   },
 
   mixins: [ProjectMixin],
@@ -262,11 +309,36 @@ export default {
     canRead: Boolean,
   },
 
+  // The log is a virtual list: a window of LOG_KEEPS records around the view is rendered,
+  // a third of it above the first visible record (as vue-virtual-scroll-list with keeps="100").
+  setup() {
+    const output = ref([]);
+    const records = ref(null);
+    const recordsVirtualizer = useVirtualizer(computed(() => ({
+      count: output.value.length,
+      getScrollElement: () => records.value,
+      estimateSize: () => 22,
+      rangeExtractor: (range) => {
+        const last = range.count - 1;
+        let start = Math.max(range.startIndex - LOG_BUFFER, 0);
+        const end = Math.min(Math.max(start + LOG_KEEPS - 1, range.endIndex), last);
+        start = Math.max(Math.min(start, end - LOG_KEEPS + 1), 0);
+        return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+      },
+    })));
+    const measureRecord = (el) => {
+      if (el) {
+        recordsVirtualizer.value.measureElement(el);
+      }
+    };
+    return {
+      output, records, recordsVirtualizer, measureRecord,
+    };
+  },
+
   data() {
     return {
       tab: 0,
-      itemComponent: TaskLogViewRecord,
-      output: [],
       outputBuffer: [],
       user: {},
       // The schedule or integration that started this task, resolved by id so
@@ -341,7 +413,7 @@ export default {
           return;
         }
 
-        const scrollContainer = this.$refs.records?.$el;
+        const scrollContainer = this.$refs.records;
         if (!scrollContainer) {
           return;
         }
@@ -370,7 +442,7 @@ export default {
     await this.loadData();
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     clearInterval(this.outputInterval);
     socket.removeListener(this.socketListenerId);
   },
@@ -421,6 +493,8 @@ export default {
 
       switch (data.type) {
         case 'update':
+          // Updates the task object of the parent in place (reported by eslint-plugin-vue 10).
+          // eslint-disable-next-line vue/no-mutating-props
           Object.assign(this.item, {
             ...data,
             type: undefined,

@@ -7,9 +7,8 @@ describe('Roles.vue', () => {
   let Roles;
   let http;
 
-  before(() => {
-    // eslint-disable-next-line global-require
-    Roles = require('@/views/Roles.vue').default;
+  beforeAll(async () => {
+    Roles = (await import('@/views/Roles.vue')).default;
   });
 
   beforeEach(() => {
@@ -29,7 +28,7 @@ describe('Roles.vue', () => {
     forceDeleteDialog: false,
     isAdmin: true,
     can() { return true; },
-    $i18n: { t: (key) => key },
+    $t: (key) => key, // vue-i18n 11 (composition mode): the component translates with $t
     async loadItems() { return null; },
     getEventName() { return 'i-role'; },
     getSingleItemUrl() { return `/api/roles/${this.itemId}`; },

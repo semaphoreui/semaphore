@@ -1,5 +1,9 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+<template>
+  <div
+    v-if="items != null"
+    data-testid="invites-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditTeamMemberDialog
       v-model="editDialog"
       :project-id="projectId"
@@ -11,6 +15,7 @@
     />
 
     <YesNoDialog
+      test-id="invitesDeleteDialog"
       :title="$t('deleteTeamMember')"
       :text="$t('askDeleteTMem')"
       v-model="deleteItemDialog"
@@ -18,15 +23,22 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('Invites') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="invites-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title class="flex-0-1" data-testid="invites-title">
+        {{ $t('Invites') }}
+      </v-toolbar-title>
 
       <v-spacer></v-spacer>
 
       <v-btn
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+        data-testid="invites-new"
       >{{ $t('newTeamMember') }}
       </v-btn>
     </v-toolbar>
@@ -36,12 +48,13 @@
     <v-divider style="margin-top: -1px;"/>
 
     <v-data-table
+      data-testid="invites-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
+      class="mt-4 InvitesTable"
+      :items-per-page="-1"
     >
       <template v-slot:item.name="{ item }">
         {{ item.user ? item.user.name : item.email }}
@@ -52,16 +65,30 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)" v-if="can(USER_PERMISSIONS.manageProjectUsers)">
+        <v-btn-group
+          density="compact"
+          data-testid="invites-rowActions"
+        >
+          <v-btn
+            @click="askDeleteItem(item.id)"
+            v-if="can(USER_PERMISSIONS.manageProjectUsers)"
+            data-testid="invites-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
 
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.InvitesTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import axios from 'axios';
@@ -101,22 +128,22 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '40%',
         },
         {
-          text: this.$i18n.t('username'),
-          value: 'username',
+          title: this.$t('username'),
+          key: 'username',
           width: '30%',
         },
         {
-          text: this.$i18n.t('role'),
-          value: 'role',
+          title: this.$t('role'),
+          key: 'role',
           width: '30%',
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
         }];

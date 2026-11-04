@@ -1,15 +1,19 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div>
+  <div data-testid="settings-page">
     <YesNoDialog
       v-model="deleteProjectDialog"
       :title="$t('deleteProject')"
       :text="$t('askDeleteProj')"
       @yes="deleteProject()"
+      test-id="settingsDeleteProjectDialog"
     />
 
     <v-toolbar flat >
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="settings-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="settings-title">{{ $t('dashboard') }}</v-toolbar-title>
     </v-toolbar>
 
     <DashboardMenu
@@ -23,7 +27,7 @@
       style="margin: auto; max-width: 600px; padding: 0 16px;"
       class="CenterToScreen"
     >
-      <h2 class="mt-8 mb-1">{{ $t('general_settings') }}</h2>
+      <h2 class="mt-8 mb-1" data-testid="settings-generalTitle">{{ $t('general_settings') }}</h2>
 
       <v-divider class="mb-8" />
 
@@ -39,34 +43,47 @@
         </div>
 
         <div class="d-flex justify-space-between mt-4">
+          <!-- `on-surface`: a palette colour (not a theme one) kept the text colour of the theme in
+               Vuetify 2; Vuetify 4 writes white text on `bg-blue-grey`. Not while disabled: then
+               the button is grey with the disabled text colour. -->
           <v-btn
             color="blue-grey"
+            :class="{ 'on-surface': !testNotificationProgress }"
             @click="sendTestNotification()"
             width="170"
             :disabled="testNotificationProgress"
             data-testid="settings-testAlerts"
           >Test Alerts</v-btn>
-          <v-btn color="primary" @click="saveProject()">{{ $t('save') }}</v-btn>
+          <v-btn
+            color="primary"
+            @click="saveProject()"
+            data-testid="settings-save"
+          >{{ $t('save') }}</v-btn>
         </div>
 
         <v-progress-linear
           v-if="testNotificationProgress"
-          color="blue-grey darken-1"
+          color="blue-grey-darken-1"
           indeterminate
-          rounded
+          bg-opacity="0.3"
+          class="rounded"
           width="170"
           height="36"
           style="margin-top: -36px; width: 170px;"
+          data-testid="settings-testAlertsProgress"
         ></v-progress-linear>
       </div>
 
-      <h2 class="mt-8 mb-1">{{ $t('danger_zone_settings') }}</h2>
+      <h2
+        class="mt-8 mb-1"
+        data-testid="settings-dangerZoneTitle"
+      >{{ $t('danger_zone_settings') }}</h2>
 
       <v-divider class="mb-8" />
 
       <div class="project-backup project-settings-button" v-if="projectType === ''">
-        <v-row align="center">
-          <v-col class="shrink">
+        <v-row class="align-center">
+          <v-col cols="auto">
 
             <v-btn
               color="primary"
@@ -79,16 +96,18 @@
 
             <v-progress-linear
               v-if="backupProgress"
-              color="primary accent-4"
+              color="primary"
               indeterminate
-              rounded
+              bg-opacity="0.3"
+              class="rounded"
               height="36"
               style="margin-top: -36px"
+              data-testid="settings-exportProjectProgress"
             ></v-progress-linear>
 
           </v-col>
-          <v-col class="grow">
-            <div style="font-size: 14px;">
+          <v-col>
+            <div style="font-size: 14px;" data-testid="settings-exportProjectText">
               {{ $t('downloadTheProjectBackupFile') }}
             </div>
           </v-col>
@@ -96,11 +115,12 @@
       </div>
 
       <div class="project-backup project-settings-button" v-if="projectType === ''">
-        <v-row align="center">
-          <v-col class="shrink">
+        <v-row class="align-center">
+          <v-col cols="auto">
 
             <v-btn
               color="blue-grey"
+              :class="{ 'on-surface': !clearCacheProgress }"
               @click="clearCache"
               :disabled="clearCacheProgress"
               min-width="170"
@@ -109,16 +129,18 @@
 
             <v-progress-linear
               v-if="clearCacheProgress"
-              color="blue-grey darken-1"
+              color="blue-grey-darken-1"
               indeterminate
-              rounded
+              bg-opacity="0.3"
+              class="rounded"
               height="36"
               style="margin-top: -36px"
+              data-testid="settings-clearCacheProgress"
             ></v-progress-linear>
 
           </v-col>
-          <v-col class="grow">
-            <div style="font-size: 14px">
+          <v-col>
+            <div style="font-size: 14px" data-testid="settings-clearCacheText">
               {{ $t('clear_cache_message') }}
             </div>
           </v-col>
@@ -126,8 +148,8 @@
       </div>
 
       <div class="project-delete-form project-settings-button">
-        <v-row align="center">
-          <v-col class="shrink">
+        <v-row class="align-center">
+          <v-col cols="auto">
             <v-btn
               color="error"
               min-width="170"
@@ -136,8 +158,8 @@
             >{{ $t('deleteProject2') }}
             </v-btn>
           </v-col>
-          <v-col class="grow">
-            <div style="font-size: 14px; color: #ff5252">
+          <v-col>
+            <div style="font-size: 14px; color: #ff5252" data-testid="settings-deleteProjectText">
               {{ $t('onceYouDeleteAProjectThereIsNoGoingBackPleaseBeCer') }}
             </div>
           </v-col>
@@ -147,7 +169,8 @@
   </div>
 </template>
 <style lang="scss">
-  @import '~vuetify/src/styles/styles.sass';
+@use 'sass:map';
+@use '@/scss/variables' as settings;
 
   .project-settings-form {
     //max-width: 600px;
@@ -158,8 +181,17 @@
     //max-width: 400px;
     margin: 30px 0;
 
-    @media #{map-get($display-breakpoints, 'sm-and-down')} {
+    @media #{map.get(settings.$display-breakpoints, 'sm-and-down')} {
       padding: 0 6px;
+    }
+
+    // The row of Vuetify 2 (`.row`: margin -12px, columns padded 12px): 12 px above and under the
+    // button inside the row, the negative margins collapsing with the 30 px of the block. The row
+    // of Vuetify 4 spaces its columns with `gap` and has neither.
+    > .v-row {
+      margin-top: -12px;
+      margin-bottom: -12px;
+      padding: 12px 0;
     }
   }
 </style>

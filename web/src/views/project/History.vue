@@ -1,8 +1,15 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="history-page"
+    :data-state="loading ? 'loading' : (items.length === 0 ? 'empty' : 'ready')"
+  >
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="history-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="history-title">
         {{ $t('dashboard2') }}
       </v-toolbar-title>
     </v-toolbar>
@@ -21,10 +28,25 @@
       :loading="loading"
       hide-default-footer
       class="mt-4 HistoryTable"
+      data-testid="history-table"
+      :data-state="loading ? 'loading' : (items.length === 0 ? 'empty' : 'ready')"
     >
+      <!-- The loading bar of Vuetify 2 (`loader-height` 4, background at .3); Vuetify 4 draws
+           a 2 px bar on a .12 background. -->
+      <template v-slot:loader="{ color, isActive }">
+        <v-progress-linear
+          :active="isActive"
+          :color="color"
+          absolute
+          indeterminate
+          height="4"
+          bg-opacity="0.3"
+        />
+      </template>
+
       <template v-slot:item.tpl_alias="{ item }">
         <div class="d-flex align-center">
-          <v-icon class="mr-3" small>
+          <v-icon class="HistoryTable__icon mr-3" size="small" data-testid="history-rowApp">
             {{ getAppIcon(item.tpl_app) }}
           </v-icon>
 
@@ -32,21 +54,29 @@
           <!--            {{ TEMPLATE_TYPE_ICONS[item.tpl_type] }}-->
           <!--          </v-icon>-->
 
-          <TaskLink :label="'#' + item.id" :task-id="item.id"/>
+          <TaskLink
+            :label="'#' + item.id"
+            :task-id="item.id"
+            data-testid="history-rowTask"
+          />
 
-          <v-icon small class="ml-1 mr-1">mdi-arrow-left</v-icon>
+          <v-icon size="small" class="HistoryTable__icon ml-1 mr-1">mdi-arrow-left</v-icon>
 
-          <router-link :to="'/project/' + item.project_id + '/templates/' + item.template_id"
+          <router-link
+            :to="'/project/' + item.project_id + '/templates/' + item.template_id"
+            data-testid="history-rowTemplate"
           >{{ item.tpl_alias }}
           </router-link>
         </div>
 
         <div class="ml-7" style="font-size: 14px">
-          <span v-if="item.message">
-            <v-icon x-small>mdi-message-outline</v-icon> {{ item.message }}
+          <span v-if="item.message" data-testid="history-rowMessage">
+            <v-icon size="x-small" class="HistoryTable__icon">mdi-message-outline</v-icon>
+            {{ item.message }}
           </span>
-          <span v-else-if="item.commit_hash">
-            <v-icon x-small>mdi-source-fork</v-icon> {{ item.commit_message }}
+          <span v-else-if="item.commit_hash" data-testid="history-rowCommit">
+            <v-icon size="x-small" class="HistoryTable__icon">mdi-source-fork</v-icon>
+            {{ item.commit_message }}
           </span>
         </div>
       </template>
@@ -60,43 +90,67 @@
           :label="item.tpl_type === 'build' ? item.version : (item.build_task || {}).version"
           :task-id="item.tpl_type === 'build' ? item.id : (item.build_task || {}).id"
           :tooltip="item.tpl_type === 'build' ? item.message : (item.build_task || {}).message"
+          data-testid="history-rowVersion"
         />
-        <div class="ml-2" v-else>&mdash;</div>
+        <div class="ml-2" v-else data-testid="history-rowVersionEmpty">&mdash;</div>
       </template>
 
       <template v-slot:item.status="{ item }">
-        <TaskStatus :status="item.status"/>
+        <TaskStatus :status="item.status" data-testid="history-rowStatus"/>
       </template>
 
       <template v-slot:item.start="{ item }">
-        {{ item.start | formatDate }}
+        {{ $filters.formatDate(item.start) }}
       </template>
 
       <template v-slot:item.end="{ item }">
-        {{ [item.start, item.end] | formatMilliseconds }}
+        {{ $filters.formatMilliseconds([item.start, item.end]) }}
       </template>
     </v-data-table>
 
-    <div class="d-flex align-center justify-end mt-2 mr-2 mb-4 HistoryPagination">
-      <span class="text--secondary mr-2">{{ $t('rowsPerPage') }}</span>
+    <div
+      class="d-flex align-center justify-end mt-2 mr-2 mb-4 HistoryPagination"
+      data-testid="history-pagination"
+    >
+      <span
+        class="text-medium-emphasis mr-2"
+        data-testid="history-perPageLabel"
+      >{{ $t('rowsPerPage') }}</span>
 
       <v-select
         v-model="perPage"
         :disabled="loading"
         :items="perPageOptions"
         class="HistoryPerPage mr-4"
-        dense
+        density="compact"
+        variant="underlined"
         hide-details
         style="max-width: 72px"
+        data-testid="history-perPage"
       ></v-select>
 
-      <v-btn :disabled="loading || pageIndex === 0" icon @click="goPrev()">
+      <v-btn
+        :disabled="loading || pageIndex === 0"
+        icon
+        variant="text"
+        @click="goPrev()"
+        data-testid="history-prevPage"
+      >
         <v-icon>mdi-chevron-left</v-icon>
       </v-btn>
 
-      <span class="mx-2 text--secondary">{{ rangeStart }} - {{ rangeEnd }}</span>
+      <span
+        class="mx-2 text-medium-emphasis"
+        data-testid="history-range"
+      >{{ rangeStart }} - {{ rangeEnd }}</span>
 
-      <v-btn :disabled="loading || !hasNext" icon @click="goNext()">
+      <v-btn
+        :disabled="loading || !hasNext"
+        icon
+        variant="text"
+        @click="goNext()"
+        data-testid="history-nextPage"
+      >
         <v-icon>mdi-chevron-right</v-icon>
       </v-btn>
     </div>
@@ -106,6 +160,39 @@
 <style lang="scss">
 .HistoryTable td {
   height: 60px !important;
+}
+
+// Vuetify 2 did not dim a loading table; Vuetify 4 fades its cells to the disabled opacity.
+.HistoryTable.v-data-table--loading > .v-table__wrapper > table > :is(thead, tbody) > tr > * {
+  opacity: 1;
+}
+
+// The header row in capitals (App.vue styles the last row of `thead`) also while the loading bar
+// row of Vuetify 4 follows it.
+.HistoryTable > .v-table__wrapper > table > thead > tr:not(.v-data-table-progress) > th {
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+// Rows as cards on a phone (the table is mobile below 600 px): the value at the right end of the
+// row, as the shrink-to-fit `.v-data-table__mobile-row__cell` of Vuetify 2; Vuetify 4 stretches it
+// over the second grid column, so the task line started in the middle.
+@media (max-width: 599.98px) {
+  .HistoryTable .v-data-table__tr--mobile > td > .v-data-table__td-value {
+    justify-self: end;
+  }
+}
+
+// Icons without a colour in the secondary text colour of Vuetify 2 (`.theme--light.v-icon`: .54,
+// white in the dark theme); Vuetify 4 draws them in the text colour.
+.HistoryTable__icon.v-icon {
+  &.v-theme--light {
+    color: rgba(0, 0, 0, .54);
+  }
+
+  &.v-theme--dark {
+    color: #fff;
+  }
 }
 </style>
 
@@ -170,7 +257,7 @@ export default {
     this.socketListenerId = socket.addListener((data) => this.onWebsocketDataReceived(data));
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     socket.removeListener(this.socketListenerId);
     if (this.reloadTimer) {
       clearTimeout(this.reloadTimer);
@@ -252,33 +339,33 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('task2'),
-          value: 'tpl_alias',
+          title: this.$t('task2'),
+          key: 'tpl_alias',
           sortable: false,
         },
         {
-          text: this.$i18n.t('version'),
-          value: 'version',
+          title: this.$t('version'),
+          key: 'version',
           sortable: false,
         },
         {
-          text: this.$i18n.t('status'),
-          value: 'status',
+          title: this.$t('status'),
+          key: 'status',
           sortable: false,
         },
         {
-          text: this.$i18n.t('user'),
-          value: 'user_name',
+          title: this.$t('user'),
+          key: 'user_name',
           sortable: false,
         },
         {
-          text: this.$i18n.t('start'),
-          value: 'start',
+          title: this.$t('start'),
+          key: 'start',
           sortable: false,
         },
         {
-          text: this.$i18n.t('duration'),
-          value: 'end',
+          title: this.$t('duration'),
+          key: 'end',
           sortable: false,
         },
       ];

@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import { h } from 'vue';
 import { shallowMount } from '@vue/test-utils';
 import PermissionsCheck from '@/components/PermissionsCheck';
 import { USER_PERMISSIONS } from '@/lib/constants';
@@ -6,11 +7,11 @@ import { USER_PERMISSIONS } from '@/lib/constants';
 const Host = {
   mixins: [PermissionsCheck],
   props: { item: Object },
-  render: (h) => h('div'),
+  render: () => h('div'),
 };
 
-function can(propsData, permission) {
-  return shallowMount(Host, { propsData }).vm.can(permission);
+function can(props, permission) {
+  return shallowMount(Host, { props }).vm.can(permission);
 }
 
 describe('PermissionsCheck mixin', () => {
@@ -62,7 +63,7 @@ describe('PermissionsCheck mixin', () => {
   });
 
   it('checks the item it is given instead of its own', () => {
-    const vm = shallowMount(Host, { propsData: { userPermissions: 0 } }).vm;
+    const vm = shallowMount(Host, { props: { userPermissions: 0 } }).vm;
     expect(vm.can(runProjectTasks, { permissions: runProjectTasks })).to.equal(true);
     expect(vm.can(runProjectTasks, { permissions: 0 })).to.equal(false);
   });

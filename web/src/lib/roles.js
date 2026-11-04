@@ -35,6 +35,8 @@ export function slugFromName(name) {
     .slice(0, 100);
 }
 
+// Items for `v-select` / `v-autocomplete` with `item-title="name"`: the roles of each scope under a
+// subheader, the groups split by dividers (item types of Vuetify 3).
 export default function groupRolesForSelect(roles, t) {
   const availableRoles = roles || [];
   return SCOPE_GROUPS.reduce((items, group) => {
@@ -43,9 +45,9 @@ export default function groupRolesForSelect(roles, t) {
       return items;
     }
     if (items.length > 0) {
-      items.push({ divider: true });
+      items.push({ type: 'divider' });
     }
-    items.push({ header: t(group.label) });
+    items.push({ type: 'subheader', name: t(group.label) });
     items.push(...groupRoles.sort(compareRoles));
     return items;
   }, []);

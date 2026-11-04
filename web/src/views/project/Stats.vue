@@ -1,8 +1,11 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div>
+  <div data-testid="stats-page">
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('dashboard') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="stats-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="stats-title">{{ $t('dashboard') }}</v-toolbar-title>
     </v-toolbar>
 
     <DashboardMenu
@@ -12,7 +15,12 @@
       :can-read="can(USER_PERMISSIONS.readProject)"
     />
 
-    <TaskStats class="mt-4" :project-id="projectId" :can-read="can(USER_PERMISSIONS.readProject)" />
+    <TaskStats
+      class="mt-4"
+      :project-id="projectId"
+      :can-read="can(USER_PERMISSIONS.readProject)"
+      data-testid="stats-taskStats"
+    />
 
   </div>
 </template>

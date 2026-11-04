@@ -1,14 +1,17 @@
 <template>
   <v-form
       ref="form"
-      lazy-validation
       v-model="formValid"
       v-if="item != null && keys != null"
+      class="RepositoryForm"
+      data-testid="repository-form"
+      :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-        :value="formError"
+        :model-value="!!formError"
         color="error"
         class="pb-2"
+        data-testid="repository-error"
     >{{ formError }}
     </v-alert>
 
@@ -18,8 +21,9 @@
         :rules="[v => !!v || $t('name_required')]"
         required
         :disabled="formSaving"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
+        data-testid="repository-name"
     ></v-text-field>
 
     <v-text-field
@@ -32,28 +36,31 @@
         required
         :disabled="formSaving"
         :hide-details="true"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
+        data-testid="repository-gitUrl"
     ></v-text-field>
 
-    <div class="mt-1 mb-5">
-      <span class="caption">git:</span>
+    <div class="mt-1 mb-5" data-testid="repository-urlTypes">
+      <span class="text-body-small">git:</span>
       <v-chip
         v-for="x in ['ssh', 'http', 'https', 'file', 'git']"
-        x-small
-        class="ml-1"
+        size="x-small"
+        class="ml-1 RepositoryForm__urlType"
         :color="type ===x ? 'primary' : ''"
         @click="setType(x)"
         style="font-weight: bold;"
         :key="x"
+        :data-testid="`repository-urlType-${x}`"
       >{{ x }}</v-chip>
-      <span class="caption ml-3">local:</span>
+      <span class="text-body-small ml-3">local:</span>
       <v-chip
-        x-small
-        class="ml-1"
+        size="x-small"
+        class="ml-1 RepositoryForm__urlType"
         :color="type ==='local' ? 'primary' : ''"
         @click="setType('local')"
         style="font-weight: bold;"
+        data-testid="repository-urlType-local"
       >
         {{ $t('absPath') }}
       </v-chip>
@@ -65,8 +72,9 @@
       :rules="[v => (!!v || type === 'local') || $t('branch_required')]"
       required
       :disabled="formSaving || type === 'local'"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="repository-gitBranch"
     ></v-text-field>
 
     <v-checkbox
@@ -76,6 +84,7 @@
       persistent-hint
       :disabled="formSaving || type === 'local'"
       class="mt-0 mb-4"
+      data-testid="repository-monorepo"
     ></v-checkbox>
 
     <v-autocomplete
@@ -83,26 +92,33 @@
         :label="$t('accessKey')"
         :items="sshKeys"
         item-value="id"
-        item-text="name"
+        item-title="name"
         :rules="[v => !!v || $t('key_required')]"
         required
         :disabled="formSaving"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
+        class="RepositoryForm__key"
+        data-testid="repository-sshKeyId"
     >
-      <template v-slot:append-outer>
-        <v-tooltip left color="black" content-class="opacity1">
-          <template v-slot:activator="{ on, attrs }">
+      <template v-slot:append>
+        <!-- viewport-margin 4: on a phone the tooltip keeps the width of Vuetify 2, which pushed
+             it only off the left edge (12 px), not off both -->
+        <v-tooltip location="left" content-class="opacity1 bg-black" viewport-margin="4">
+          <template v-slot:activator="{ props }">
             <v-icon
-              v-bind="attrs"
-              v-on="on"
+              v-bind="props"
+              data-testid="repository-sshKeyHelp"
             >
               mdi-help-circle
             </v-icon>
           </template>
-          <div class="py-4">
-            <p>{{ $t('credentialsToAccessToTheGitRepositoryItShouldBe') }}</p>
-            <ul>
+          <div class="py-4" data-testid="repository-sshKeyHelpText">
+            <!-- mb-4: the paragraph margin of Vuetify 2 (.v-application p) -->
+            <p class="mb-4">{{ $t('credentialsToAccessToTheGitRepositoryItShouldBe') }}</p>
+            <!-- pl-6: the list indent of Vuetify 2 (.v-application ul); Vuetify 3 has none,
+                 without it the bullets fall out of the tooltip box -->
+            <ul class="pl-6">
               <li><code>{{ $t('ssh') }}</code> {{ $t('ifYouUseGitOrSshUrl') }}</li>
               <li><code>{{ $t('none') }}</code> {{ $t('ifYouUseHttpsOrFileUrl') }}</li>
             </ul>
@@ -112,6 +128,52 @@
     </v-autocomplete>
   </v-form>
 </template>
+<style lang="scss">
+// The URL type chips: an x-small chip of Vuetify 2 is 16 px high (`.v-chip.v-size--x-small`),
+// Vuetify 4 makes it 20 px, which also made the row and the dialog 0.3 px higher.
+.RepositoryForm__urlType.v-chip {
+  --v-chip-height: 16px;
+}
+
+// The help icon after the key field (`#append-outer` of Vuetify 2): 9 px from the field
+// (`.v-input__append-outer` margin-left), not 16 px, so the field and its menu keep their v2
+// width; an icon of the theme (`.theme--light.v-icon`: .54, white in the dark theme) in every
+// state — not the medium emphasis twice of Vuetify 4, not red on a field error, not dimmed again
+// while saving (App.vue already fades the whole disabled field to .5).
+.RepositoryForm__key > .v-input__append {
+  margin-inline-start: 9px;
+  opacity: 1;
+
+  > .v-icon {
+    opacity: 1;
+  }
+}
+
+.RepositoryForm__key.v-theme--light > .v-input__append > .v-icon {
+  color: rgba(0, 0, 0, .54);
+}
+
+.RepositoryForm__key.v-theme--dark > .v-input__append > .v-icon {
+  color: #fff;
+}
+
+// A disabled field (saving, a local path): the hint of Monorepo keeps its colour, the checkbox
+// and its label are in the disabled text colour (`.v-input--is-disabled` of Vuetify 2) — under
+// the .5 of App.vue, not dimmed to .38 once more by Vuetify 4.
+.RepositoryForm .v-input--disabled > .v-input__details {
+  opacity: 1;
+}
+
+.RepositoryForm .v-selection-control--disabled {
+  opacity: 1;
+
+  .v-label,
+  .v-selection-control__input > .v-icon {
+    color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+    opacity: 1;
+  }
+}
+</style>
 <script>
 import axios from 'axios';
 import ItemFormBase from '@/components/ItemFormBase';

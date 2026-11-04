@@ -1,5 +1,11 @@
 <template>
-  <div v-if="!isLoaded" :style="{ height: `${loaderHeight}px` }" class="mt-1">
+  <div
+    v-if="!isLoaded"
+    :style="{ height: `${loaderHeight}px` }"
+    class="TemplateForm__loader"
+    data-testid="templateForm-loading"
+    :data-state="formError ? 'error' : 'loading'"
+  >
     <v-row>
       <v-col>
         <v-skeleton-loader
@@ -33,10 +39,28 @@
       </v-col>
     </v-row>
   </div>
-  <v-form class="mt-1" v-else ref="form" lazy-validation v-model="formValid">
-    <v-dialog v-model="helpDialog" hide-overlay content-class="NestedDialog" width="300">
-      <v-alert border="top" colored-border type="info" elevation="2" class="mb-0 pb-0">
-        <div v-if="helpKey === 'build_version'">
+  <v-form
+    class="mt-1"
+    v-else
+    ref="form"
+    v-model="formValid"
+    data-testid="templateForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
+  >
+    <v-dialog v-model="helpDialog" :scrim="false" content-class="NestedDialog" width="300">
+      <v-alert
+        border="top"
+        border-color="info"
+        type="info"
+        color="surface"
+        class="mb-0 pb-0 pt-4 TemplateForm__help"
+        data-testid="templateHelpDialog"
+      >
+        <!-- colored-border of Vuetify 2 coloured the icon along with the border -->
+        <template v-slot:prepend>
+          <v-icon color="info" />
+        </template>
+        <div v-if="helpKey === 'build_version'" data-testid="templateHelpDialog-buildVersion">
           <p>
             {{ $t('definesStartVersionOfYourArtifactEachRunIncrements') }}
           </p>
@@ -45,11 +69,12 @@
             <a
               href="https://docs.semaphoreui.com/user-guide/task-templates#build"
               target="_blank"
+              data-testid="templateHelpDialog-buildVersionLink"
             >{{ $t('taskTemplateReference') }}</a
             >.
           </p>
         </div>
-        <div v-else-if="helpKey === 'build'">
+        <div v-else-if="helpKey === 'build'" data-testid="templateHelpDialog-build">
           <p>
             {{ $t('definesWhatArtifactShouldBeDeployedWhenTheTaskRun') }}
           </p>
@@ -58,17 +83,19 @@
             <a
               href="https://docs.semaphoreui.com/user-guide/task-templates#build"
               target="_blank"
+              data-testid="templateHelpDialog-buildLink"
             >{{ $t('taskTemplateReference2') }}</a
             >.
           </p>
         </div>
-        <div v-if="helpKey === 'cron'">
+        <div v-if="helpKey === 'cron'" data-testid="templateHelpDialog-cron">
           <p>{{ $t('definesAutorunSchedule') }}</p>
           <p>
             {{ $t('forMoreInformationAboutCronSeeThe') }}
             <a
               href="https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format"
               target="_blank"
+              data-testid="templateHelpDialog-cronLink"
             >{{ $t('cronExpressionFormatReference') }}</a
             >.
           </p>
@@ -76,25 +103,43 @@
       </v-alert>
     </v-dialog>
 
-    <v-alert :value="formError" color="error">{{ formError }}</v-alert>
+    <v-alert
+      :model-value="!!formError"
+      color="error"
+      data-testid="templateForm-error"
+    >{{ formError }}</v-alert>
 
-    <v-row class="mb-0">
+    <!-- pb-3: the 12 px bottom padding of the Vuetify 2 columns (the row had mb-0, not -12px) -->
+    <v-row class="pb-3">
       <v-col>
-        <h2 class="mb-4">{{ $t('template_common_options') }}</h2>
+        <h2
+          class="mb-4"
+          data-testid="templateForm-commonTitle"
+        >{{ $t('template_common_options') }}</h2>
 
         <v-card
           class="mb-6"
-          :color="$vuetify.theme.dark ? '#212121' : 'white'"
-          style="background: #8585850f"
+          :style="{ backgroundColor: $vuetify.theme.current.dark ? '#212121' : '#fff' }"
+          data-testid="templateForm-typeCard"
         >
-          <v-tabs fixed-tabs v-model="itemTypeIndex">
-            <v-tab style="padding: 0" v-for="key in Object.keys(TEMPLATE_TYPE_ICONS)" :key="key">
-              <v-icon small class="mr-2">{{ TEMPLATE_TYPE_ICONS[key] }}</v-icon>
+          <v-tabs
+            fixed-tabs
+            v-model="itemTypeIndex"
+            class="TemplateForm__typeTabs"
+            data-testid="templateForm-typeTabs"
+          >
+            <v-tab
+              style="padding: 0"
+              v-for="key in Object.keys(TEMPLATE_TYPE_ICONS)"
+              :key="key"
+              :data-testid="`templateForm-tab-${key || 'task'}`"
+            >
+              <v-icon size="small" class="mr-2">{{ TEMPLATE_TYPE_ICONS[key] }}</v-icon>
               {{ $t(TEMPLATE_TYPE_TITLES[key]) }}
             </v-tab>
           </v-tabs>
 
-          <div class="ml-4 mr-4 mt-6" v-if="item.type">
+          <div class="ml-4 mr-4 mt-6 TemplateForm__typeFields" v-if="item.type">
             <v-text-field
               v-if="item.type === 'build'"
               v-model="item.start_version"
@@ -103,8 +148,9 @@
               required
               :disabled="formSaving"
               :placeholder="$t('example000')"
-              append-outer-icon="mdi-help-circle"
-              @click:append-outer="showHelpDialog('build_version')"
+              data-testid="templateForm-startVersion"
+              append-icon="mdi-help-circle"
+              @click:append="showHelpDialog('build_version')"
             ></v-text-field>
 
             <v-autocomplete
@@ -113,12 +159,13 @@
               :label="$t('buildTemplate')"
               :items="buildTemplates"
               item-value="id"
-              item-text="name"
+              item-title="name"
               :rules="[(v) => !!v || $t('build_template_required')]"
               required
               :disabled="formSaving"
-              append-outer-icon="mdi-help-circle"
-              @click:append-outer="showHelpDialog('build')"
+              data-testid="templateForm-buildTemplateId"
+              append-icon="mdi-help-circle"
+              @click:append="showHelpDialog('build')"
             ></v-autocomplete>
 
             <v-checkbox
@@ -126,6 +173,7 @@
               class="mt-0"
               :label="$t('autorun')"
               v-model="item.autorun"
+              data-testid="templateForm-autorun"
             />
           </div>
         </v-card>
@@ -134,10 +182,11 @@
           v-model="item.name"
           :label="$t('name2')"
           :rules="[(v) => !!v || $t('name_required')]"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           required
           :disabled="formSaving"
+          data-testid="templateForm-name"
         ></v-text-field>
 
         <div style="position: relative">
@@ -146,37 +195,38 @@
             :label="fieldLabel('repository') + ' *'"
             :items="repositories"
             item-value="id"
-            item-text="name"
+            item-title="name"
             :rules="isFieldRequired('repository') ? [(v) => !!v || $t('repository_required')] : []"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             :required="isFieldRequired('repository')"
             :disabled="formSaving"
             v-if="canRead && needField('repository')"
+            data-testid="templateForm-repositoryId"
           >
           </v-autocomplete>
           <v-tooltip
-            bottom
+            location="bottom"
             :disabled="!isMonorepo"
-            color="black"
             content-class="opacity1"
             max-width="400"
             transition="fade-transition"
           >
-            <template v-slot:activator="{ on, attrs }">
+            <template v-slot:activator="{ props }">
               <!-- A monorepo chip gets no click listener at all, so it is neither
                    styled nor behaves as clickable; the wrapper carries the tooltip. -->
               <span
-                v-bind="attrs"
-                v-on="on"
+                v-bind="props"
                 :tabindex="isMonorepo ? 0 : null"
                 style="position: absolute; right: 45px; top: 8px"
               >
                 <v-chip
                   v-if="gitBranch"
-                  small
+                  size="small"
                   label
-                  :class="{ 'text--disabled': isMonorepo }"
+                  class="TemplateForm__smallChip"
+                  :class="{ 'text-disabled': isMonorepo }"
+                  data-testid="templateForm-branchChip"
                   v-on="isMonorepo ? {} : { click: () => { setBranch = !setBranch; } }"
                 >
                   {{ gitBranch }}
@@ -189,8 +239,9 @@
 
         <v-card
           v-if="setBranch"
-          style="background: var(--highlighted-card-bg-color)"
+          style="background: var(--highlighted-card-bg-color); overflow: visible"
           class="mb-6 pt-3"
+          data-testid="templateForm-branchCard"
         >
           <div
             style="
@@ -210,10 +261,11 @@
               <v-autocomplete
                 clearable
                 :items="branches"
+                data-testid="templateForm-gitBranch"
                 v-model="item.git_branch"
                 :label="fieldLabel('branch')"
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
                 :disabled="formSaving || isMonorepo"
                 :placeholder="$t('branch')"
                 :hint="isMonorepo ? $t('monorepoBranchHint') : ''"
@@ -223,10 +275,11 @@
             <div v-else>
               <v-text-field
                 clearable
+                data-testid="templateForm-gitBranch"
                 v-model="item.git_branch"
                 :label="fieldLabel('branch')"
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
                 :disabled="formSaving || isMonorepo"
                 :placeholder="$t('branch')"
                 :hint="isMonorepo ? $t('monorepoBranchHint') : ''"
@@ -247,19 +300,31 @@
             :rules="
               isFieldRequired('playbook') ? [(v) => !!v || $t('playbook_filename_required')] : []
             "
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             clearable
             :required="isFieldRequired('playbook')"
             :disabled="formSaving"
             :placeholder="$t('exampleSiteyml')"
             :loading="playbooksLoading"
-            @update:search-input="onPlaybookSearch"
+            @update:search="onPlaybookSearch"
+            data-testid="templateForm-playbook"
+            :data-state="playbooksLoading ? 'loading' : 'ready'"
           >
-            <template v-slot:append-outer>
+            <!-- The arrow Vuetify 2 drew on every combobox; Vuetify 4 draws it only with items -->
+            <template v-slot:append-inner>
+              <v-icon
+                v-if="!(playbooks || []).length"
+                icon="$dropdown"
+                class="TemplateForm__comboArrow"
+                aria-hidden="true"
+              />
+            </template>
+            <template v-slot:append>
               <v-btn
-                depressed
+                variant="flat"
                 @click="playbooksLoading ? cancelPlaybookLoading() : loadPlaybooks()"
+                data-testid="templateForm-playbookReload"
               >
                 <v-icon>{{ playbooksLoading ? 'mdi-close' : 'mdi-refresh' }}</v-icon>
               </v-btn>
@@ -272,6 +337,7 @@
               v-model="showWorkingDirectoryField"
               :label="$t('workingDirectoryToggleLabel')"
               :disabled="formSaving"
+              data-testid="templateForm-workingDirectoryToggle"
             ></v-checkbox>
 
             <v-text-field
@@ -279,10 +345,11 @@
               v-model="item.working_directory"
               :label="$t('workingDirectory')"
               :rules="[(v) => !!(v && v.trim()) || $t('working_directory_required')]"
-              outlined
-              dense
+              variant="outlined"
+              density="compact"
               required
               :disabled="formSaving"
+              data-testid="templateForm-workingDirectory"
             ></v-text-field>
           </div>
         </div>
@@ -292,12 +359,13 @@
           :label="fieldLabel('inventory')"
           :items="inventory"
           item-value="id"
-          item-text="name"
-          outlined
-          dense
+          item-title="name"
+          variant="outlined"
+          density="compact"
           required
           :disabled="formSaving"
           v-if="canRead && needField('inventory')"
+          data-testid="templateForm-inventoryId"
         ></v-autocomplete>
 
         <v-autocomplete
@@ -305,7 +373,7 @@
           :label="fieldLabel('environment')"
           :items="environment"
           item-value="id"
-          item-text="name"
+          item-title="name"
           :rules="
             isFieldRequired('environment')
               ? [(v) => (Array.isArray(v) && v.length > 0) || $t('environment_required')]
@@ -314,12 +382,13 @@
           persistent-hint
           multiple
           chips
-          deletable-chips
-          outlined
-          small-chips
+          closable-chips
+          variant="outlined"
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
           v-if="canRead && needField('environment')"
+          class="TemplateForm__chips"
+          data-testid="templateForm-environmentIds"
         ></v-autocomplete>
 
         <v-autocomplete
@@ -330,15 +399,16 @@
           clearable
           :items="views"
           item-value="id"
-          item-text="title"
+          item-title="title"
           :disabled="formSaving"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
+          data-testid="templateForm-viewId"
         ></v-autocomplete>
       </v-col>
 
       <v-col>
-        <h2 class="mb-4">{{ $t('template_advanced') }}</h2>
+        <h2 class="mb-4" data-testid="templateForm-advancedTitle">{{ $t('template_advanced') }}</h2>
 
         <div class="mb-4">
           <v-autocomplete
@@ -347,12 +417,13 @@
             :items="runnerTags"
             :label="fieldLabel('runner_tag')"
             item-value="tag"
-            item-text="tag"
-            outlined
-            dense
+            item-title="tag"
+            variant="outlined"
+            density="compact"
             :disabled="formSaving"
             :placeholder="$t('runner_tag')"
             clearable
+            data-testid="templateForm-runnerTag"
           ></v-autocomplete>
 
           <div style="position: relative">
@@ -361,21 +432,24 @@
               :label="$t('executor_image')"
               persistent-hint
               placeholder="semaphoreui/job:latest"
-              outlined
-              dense
+              variant="outlined"
+              density="compact"
               clearable
               class="mb-4"
               :disabled="formSaving || !isExecutorImageAvailable"
+              data-testid="templateForm-executorImage"
             ></v-text-field>
 
             <v-chip
               v-if="!isExecutorImageAvailable"
               color="hsl(348deg, 86%, 61%)"
-              text-color="white"
-              small
+              variant="flat"
+              class="text-white TemplateForm__smallChip"
+              size="small"
               label
               style="position: absolute; top: -10px; right: 15px"
               @click="upgradeToPro('docker_executor')"
+              data-testid="templateForm-executorImageUpgrade"
             >
               Upgrade to PRO
             </v-chip>
@@ -383,21 +457,38 @@
 
           <SurveyVars :vars="surveyVars" @change="setSurveyVars" />
 
-          <v-checkbox class="mt-0" v-model="item.allow_parallel_tasks">
+          <v-checkbox
+            class="mt-0"
+            v-model="item.allow_parallel_tasks"
+            data-testid="templateForm-allowParallelTasks"
+          >
             <template v-slot:label>
               {{ $t('allow_parallel_tasks') }}
             </template>
           </v-checkbox>
 
           <template v-if="jwt?.enabled">
-            <v-checkbox class="mt-0" v-model="item.jwt_params.enabled">
+            <v-checkbox
+              class="mt-0"
+              v-model="item.jwt_params.enabled"
+              data-testid="templateForm-jwtEnabled"
+            >
               <template v-slot:label>
                 {{ $t('jwt_enabled') }}
-                <v-chip class="ml-2" small color="error">New</v-chip>
+                <v-chip
+                  class="ml-2 TemplateForm__smallChip"
+                  size="small"
+                  color="error"
+                  data-testid="templateForm-jwtNew"
+                >New</v-chip>
               </template>
             </v-checkbox>
 
-            <DropdownCard v-if="item.jwt_params.enabled" no-bottom-padding>
+            <DropdownCard
+              v-if="item.jwt_params.enabled"
+              no-bottom-padding
+              data-testid="templateForm-jwtCard"
+            >
               <v-combobox
                 v-model="item.jwt_params.audience"
                 :label="$t('jwt_audience')"
@@ -405,12 +496,18 @@
                 persistent-hint
                 multiple
                 chips
-                small-chips
-                deletable-chips
-                outlined
-                dense
+                closable-chips
+                variant="outlined"
+                density="compact"
                 :disabled="formSaving"
-              ></v-combobox>
+                class="TemplateForm__chips"
+                data-testid="templateForm-jwtAudience"
+              >
+                <!-- The arrow Vuetify 2 drew on every combobox (Vuetify 4: only with items) -->
+                <template v-slot:append-inner>
+                  <v-icon icon="$dropdown" class="TemplateForm__comboArrow" aria-hidden="true" />
+                </template>
+              </v-combobox>
 
               <v-text-field
                 class="mt-4"
@@ -419,9 +516,10 @@
                 :hint="jwtTtlHint"
                 persistent-hint
                 placeholder="1h"
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
                 :disabled="formSaving"
+                data-testid="templateForm-jwtTtl"
               ></v-text-field>
             </DropdownCard>
           </template>
@@ -431,9 +529,10 @@
             :label="$t('iWantToRunATaskByTheCronOnlyForForNewCommitsOfSome')"
             v-model="cronVisible"
             v-if="canRead"
+            data-testid="templateForm-cronVisible"
           />
 
-          <DropdownCard v-if="canRead && cronVisible">
+          <DropdownCard v-if="canRead && cronVisible" data-testid="templateForm-cronCard">
             <v-select
               v-model="cronRepositoryId"
               :label="$t('repository2')"
@@ -441,11 +540,12 @@
               :rules="[(v) => !!v || $t('repository_required')]"
               :items="repositories"
               item-value="id"
-              item-text="name"
+              item-title="name"
               clearable
               :disabled="formSaving"
-              outlined
-              dense
+              variant="outlined"
+              density="compact"
+              data-testid="templateForm-cronRepositoryId"
             ></v-select>
 
             <v-select
@@ -453,12 +553,13 @@
               :label="$t('checkInterval')"
               :hint="$t('newCommitCheckInterval')"
               item-value="cron"
-              item-text="title"
+              item-title="title"
               :items="cronFormats"
               :disabled="formSaving"
-              outlined
+              variant="outlined"
               hide-details
-              dense
+              density="compact"
+              data-testid="templateForm-cronFormat"
             />
           </DropdownCard>
 
@@ -466,49 +567,58 @@
             class="mt-0"
             :label="$t('suppressSuccessAlerts')"
             v-model="item.suppress_success_alerts"
+            data-testid="templateForm-suppressSuccessAlerts"
           />
 
           <v-checkbox
             class="mt-0"
             :label="$t('suppressErrorAlerts')"
             v-model="item.suppress_error_alerts"
+            data-testid="templateForm-suppressErrorAlerts"
           />
 
           <div style="position: relative">
-            <ArgsPicker :vars="args" @change="setArgs" title="CLI args" />
+            <ArgsPicker
+              :vars="args"
+              @change="setArgs"
+              title="CLI args"
+              test-id="templateForm-args"
+            />
 
             <RichEditor
               v-model="argsJson"
               type="json_array"
               style="position: absolute; right: -23px; top: -18px; margin: 10px"
+              test-id="templateForm-argsJson"
             />
           </div>
         </div>
 
-        <h2 class="mb-4">{{ $t('task_prompts') }}</h2>
+        <h2 class="mb-4" data-testid="templateForm-promptsTitle">{{ $t('task_prompts') }}</h2>
         <div class="d-flex" style="column-gap: 20px; flex-wrap: wrap">
           <v-checkbox
             class="mt-0"
             :label="$t('allowCliArgsInTask')"
             v-model="item.allow_override_args_in_task"
+            data-testid="templateForm-allowOverrideArgsInTask"
           />
 
           <v-tooltip
-            bottom
+            location="bottom"
             :disabled="!isMonorepo"
-            color="black"
             content-class="opacity1"
             max-width="400"
             transition="fade-transition"
           >
-            <template v-slot:activator="{ on }">
+            <template v-slot:activator="{ props }">
               <!-- A disabled input emits no mouse events, so the wrapper owns the tooltip. -->
-              <div v-on="on">
+              <div v-bind="props">
                 <v-checkbox
                   class="mt-0"
                   :label="$t('allow_override_branch')"
                   v-model="item.allow_override_branch_in_task"
                   :disabled="isMonorepo"
+                  data-testid="templateForm-allowOverrideBranchInTask"
                 />
               </div>
             </template>
@@ -520,13 +630,14 @@
             :label="$t('allowInventoryInTask')"
             v-model="allow_override_inventory"
             v-if="needField('allow_override_inventory')"
+            data-testid="templateForm-allowOverrideInventory"
           />
         </div>
       </v-col>
 
       <v-col v-if="needAppBlock">
         <div class="mb-3">
-          <h2 class="mb-4">
+          <h2 class="mb-4" data-testid="templateForm-appTitle">
             {{ $t('template_app_options', { app: getAppTitle(app, true) }) }}
           </h2>
 
@@ -537,6 +648,7 @@
             :title="$t('limit')"
             :arg-title="$t('limit')"
             :add-arg-title="$t('addLimit')"
+            test-id="templateForm-limit"
           />
 
           <ArgsPicker
@@ -546,6 +658,7 @@
             :title="$t('tags')"
             :arg-title="$t('tag')"
             :add-arg-title="$t('addTag')"
+            test-id="templateForm-tags"
           />
 
           <ArgsPicker
@@ -555,11 +668,12 @@
             :title="$t('skipTags')"
             :arg-title="$t('tag')"
             :add-arg-title="$t('addSkippedTag')"
+            test-id="templateForm-skipTags"
           />
 
           <TemplateVaults
             v-if="hasVaults"
-            :project-id="this.projectId"
+            :project-id="projectId"
             :vaults="vaults"
             @change="setTemplateVaults"
           ></TemplateVaults>
@@ -569,6 +683,7 @@
             :label="$t('auto_approve')"
             v-model="item.task_params.auto_approve"
             v-if="needField('auto_approve')"
+            data-testid="templateForm-autoApprove"
           />
 
           <v-checkbox
@@ -578,21 +693,23 @@
             :true-value="true"
             :false-value="false"
             v-if="needField('override_backend') && features.terraform_backend"
+            data-testid="templateForm-overrideBackend"
           />
 
           <v-text-field
             v-model="item.task_params.backend_filename"
             :label="fieldLabel('terraform_backend_filename')"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             :disabled="formSaving || !item.task_params.override_backend"
             placeholder="backend.tf"
             :rules="[(v) => validateBackendFilename(v) || $t('terraform_invalid_backend_filename')]"
             v-if="needField('backend_filename') && features.terraform_backend"
+            data-testid="templateForm-backendFilename"
           ></v-text-field>
         </div>
 
-        <h2 class="mb-4">
+        <h2 class="mb-4" data-testid="templateForm-appPromptsTitle">
           {{ $t('template_app_prompts', { app: getAppTitle(app, true) }) }}
         </h2>
         <div class="d-flex" style="column-gap: 20px; flex-wrap: wrap">
@@ -601,6 +718,7 @@
             :label="$t('allowLimitInTask')"
             v-model="item.task_params.allow_override_limit"
             v-if="needField('allow_override_limit')"
+            data-testid="templateForm-allowOverrideLimit"
           />
 
           <v-checkbox
@@ -608,6 +726,7 @@
             :label="$t('tags')"
             v-model="item.task_params.allow_override_tags"
             v-if="needField('allow_override_tags')"
+            data-testid="templateForm-allowOverrideTags"
           />
 
           <v-checkbox
@@ -615,6 +734,7 @@
             :label="$t('skipTags')"
             v-model="item.task_params.allow_override_skip_tags"
             v-if="needField('allow_override_skip_tags')"
+            data-testid="templateForm-allowOverrideSkipTags"
           />
 
           <v-checkbox
@@ -622,6 +742,7 @@
             :label="$t('allowDebug')"
             v-model="item.task_params.allow_debug"
             v-if="needField('allow_debug')"
+            data-testid="templateForm-allowDebug"
           />
 
           <v-checkbox
@@ -629,6 +750,7 @@
             :label="$t('dryRun')"
             v-model="show_dry_run"
             v-if="needField('hide_dry_run')"
+            data-testid="templateForm-showDryRun"
           />
 
           <v-checkbox
@@ -636,6 +758,7 @@
             :label="$t('diff')"
             v-model="show_diff"
             v-if="needField('hide_diff')"
+            data-testid="templateForm-showDiff"
           />
 
           <v-checkbox
@@ -643,6 +766,7 @@
             :label="$t('auto_approve')"
             v-model="item.task_params.allow_auto_approve"
             v-if="needField('allow_auto_approve')"
+            data-testid="templateForm-allowAutoApprove"
           />
         </div>
 
@@ -652,12 +776,14 @@
           class="mt-2"
           :title="$t('galaxyInstallOptions')"
           :badge="galaxyBadge"
+          data-testid="templateForm-galaxy"
         >
           <v-checkbox
             class="mt-0 mb-4"
             hide-details
             v-model="item.task_params.skip_galaxy_install"
             :label="$t('skipGalaxyInstall')"
+            data-testid="templateForm-skipGalaxyInstall"
           />
 
           <ArgsPicker
@@ -666,6 +792,7 @@
             @change="setGalaxyRoleArgs"
             :title="$t('galaxyRoleArgs')"
             :arg-title="$t('arg')"
+            test-id="templateForm-galaxyRoleArgs"
           />
 
           <ArgsPicker
@@ -674,16 +801,21 @@
             @change="setGalaxyCollectionArgs"
             :title="$t('galaxyCollectionArgs')"
             :arg-title="$t('arg')"
+            test-id="templateForm-galaxyCollectionArgs"
           />
 
           <template v-if="needField('allow_override_skip_galaxy_install')">
-            <div class="text-subtitle-2 mb-2">{{ $t('prompts') }}</div>
+            <div
+              class="text-label-large mb-2"
+              data-testid="templateForm-galaxyPromptsTitle"
+            >{{ $t('prompts') }}</div>
 
             <v-checkbox
               class="mt-0"
               hide-details
               v-model="item.task_params.allow_override_skip_galaxy_install"
               :label="$t('skipGalaxyInstall')"
+              data-testid="templateForm-allowOverrideSkipGalaxyInstall"
             />
           </template>
         </CollapsibleSection>
@@ -692,7 +824,148 @@
   </v-form>
 </template>
 <style lang="scss">
-.CodeMirror-placeholder {
+// The help: the coloured border of `colored-border` at full opacity over the 16 px top padding,
+// 16 px under each paragraph (`.v-application p`); the shadow and the 12 px corners are those of
+// `.NestedDialog` around it (App.vue).
+.TemplateForm__help {
+  .v-alert__border {
+    opacity: 1;
+  }
+
+  // The text colour of the theme, not the colour on the `surface` background.
+  .v-alert__content {
+    color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+  }
+
+  p {
+    margin-bottom: 16px;
+  }
+}
+
+// The first field of the type card: the 4 px top margin of a Vuetify 2 field folded into the 24 px
+// above it, so the field stood 4 px higher than a field in the flow (and the card was 4 px lower).
+.TemplateForm__typeFields > .v-input:first-child {
+  margin-top: -4px;
+}
+
+// The arrow of a combobox without items, where the menu icon would be (`.v-combobox__menu-icon`).
+.TemplateForm__comboArrow {
+  margin-inline-start: 4px;
+}
+
+// A small chip of Vuetify 2 is 24 px high (`$chip-sizes`), Vuetify 4 makes it 26 px.
+.TemplateForm__smallChip.v-chip {
+  --v-chip-height: 24px;
+}
+
+// Chips of a multiple select 4 px apart from each other and from the field edge (`.v-select--chips
+// .v-chip`: margin 4px), not the 2 px of Vuetify 4.
+.TemplateForm__chips :is(.v-autocomplete__selection, .v-combobox__selection) {
+  margin-inline: 4px;
+}
+
+// The type tabs share the card width equally, as `fixed-tabs` of Vuetify 2 did
+// (`.v-tabs--fixed-tabs .v-tab { flex: 1 1 auto; width: 100% }`); Vuetify 4 sizes them by text.
+.TemplateForm__typeTabs .v-tab {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+// The loader box of Vuetify 2: its 4 px top margin folded with the -12 px of the row inside it,
+// so the box began 8 px above the dialog body and the skeletons 12 px below its top (the column
+// padding); the dialog stays 12 px lower than a plain 4 px margin would make it.
+.TemplateForm__loader {
+  margin-top: -8px;
+  padding-top: 12px;
+}
+
+// The loading skeleton of Vuetify 2 (`VSkeletonLoader.sass`): bones in blocks, a table heading
+// of 16 px padding, a 200 px image, two-line items 72 px high, an article with padded paragraph;
+// texts 12 px with 6 px under each.
+.TemplateForm__loader .v-skeleton-loader {
+  display: block;
+
+  .v-skeleton-loader__text {
+    flex: 1 0 auto;
+    height: 12px;
+    margin: 0 0 6px;
+    max-width: none;
+  }
+
+  .v-skeleton-loader__heading {
+    height: 24px;
+    margin: 0;
+    width: 45%;
+  }
+
+  .v-skeleton-loader__table-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+
+    > .v-skeleton-loader__heading {
+      height: 24px;
+      max-width: 15%;
+    }
+
+    > .v-skeleton-loader__text {
+      max-width: 40%;
+    }
+  }
+
+  .v-skeleton-loader__image {
+    height: 200px;
+  }
+
+  .v-skeleton-loader__list-item-two-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    align-items: center;
+    height: 72px;
+    margin: 0;
+    padding: 0 16px;
+  }
+
+  .v-skeleton-loader__sentences,
+  .v-skeleton-loader__paragraph {
+    display: block;
+    flex: 1 0 auto;
+  }
+
+  .v-skeleton-loader__sentences > .v-skeleton-loader__text:nth-child(2) {
+    max-width: 70%;
+  }
+
+  .v-skeleton-loader__list-item-two-line .v-skeleton-loader__text:last-child {
+    margin-bottom: 0;
+  }
+
+  .v-skeleton-loader__article {
+    display: block;
+
+    > .v-skeleton-loader__heading {
+      margin: 16px 0 16px 16px;
+    }
+
+    > .v-skeleton-loader__paragraph {
+      padding: 16px;
+    }
+  }
+
+  .v-skeleton-loader__paragraph {
+    > .v-skeleton-loader__text:nth-child(2) {
+      max-width: 50%;
+    }
+
+    > .v-skeleton-loader__text:nth-child(3) {
+      max-width: 70%;
+    }
+  }
+}
+
+.cm-placeholder {
   color: #a4a4a4 !important;
 }
 </style>
@@ -702,10 +975,6 @@
 import axios from 'axios';
 
 import ItemFormBase from '@/components/ItemFormBase';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/mode/vue/vue.js';
-import 'codemirror/addon/lint/json-lint.js';
-import 'codemirror/addon/display/placeholder.js';
 import ArgsPicker from '@/components/ArgsPicker.vue';
 import TemplateVaults from '@/components/TemplateVaults.vue';
 import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
@@ -768,14 +1037,6 @@ export default {
       itemTypeIndex: 0,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_TITLES,
-      cmOptions: {
-        tabSize: 2,
-        mode: 'application/json',
-        lineNumbers: true,
-        line: true,
-        lint: true,
-        indentWithTabs: false,
-      },
       item: {
         task_params: {},
         jwt_params: { enabled: false, audience: [], ttl: '' },
@@ -888,11 +1149,7 @@ export default {
         return this.item?.working_directory != null;
       },
       set(enabled) {
-        this.$set(
-          this.item,
-          'working_directory',
-          enabled ? this.item.working_directory || '' : null,
-        );
+        this.item.working_directory = enabled ? this.item.working_directory || '' : null;
       },
     },
 
@@ -962,7 +1219,7 @@ export default {
         return !this.item.task_params.hide_dry_run;
       },
       set(newValue) {
-        this.$set(this.item.task_params, 'hide_dry_run', !newValue);
+        this.item.task_params.hide_dry_run = !newValue;
       },
     },
 
@@ -971,7 +1228,7 @@ export default {
         return !this.item.task_params.hide_diff;
       },
       set(newValue) {
-        this.$set(this.item.task_params, 'hide_diff', !newValue);
+        this.item.task_params.hide_diff = !newValue;
       },
     },
 
@@ -1210,13 +1467,13 @@ export default {
         switch (t.type) {
           case 'build':
             if (builds.length === 0) {
-              builds.push({ header: 'Build Templates' });
+              builds.push({ type: 'subheader', name: 'Build Templates' });
             }
             builds.push(t);
             break;
           case 'deploy':
             if (deploys.length === 0) {
-              deploys.push({ header: 'Deploy Templates' });
+              deploys.push({ type: 'subheader', name: 'Deploy Templates' });
             }
             deploys.push(t);
             break;
@@ -1227,7 +1484,7 @@ export default {
 
       this.buildTemplates = builds;
       if (this.buildTemplates.length > 0 && deploys.length > 0) {
-        this.buildTemplates.push({ divider: true });
+        this.buildTemplates.push({ type: 'divider' });
       }
       this.buildTemplates.push(...deploys);
     },
@@ -1259,7 +1516,7 @@ export default {
       }
 
       if (!this.item.task_params) {
-        this.$set(this.item, 'task_params', {});
+        this.item.task_params = {};
       }
 
       // Same reactivity concern as executor_image: keys absent in the API response
@@ -1273,7 +1530,7 @@ export default {
         };
         Object.keys(galaxyDefaults).forEach((key) => {
           if (this.item.task_params[key] === undefined) {
-            this.$set(this.item.task_params, key, galaxyDefaults[key]);
+            this.item.task_params[key] = galaxyDefaults[key];
           }
         });
       }
@@ -1281,22 +1538,22 @@ export default {
       // The API omits executor_image when it is not set; declare it explicitly so
       // the text field stays reactive for templates without an override.
       if (this.item.executor_image === undefined) {
-        this.$set(this.item, 'executor_image', null);
+        this.item.executor_image = null;
       }
 
       if (!this.item.jwt_params) {
-        this.$set(this.item, 'jwt_params', { enabled: false, audience: [], ttl: '' });
+        this.item.jwt_params = { enabled: false, audience: [], ttl: '' };
       } else {
         if (!Array.isArray(this.item.jwt_params.audience)) {
-          this.$set(this.item.jwt_params, 'audience', []);
+          this.item.jwt_params.audience = [];
         }
         if (typeof this.item.jwt_params.ttl !== 'string') {
-          this.$set(this.item.jwt_params, 'ttl', '');
+          this.item.jwt_params.ttl = '';
         }
       }
 
       if (!Array.isArray(this.item.environment_ids)) {
-        this.$set(this.item, 'environment_ids', []);
+        this.item.environment_ids = [];
       }
 
       this.args = JSON.parse(this.item.arguments || '[]');
@@ -1312,7 +1569,14 @@ export default {
         }
       }
 
-      this.itemTypeIndex = Object.keys(TEMPLATE_TYPE_ICONS).indexOf(this.item.type);
+      // The tabs of Vuetify 2 were mandatory: a type they do not know (a new template has none)
+      // fell back to the first tab and wrote it back through the model; Vuetify 3 tabs leave
+      // nothing selected.
+      const typeIndex = Object.keys(TEMPLATE_TYPE_ICONS).indexOf(this.item.type);
+      if (typeIndex < 0) {
+        this.item.type = Object.keys(TEMPLATE_TYPE_ICONS)[0];
+      }
+      this.itemTypeIndex = Math.max(typeIndex, 0);
     },
 
     getItemsUrl() {

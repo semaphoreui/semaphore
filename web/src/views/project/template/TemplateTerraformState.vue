@@ -1,11 +1,17 @@
 <template>
-  <div v-if="inventories != null && states != null" class="mt-8">
+  <div
+    v-if="inventories != null && states != null"
+    class="mt-8"
+    data-testid="templateState-page"
+    :data-state="inventories.length === 0 ? 'empty' : 'ready'"
+  >
 
     <EditDialog
       v-model="editDialog"
       :save-button-text="aliasId === 'new' ? $t('create') : $t('save')"
       :title="`${aliasId === 'new' ? $t('nnew') : $t('edit')} Key`"
       :max-width="450"
+      test-id="tfAliasDialog"
       @save="loadAliases()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -25,6 +31,7 @@
       :title="$t('deleteInventory')"
       :text="$t('askDeleteInv')"
       v-model="deleteInventoryDialog"
+      test-id="tfWorkspaceDeleteDialog"
       @yes="deleteInventory()"
     />
 
@@ -35,6 +42,7 @@
       :icon-color="getAppColor(template.app)"
       :title="`${$t('nnew')} ${APP_INVENTORY_TITLE[template.app]}`"
       :max-width="450"
+      test-id="tfWorkspaceDialog"
       @save="onNewInventory"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -59,6 +67,7 @@
       :icon-color="getAppColor(template.app)"
       :max-width="450"
       title="Choose workspace to attach"
+      test-id="tfWorkspaceAttachDialog"
       @save="attachInventory($event.itemId)"
     >
       <template v-slot:form="{ onSave, needSave, needReset }">
@@ -78,57 +87,65 @@
     >
       <div class="mb-6">
         <v-btn-toggle
-          dense
+          density="compact"
           v-model="inventoryId"
           v-if="inventories.length > 0"
-          mandatory
+          mandatory="force"
           style="overflow: auto"
-          class="mb-2"
+          class="TerraformState__workspaces mb-2"
+          data-testid="templateState-workspaces"
         >
           <v-btn
             v-for="inv in inventories"
             :key="inv.id"
             :value="inv.id"
             style="border-radius: 0"
+            data-testid="templateState-workspace"
           >
             {{ inv.inventory }}
             <v-icon
-              dark
               v-if="inv.id === template.inventory_id"
               class="ml-1"
               color="success"
+              data-testid="templateState-workspaceDefault"
             >mdi-check
             </v-icon>
           </v-btn>
         </v-btn-toggle>
 
-        <span v-else>No workspaces.</span>
+        <span v-else data-testid="templateState-empty">No workspaces.</span>
 
-        <v-menu offset-y>
-          <template v-slot:activator="{ on, attrs }">
+        <v-menu location="bottom">
+          <template v-slot:activator="{ props }">
+            <!-- `fab small` of Vuetify 2: a round 40 px button (shadow: .TerraformState__fab) -->
             <v-btn
               color="primary"
-              dark
-              fab
-              small
-              class="ml-3"
-              v-bind="attrs"
-              v-on="on"
+              icon
+              size="40"
+              class="TerraformState__fab ml-3"
+              v-bind="props"
+              data-testid="templateState-new"
             >
-              <v-icon dark>mdi-plus</v-icon>
+              <v-icon>mdi-plus</v-icon>
             </v-btn>
           </template>
           <v-list>
-            <v-list-item @click="itemId = 'new'; inventoryDialog = true">
-              <v-list-item-icon>
+            <v-list-item
+              @click="itemId = 'new'; inventoryDialog = true"
+              data-testid="templateState-new-workspace"
+            >
+              <template v-slot:prepend>
                 <v-icon>mdi-pencil</v-icon>
-              </v-list-item-icon>
+              </template>
               <v-list-item-title>New workspace</v-list-item-title>
             </v-list-item>
-            <v-list-item @click="attachInventoryDialog = true">
-              <v-list-item-icon>
+            <v-list-item
+              @click="attachInventoryDialog = true"
+              data-testid="templateState-new-attach"
+            >
+              <template v-slot:prepend>
                 <v-icon>mdi-connection</v-icon>
-              </v-list-item-icon>
+              </template>
               <v-list-item-title>Attach existing workspace</v-list-item-title>
             </v-list-item>
           </v-list>
@@ -138,14 +155,18 @@
       <v-card
         style="background-color: var(--highlighted-card-bg-color);"
         v-if="inventories.length > 0"
+        data-testid="templateState-workspaceCard"
       >
 
+        <!-- flex-wrap, text-wrap: v-card__title of Vuetify 2 wrapped on narrow screens -->
         <v-card-title
-          class="d-flex justify-space-between align-center"
+          class="d-flex flex-wrap text-wrap justify-space-between align-center"
           style="font-weight: normal;"
         >
 
-          <span>Workspace: <strong>{{ inventory.inventory }}</strong></span>
+          <span data-testid="templateState-workspaceTitle">Workspace: <strong
+            data-testid="templateState-workspaceName"
+          >{{ inventory.inventory }}</strong></span>
 
           <div>
 
@@ -154,6 +175,7 @@
               :disabled="inventoryId === template.inventory_id"
               color="success"
               @click="setDefaultInventory()"
+              data-testid="templateState-makeDefault"
             >
               Make default
             </v-btn>
@@ -163,23 +185,28 @@
               color="primary"
               :disabled="inventoryId === template.inventory_id"
               @click="detachInventory()"
+              data-testid="templateState-detach"
             >
               Detach
             </v-btn>
 
             <v-btn
               icon
+              variant="text"
               class="mr-2"
               color="error"
               :disabled="inventoryId === template.inventory_id"
               @click="deleteInventoryDialog = true;"
+              data-testid="templateState-delete"
             >
               <v-icon>mdi-delete</v-icon>
             </v-btn>
 
             <v-btn
               icon
+              variant="text"
               @click="itemId = inventoryId; inventoryDialog = true;"
+              data-testid="templateState-edit"
             >
               <v-icon>mdi-pencil</v-icon>
             </v-btn>
@@ -191,10 +218,11 @@
 
         <v-alert
           type="info"
-          text
+          variant="tonal"
           color="hsl(348deg, 86%, 61%)"
           style="border-radius: 0;"
           v-if="!features.terraform_backend"
+          data-testid="templateState-proAlert"
         >
             <span class="mr-2">
               Terraform/OpenTofu HTTP backend available only in <b>PRO</b> version.
@@ -202,6 +230,7 @@
           <v-btn
             color="hsl(348deg, 86%, 61%)"
             href="https://semaphoreui.com/pro#runners"
+            data-testid="templateState-learnMore"
           >
             Learn more
             <v-icon>mdi-chevron-right</v-icon>
@@ -209,19 +238,37 @@
         </v-alert>
         <v-card-text>
 
-          <h3>Aliases</h3>
-          <div class="mb-6">Unique endpoints (aliases) to access your Terraform HTTP backend.</div>
+          <h3 data-testid="templateState-aliasesTitle">Aliases</h3>
+          <div
+            class="mb-6"
+            data-testid="templateState-aliasesHint"
+          >Unique endpoints (aliases) to access your Terraform HTTP backend.</div>
 
-          <div v-for="alias of (aliases || [])" :key="alias.id">
-            <code class="mr-2">{{ alias.url }}</code>
+          <div
+            v-for="alias of (aliases || [])"
+            :key="alias.id"
+            data-testid="templateState-alias"
+          >
+            <code class="mr-2" data-testid="templateState-aliasUrl">{{ alias.url }}</code>
             <CopyClipboardButton
               :text="alias.url"
               :success-message="$t('aliasUrlCopied')"
+              test-id="templateState-aliasCopy"
             />
-            <v-btn icon @click="editAlias(alias.id)">
+            <v-btn
+              icon
+              variant="text"
+              @click="editAlias(alias.id)"
+              data-testid="templateState-aliasEdit"
+            >
               <v-icon>mdi-pencil</v-icon>
             </v-btn>
-            <v-btn icon @click="deleteAlias(alias.id)">
+            <v-btn
+              icon
+              variant="text"
+              @click="deleteAlias(alias.id)"
+              data-testid="templateState-aliasDelete"
+            >
               <v-icon>mdi-delete</v-icon>
             </v-btn>
           </div>
@@ -231,14 +278,19 @@
             @click="addAlias()"
             :disabled="!features.terraform_backend"
             class="mb-8"
+            data-testid="templateState-addAlias"
+            :data-state="aliases == null ? 'error' : (aliases.length === 0 ? 'empty' : 'ready')"
           >
             {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
           </v-btn>
 
           <v-divider class="mb-4" />
 
-          <h3>State history</h3>
-          <div class="mb-6">Chronological history of the workspace state changes.</div>
+          <h3 data-testid="templateState-historyTitle">State history</h3>
+          <div
+            class="mb-6"
+            data-testid="templateState-historyHint"
+          >Chronological history of the workspace state changes.</div>
 
           <v-data-table
             style="
@@ -247,10 +299,14 @@
             v-if="features.terraform_backend"
             :headers="headers"
             :items="states"
-            :footer-props="{ itemsPerPageOptions: [20] }"
-            single-expand
+            :items-per-page-options="[20]"
+            :items-per-page="20"
             show-expand
-            class="mt-4 TaskListTable TaskListTable TerraformStateTable"
+            v-model:expanded="expanded"
+            expand-strategy="single"
+            class="mt-4 TaskListTable TaskListTable TerraformStateTable FixedPageSizeTable"
+            data-testid="templateState-table"
+            :data-state="states.length === 0 ? 'empty' : 'ready'"
           >
             <template v-slot:item.id="{ item }">
               #{{ item.id }}
@@ -261,8 +317,9 @@
                 v-if="item.task_id"
                 :task-id="item.task_id"
                 :label="'#' + item.task_id"
+                data-testid="templateState-rowTask"
               />
-              <div v-else>&mdash;</div>
+              <div v-else data-testid="templateState-rowNoTask">&mdash;</div>
             </template>
 
             <template v-slot:item.status="{ item }">
@@ -270,25 +327,29 @@
             </template>
 
             <template v-slot:item.created="{ item }">
-              {{ item.created | formatDate }}
+              {{ $filters.formatDate(item.created) }}
             </template>
 
-            <template v-slot:expanded-item="{ headers, item }">
-              <td
-                :colspan="headers.length"
-                style="max-width: 400px"
-              >
-                <TerraformStateView
-                  class="mb-1"
-                  :project-id="template.project_id"
-                  :inventory-id="inventoryId"
-                  :state-id="item.id"
-                />
-              </td>
+            <!-- the slot draws the whole row: Vuetify 3 does not wrap it in a <tr> -->
+            <template v-slot:expanded-row="{ columns, item }">
+              <tr>
+                <td
+                  :colspan="columns.length"
+                  style="max-width: 400px"
+                  data-testid="templateState-rowState"
+                >
+                  <TerraformStateView
+                    class="mb-1"
+                    :project-id="template.project_id"
+                    :inventory-id="inventoryId"
+                    :state-id="item.id"
+                  />
+                </td>
+              </tr>
             </template>
           </v-data-table>
 
-          <v-container v-else>
+          <v-container v-else data-testid="templateState-noBackend">
             <div style="text-align: center; color: grey;">No state available.</div>
           </v-container>
 
@@ -302,15 +363,69 @@
 <style lang="scss">
 .TerraformStateTable {
 
-  .v-data-table__wrapper {
+  .v-table__wrapper {
     padding-left: 0 !important;
     padding-right: 0 !important;
   }
 
-  .v-data-footer {
+  .v-data-table-footer {
     margin-left: 0 !important;
     margin-right: 0 !important;
   }
+
+  // The line over the footer as wide as the footer: here the whole card (the shared footer —
+  // assets/scss/vuetify2.scss — insets it 16 px with the footer of App.vue).
+  &.v-data-table > .v-divider {
+    margin: 0;
+  }
+
+  // The expand column of Vuetify 2: the 24 px chevron icon (`.v-data-table__expand-icon`) in a
+  // cell padded 2 px (App.vue) and 16 px, not a small icon button of 28 px in a 48 px cell.
+  > .v-table__wrapper > table > thead > tr > th:first-child,
+  .v-data-table__td--expanded-row {
+    padding-right: 16px;
+  }
+
+  .v-data-table__td--expanded-row > .v-btn {
+    width: 24px;
+    height: 24px;
+
+    // A focused toggle (after a click, too) in a circle 1.3 times its size at .12, as the link
+    // icon of Vuetify 2 (`.v-icon--link::after`); Vuetify 4 shows the overlay on
+    // `:focus-visible` only.
+    &:focus > .v-btn__overlay {
+      border-radius: 50%;
+      opacity: .12;
+      transform: scale(1.3);
+    }
+  }
+
+  // Rows as cards on a phone: the value at the right end of the row, as the shrink-to-fit
+  // `.v-data-table__mobile-row__cell` of Vuetify 2 (the expand chevron, too); Vuetify 4 stretches
+  // it over the second grid column.
+  @media (max-width: 599.98px) {
+    .v-data-table__tr--mobile > td > .v-data-table__td-value {
+      justify-self: end;
+    }
+
+    .v-data-table__tr--mobile > .v-data-table__td--expanded-row {
+      justify-content: end;
+    }
+  }
+}
+
+// The workspace toggle on the text baseline of its line, as `.v-item-group` of Vuetify 2
+// (Vuetify 4: `vertical-align: middle`): the line is 45 px high and the "+" sits 1 px over the
+// toggle's top.
+.TerraformState__workspaces {
+  vertical-align: baseline;
+}
+
+// The shadow of a Vuetify 2 fab: elevation 6 (`.v-btn--fab`); Vuetify 4 has elevation classes up
+// to 5 only, and the elevated variant draws level 2.
+.v-btn.TerraformState__fab {
+  box-shadow: 0 3px 5px -1px rgba(0, 0, 0, .2), 0 6px 10px 0 rgba(0, 0, 0, .14),
+    0 1px 18px 0 rgba(0, 0, 0, .12);
 }
 </style>
 <script>
@@ -354,6 +469,8 @@ export default {
     canRead: Boolean,
   },
 
+  emits: ['update-template'],
+
   watch: {
     async inventoryId() {
       if (!this.canRead) {
@@ -377,24 +494,32 @@ export default {
       attachInventoryDialog: null,
       aliasId: null,
       editDialog: null,
+      // single-expand of Vuetify 2 (expand-strategy="single"): one expanded row at a time
+      expanded: [],
       headers: [
+        // the expand column first, as Vuetify 2 drew it (Vuetify 3 adds it last), and as narrow
+        // as its toggle (`width: '1px'` of the Vuetify 2 expand header)
         {
-          text: 'ID',
-          value: 'id',
+          key: 'data-table-expand',
+          width: '1px',
+        },
+        {
+          title: 'ID',
+          key: 'id',
           sortable: false,
         },
         {
-          text: this.$i18n.t('taskId'),
-          value: 'task_id',
+          title: this.$t('taskId'),
+          key: 'task_id',
           sortable: false,
         },
         {
-          text: this.$i18n.t('created'),
-          value: 'created',
+          title: this.$t('created'),
+          key: 'created',
           sortable: false,
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
         },

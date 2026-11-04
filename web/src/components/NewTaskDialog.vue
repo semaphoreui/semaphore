@@ -5,13 +5,17 @@
     :title="$t('newTask')"
     @save="closeDialog"
     @close="closeDialog"
-    test-id="newTaskDialog"
+    :test-id="testId"
   >
-    <template v-slot:title={}>
-      <v-icon small class="mr-4">{{ TEMPLATE_TYPE_ICONS[template?.type || ''] }}</v-icon>
-      <span class="breadcrumbs__item">{{ templateTitle }}</span>
-      <v-icon>mdi-chevron-right</v-icon>
-      <span class="breadcrumbs__item">{{ $t('newTask') }}</span>
+    <template #title>
+      <v-icon
+        size="small"
+        class="mr-4 NewTaskDialog__icon"
+        data-testid="newTask-templateTypeIcon"
+      >{{ TEMPLATE_TYPE_ICONS[template?.type || ''] }}</v-icon>
+      <span class="breadcrumbs__item" data-testid="newTask-templateName">{{ templateTitle }}</span>
+      <v-icon class="NewTaskDialog__icon">mdi-chevron-right</v-icon>
+      <span class="breadcrumbs__item" data-testid="newTask-title">{{ $t('newTask') }}</span>
     </template>
 
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -42,12 +46,17 @@ export default {
     EditDialog,
   },
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     projectId: Number,
     template: Object,
     sourceTask: Object,
     canRead: Boolean,
+    testId: {
+      type: String,
+      default: 'newTaskDialog',
+    },
   },
+  emits: ['update:modelValue', 'save', 'close'],
   data() {
     return {
       dialog: false,
@@ -57,10 +66,10 @@ export default {
   },
   watch: {
     async dialog(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.dialog = val;
     },
   },
@@ -90,3 +99,14 @@ export default {
   },
 };
 </script>
+<style lang="scss">
+// The type icon and the chevron of the title are icons of the theme (`.theme--light.v-icon`: .54,
+// white in the dark one), not in the title text colour Vuetify 4 gives them.
+.NewTaskDialog__icon.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.NewTaskDialog__icon.v-theme--dark {
+  color: #fff;
+}
+</style>
