@@ -81,6 +81,14 @@
       test-id="templateForceStopAllDialog"
     />
 
+    <YesNoDialog
+      :title="$t('deleteTaskHistory')"
+      :text="$t('askDeleteTaskHistory')"
+      v-model="deleteHistoryDialog"
+      @yes="deleteTaskHistory()"
+      test-id="templateDeleteHistoryDialog"
+    />
+
     <v-toolbar flat>
       <v-app-bar-nav-icon
         @click="showDrawer()"
@@ -152,6 +160,23 @@
       >
         {{ $t(TEMPLATE_TYPE_ACTION_TITLES[item.type]) }}
       </v-btn>
+
+      <v-tooltip v-if="canDeleteHistory" location="bottom">
+        <template v-slot:activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon
+            variant="text"
+            :disabled="deleteHistoryProgress"
+            :aria-label="$t('deleteTaskHistory')"
+            @click="deleteHistoryDialog = true"
+            data-testid="template-deleteHistory"
+          >
+            <v-icon>mdi-delete-sweep</v-icon>
+          </v-btn>
+        </template>
+        <span>{{ $t('deleteTaskHistory') }}</span>
+      </v-tooltip>
 
       <v-btn
         icon
@@ -335,10 +360,12 @@ export default {
       newTaskDialog: null,
       stopAllDialog: null,
       forceStopAllDialog: null,
+      deleteHistoryDialog: null,
       USER_PERMISSIONS,
 
       needLoadData: false,
       stopAllTasksProgress: false,
+      deleteHistoryProgress: false,
     };
   },
 
@@ -359,6 +386,12 @@ export default {
 
     canUpdate() {
       return this.can(USER_PERMISSIONS.manageProjectResources);
+    },
+
+    // The server lets only an admin delete task history, as it does for a single task; no global
+    // permission grants it.
+    canDeleteHistory() {
+      return this.isAdmin;
     },
 
     viewId() {
@@ -434,6 +467,36 @@ export default {
         this.stopAllDialog = false;
         this.forceStopAllDialog = false;
         this.stopAllTasksProgress = false;
+
+        setTimeout(() => {
+          this.needLoadData = false;
+        }, 100);
+      }
+    },
+
+    async deleteTaskHistory() {
+      try {
+        this.deleteHistoryProgress = true;
+        await axios({
+          method: 'delete',
+          url: `/api/project/${this.projectId}/templates/${this.itemId}/tasks`,
+          responseType: 'json',
+        });
+
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: this.$t('taskHistoryDeleted'),
+        });
+
+        this.needLoadData = true;
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      } finally {
+        this.deleteHistoryDialog = false;
+        this.deleteHistoryProgress = false;
 
         setTimeout(() => {
           this.needLoadData = false;
