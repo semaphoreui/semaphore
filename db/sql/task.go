@@ -412,6 +412,152 @@ func (d *SqlDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
 	return requireDeletedRow(d.exec("delete from task where id=?", taskID))
 }
 
+// deleteTemplateTasksBatch is how many tasks DeleteTemplateTasks removes in one transaction: it keeps
+// the IN lists under the parameter limit of every dialect and the write lock short on SQLite, where
+// the store has a single connection.
+const deleteTemplateTasksBatch = 500
+
+// DeleteTemplateTasks deletes the finished tasks of a template, with their output and task-bound
+// keys, and returns how many it deleted. A task is finished by its status in the database, not by
+// the task pool of this node: in HA mode it may be running on another node or a remote runner.
+// It keeps the tasks of a workflow run that is still going and the build tasks an unfinished task
+// deploys. Each batch is one transaction, so a long history never holds the database for long.
+func (d *SqlDb) DeleteTemplateTasks(projectID int, templateID int) (deleted int, err error) {
+	if _, err = d.GetTemplate(projectID, templateID); err != nil {
+		return
+	}
+
+	finished := task_logger.FinishedTaskStatuses()
+
+	activeRun, activeRunArgs, err := squirrel.Select("1").
+		From("project__workflow_run r").
+		Where("r.id = t.workflow_run_id").
+		Where(squirrel.NotEq{"r.status": []db.WorkflowRunStatus{
+			db.WorkflowRunSuccess, db.WorkflowRunStopped, db.WorkflowRunFailed,
+		}}).
+		ToSql()
+	if err != nil {
+		return
+	}
+
+	activeDeploy, activeDeployArgs, err := squirrel.Select("1").
+		From("task b").
+		Where("b.build_task_id = t.id").
+		Where(squirrel.NotEq{"b.status": finished}).
+		ToSql()
+	if err != nil {
+		return
+	}
+
+	lastID := 0
+	for {
+		var query string
+		var args []any
+		query, args, err = squirrel.Select("t.id").
+			From("task t").
+			Where("t.project_id=? and t.template_id=?", projectID, templateID).
+			Where(squirrel.Eq{"t.status": finished}).
+			Where("t.id > ?", lastID).
+			Where("not exists ("+activeRun+")", activeRunArgs...).
+			Where("not exists ("+activeDeploy+")", activeDeployArgs...).
+			OrderBy("t.id").
+			Limit(deleteTemplateTasksBatch).
+			ToSql()
+		if err != nil {
+			return
+		}
+
+		var ids []int
+		if _, err = d.selectAll(&ids, query, args...); err != nil {
+			return
+		}
+		if len(ids) == 0 {
+			break
+		}
+
+		var n int
+		n, err = d.deleteTasksBatch(projectID, templateID, ids)
+		if err != nil {
+			return
+		}
+		deleted += n
+
+		if len(ids) < deleteTemplateTasksBatch {
+			break
+		}
+		lastID = ids[len(ids)-1]
+	}
+
+	_, err = d.exec(
+		"update project__template set tasks=(select count(*) from task where template_id=?) where project_id=? and id=?",
+		templateID, projectID, templateID)
+	return
+}
+
+// deleteTasksBatch deletes the given tasks of a template and what is bound to them in one
+// transaction. Stages, stage results and Ansible hosts and errors go by ON DELETE CASCADE on every
+// dialect. MySQL has no foreign key on access_key.task_id (added with a column REFERENCES, which
+// MySQL ignores) nor on task.build_task_id (dropped by 2.8.42), so the task-bound keys are deleted
+// and the references of other tasks cleared here.
+func (d *SqlDb) deleteTasksBatch(projectID int, templateID int, ids []int) (deleted int, err error) {
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	statements := []squirrel.Sqlizer{
+		squirrel.Delete("access_key").Where(squirrel.Eq{
+			"project_id": projectID,
+			"owner":      db.AccessKeyTaskSecret,
+			"task_id":    ids,
+		}),
+		squirrel.Update("task").Set("build_task_id", nil).Where(squirrel.Eq{"build_task_id": ids}),
+		squirrel.Delete("task__output").Where(squirrel.Eq{"task_id": ids}),
+	}
+
+	for _, statement := range statements {
+		var query string
+		var args []any
+		if query, args, err = statement.ToSql(); err != nil {
+			return
+		}
+		if _, err = d.execTx(tx, query, args...); err != nil {
+			return
+		}
+	}
+
+	query, args, err := squirrel.Delete("task").Where(squirrel.Eq{
+		"project_id":  projectID,
+		"template_id": templateID,
+		"id":          ids,
+	}).ToSql()
+	if err != nil {
+		return
+	}
+
+	res, err := d.execTx(tx, query, args...)
+	if err != nil {
+		return
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return
+	}
+
+	if err = tx.Commit(); err != nil {
+		return
+	}
+
+	deleted = int(affected)
+	return
+}
+
 func (d *SqlDb) GetTaskOutputs(projectID int, taskID int, params db.RetrieveQueryParams) (output []db.TaskOutput, err error) {
 
 	if err = d.validateTask(projectID, taskID); err != nil {

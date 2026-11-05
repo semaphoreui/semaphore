@@ -209,6 +209,8 @@ func TestTaskAndRunnerEntries(t *testing.T) {
 		{Event{Kind: RunnerProgressReject, Outcome: OutcomeFailure, Reason: ReasonInvalidStatus}, false},
 		{Event{Kind: RunnerProgressReject}, true},
 		{Event{Kind: TaskControlStopAll}, false},
+		{Event{Kind: TaskHistoryDeleteAll, Metadata: TaskHistoryDeleteAllMetadata{Deleted: 3}}, false},
+		{Event{Kind: TaskHistoryDeleteAll, Metadata: TaskMetadata{}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.event.Kind), func(t *testing.T) {
