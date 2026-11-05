@@ -15,6 +15,10 @@ describe('surveyVars', () => {
       ['', false],
       [null, false],
       [undefined, false],
+      [['true'], true],
+      [['false'], false],
+      [['true', 'true'], false],
+      [[], false],
     ].forEach(([value, expected]) => {
       it(`${JSON.stringify(value)} -> ${expected}`, () => {
         expect(boolAnswer(value)).to.equal(expected);
@@ -29,8 +33,9 @@ describe('surveyVars', () => {
         { name: 'off', type: 'bool', default_value: 'false' },
         { name: 'unset', type: 'bool' },
         { name: 'empty', type: 'bool', default_value: '' },
+        { name: 'onArray', type: 'bool', default_value: ['true'] },
       ])).to.deep.equal({
-        on: true, off: false, unset: false, empty: false,
+        on: true, off: false, unset: false, empty: false, onArray: true,
       });
     });
 

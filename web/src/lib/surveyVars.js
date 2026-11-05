@@ -5,8 +5,11 @@
 // as a boolean too. Pure functions.
 
 // boolAnswer reads a bool answer or default: true only for true or "true".
+// A default saved as a one-element array (["true"], accepted by the backend
+// like for the other scalar types) is read as its element.
 export function boolAnswer(value) {
-  return value === true || value === 'true';
+  const v = Array.isArray(value) && value.length === 1 ? value[0] : value;
+  return v === true || v === 'true';
 }
 
 // surveyDefaults returns the defaults of a survey as task environment entries,
