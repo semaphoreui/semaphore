@@ -214,6 +214,9 @@ export default {
   stopAllTasks: 'Stop All Tasks',
   askStopAllTasks: 'Are you sure you want to stop all tasks?',
   forceStopAllTasks: 'Force Stop All Tasks',
+  deleteTaskHistory: 'Delete Task History',
+  askDeleteTaskHistory: 'Delete all finished tasks of this template with their logs? Queued and running tasks are kept. This cannot be undone.',
+  taskHistoryDeleted: 'Task history deleted',
   askForceStopAllTasks: 'Are you sure you want to force stop all tasks?',
   raw_log: 'Raw log',
 
@@ -979,6 +982,7 @@ export default {
   audit_kind_task_control_force_stop: 'Task force-stopped',
   audit_kind_task_control_stop_all: 'All tasks stopped',
   audit_kind_task_history_delete: 'Task history deleted',
+  audit_kind_task_history_delete_all: 'Template task history deleted',
   audit_kind_runner_lifecycle_create: 'Runner created',
   audit_kind_runner_lifecycle_update: 'Runner updated',
   audit_kind_runner_lifecycle_delete: 'Runner deleted',

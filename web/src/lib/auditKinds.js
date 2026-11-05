@@ -111,6 +111,7 @@ export default [
   'task.control/force_stop',
   'task.control/stop_all',
   'task.history/delete',
+  'task.history/delete_all',
   'runner.lifecycle/create',
   'runner.lifecycle/update',
   'runner.lifecycle/delete',
