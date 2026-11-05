@@ -418,9 +418,18 @@ export default {
       this.var = val || [];
     },
 
-    'editedVar.type': {
-      handler(newType, oldType) {
-        if (!this.editedVar || newType === oldType) {
+  },
+
+  created() {
+    this.modifiedVars = (this.vars || []).map((v) => ({ ...v }));
+
+    // A new type resets the default value and drops the values of a list. Only
+    // a type changed in the dialog does: opening another variable replaces
+    // editedVar, and its saved default must survive.
+    this.$watch(
+      () => [this.editedVar, this.editedVar?.type],
+      ([editedVar, newType], [oldEditedVar, oldType]) => {
+        if (!editedVar || editedVar !== oldEditedVar || newType === oldType) {
           return;
         }
 
@@ -436,11 +445,7 @@ export default {
           this.editedVar.values = this.editedValues;
         }
       },
-    },
-  },
-
-  created() {
-    this.modifiedVars = (this.vars || []).map((v) => ({ ...v }));
+    );
   },
 
   data() {

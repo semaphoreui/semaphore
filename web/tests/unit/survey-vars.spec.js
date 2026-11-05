@@ -203,3 +203,33 @@ describe('SurveyVars.vue', () => {
     expect(wrapper.emitted().change[0][0].map((v) => v.name)).to.deep.equal(['b']);
   });
 });
+
+describe('SurveyVars.vue editing an existing variable', () => {
+  it('keeps the saved default of every type when the dialog opens', async () => {
+    const wrapper = mountVars([
+      {
+        name: 's', title: 'S', type: '', default_value: 'abc',
+      },
+      {
+        name: 'i', title: 'I', type: 'int', default_value: '5',
+      },
+      {
+        name: 'e', title: 'E', type: 'enum', values: [{ name: 'One', value: '1' }], default_value: '1',
+      },
+    ]);
+    wrapper.vm.editVar(0);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.editedVar.default_value).to.equal('abc');
+
+    // cancel, then open a variable of another type
+    wrapper.vm.editDialog = false;
+    wrapper.vm.editVar(1);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.editedVar.default_value).to.equal('5');
+
+    wrapper.vm.editVar(2);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.editedVar.default_value).to.equal('1');
+    expect(wrapper.vm.editedValues).to.deep.equal([{ name: 'One', value: '1' }]);
+  });
+});
