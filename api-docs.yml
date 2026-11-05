@@ -3953,7 +3953,9 @@ paths:
         204:
           description: finished tasks deleted
         401:
-          description: the user is not an administrator
+          description: the user may manage the project resources but is not an administrator
+        403:
+          description: the user may not manage the project resources
         404:
           description: template not found
 
