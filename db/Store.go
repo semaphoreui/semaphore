@@ -470,6 +470,8 @@ type TaskManager interface {
 	GetTask(projectID int, taskID int) (Task, error)
 	GetTaskByID(taskID int) (Task, error)
 	DeleteTaskWithOutputs(projectID int, taskID int) error
+	// DeleteTemplateTasks deletes the finished tasks of a template and returns how many it deleted.
+	DeleteTemplateTasks(projectID int, templateID int) (int, error)
 	GetTaskOutputs(projectID int, taskID int, params RetrieveQueryParams) ([]TaskOutput, error)
 	CreateTaskOutput(output TaskOutput) (TaskOutput, error)
 	InsertTaskOutputBatch(output []TaskOutput) error

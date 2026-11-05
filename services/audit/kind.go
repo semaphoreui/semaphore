@@ -139,6 +139,7 @@ const (
 	TaskControlForceStop    Kind = "task.control/force_stop"
 	TaskControlStopAll      Kind = "task.control/stop_all"
 	TaskHistoryDelete       Kind = "task.history/delete"
+	TaskHistoryDeleteAll    Kind = "task.history/delete_all"
 
 	RunnerLifecycleCreate     Kind = "runner.lifecycle/create"
 	RunnerLifecycleUpdate     Kind = "runner.lifecycle/update"
