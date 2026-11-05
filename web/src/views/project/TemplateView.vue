@@ -487,14 +487,15 @@ export default {
           color: 'success',
           text: this.$t('taskHistoryDeleted'),
         });
-
-        this.needLoadData = true;
       } catch (err) {
         EventBus.$emit('i-snackbar', {
           color: 'error',
           text: getErrorMessage(err),
         });
       } finally {
+        // Reload after a failure too: the server deletes in batches, and those
+        // committed before the error are gone.
+        this.needLoadData = true;
         this.deleteHistoryDialog = false;
         this.deleteHistoryProgress = false;
 

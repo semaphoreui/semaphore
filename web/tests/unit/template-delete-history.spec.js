@@ -48,15 +48,21 @@ describe('TemplateView.vue task history deletion', () => {
     expect(snackbars).to.deep.equal([{ color: 'success', text: 'taskHistoryDeleted' }]);
   });
 
-  it('reports a refused request and keeps the list as it is', async () => {
-    http.respond(() => { throw httpError(401, { error: 'Not allowed' }); });
-    const c = ctx();
+  [
+    ['a refused request', 401],
+    ['a failure after some batches were deleted', 500],
+  ].forEach(([name, status]) => {
+    it(`reports ${name} and still reloads the task list`, async () => {
+      http.respond(() => { throw httpError(status, { error: 'Failed' }); });
+      const c = ctx();
 
-    await TemplateView.methods.deleteTaskHistory.call(c);
+      await TemplateView.methods.deleteTaskHistory.call(c);
 
-    expect(c.needLoadData).to.equal(false);
-    expect(c.deleteHistoryDialog).to.equal(false);
-    expect(snackbars).to.have.length(1);
-    expect(snackbars[0].color).to.equal('error');
+      expect(c.needLoadData).to.equal(true);
+      expect(c.deleteHistoryDialog).to.equal(false);
+      expect(c.deleteHistoryProgress).to.equal(false);
+      expect(snackbars).to.have.length(1);
+      expect(snackbars[0].color).to.equal('error');
+    });
   });
 });

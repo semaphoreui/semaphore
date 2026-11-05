@@ -241,6 +241,35 @@ func testDeleteTemplateTasksBuildTasks(t *testing.T, f templateTasksFixture) {
 	assert.Nil(t, deploy.BuildTaskID)
 }
 
+// GetIncomingVersion follows a waiting deploy through a finished deploy up to the build, so the
+// whole chain stays; once the last deploy of the chain has finished, the build goes.
+func testDeleteTemplateTasksBuildChains(t *testing.T, f templateTasksFixture) {
+	third := f.template(t, f.projectID, "third")
+	build := f.task(t, f.tpl, task_logger.TaskSuccessStatus, nil)
+	deploy := f.task(t, f.other, task_logger.TaskSuccessStatus, func(task *db.Task) { task.BuildTaskID = &build.ID })
+	waiting := f.task(t, third, task_logger.TaskWaitingStatus, func(task *db.Task) { task.BuildTaskID = &deploy.ID })
+
+	for _, tpl := range []db.Template{f.tpl, f.other} {
+		deleted, err := f.store.DeleteTemplateTasks(f.projectID, tpl.ID)
+		require.NoError(t, err)
+		assert.Equal(t, 0, deleted, tpl.Name)
+	}
+	assert.Equal(t, kept(), f.bound(t, build.ID))
+	assert.Equal(t, kept(), f.bound(t, deploy.ID))
+
+	got, err := f.store.GetTask(f.projectID, deploy.ID)
+	require.NoError(t, err)
+	assert.Equal(t, &build.ID, got.BuildTaskID)
+
+	_, err = f.store.exec("update task set status=? where id=?", task_logger.TaskSuccessStatus, waiting.ID)
+	require.NoError(t, err)
+
+	deleted, err := f.store.DeleteTemplateTasks(f.projectID, f.tpl.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, deleted)
+	assert.Equal(t, gone(), f.bound(t, build.ID))
+}
+
 func testDeleteTemplateTasksManyBatches(t *testing.T, f templateTasksFixture) {
 	total := 2*deleteTemplateTasksBatch + 7
 	for i := 0; i < total; i++ {
@@ -268,6 +297,7 @@ func deleteTemplateTasksCases() map[string]func(*testing.T, templateTasksFixture
 		"repairs the counter": testDeleteTemplateTasksRepairsTheCounter,
 		"keeps tasks of unfinished workflow runs": testDeleteTemplateTasksKeepsTasksOfUnfinishedWorkflowRuns,
 		"build tasks":  testDeleteTemplateTasksBuildTasks,
+		"build chains": testDeleteTemplateTasksBuildChains,
 		"many batches": testDeleteTemplateTasksManyBatches,
 	}
 }
