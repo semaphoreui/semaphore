@@ -87,6 +87,7 @@ import AppFieldsMixin from '@/components/AppFieldsMixin';
 import TaskParamsAnsibleForm from '@/components/TaskParamsAnsibleForm.vue';
 import TaskParamsTerraformForm from '@/components/TaskParamsTerraformForm.vue';
 import SurveyFields from '@/components/SurveyFields.vue';
+import { normalizeBoolAnswers, surveyDefaults } from '@/lib/surveyVars';
 
 export default {
   mixins: [AppFieldsMixin],
@@ -301,17 +302,10 @@ export default {
         }
       });
 
-      const defaultVars = (this.template.survey_vars || [])
-        .filter((s) => s.default_value)
-        .reduce(
-          (res, curr) => ({
-            ...res,
-            [curr.name]: curr.default_value,
-          }),
-          {},
-        );
-
-      this.editedEnvironment = { ...defaultVars, ...this.editedEnvironment };
+      this.editedEnvironment = normalizeBoolAnswers(this.template.survey_vars, {
+        ...surveyDefaults(this.template.survey_vars),
+        ...this.editedEnvironment,
+      });
 
       // Ensure select type variables without values are initialized as empty arrays
       (this.template.survey_vars || []).forEach((surveyVar) => {
