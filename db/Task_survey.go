@@ -8,13 +8,16 @@ import (
 )
 
 // ValidateTaskSurveyValues checks the survey answers a user submitted with a
-// new task against the template's survey. Only variables declared in the
-// survey are checked; an absent, null or empty answer is accepted.
+// new task against the template's survey. A key that is not declared in the
+// survey is rejected: every key becomes an extra var / -var / CLI argument of
+// the task and overrides the template's variable group, so an undeclared key
+// would let a user who may only run tasks set arbitrary variables (for
+// Ansible, connection variables such as ansible_ssh_common_args). An absent,
+// null or empty answer is accepted.
 //
 // Both maps are checked because Secret is merged over Environment when the
 // task runs (see LocalExecutor.getEnvironmentExtraVars): checking only
-// Environment would let an enum/select/int answer bypass validation through
-// Secret.
+// Environment would let an answer bypass validation through Secret.
 func ValidateTaskSurveyValues(vars []SurveyVar, environment string, secret string) error {
 	env, err := parseSurveyAnswers(environment, "environment")
 	if err != nil {
@@ -24,6 +27,19 @@ func ValidateTaskSurveyValues(vars []SurveyVar, environment string, secret strin
 	sec, err := parseSurveyAnswers(secret, "secret")
 	if err != nil {
 		return err
+	}
+
+	declared := make(map[string]struct{}, len(vars))
+	for _, v := range vars {
+		declared[v.Name] = struct{}{}
+	}
+	for _, answers := range []map[string]any{env, sec} {
+		for name := range answers {
+			if _, ok := declared[name]; !ok {
+				return common_errors.NewValidationError(
+					"variable \"" + name + "\" is not declared in the template survey")
+			}
+		}
 	}
 
 	for _, v := range vars {
