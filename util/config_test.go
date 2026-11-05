@@ -551,6 +551,7 @@ func TestValidateConfig(t *testing.T) {
 	// assert := assert.New(t)
 
 	Config = new(ConfigType)
+	Config.Auth = &AuthConfig{}
 
 	testPort := ":3000"
 	testDbDialect := DbDriverSQLite
