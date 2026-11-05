@@ -204,6 +204,98 @@ describe('SurveyVars.vue', () => {
   });
 });
 
+describe('SurveyVars.vue bool variables', () => {
+  beforeEach(() => {
+    formValid = true;
+  });
+
+  it('offers the bool type in a template survey but not in a workflow survey', () => {
+    expect(mountVars().vm.availableVarTypes.map((t) => t.id)).to.include('bool');
+    const workflow = shallowMount(SurveyVars, {
+      props: { vars: [], allowSecret: false, allowBool: false },
+      global: { mocks: { $t: (k) => k } },
+    });
+    const ids = workflow.vm.availableVarTypes.map((t) => t.id);
+    expect(ids).to.not.include('bool');
+    expect(ids).to.not.include('secret');
+    expect(ids).to.include('int');
+  });
+
+  [
+    { value: 'true', expected: 'true' },
+    { value: true, expected: 'true' },
+    { value: ['true'], expected: 'true' },
+    { value: 'false', expected: 'false' },
+    { value: false, expected: 'false' },
+    { value: '', expected: 'false' },
+    { value: null, expected: 'false' },
+    { value: undefined, expected: 'false' },
+    { value: 'yes', expected: 'false' },
+    { value: 'True', expected: 'false' },
+  ].forEach(({ value, expected }) => {
+    it(`normalizes the bool default ${JSON.stringify(value)} to "${expected}"`, () => {
+      expect(mountVars().vm.normalizeDefaultValue('bool', value)).to.equal(expected);
+    });
+  });
+
+  it('switching to bool sets the default to "false" and drops the values', async () => {
+    const wrapper = mountVars();
+    wrapper.vm.editVar(null);
+    await wrapper.vm.$nextTick();
+    Object.assign(wrapper.vm.editedVar, { name: 'e', type: 'enum' });
+    await wrapper.vm.$nextTick();
+    wrapper.vm.editedValues.push({ name: 'One', value: '1' });
+
+    wrapper.vm.editedVar.type = 'bool';
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.editedVar.default_value).to.equal('false');
+    expect(wrapper.vm.editedVar.values).to.deep.equal([]);
+  });
+
+  it('saves a bool with a string default, no values and never required', async () => {
+    const wrapper = mountVars();
+    wrapper.vm.editVar(null);
+    await wrapper.vm.$nextTick();
+    Object.assign(wrapper.vm.editedVar, { name: 'dry_run', title: 'Dry run', type: 'bool' });
+    await wrapper.vm.$nextTick();
+    wrapper.vm.editedVar.default_value = 'true';
+    wrapper.vm.editedVar.required = true;
+
+    await wrapper.vm.saveVar();
+
+    const saved = wrapper.emitted().change[0][0][0];
+    expect(saved).to.include({
+      name: 'dry_run', type: 'bool', default_value: 'true', required: false,
+    });
+    expect(saved.values).to.deep.equal([]);
+  });
+
+  it('keeps the default of an existing bool when it is opened again', async () => {
+    const wrapper = mountVars([{
+      name: 'dry_run', title: 'Dry run', type: 'bool', default_value: 'true',
+    }]);
+    wrapper.vm.editVar(0);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.editedVar.default_value).to.equal('true');
+
+    await wrapper.vm.saveVar();
+    expect(wrapper.emitted().change[0][0][0].default_value).to.equal('true');
+  });
+
+  it('hides the required checkbox for a bool', async () => {
+    const wrapper = mountVars([{ name: 'dry_run', title: 'Dry run', type: 'bool' }]);
+    wrapper.vm.editVar(0);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="surveyVarDialog-required"]').exists()).to.equal(false);
+
+    wrapper.vm.editedVar.type = '';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[data-testid="surveyVarDialog-required"]').exists()).to.equal(true);
+  });
+});
+
 describe('SurveyVars.vue editing an existing variable', () => {
   it('keeps the saved default of every type when the dialog opens', async () => {
     const wrapper = mountVars([

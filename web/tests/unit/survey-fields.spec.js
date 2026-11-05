@@ -145,6 +145,67 @@ describe('SurveyFields.vue', () => {
   });
 });
 
+describe('SurveyFields.vue bool variables', () => {
+  const boolVars = [
+    {
+      name: 'dry_run', title: 'Dry run', type: 'bool', description: 'Only show the changes',
+    },
+    // a stale required flag must not block the form: false is an answer
+    {
+      name: 'force', title: 'Force', type: 'bool', required: true,
+    },
+  ];
+
+  function mountBool(props = {}) {
+    return mount(SurveyFields, {
+      props: { vars: boolVars, value: { dry_run: true, force: false }, ...props },
+      global: {
+        mocks: { $t: (k) => k },
+        stubs: { WorkflowVarAssign: true },
+      },
+    });
+  }
+
+  it('renders a checkbox titled by the variable, never starred, with the description as hint', () => {
+    const w = mountBool();
+    const dry = w.find('[data-testid="surveyFields-var-dry_run"]');
+    expect(dry.classes()).to.include('v-checkbox');
+    expect(dry.find('label').text()).to.equal('Dry run');
+    expect(dry.text()).to.contain('Only show the changes');
+    expect(dry.find('input[type="checkbox"]').element.checked).to.equal(true);
+
+    const force = w.find('[data-testid="surveyFields-var-force"]');
+    expect(force.find('label').text()).to.equal('Force');
+    expect(force.find('input[type="checkbox"]').element.checked).to.equal(false);
+  });
+
+  it('stores a real boolean in the shared object, false when unchecked', async () => {
+    const value = { dry_run: true, force: false };
+    const w = mountBool({ value });
+    await w.find('[data-testid="surveyFields-var-dry_run"] input').setValue(false);
+    expect(value.dry_run).to.equal(false);
+    await w.find('[data-testid="surveyFields-var-force"] input').setValue(true);
+    expect(value.force).to.equal(true);
+  });
+
+  it('does not block the form when a required bool is unchecked', async () => {
+    const Host = {
+      components: { SurveyFields },
+      template: '<v-form ref="form"><SurveyFields :vars="vars" :value="value" /></v-form>',
+      data: () => ({ vars: boolVars, value: { dry_run: false, force: false } }),
+    };
+    const w = mount(Host, { global: { mocks: { $t: (k) => k } } });
+    const { valid } = await w.vm.$refs.form.validate();
+    expect(valid).to.equal(true);
+  });
+
+  it('never offers to bind a bool field to a workflow variable', () => {
+    const w = mountBool({ workflowVars });
+    expect(w.findAllComponents(WorkflowVarAssign).length).to.equal(0);
+    expect(w.vm.canBind({ name: 'dry_run', type: 'bool' })).to.equal(false);
+  });
+});
+
 describe('WorkflowVarAssign.vue', () => {
   function mountAssign(list) {
     return mount(WorkflowVarAssign, {

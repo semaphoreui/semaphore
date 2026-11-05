@@ -204,6 +204,17 @@
               data-testid="surveyVarDialog-defaultValue"
             />
 
+            <v-checkbox
+              v-else-if="editedVar.type === 'bool'"
+              :label="$t('default_value')"
+              v-model="editedVar.default_value"
+              true-value="true"
+              false-value="false"
+              density="compact"
+              class="mt-0"
+              data-testid="surveyVarDialog-defaultValue"
+            />
+
             <v-textarea
               v-else-if="editedVar.type === 'text'"
               :label="$t('default_value')"
@@ -227,10 +238,11 @@
           </v-form>
         </v-card-text>
         <v-card-actions class="py-0">
+          <!-- A bool is always answered, false when unchecked: "required" means nothing -->
           <v-checkbox
             :label="$t('required')"
             v-model="editedVar.required"
-            v-if="editedVar != null"
+            v-if="editedVar != null && editedVar.type !== 'bool'"
             class="ml-1 SurveyVars__required"
             data-testid="surveyVarDialog-required"
           />
@@ -395,6 +407,7 @@
 </style>
 <script>
 import { VueDraggable as draggable } from 'vue-draggable-plus';
+import { boolAnswer } from '@/lib/surveyVars';
 
 export default {
   components: {
@@ -405,19 +418,21 @@ export default {
     // A workflow survey can not hold a secret: the run stores its answers in
     // clear. The template form keeps the full list.
     allowSecret: { type: Boolean, default: true },
+    // Nor a bool yet: the workflow engine does not know that type
+    // (db.ValidateWorkflowSurveyVars).
+    allowBool: { type: Boolean, default: true },
   },
   emits: ['change'],
   computed: {
     availableVarTypes() {
-      if (this.allowSecret) return this.varTypes;
-      return this.varTypes.filter((t) => t.id !== 'secret');
+      return this.varTypes.filter((t) => (this.allowSecret || t.id !== 'secret')
+        && (this.allowBool || t.id !== 'bool'));
     },
   },
   watch: {
     vars(val) {
       this.var = val || [];
     },
-
   },
 
   created() {
@@ -435,6 +450,8 @@ export default {
 
         if (newType === 'select') {
           this.editedVar.default_value = [];
+        } else if (newType === 'bool') {
+          this.editedVar.default_value = 'false';
         } else {
           this.editedVar.default_value = '';
         }
@@ -479,6 +496,10 @@ export default {
         {
           id: 'select',
           name: 'Select',
+        },
+        {
+          id: 'bool',
+          name: 'Boolean',
         },
       ],
       varTargets: [
@@ -570,6 +591,10 @@ export default {
         this.editedVar.values = [];
       }
 
+      if (this.editedVar.type === 'bool') {
+        this.editedVar.required = false;
+      }
+
       this.editedVar.default_value = this.normalizeDefaultValue(
         this.editedVar.type,
         this.editedVar.default_value,
@@ -611,6 +636,9 @@ export default {
     },
 
     normalizeDefaultValue(type, value) {
+      if (type === 'bool') {
+        return boolAnswer(Array.isArray(value) ? value[0] : value) ? 'true' : 'false';
+      }
       if (type === 'select') {
         if (Array.isArray(value)) return value;
         return value == null || value === '' ? [] : [value];
