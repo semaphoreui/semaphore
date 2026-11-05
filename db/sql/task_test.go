@@ -270,6 +270,61 @@ func testDeleteTemplateTasksBuildChains(t *testing.T, f templateTasksFixture) {
 	assert.Equal(t, gone(), f.bound(t, build.ID))
 }
 
+// The next build takes its version from the newest task of a build template, so that task stays.
+func testDeleteTemplateTasksKeepsTheNewestBuild(t *testing.T, f templateTasksFixture) {
+	build := f.tpl
+	build.Type = db.TemplateBuild
+	build.StartVersion = new("1.0.0")
+	require.NoError(t, f.store.UpdateTemplate(build))
+
+	versioned := func(version string) func(*db.Task) {
+		return func(task *db.Task) { task.Version = new(version) }
+	}
+	first := f.task(t, build, task_logger.TaskSuccessStatus, versioned("1.0.0"))
+	second := f.task(t, build, task_logger.TaskSuccessStatus, versioned("1.0.1"))
+	newest := f.task(t, build, task_logger.TaskFailStatus, versioned("1.0.2"))
+	plain := f.task(t, f.other, task_logger.TaskSuccessStatus, nil)
+
+	deleted, err := f.store.DeleteTemplateTasks(f.projectID, build.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, deleted)
+	assert.Equal(t, gone(), f.bound(t, first.ID))
+	assert.Equal(t, gone(), f.bound(t, second.ID))
+	assert.Equal(t, kept(), f.bound(t, newest.ID))
+	assert.Equal(t, 1, f.counter(t, build))
+
+	// Read the way TaskPool.AddTaskFrom numbers the next build.
+	builds, err := f.store.GetTemplateTasks(f.projectID, build.ID, db.RetrieveQueryParams{Count: 1})
+	require.NoError(t, err)
+	require.Len(t, builds, 1)
+	assert.Equal(t, "1.0.3", db.GetNextBuildVersion(*build.StartVersion, *builds[0].Version))
+
+	// Any other template loses its whole history.
+	deleted, err = f.store.DeleteTemplateTasks(f.projectID, f.other.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, deleted)
+	assert.Equal(t, gone(), f.bound(t, plain.ID))
+}
+
+// A deploy started while the history is being deleted is not in the chains read up front; the
+// batch transaction sees it and keeps its build.
+func testDeleteTemplateTasksKeepsBuildsOfTasksCreatedMeanwhile(t *testing.T, f templateTasksFixture) {
+	build := f.task(t, f.tpl, task_logger.TaskSuccessStatus, nil)
+	other := f.task(t, f.tpl, task_logger.TaskSuccessStatus, nil)
+	lastTaskID := f.count(t, "select max(id) from task")
+	deploy := f.task(t, f.other, task_logger.TaskWaitingStatus, func(task *db.Task) { task.BuildTaskID = &build.ID })
+
+	deleted, err := f.store.deleteTasksBatch(f.projectID, f.tpl.ID, []int{build.ID, other.ID}, map[int]struct{}{}, lastTaskID)
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, deleted)
+	assert.Equal(t, kept(), f.bound(t, build.ID))
+	assert.Equal(t, gone(), f.bound(t, other.ID))
+	got, err := f.store.GetTask(f.projectID, deploy.ID)
+	require.NoError(t, err)
+	assert.Equal(t, &build.ID, got.BuildTaskID)
+}
+
 func testDeleteTemplateTasksManyBatches(t *testing.T, f templateTasksFixture) {
 	total := 2*deleteTemplateTasksBatch + 7
 	for i := 0; i < total; i++ {
@@ -296,8 +351,10 @@ func deleteTemplateTasksCases() map[string]func(*testing.T, templateTasksFixture
 		"empty history":       testDeleteTemplateTasksEmptyHistory,
 		"repairs the counter": testDeleteTemplateTasksRepairsTheCounter,
 		"keeps tasks of unfinished workflow runs": testDeleteTemplateTasksKeepsTasksOfUnfinishedWorkflowRuns,
-		"build tasks":  testDeleteTemplateTasksBuildTasks,
-		"build chains": testDeleteTemplateTasksBuildChains,
+		"build tasks":            testDeleteTemplateTasksBuildTasks,
+		"build chains":           testDeleteTemplateTasksBuildChains,
+		"keeps the newest build": testDeleteTemplateTasksKeepsTheNewestBuild,
+		"keeps builds of tasks created meanwhile": testDeleteTemplateTasksKeepsBuildsOfTasksCreatedMeanwhile,
 		"many batches": testDeleteTemplateTasksManyBatches,
 	}
 }

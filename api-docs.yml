@@ -3946,6 +3946,8 @@ paths:
         Deletes the finished tasks (success, error, stopped) of the template with their output.
         Tasks that are queued, running or waiting for confirmation are kept, as are tasks of a
         workflow run that has not finished and build tasks used by an unfinished task.
+        For a build template the newest task is kept as well: the next build takes its version
+        from it.
         Only an administrator may delete task history.
       responses:
         204:

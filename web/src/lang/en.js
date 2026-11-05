@@ -215,7 +215,7 @@ export default {
   askStopAllTasks: 'Are you sure you want to stop all tasks?',
   forceStopAllTasks: 'Force Stop All Tasks',
   deleteTaskHistory: 'Delete Task History',
-  askDeleteTaskHistory: 'Delete all finished tasks of this template with their logs? Queued and running tasks are kept. This cannot be undone.',
+  askDeleteTaskHistory: 'Delete all finished tasks of this template with their logs? Queued and running tasks are kept, and so is the latest build of a build template, so its version numbering continues. This cannot be undone.',
   taskHistoryDeleted: 'Task history deleted',
   askForceStopAllTasks: 'Are you sure you want to force stop all tasks?',
   raw_log: 'Raw log',
