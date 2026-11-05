@@ -104,7 +104,22 @@ const (
 	// SurveyVarSecret is entered hidden and delivered to the task as a secret;
 	// it is never stored on the task and never fed from workflow outputs.
 	SurveyVarSecret SurveyVarType = "secret"
+	// SurveyVarBool is a checkbox. Its answer is a JSON boolean in the task
+	// environment; its default_value is the string "true" or "false".
+	SurveyVarBool SurveyVarType = "bool"
 )
+
+// ParseSurveyBool reads the string form of a bool survey value. Only the
+// lowercase "true" and "false" are accepted, the way default_value is stored.
+func ParseSurveyBool(s string) (value bool, ok bool) {
+	switch s {
+	case "true":
+		return true, true
+	case "false":
+		return false, true
+	}
+	return false, false
+}
 
 type SurveyVarTarget string
 
@@ -191,8 +206,21 @@ func (d SurveyVarDefaultValue) IsArray() bool {
 //     rejected.
 //   - For SurveyVarEnum and SurveyVarSelect: every value in default_value
 //     must be present in the var's Values list (matched by Value field).
+//   - For SurveyVarBool: default_value must be "true" or "false" (or nil)
+//     and the var must not have Values.
 func ValidateSurveyVar(v SurveyVar) error {
 	switch v.Type {
+	case SurveyVarBool:
+		if len(v.Values) > 0 {
+			return common_errors.NewValidationError(
+				"survey variable \"" + v.Name + "\": bool type can not have values")
+		}
+		if v.DefaultValue != nil && (v.DefaultValue.Values != nil || v.DefaultValue.IsArray()) {
+			if _, ok := ParseSurveyBool(v.DefaultValue.String()); !ok || len(v.DefaultValue.Values) != 1 {
+				return common_errors.NewValidationError(
+					"survey variable \"" + v.Name + "\": default_value must be \"true\" or \"false\" for bool type")
+			}
+		}
 	case SurveyVarSelect:
 		if v.DefaultValue != nil {
 			if !v.DefaultValue.IsArray() {
