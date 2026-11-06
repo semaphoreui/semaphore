@@ -56,12 +56,14 @@ describe('lib/auditEvent', () => {
     expect(reasonLabel('new_reason', composer)).to.equal('new_reason');
     expect(targetTypeLabel('credential', composer)).to.equal('Key');
     expect(targetTypeLabel('workflow_permission', composer)).to.equal('Workflow permission');
+    expect(targetTypeLabel('mcp_token', composer)).to.equal('MCP token');
     expect(targetTypeLabel('new_type', composer)).to.equal('new_type');
   });
 
   it('names each kind of actor', () => {
     expect(actorLabel({ type: 'user', name: 'alice', auth: 'session' }, composer)).to.equal('alice');
     expect(actorLabel({ type: 'user', name: 'alice', auth: 'api_token' }, composer)).to.equal('alice (API token)');
+    expect(actorLabel({ type: 'user', name: 'alice', auth: 'mcp_token' }, composer)).to.equal('alice (MCP)');
     expect(actorLabel({ type: 'runner', id: '3' }, composer)).to.equal('Runner 3');
     expect(actorLabel({ type: 'system', name: 'retention' }, composer)).to.equal('System (retention)');
     expect(actorLabel({ type: 'anonymous' }, composer)).to.equal('Anonymous');
@@ -70,6 +72,8 @@ describe('lib/auditEvent', () => {
 
   it('picks an icon per actor', () => {
     expect(actorIcon({ type: 'user', auth: 'api_token' })).to.equal('mdi-api');
+    expect(actorIcon({ type: 'user', auth: 'mcp_token' })).to.equal('mdi-robot');
+    expect(actorIcon({ type: 'user', auth: 'session' })).to.equal('mdi-account');
     expect(actorIcon({ type: 'anonymous' })).to.equal('mdi-incognito');
   });
 
