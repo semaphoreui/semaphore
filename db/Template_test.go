@@ -216,3 +216,45 @@ func TestTemplateValidate_GalaxyArgs(t *testing.T) {
 	tpl = newTemplate(MapStringAnyField{"galaxy_collection_args": "--pre"})
 	assert.ErrorContains(t, tpl.Validate(), "invalid task params")
 }
+
+func TestTemplateFillParams_NestedShapes(t *testing.T) {
+	cases := []struct {
+		name   string
+		params MapStringAnyField
+	}{
+		{"flat", MapStringAnyField{"skip_tags": []any{"x"}, "limit": []any{"web"}}},
+		{"nested under params", MapStringAnyField{"params": map[string]any{"skip_tags": []any{"x"}, "limit": []any{"web"}}}},
+		{"nested under ansible", MapStringAnyField{"ansible": map[string]any{"skip_tags": []any{"x"}, "limit": []any{"web"}}}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			tpl := Template{TaskParams: c.params}
+
+			var params AnsibleTemplateParams
+			require.NoError(t, tpl.FillParams(&params))
+			assert.Equal(t, []string{"x"}, params.SkipTags)
+			assert.Equal(t, []string{"web"}, params.Limit)
+		})
+	}
+}
+
+func TestTemplateFillParams_FlatWinsOverNested(t *testing.T) {
+	tpl := Template{TaskParams: MapStringAnyField{
+		"tags":   []any{"flat"},
+		"params": map[string]any{"tags": []any{"nested"}, "skip_tags": []any{"y"}},
+	}}
+
+	var params AnsibleTemplateParams
+	require.NoError(t, tpl.FillParams(&params))
+	assert.Equal(t, []string{"flat"}, params.Tags)
+	assert.Equal(t, []string{"y"}, params.SkipTags)
+}
+
+func TestTemplateFillParams_NilParams(t *testing.T) {
+	tpl := Template{}
+
+	var params AnsibleTemplateParams
+	require.NoError(t, tpl.FillParams(&params))
+	assert.Equal(t, AnsibleTemplateParams{}, params)
+}
