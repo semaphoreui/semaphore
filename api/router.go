@@ -115,6 +115,7 @@ func Route(
 	projectIntegrationController := projects.NewIntegrationController(subscriptionService)
 	userController := NewUserController(subscriptionService)
 	mcpTokenController := newMCPTokenController(util.MCPEnabled(), subscriptionService)
+	mcpSettingsController := newMCPSettingsController(store)
 	usersController := NewUsersController(subscriptionService)
 	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore)
 	projectRunnerController := proProjects.NewProjectRunnerController(subscriptionService, runnerService)
@@ -161,8 +162,8 @@ func Route(
 	// stays outside the shared /api groups (JSON responses, session and API-token auth).
 	// Its tools call the REST API through r with the token of the MCP request.
 	// Each tool set has its own endpoint, mounted with an exact path, so the REST
-	// route /api/mcp/settings next to them never reaches an MCP handler.
-	mcpController := proApi.NewMCPController(util.MCPEnabled(), store, globalRoleStore, subscriptionService, r, webPath)
+	// routes /api/mcp/settings and /api/mcp/tools next to them never reach an MCP handler.
+	mcpController := proApi.NewMCPController(mcpConfig(webPath), store, globalRoleStore, subscriptionService, r)
 	r.Path(webPath + "api/mcp/project").Handler(mcpController.ProjectHandler())
 	r.Path(webPath + "api/mcp/admin").Handler(mcpController.AdminHandler())
 
@@ -233,7 +234,10 @@ func Route(
 
 	// The server-wide MCP settings: every signed-in user reads them (the connection tab needs them),
 	// only systemAPI writes them. The MCP endpoints above match their exact paths only.
-	authenticatedAPI.Path("/mcp/settings").HandlerFunc(getMCPSettings).Methods("GET", "HEAD")
+	authenticatedAPI.Path("/mcp/settings").HandlerFunc(mcpSettingsController.Get).Methods("GET", "HEAD")
+	// The tools a connection of the signed-in user would get, for the connection tabs; the MCP
+	// controller answers it, as it alone knows the tool sets.
+	authenticatedAPI.Path("/mcp/tools").Handler(mcpController.ToolsHandler()).Methods("GET", "HEAD")
 
 	tokenAPI := authenticatedAPI.PathPrefix("/user").Subrouter()
 	tokenAPI.Path("/tokens").HandlerFunc(getAPITokens).Methods("GET", "HEAD")
@@ -256,7 +260,7 @@ func Route(
 	systemAPI.Use(globalPermissionMiddleware(db.CanManageGlobalSystem))
 	systemAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
 	systemAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
-	systemAPI.Path("/mcp/settings").HandlerFunc(setMCPSettings).Methods("PUT")
+	systemAPI.Path("/mcp/settings").HandlerFunc(mcpSettingsController.Set).Methods("PUT")
 	systemAPI.Path("/admin/info").HandlerFunc(getAdminInfo).Methods("GET", "HEAD")
 
 	systemAPI.Path("/cluster").HandlerFunc(getClusterStatus).Methods("GET", "HEAD")
@@ -773,4 +777,18 @@ func serveFile(w http.ResponseWriter, r *http.Request, name string) {
 			res,
 		),
 	)
+}
+
+// mcpConfig is what the built-in MCP server takes from the configuration at start.
+func mcpConfig(webPath string) pro_interfaces.MCPConfig {
+	config := pro_interfaces.MCPConfig{
+		Enabled:                  util.MCPEnabled(),
+		WebPath:                  webPath,
+		WebHost:                  util.Config.WebHost,
+		NonAdminCanCreateProject: util.Config.NonAdminCanCreateProject,
+	}
+	if util.Config.Schedule != nil {
+		config.ScheduleTimezone = util.Config.Schedule.Timezone
+	}
+	return config
 }

@@ -19,17 +19,17 @@ func TestMCPSettings_StoredInOptions(t *testing.T) {
 	require.NoError(t, db.WriteMCPSettings(store, db.MCPSettings{AllowRun: false, AllowDestroy: true, AdminAllowWrite: true}))
 	options, err := store.GetOptions(db.RetrieveQueryParams{Filter: "mcp"})
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{db.MCPAllowRunOption: "false", db.MCPAllowDestroyOption: "true",
+	assert.Equal(t, map[string]string{db.MCPAllowWriteOption: "false", db.MCPAllowRunOption: "false", db.MCPAllowDestroyOption: "true",
 		db.MCPAdminAllowWriteOption: "true", db.MCPAdminAllowDestroyOption: "false"}, options)
 
 	settings, err = db.ReadMCPSettings(store)
 	require.NoError(t, err)
 	assert.Equal(t, db.MCPSettings{AllowRun: false, AllowDestroy: true, AdminAllowWrite: true}, settings)
 
-	require.NoError(t, db.WriteMCPSettings(store, db.MCPSettings{AllowRun: true, AdminAllowDestroy: true}))
+	require.NoError(t, db.WriteMCPSettings(store, db.MCPSettings{AllowWrite: true, AllowRun: true, AdminAllowDestroy: true}))
 	settings, err = db.ReadMCPSettings(store)
 	require.NoError(t, err)
-	assert.Equal(t, db.MCPSettings{AllowRun: true, AdminAllowDestroy: true}, settings, "a second write updates the rows")
+	assert.Equal(t, db.MCPSettings{AllowWrite: true, AllowRun: true, AdminAllowDestroy: true}, settings, "a second write updates the rows")
 }
 
 // The MCP settings live in the option table only: FillConfigFromDB must not lay

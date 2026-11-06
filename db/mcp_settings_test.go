@@ -33,8 +33,10 @@ func TestReadMCPSettings(t *testing.T) {
 		{"not a boolean: the default", fakeOptions{MCPAllowRunOption: "yes", MCPAllowDestroyOption: "on"}, MCPSettings{AllowRun: false, AllowDestroy: false}},
 		{"admin set stored", fakeOptions{MCPAdminAllowWriteOption: "true", MCPAdminAllowDestroyOption: "false"}, MCPSettings{AdminAllowWrite: true}},
 		{"admin destroy alone", fakeOptions{MCPAdminAllowDestroyOption: "true"}, MCPSettings{AdminAllowDestroy: true}},
-		{"all four on", fakeOptions{MCPAllowRunOption: "true", MCPAllowDestroyOption: "true", MCPAdminAllowWriteOption: "true", MCPAdminAllowDestroyOption: "true"},
-			MCPSettings{AllowRun: true, AllowDestroy: true, AdminAllowWrite: true, AdminAllowDestroy: true}},
+		{"project write alone", fakeOptions{MCPAllowWriteOption: "true"}, MCPSettings{AllowWrite: true}},
+		{"project write is not admin write", fakeOptions{MCPAdminAllowWriteOption: "true"}, MCPSettings{AdminAllowWrite: true}},
+		{"all five on", fakeOptions{MCPAllowWriteOption: "true", MCPAllowRunOption: "true", MCPAllowDestroyOption: "true", MCPAdminAllowWriteOption: "true", MCPAdminAllowDestroyOption: "true"},
+			MCPSettings{AllowWrite: true, AllowRun: true, AllowDestroy: true, AdminAllowWrite: true, AdminAllowDestroy: true}},
 		{"empty value: the default", fakeOptions{MCPAllowRunOption: "", MCPAllowDestroyOption: ""}, MCPSettings{AllowRun: false, AllowDestroy: false}},
 	}
 	for _, tt := range tests {
@@ -48,14 +50,14 @@ func TestReadMCPSettings(t *testing.T) {
 
 func TestReadMCPSettings_StoreError(t *testing.T) {
 	_, err := ReadMCPSettings(failingOptions{})
-	assert.Error(t, err, "a failed read is not taken for the defaults")
+	assert.ErrorContains(t, err, MCPAllowWriteOption, "a failed read is not taken for the defaults, and names the option")
 }
 
 func TestWriteMCPSettings_StoresBooleans(t *testing.T) {
 	options := fakeOptions{}
-	want := MCPSettings{AllowRun: false, AllowDestroy: true, AdminAllowWrite: true, AdminAllowDestroy: false}
+	want := MCPSettings{AllowWrite: true, AllowRun: false, AllowDestroy: true, AdminAllowWrite: true, AdminAllowDestroy: false}
 	require.NoError(t, WriteMCPSettings(options, want))
-	assert.Equal(t, fakeOptions{MCPAllowRunOption: "false", MCPAllowDestroyOption: "true",
+	assert.Equal(t, fakeOptions{MCPAllowWriteOption: "true", MCPAllowRunOption: "false", MCPAllowDestroyOption: "true",
 		MCPAdminAllowWriteOption: "true", MCPAdminAllowDestroyOption: "false"}, options)
 
 	settings, err := ReadMCPSettings(options)

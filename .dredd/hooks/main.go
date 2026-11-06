@@ -299,6 +299,8 @@ func main() {
 	})
 	// The Dredd server has no license, and an OSS build no MCP: issuing an MCP token answers 403.
 	h.Before("user > /api/user/mcp-tokens > Create an MCP token > 201 > application/json", skipTest)
+	// The Dredd server runs with mcp.enabled off: the tools of a connection answer 501.
+	h.Before("/api/mcp/tools > List the MCP tools of a connection > 200 > application/json", skipTest)
 
 	h.Before("task > /api/project/{project_id}/tasks > Starts a job > 201 > application/json", capabilityWrapper("template"))
 	h.Before("task > /api/project/{project_id}/tasks/last > Get last 200 Tasks related to current project > 200 > application/json", capabilityWrapper("template"))

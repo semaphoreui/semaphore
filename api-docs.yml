@@ -657,14 +657,19 @@ definitions:
   MCPSettings:
     type: object
     description: >
-      Server-wide ceiling for the tools of the built-in MCP server (Pro), one
-      pair of switches per tool set: the project set at /api/mcp/project and
-      the admin set at /api/mcp/admin. A group a setting allows is on for a
+      Server-wide ceiling for the tools of the built-in MCP server (Pro), a
+      group of switches per tool set: three for the project set at
+      /api/mcp/project (write, run, destroy) and two for the admin set at
+      /api/mcp/admin (write, destroy). A group a setting allows is on for a
       connection only when the connection also asks for it with its header
       set to "on" (X-Semaphore-MCP-Run, X-Semaphore-MCP-Write,
       X-Semaphore-MCP-Destroy). The settings limit the MCP tools only: the
       same token still works on the REST API.
     properties:
+      allow_write:
+        type: boolean
+        description: Project set. Allows the save_* tools that create and change projects, repositories, environments, inventories and templates, and generate_ssh_key; header X-Semaphore-MCP-Write. Defaults to false.
+        example: false
       allow_run:
         type: boolean
         description: Project set. Allows the tools that run and control tasks (run_task, stop_task, confirm_task, reject_task, save_schedule); header X-Semaphore-MCP-Run. Defaults to false.
@@ -682,6 +687,7 @@ definitions:
         description: Admin set. Allows the delete_* tools, delete_active_task included; header X-Semaphore-MCP-Destroy. Defaults to false.
         example: false
     required:
+      - allow_write
       - allow_run
       - allow_destroy
       - admin_allow_write
@@ -2689,7 +2695,7 @@ paths:
       summary: Update the MCP server settings
       description: >
         Needs an administrator or the global permission to manage the system.
-        All four fields are required and no other field is accepted. The change
+        All five fields are required and no other field is accepted. The change
         is recorded in the audit log and takes effect on every node at the
         next MCP request.
       consumes:
@@ -2706,9 +2712,103 @@ paths:
           schema:
             $ref: "#/definitions/MCPSettings"
         400:
-          description: The body is not an object with exactly the four boolean fields
+          description: The body is not an object with exactly the five boolean fields
         403:
           description: The user may not manage the system
+
+  /mcp/tools:
+    get:
+      summary: List the MCP tools of a set for a connection
+      description: >
+        Every tool of a tool set of the built-in MCP server (Pro), in the
+        order the server registers them, each marked with whether a
+        connection of the signed-in user would get it. The available tools
+        are exactly what tools/list of that connection lists. Availability
+        follows the server settings, the flags of the connection and, in the
+        admin set, the user's global permissions; it is decided on every
+        request. A tool that is not available gives the first reason to fix:
+        permission, then setting, then connection.
+        A flag stands for the header of its group: run for
+        X-Semaphore-MCP-Run, write for X-Semaphore-MCP-Write, destroy for
+        X-Semaphore-MCP-Destroy; only the value "on" asks, an absent flag is
+        off, and a flag of a group the set does not have changes nothing.
+        With mcp.enabled off, and in a build without the Pro module, the route
+        answers 501.
+      parameters:
+        - name: set
+          in: query
+          required: true
+          type: string
+          enum: [project, admin]
+          x-example: project
+        - name: run
+          in: query
+          required: false
+          type: string
+          enum: ["on"]
+          description: Project set. Asks for the tools that run and control tasks.
+        - name: write
+          in: query
+          required: false
+          type: string
+          enum: ["on"]
+          description: Both sets. Asks for the save tools and the other changes (generate_ssh_key in the project set).
+        - name: destroy
+          in: query
+          required: false
+          type: string
+          enum: ["on"]
+          description: Both sets. Asks for the delete tools.
+      responses:
+        200:
+          description: Every tool of the set and its availability for the connection
+          schema:
+            type: object
+            properties:
+              tools:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      example: list_projects
+                    description:
+                      type: string
+                      description: The description of the tool as the MCP server registers it
+                    group:
+                      type: string
+                      enum: [read, write, run, destroy]
+                      description: The group of the tool; the project set has read, write, run and destroy, the admin set read, write and destroy
+                    read_only:
+                      type: boolean
+                      description: The readOnlyHint annotation of the tool
+                    destructive:
+                      type: boolean
+                      description: The destructiveHint annotation of the tool, with the default of the MCP specification
+                    available:
+                      type: boolean
+                      description: Whether tools/list of the connection lists the tool
+                    reason:
+                      type: string
+                      enum: [permission, setting, connection]
+                      description: >
+                        Only when the tool is not available. permission: the user lacks the
+                        global permission the tool needs (admin set); setting: the server
+                        settings switch the tool's group off; connection: the server allows
+                        the group, the connection's flag is off.
+                    permission:
+                      type: string
+                      example: global.users.manage
+                      description: With the reason permission, the ID of the missing global permission
+                  required: [name, description, group, read_only, destructive, available]
+            required: [tools]
+        400:
+          description: An unknown parameter, a set other than project or admin, or a flag other than "on"
+        403:
+          description: The license gives the user no MCP
+        501:
+          description: MCP is switched off, or the build has no MCP
 
   /user/options:
     get:
