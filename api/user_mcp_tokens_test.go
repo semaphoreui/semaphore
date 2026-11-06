@@ -158,6 +158,7 @@ func TestMCPTokens_NotIssuedWhileMCPIsOff(t *testing.T) {
 	w, rec := f.send(http.MethodPost, "/api/user/mcp-tokens", `{"name":"agent"}`)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.JSONEq(t, `{"error":"MCP is switched off on this server"}`, w.Body.String(), "a JSON error, as every other refusal")
 	assert.Empty(t, rec.All())
 	assert.Empty(t, f.tokens(t))
 }
@@ -242,6 +243,7 @@ func TestMCPTokens_AreTheUsersOwn(t *testing.T) {
 
 	w, rec := f.send(http.MethodDelete, "/api/user/mcp-tokens/abcdefgh", "")
 	assert.Equal(t, http.StatusNotFound, w.Code, "none of alice's tokens matches")
+	assert.JSONEq(t, `{"error":"No MCP token of yours starts with this ID"}`, w.Body.String())
 	assert.Empty(t, rec.All())
 	_, err = f.store.GetAPIToken("abcdefgh3333")
 	assert.NoError(t, err, "alice cannot revoke bob's token")

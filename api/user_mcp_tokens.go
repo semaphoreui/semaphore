@@ -34,7 +34,7 @@ func (c *mcpTokenController) GetTokens(w http.ResponseWriter, r *http.Request) {
 func (c *mcpTokenController) CreateToken(w http.ResponseWriter, r *http.Request) {
 	// As in a build without MCP: there is nothing to issue a token for.
 	if !c.enabled {
-		w.WriteHeader(http.StatusNotFound)
+		helpers.WriteErrorStatus(w, "MCP is switched off on this server", http.StatusNotFound)
 		return
 	}
 
@@ -63,7 +63,7 @@ func (c *mcpTokenController) DeleteToken(w http.ResponseWriter, r *http.Request)
 	// A prefix that matches none of the user's MCP tokens is a mistake the
 	// client must see, not a revoke that happened.
 	if revoked == 0 {
-		w.WriteHeader(http.StatusNotFound)
+		helpers.WriteErrorStatus(w, "No MCP token of yours starts with this ID", http.StatusNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

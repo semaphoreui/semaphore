@@ -289,11 +289,15 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 		}
 
 		if token.IsExpiredAt(tz.Now()) {
+			target := audit.TargetAPIToken
+			if token.Type == db.APITokenTypeMCP {
+				target = audit.TargetMCPToken
+			}
 			helpers.Audit(r).Record(r.Context(), audit.Event{
 				Kind:    audit.AuthAPITokenReject,
 				Outcome: audit.OutcomeFailure,
 				Reason:  audit.ReasonTokenExpired,
-				Target:  &audit.Target{Type: audit.TargetAPIToken, ID: tokenFingerprint},
+				Target:  &audit.Target{Type: target, ID: tokenFingerprint},
 			})
 			w.WriteHeader(http.StatusUnauthorized)
 			return

@@ -81,7 +81,9 @@ func TestAuthentication_ExpiredMCPTokenIsRefused(t *testing.T) {
 
 	assert.False(t, ok)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
-	assert.Equal(t, audit.ReasonTokenExpired, onlyEvent(t, rec, audit.AuthAPITokenReject).Event.Reason)
+	rejected := onlyEvent(t, rec, audit.AuthAPITokenReject)
+	assert.Equal(t, audit.ReasonTokenExpired, rejected.Event.Reason)
+	assert.Equal(t, &audit.Target{Type: audit.TargetMCPToken, ID: audit.TokenFingerprint("mcptoken1234567890")}, rejected.Event.Target)
 }
 
 func TestGetAPITokens_HidesMCPTokens(t *testing.T) {
