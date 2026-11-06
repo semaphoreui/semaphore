@@ -12,6 +12,9 @@ const (
 	InventoryTerraformWorkspace  InventoryType = "terraform-workspace"
 	InventoryTofuWorkspace       InventoryType = "tofu-workspace"
 	InventoryTerragruntWorkspace InventoryType = "terragrunt-workspace"
+	// InventoryMcp holds the MCP servers available to an AI agent as a JSON
+	// array of McpServer.
+	InventoryMcp InventoryType = "mcp"
 )
 
 func (i InventoryType) IsStatic() bool {

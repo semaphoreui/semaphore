@@ -27,6 +27,12 @@ type TerraformTaskParams struct {
 	Reconfigure bool `json:"reconfigure"`
 }
 
+// AgentTaskParams are the params of an AI agent task.
+type AgentTaskParams struct {
+	// Prompt replaces the template prompt when the template allows it.
+	Prompt string `json:"prompt,omitempty"`
+}
+
 type AnsibleTaskParams struct {
 	Debug             bool     `json:"debug"`
 	DebugLevel        int      `json:"debug_level"`
@@ -214,6 +220,15 @@ func (task *Task) ValidateNewTask(template Template) error {
 	}
 
 	if err := ValidatePlaybookPath(task.Playbook, "task"); err != nil {
+		return err
+	}
+
+	if template.App.IsAgent() {
+		var params AgentTaskParams
+		if err := task.ExtractParams(&params); err != nil {
+			return err
+		}
+		_, err := template.AgentPrompt(params)
 		return err
 	}
 
