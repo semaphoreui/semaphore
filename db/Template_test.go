@@ -189,6 +189,36 @@ func TestTemplateValidate_SurveyVarDefaultValue(t *testing.T) {
 	assert.ErrorContains(t, err, "must be a string for type")
 }
 
+func TestTemplate_GetSurveyVarsDefaults(t *testing.T) {
+	strVal := func(s string) *SurveyVarDefaultValue {
+		return &SurveyVarDefaultValue{Values: []string{s}}
+	}
+	arrVal := func(s ...string) *SurveyVarDefaultValue {
+		return &SurveyVarDefaultValue{Values: s, originalWasArray: true}
+	}
+
+	tpl := Template{
+		SurveyVars: []SurveyVar{
+			{Name: "HOST", Type: SurveyVarStr, DefaultValue: strVal("web1")},
+			{Name: "COUNT", Type: SurveyVarInt, DefaultValue: strVal("3")},
+			{Name: "TAGS", Type: SurveyVarSelect, DefaultValue: arrVal("a", "b")},
+			{Name: "EMPTY_SELECT", Type: SurveyVarSelect, DefaultValue: arrVal()},
+			{Name: "NO_DEFAULT", Type: SurveyVarStr},
+			{Name: "EMPTY_SCALAR", Type: SurveyVarStr, DefaultValue: strVal("")},
+		},
+	}
+
+	got := tpl.GetSurveyVarsDefaults()
+	assert.Equal(t, map[string]any{
+		"HOST":         "web1",
+		"COUNT":        "3",
+		"TAGS":         []string{"a", "b"},
+		"EMPTY_SELECT": []string{},
+	}, got)
+
+	assert.Empty(t, (&Template{}).GetSurveyVarsDefaults())
+}
+
 func TestTemplateValidate_GalaxyArgs(t *testing.T) {
 	util.Config = &util.ConfigType{Apps: map[string]util.App{string(AppAnsible): {}}}
 	defer func() { util.Config = nil }()
