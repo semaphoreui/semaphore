@@ -23,7 +23,17 @@ func (d *SqlDb) GetTemplateVaults(projectID int, templateID int) (vaults []db.Te
 	return
 }
 
+// normalizeVaultName turns an empty vault name into nil. The executor treats a
+// nil name as the "default" vault id, but an empty string as a named vault.
+func normalizeVaultName(name *string) *string {
+	if name != nil && *name == "" {
+		return nil
+	}
+	return name
+}
+
 func (d *SqlDb) CreateTemplateVault(vault db.TemplateVault) (newVault db.TemplateVault, err error) {
+	vault.Name = normalizeVaultName(vault.Name)
 	insertID, err := d.insert(
 		"id",
 		"insert into project__template_vault (project_id, template_id, vault_key_id, name, type, script) values (?, ?, ?, ?, ?, ?)",
@@ -49,6 +59,7 @@ func (d *SqlDb) UpdateTemplateVaults(projectID int, templateID int, vaults []db.
 
 	var vaultIDs []string
 	for _, vault := range vaults {
+		vault.Name = normalizeVaultName(vault.Name)
 		switch vault.Type {
 		case "password":
 			vault.Script = nil

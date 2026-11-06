@@ -275,3 +275,101 @@ func TestTemplateSuppressAlertsRoundTrip(t *testing.T) {
 	assert.True(t, loaded.SuppressSuccessAlerts)
 	assert.False(t, loaded.SuppressErrorAlerts)
 }
+
+func TestUpdateTemplateVaultsStoresEmptyNameAsNull(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, repositoryID := newTemplateTestProject(t, store)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &projectID,
+		Type:      db.AccessKeyLoginPassword,
+	})
+	require.NoError(t, err)
+
+	empty := ""
+	named := "prod"
+	created, err := store.CreateTemplate(db.Template{
+		ProjectID:    projectID,
+		RepositoryID: repositoryID,
+		Name:         "with-vaults",
+		Playbook:     "site.yml",
+		Vaults: []db.TemplateVault{
+			{Type: db.TemplateVaultPassword, VaultKeyID: &key.ID, Name: &empty},
+			{Type: db.TemplateVaultPassword, VaultKeyID: &key.ID, Name: &named},
+		},
+	})
+	require.NoError(t, err)
+
+	vaults, err := store.GetTemplateVaults(projectID, created.ID)
+	require.NoError(t, err)
+	require.Len(t, vaults, 2)
+
+	var gotEmpty, gotNamed int
+	for _, v := range vaults {
+		if v.Name == nil {
+			gotEmpty++
+		} else if *v.Name == "prod" {
+			gotNamed++
+		}
+	}
+	assert.Equal(t, 1, gotEmpty, "empty name must be stored as NULL")
+	assert.Equal(t, 1, gotNamed, "a real name must be kept")
+}
+
+func TestTemplateVaultSavePathsStoreEmptyNameAsNull(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, repositoryID := newTemplateTestProject(t, store)
+
+	key, err := store.CreateAccessKey(db.AccessKey{
+		ProjectID: &projectID,
+		Type:      db.AccessKeyLoginPassword,
+	})
+	require.NoError(t, err)
+
+	named := "prod"
+	created, err := store.CreateTemplate(db.Template{
+		ProjectID:    projectID,
+		RepositoryID: repositoryID,
+		Name:         "existing-vault",
+		Playbook:     "site.yml",
+		Vaults: []db.TemplateVault{
+			{Type: db.TemplateVaultPassword, VaultKeyID: &key.ID, Name: &named},
+		},
+	})
+	require.NoError(t, err)
+
+	vaults, err := store.GetTemplateVaults(projectID, created.ID)
+	require.NoError(t, err)
+	require.Len(t, vaults, 1)
+	require.NotNil(t, vaults[0].Name)
+
+	// Update the existing vault (non-zero ID) with an empty name.
+	empty := ""
+	existing := vaults[0]
+	existing.Name = &empty
+	require.NoError(t, store.UpdateTemplateVaults(projectID, created.ID, []db.TemplateVault{existing}))
+
+	vaults, err = store.GetTemplateVaults(projectID, created.ID)
+	require.NoError(t, err)
+	require.Len(t, vaults, 1)
+	assert.Equal(t, existing.ID, vaults[0].ID)
+	assert.Nil(t, vaults[0].Name, "updating an existing vault with an empty name must store NULL")
+
+	// CreateTemplateVault normalizes the name too.
+	added, err := store.CreateTemplateVault(db.TemplateVault{
+		ProjectID:  projectID,
+		TemplateID: created.ID,
+		Type:       db.TemplateVaultPassword,
+		VaultKeyID: &key.ID,
+		Name:       &empty,
+	})
+	require.NoError(t, err)
+	assert.Nil(t, added.Name)
+
+	vaults, err = store.GetTemplateVaults(projectID, created.ID)
+	require.NoError(t, err)
+	require.Len(t, vaults, 2)
+	for _, v := range vaults {
+		assert.Nil(t, v.Name, "vault %d", v.ID)
+	}
+}
