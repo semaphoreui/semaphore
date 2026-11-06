@@ -196,21 +196,22 @@ type RunnerK8sConfig struct {
 	// Namespace is where ephemeral task Pods are created.
 	Namespace string `json:"namespace,omitempty" default:"semaphore" env:"SEMAPHORE_RUNNER_K8S_NAMESPACE"`
 
-	// Image is the default container image used for the build container of each
-	// task Pod. Templates may override this in a future phase.
+	// Image is the image of the build container of each task Pod. A template's
+	// Executor image overrides it.
 	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_K8S_IMAGE"`
 
-	// HelperImage is the image used for the git-clone init container (Phase 3+).
+	// HelperImage is the image of the git-clone init container that clones the repository.
 	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/helper:latest" env:"SEMAPHORE_RUNNER_K8S_HELPER_IMAGE"`
 
-	// ServiceAccount that task Pods run under. Defaults to the namespace's default SA.
+	// ServiceAccount is the service account task Pods run under. Use one without
+	// permissions and with automountServiceAccountToken disabled.
 	ServiceAccount string `json:"service_account,omitempty" default:"default" env:"SEMAPHORE_RUNNER_K8S_SERVICE_ACCOUNT"`
 
 	// PullSecrets is a comma-separated list of imagePullSecrets attached to each Pod.
 	PullSecrets string `json:"pull_secrets,omitempty" env:"SEMAPHORE_RUNNER_K8S_PULL_SECRETS"`
 
-	// PollIntervalSeconds controls how often the executor polls Pod status. Defaults
-	// to 3 seconds. Kept as a plain int (not time.Duration) for env-binding simplicity.
+	// PollIntervalSeconds is how often the executor reads the Pod status.
+	// Plain int, not time.Duration, for env-binding simplicity.
 	PollIntervalSeconds int `json:"poll_interval_seconds,omitempty" default:"3" env:"SEMAPHORE_RUNNER_K8S_POLL_INTERVAL_SECONDS"`
 
 	// CleanupGraceSeconds is the grace period when deleting Pods. Defaults to 30s.
@@ -227,17 +228,20 @@ type RunnerDockerConfig struct {
 	// socket are used.
 	Host string `json:"host,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_HOST"`
 
-	// TLSVerify enables TLS certificate verification for tcp:// connections.
+	// TLSVerify is reserved and not applied yet: setting CertPath is what enables
+	// TLS with certificate verification.
 	TLSVerify bool `json:"tls_verify,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_TLS_VERIFY"`
 
 	// CertPath is the directory holding ca.pem, cert.pem and key.pem for mutual TLS
 	// against a remote daemon.
 	CertPath string `json:"cert_path,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_CERT_PATH"`
 
-	// Image is the default image used for the build container of each task.
+	// Image is the image of the build container of each task. A template's
+	// Executor image overrides it.
 	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_DOCKER_IMAGE"`
 
-	// HelperImage is the image used for the transient git-clone container.
+	// HelperImage is the image of the transient git-clone container; it also seeds
+	// the per-task secrets volume.
 	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/helper:latest" env:"SEMAPHORE_RUNNER_DOCKER_HELPER_IMAGE"`
 
 	// Network is the Docker network the build container joins. Defaults to "bridge".
@@ -252,7 +256,7 @@ type RunnerDockerConfig struct {
 	// MemoryLimit, when non-empty, caps the build container memory (e.g. "2g").
 	MemoryLimit string `json:"memory_limit,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_MEMORY_LIMIT"`
 
-	// PollIntervalSeconds controls how often container status is polled. Defaults to 2s.
+	// PollIntervalSeconds is not used: the executor waits for the container to exit.
 	PollIntervalSeconds int `json:"poll_interval_seconds,omitempty" default:"2" env:"SEMAPHORE_RUNNER_DOCKER_POLL_INTERVAL_SECONDS"`
 
 	// CleanupGraceSeconds is the timeout passed to docker stop. Defaults to 30s.

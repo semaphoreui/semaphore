@@ -170,6 +170,6 @@
     "log.": "pro",
     "syslog.": "pro",
     "runner.executor.docker.": "pro",
-    "runner.executor.k8s.": "pro"
+    "runner.executor.k8s.": "enterprise"
   }
 }

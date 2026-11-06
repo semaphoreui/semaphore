@@ -24,6 +24,9 @@ only when the task touches that topic. Keep this file under 150 lines.
 
 ## Gotchas
 
+- Container executors (pro_impl `services/tasks/{docker,k8s}`): `docker.tls_verify` and `docker.poll_interval_seconds` are
+  read but unused, Docker pulls send no registry auth, a K8s Pod stuck `Pending` keeps the task running forever, and
+  neither executor sweeps leftovers on restart — documented in `docs/docs/admin-guide/executors/`; update it when fixed.
 - `default:` struct tags in `util/config.go` are applied at config load (when the section exists),
   so they — not in-package fallback constants — are the effective documented defaults.
 - `config.schema.yaml` is not a source of truth; it drifts (gave wrong k8s executor image
