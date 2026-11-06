@@ -82,15 +82,6 @@ describe('McpServer.vue', () => {
     });
   });
 
-  it('shows the settings without MCP only to a system manager of a licensed instance', () => {
-    const shown = (canManageSystem, features, proLicenseWithoutSeat) => McpServer.computed
-      .settingsWithoutMcp.call({ canManageSystem, features, proLicenseWithoutSeat });
-    expect(shown(true, { mcp: true }, false), 'MCP switched off').to.equal(true);
-    expect(shown(true, { mcp: false }, true), 'no Pro seat of their own').to.equal(true);
-    expect(shown(true, {}, false), 'no license: the upgrade banner only').to.equal(false);
-    expect(shown(false, { mcp: true }, false), 'not a system manager').to.equal(false);
-  });
-
   // The connection computeds of the page for one set; `on` — the switches of the connection.
   const connection = (mcpSettings, on, set = MCP_SETS.project) => {
     const ctx = { mcpSettings, mcpSet: set, connection: { [set.id]: on } };
@@ -120,22 +111,30 @@ describe('McpServer.vue', () => {
   it('offers a connection only the groups the administrator allows', () => {
     const allowed = (settings) => connection(settings, {}).switches
       .map((s) => [s.key, s.allowed]);
-    expect(allowed({ allow_run: true, allow_destroy: true })).to.deep.equal([['run', true], ['destroy', true]]);
-    expect(allowed({ allow_run: true, allow_destroy: false })).to.deep.equal([['run', true], ['destroy', false]]);
-    expect(allowed({ allow_run: false, allow_destroy: false })).to.deep.equal([['run', false], ['destroy', false]]);
-    expect(allowed(null), 'not loaded yet').to.deep.equal([['run', false], ['destroy', false]]);
+    expect(allowed({ allow_write: true, allow_run: true, allow_destroy: true }))
+      .to.deep.equal([['write', true], ['destroy', true], ['run', true]]);
+    expect(allowed({ allow_write: false, allow_run: true, allow_destroy: false }))
+      .to.deep.equal([['write', false], ['destroy', false], ['run', true]]);
+    expect(allowed({ allow_write: true, allow_run: false, allow_destroy: false }))
+      .to.deep.equal([['write', true], ['destroy', false], ['run', false]]);
+    expect(allowed({ admin_allow_write: true }), 'the admin settings')
+      .to.deep.equal([['write', false], ['destroy', false], ['run', false]]);
+    expect(allowed(null), 'not loaded yet').to.deep.equal([['write', false], ['destroy', false], ['run', false]]);
 
-    const on = (settings) => connection(settings, { run: true, destroy: true }).switches
-      .map((s) => [s.key, s.on]);
-    expect(on({ allow_run: true, allow_destroy: true })).to.deep.equal([['run', true], ['destroy', true]]);
+    const every = { write: true, run: true, destroy: true };
+    const on = (settings) => connection(settings, every).switches.map((s) => [s.key, s.on]);
+    expect(on({ allow_write: true, allow_run: true, allow_destroy: true }))
+      .to.deep.equal([['write', true], ['destroy', true], ['run', true]]);
     expect(on({ allow_run: true, allow_destroy: false }), 'a disabled switch shows off')
-      .to.deep.equal([['run', true], ['destroy', false]]);
+      .to.deep.equal([['write', false], ['destroy', false], ['run', true]]);
+    expect(connection({}, {}).switches.map((s) => s.label), 'changes, deleting, then running')
+      .to.deep.equal(['mcp_settings_admin_allow_write', 'mcp_settings_allow_destroy', 'mcp_settings_allow_run']);
   });
 
   it('allows the admin groups by the admin settings only', () => {
     const allowed = (settings) => connection(settings, {}, MCP_SETS.admin).switches
       .map((s) => [s.key, s.allowed]);
-    const project = { allow_run: true, allow_destroy: true };
+    const project = { allow_write: true, allow_run: true, allow_destroy: true };
     expect(allowed(project), 'the project settings').to.deep.equal([['write', false], ['destroy', false]]);
     expect(allowed({ admin_allow_write: true, admin_allow_destroy: false }))
       .to.deep.equal([['write', true], ['destroy', false]]);
@@ -146,17 +145,24 @@ describe('McpServer.vue', () => {
   });
 
   it('sends a header only for a group switched on and allowed by the server', () => {
-    const both = { allow_run: true, allow_destroy: true };
-    expect(connection(both, { run: false, destroy: false }).headers, 'both start off').to.deep.equal({});
-    expect(connection(both, { run: true }).headers).to.deep.equal({ 'X-Semaphore-MCP-Run': 'on' });
-    expect(connection(both, { run: true, destroy: true }).headers).to.deep.equal({
+    const every = { allow_write: true, allow_run: true, allow_destroy: true };
+    expect(connection(every, { write: false, run: false, destroy: false }).headers, 'all start off').to.deep.equal({});
+    expect(connection(every, { write: true }).headers).to.deep.equal({ 'X-Semaphore-MCP-Write': 'on' });
+    expect(connection(every, { run: true }).headers).to.deep.equal({ 'X-Semaphore-MCP-Run': 'on' });
+    expect(connection(every, { run: true, destroy: true }).headers).to.deep.equal({
       'X-Semaphore-MCP-Run': 'on', 'X-Semaphore-MCP-Destroy': 'on',
     });
-    const runAllowedOff = { allow_run: false, allow_destroy: true };
+    expect(Object.keys(connection(every, { destroy: true, run: true, write: true }).headers), 'in the order of the groups')
+      .to.deep.equal(['X-Semaphore-MCP-Write', 'X-Semaphore-MCP-Destroy', 'X-Semaphore-MCP-Run']);
+    const runAllowedOff = { allow_write: true, allow_run: false, allow_destroy: true };
     const runOff = connection(runAllowedOff, { run: true, destroy: true }).headers;
     expect(runOff, 'run switched off by the administrator')
       .to.deep.equal({ 'X-Semaphore-MCP-Destroy': 'on' });
-    expect(connection(null, { run: true, destroy: true }).headers, 'settings not loaded').to.deep.equal({});
+    const adminWriteOnly = { allow_run: true, admin_allow_write: true };
+    const writeOff = connection(adminWriteOnly, { write: true, run: true }).headers;
+    expect(writeOff, 'write switched off by the administrator, whatever the admin setting')
+      .to.deep.equal({ 'X-Semaphore-MCP-Run': 'on' });
+    expect(connection(null, { write: true, run: true, destroy: true }).headers, 'settings not loaded').to.deep.equal({});
   });
 
   it('sends the admin headers only when switched on and allowed', () => {
@@ -170,13 +176,13 @@ describe('McpServer.vue', () => {
     const all = { write: true, destroy: true };
     expect(admin({ admin_allow_write: false, admin_allow_destroy: true }, all), 'write switched off')
       .to.deep.equal({ 'X-Semaphore-MCP-Destroy': 'on' });
-    expect(admin({ allow_run: true, allow_destroy: true }, all), 'the project settings')
+    expect(admin({ allow_write: true, allow_run: true, allow_destroy: true }, all), 'the project settings')
       .to.deep.equal({});
   });
 
   it('starts every group of both sets off', () => {
     expect(McpServer.data.call({}).connection).to.deep.equal({
-      project: { run: false, destroy: false },
+      project: { write: false, destroy: false, run: false },
       admin: { write: false, destroy: false },
     });
   });
@@ -340,7 +346,9 @@ describe('lib/mcpClients', () => {
       expect(project({ run: true })).to.deep.equal(run);
       expect(project({ destroy: true })).to.deep.equal({ 'X-Semaphore-MCP-Destroy': 'on' });
       expect(project({ run: true, destroy: true })).to.deep.equal(both);
-      expect(project({ write: true }), 'a group of the other set').to.deep.equal({});
+      expect(project({ write: true })).to.deep.equal({ 'X-Semaphore-MCP-Write': 'on' });
+      expect(Object.keys(project({ destroy: true, run: true, write: true })), 'in the order of the groups')
+        .to.deep.equal(['X-Semaphore-MCP-Write', 'X-Semaphore-MCP-Destroy', 'X-Semaphore-MCP-Run']);
     });
 
     it('builds the headers of the admin switches', () => {
@@ -413,6 +421,42 @@ describe('lib/mcpClients', () => {
     });
   });
 
+  describe('tool list', () => {
+    let mcpToolIcon;
+    let mcpToolSummary;
+
+    beforeAll(async () => {
+      ({ mcpToolIcon, mcpToolSummary } = await import('@/lib/mcpClients'));
+    });
+
+    it('picks the icon of a tool by what it does', () => {
+      expect(mcpToolIcon('get_task')).to.equal('mdi-eye-outline');
+      expect(mcpToolIcon('list_tasks')).to.equal('mdi-format-list-bulleted');
+      expect(mcpToolIcon('save_template')).to.equal('mdi-pencil-outline');
+      expect(mcpToolIcon('generate_ssh_key')).to.equal('mdi-plus');
+      expect(mcpToolIcon('delete_user')).to.equal('mdi-trash-can-outline');
+      expect(mcpToolIcon('run_task')).to.equal('mdi-play-outline');
+      expect(mcpToolIcon('stop_task')).to.equal('mdi-stop-circle-outline');
+      expect(mcpToolIcon('confirm_task')).to.equal('mdi-check-circle-outline');
+      expect(mcpToolIcon('reject_task')).to.equal('mdi-close-circle-outline');
+      expect(mcpToolIcon('save_user_global_roles'), 'a prefix').to.equal('mdi-pencil-outline');
+      expect(mcpToolIcon('run_workflow'), 'only run_task plays').to.equal('mdi-wrench-outline');
+      expect(mcpToolIcon('something_new'), 'the fallback').to.equal('mdi-wrench-outline');
+      expect(mcpToolIcon(undefined), 'the fallback').to.equal('mdi-wrench-outline');
+    });
+
+    it('shortens a description to its first sentence', () => {
+      expect(mcpToolSummary('Returns a task. With its stages.')).to.equal('Returns a task.');
+      expect(mcpToolSummary('Lists tasks: get_task.output shows more. Then this.'), 'a dot inside a word')
+        .to.equal('Lists tasks: get_task.output shows more.');
+      expect(mcpToolSummary('Stops it! Now.')).to.equal('Stops it!');
+      expect(mcpToolSummary('No full stop')).to.equal('No full stop');
+      expect(mcpToolSummary('Ends here.')).to.equal('Ends here.');
+      expect(mcpToolSummary('')).to.equal('');
+      expect(mcpToolSummary(undefined)).to.equal('');
+    });
+  });
+
   describe('server name', () => {
     const adminUrl = 'https://semaphore.example.com/api/mcp/admin';
     const admin = () => mcpClients(adminUrl, { serverName: MCP_SETS.admin.serverName });
@@ -480,8 +524,14 @@ describe('McpServer.vue connection tabs', () => {
     wrappers.splice(0).forEach((w) => w.unmount());
   });
 
-  async function mountAt(path, settings) {
-    http.respond(() => settings);
+  // tools answers GET /api/mcp/tools: a function of the request config, or what it returns.
+  async function mountAt(path, settings, tools = { tools: [] }) {
+    http.respond((config) => {
+      if (config.url !== '/api/mcp/tools') {
+        return settings;
+      }
+      return typeof tools === 'function' ? tools(config) : tools;
+    });
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }],
@@ -506,38 +556,295 @@ describe('McpServer.vue connection tabs', () => {
 
   it('shows the admin set with its switches limited by the admin settings', async () => {
     const wrapper = await mountAt('/mcp/admin', {
-      allow_run: true, allow_destroy: true, admin_allow_write: true, admin_allow_destroy: false,
+      allow_write: true,
+      allow_run: true,
+      allow_destroy: true,
+      admin_allow_write: true,
+      admin_allow_destroy: false,
     });
     expect(wrapper.find('[data-testid="mcp-connect-admin"]').exists()).to.equal(true);
-    expect(codes(wrapper)[0]).to.equal('https://semaphore.example.com/api/mcp/admin');
-    expect(codes(wrapper)[1]).to.contain('--scope user semaphore-admin https://semaphore.example.com/api/mcp/admin');
+    expect(wrapper.find('[data-testid="mcp-intro"]').text()).to.contain('administering the server');
+    expect(wrapper.find('[data-testid="mcp-endpoint"]').exists(), 'the address is in the snippets only').to.equal(false);
+    expect(codes(wrapper)[0]).to.contain('--scope user semaphore-admin https://semaphore.example.com/api/mcp/admin');
 
     expect(disabled(wrapper, 'admin', 'write')).to.equal(false);
     expect(disabled(wrapper, 'admin', 'destroy'), 'switched off in Settings').to.equal(true);
-    expect(wrapper.text()).to.contain('Adds the header X-Semaphore-MCP-Write: on');
+    expect(wrapper.text(), 'no header hints').to.not.contain('Adds the header');
     expect(wrapper.text()).to.contain('Switched off by the administrator in Settings');
-    expect(wrapper.find('[data-testid="mcp-admin-groups"]').text()).to.contain('delete_active_task');
-    expect(wrapper.find('[data-testid="mcp-admin-hidden-tools"]').exists()).to.equal(true);
+    expect(switchOf(wrapper, 'admin', 'write').text(), 'the hint of an allowed group')
+      .to.contain('add and change users');
     expect(codes(wrapper).join('\n')).to.not.contain('X-Semaphore-MCP');
 
     const write = switchOf(wrapper, 'admin', 'write').find('input');
     write.element.checked = true;
     await write.trigger('input');
     expect(wrapper.vm.connection.admin.write).to.equal(true);
-    expect(codes(wrapper)[1]).to.contain('--header "X-Semaphore-MCP-Write: on"');
+    expect(codes(wrapper)[0]).to.contain('--header "X-Semaphore-MCP-Write: on"');
     expect(codes(wrapper).join('\n')).to.not.contain('X-Semaphore-MCP-Destroy');
   });
 
   it('shows the project set at /api/mcp/project without the admin lines', async () => {
     const wrapper = await mountAt('/mcp/project', {
-      allow_run: false, allow_destroy: false, admin_allow_write: true, admin_allow_destroy: true,
+      allow_write: false,
+      allow_run: false,
+      allow_destroy: false,
+      admin_allow_write: true,
+      admin_allow_destroy: true,
     });
     expect(wrapper.find('[data-testid="mcp-connect-project"]').exists()).to.equal(true);
-    expect(codes(wrapper)[0]).to.equal('https://semaphore.example.com/api/mcp/project');
-    expect(codes(wrapper)[1]).to.contain('--scope user semaphore https://');
+    expect(wrapper.find('[data-testid="mcp-intro"]').text()).to.contain('work inside a project');
+    expect(codes(wrapper)[0]).to.contain('--scope user semaphore https://semaphore.example.com/api/mcp/project');
+    expect(disabled(wrapper, 'project', 'write'), 'the admin write setting does not allow it').to.equal(true);
     expect(disabled(wrapper, 'project', 'run')).to.equal(true);
     expect(disabled(wrapper, 'project', 'destroy')).to.equal(true);
-    expect(wrapper.find('[data-testid="mcp-admin-groups"]').exists()).to.equal(false);
+  });
+
+  it('shows the project switches in the order changes, runs, deleting', async () => {
+    const wrapper = await mountAt('/mcp/project', {
+      allow_write: true,
+      allow_run: false,
+      allow_destroy: false,
+      admin_allow_write: false,
+      admin_allow_destroy: false,
+    });
+    const ids = wrapper.findAll('[data-testid^="mcp-connection-project-"]').map((w) => w.attributes('data-testid'));
+    expect(ids).to.deep.equal(['mcp-connection-project-write', 'mcp-connection-project-destroy', 'mcp-connection-project-run']);
+    expect(disabled(wrapper, 'project', 'write')).to.equal(false);
+    expect(switchOf(wrapper, 'project', 'write').text()).to.contain('Allow the change tools')
+      .and.contain('generate SSH keys');
+
+    const write = switchOf(wrapper, 'project', 'write').find('input');
+    write.element.checked = true;
+    await write.trigger('input');
+    expect(wrapper.vm.connection.project.write).to.equal(true);
+    expect(codes(wrapper)[0]).to.contain('--header "X-Semaphore-MCP-Write: on"');
+    expect(codes(wrapper).join('\n')).to.not.contain('X-Semaphore-MCP-Run');
+  });
+
+  it('puts the switches above the configs below md and to their right from md', async () => {
+    const wrapper = await mountAt('/mcp/project', {
+      allow_write: true,
+      allow_run: true,
+      allow_destroy: true,
+      admin_allow_write: true,
+      admin_allow_destroy: true,
+    });
+    const columns = wrapper.find('[data-testid="mcp-connect-project"] .v-row').findAll(':scope > .v-col');
+    expect(columns).to.have.length(2);
+    // From md the order of the markup holds: the connection left, the switches right.
+    expect(columns[0].find('[data-testid="mcp-connection-title"]').exists()).to.equal(true);
+    expect(columns[1].attributes('data-testid')).to.equal('mcp-connection-tools');
+    expect(columns[0].classes()).to.include.members(['v-col--cols-12', 'v-col--cols-md-8']);
+    expect(columns[1].classes()).to.include.members(['v-col--cols-12', 'v-col--cols-md-4', 'order-first', 'order-md-0']);
+    expect(columns[0].classes().some((c) => c.startsWith('order-')), 'the connection keeps its place')
+      .to.equal(false);
+  });
+});
+
+describe('McpServer.vue tool list', () => {
+  let McpServer;
+  let http;
+  let httpError;
+  const wrappers = [];
+  const all = {
+    allow_write: true,
+    allow_run: true,
+    allow_destroy: true,
+    admin_allow_write: true,
+    admin_allow_destroy: true,
+  };
+  const tool = (name, description = `Does ${name}. More words that the page leaves out.`) => ({
+    name, description, group: 'read', read_only: true, destructive: false, available: true,
+  });
+  // A tool GET /api/mcp/tools lists as not available for the reason, and the missing permission.
+  const off = (name, reason, permission) => ({
+    ...tool(name), available: false, reason, ...(permission ? { permission } : {}),
+  });
+
+  beforeAll(async () => {
+    McpServer = (await import('@/views/McpServer.vue')).default;
+    ({ httpError } = await import('./helpers/axiosMock'));
+  });
+
+  beforeEach(() => {
+    http = mockAxios();
+  });
+
+  afterEach(() => {
+    http.restore();
+    wrappers.splice(0).forEach((w) => w.unmount());
+  });
+
+  const settle = () => new Promise((resolve) => { setTimeout(resolve, 0); });
+
+  async function mountAt(path, tools, settings = all) {
+    http.respond((config) => {
+      if (config.url === '/api/mcp/settings') {
+        return settings;
+      }
+      return config.url === '/api/mcp/tools' ? tools(config) : [];
+    });
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }],
+    });
+    await router.push(path);
+    const wrapper = mount(McpServer, {
+      props: {
+        user: { admin: true },
+        systemInfo: { features: { mcp: true }, mcp: { enabled: true }, web_host: 'https://semaphore.example.com' },
+      },
+      global: { plugins: [router, i18n] },
+    });
+    wrappers.push(wrapper);
+    await settle();
+    return wrapper;
+  }
+
+  const toolRequests = () => http.requests.filter((r) => r.url === '/api/mcp/tools');
+  const names = (wrapper) => wrapper.findAll('[data-testid="mcp-tool-name"]').map((w) => w.text());
+  const count = (wrapper) => String(wrapper.findAll('[data-testid="mcp-tool"]').length);
+
+  async function toggle(wrapper, set, key) {
+    const input = wrapper.find(`[data-testid="mcp-connection-${set}-${key}"]`).find('input');
+    input.element.checked = !input.element.checked;
+    await input.trigger('input');
+    await settle();
+  }
+
+  it('renders the tools of the answer with their icons and first sentences', async () => {
+    const wrapper = await mountAt('/mcp/project', () => ({
+      tools: [tool('get_project'), tool('list_projects'), tool('save_project'), tool('run_task'),
+        tool('delete_task', 'Deletes a task!  And its output.')],
+    }));
+    expect(names(wrapper)).to.deep.equal(['get_project', 'list_projects', 'save_project', 'run_task', 'delete_task']);
+    expect(count(wrapper)).to.equal('5');
+    expect(wrapper.find('[data-testid="mcp-tools-title"]').text()).to.equal('Tools');
+    const items = wrapper.findAll('[data-testid="mcp-tool"]');
+    expect(items[0].attributes('title'), 'no hover text').to.equal(undefined);
+    expect(items[0].text()).to.contain('Does get_project.');
+    expect(items[0].text()).to.not.contain('More words');
+    expect(items[4].text()).to.contain('Deletes a task!');
+    const icons = wrapper.findAll('[data-testid="mcp-tool-icon"]').map((w) => w.classes());
+    expect(icons[0]).to.include('mdi-eye-outline');
+    expect(icons[1]).to.include('mdi-format-list-bulleted');
+    expect(icons[3]).to.include('mdi-play-outline');
+    expect(icons[4]).to.include('mdi-trash-can-outline');
+    expect(wrapper.find('[data-testid="mcp-tools-loading"]').exists()).to.equal(false);
+    expect(wrapper.find('[data-testid="mcp-tools-error"]').exists()).to.equal(false);
+  });
+
+  it('asks for the set of the tab and the switched-on flags only, again on every switch', async () => {
+    const wrapper = await mountAt('/mcp/project', (config) => ({
+      tools: config.params.run ? [tool('list_projects'), tool('run_task')] : [tool('list_projects')],
+    }));
+    expect(toolRequests().map((r) => r.params)).to.deep.equal([{ set: 'project' }]);
+    expect(count(wrapper)).to.equal('1');
+
+    await toggle(wrapper, 'project', 'run');
+    expect(toolRequests().map((r) => r.params)).to.deep.equal([{ set: 'project' }, { set: 'project', run: 'on' }]);
+    expect(names(wrapper)).to.deep.equal(['list_projects', 'run_task']);
+    expect(count(wrapper)).to.equal('2');
+
+    await toggle(wrapper, 'project', 'destroy');
+    expect(toolRequests()[2].params).to.deep.equal({ set: 'project', run: 'on', destroy: 'on' });
+    await toggle(wrapper, 'project', 'run');
+    expect(toolRequests()[3].params).to.deep.equal({ set: 'project', destroy: 'on' });
+    expect(count(wrapper)).to.equal('1');
+  });
+
+  it('asks for the admin set on the admin tab, and not for a switch the administrator turned off', async () => {
+    const wrapper = await mountAt('/mcp/admin', () => ({ tools: [tool('list_users')] }), {
+      ...all, admin_allow_destroy: false,
+    });
+    expect(toolRequests().map((r) => r.params)).to.deep.equal([{ set: 'admin' }]);
+    await toggle(wrapper, 'admin', 'write');
+    expect(toolRequests()[1].params).to.deep.equal({ set: 'admin', write: 'on' });
+    expect(names(wrapper)).to.deep.equal(['list_users']);
+  });
+
+  it('asks nothing on the tokens tab', async () => {
+    await mountAt('/mcp', () => ({ tools: [] }));
+    expect(toolRequests()).to.deep.equal([]);
+  });
+
+  it('shows the error of a failed request instead of the list', async () => {
+    const wrapper = await mountAt('/mcp/project', () => {
+      throw httpError(403, { error: 'The MCP server needs a Pro seat' });
+    });
+    const alert = wrapper.find('[data-testid="mcp-tools-error"]');
+    expect(alert.exists()).to.equal(true);
+    expect(alert.text()).to.contain('Could not load the tools of this connection');
+    expect(alert.text()).to.contain('The MCP server needs a Pro seat');
+    expect(names(wrapper)).to.deep.equal([]);
+    expect(wrapper.findAll('[data-testid="mcp-tool"]').length).to.equal(0);
+  });
+
+  it('greys out a tool that is not available and names the reason in a badge', async () => {
+    const wrapper = await mountAt('/mcp/admin', () => ({
+      tools: [tool('list_project_members'), off('save_project_member', 'setting'),
+        off('delete_project_member', 'connection'), off('list_users', 'permission', 'global.users.manage'),
+        off('list_new_things', 'permission', 'global.new.manage')],
+    }));
+    const items = wrapper.findAll('[data-testid="mcp-tool"]');
+    expect(names(wrapper), 'every tool, in the order of the answer').to.deep.equal([
+      'list_project_members', 'save_project_member', 'delete_project_member', 'list_users', 'list_new_things',
+    ]);
+    expect(items.map((w) => w.attributes('data-available'))).to.deep.equal(['true', 'false', 'false', 'false', 'false']);
+    const reason = (w) => w.find('[data-testid="mcp-tool-reason"]');
+    expect(reason(items[0]).exists()).to.equal(false);
+    expect(reason(items[1]).text()).to.equal('Off');
+    expect(reason(items[2]).text()).to.equal('Off');
+    expect(reason(items[3]).text(), 'the translated name of the permission').to.equal('Needs: Can manage users');
+    expect(reason(items[4]).text(), 'an unknown permission by its ID').to.equal('Needs: global.new.manage');
+    items.slice(1).forEach((item) => {
+      expect(reason(item).classes()).to.include('v-chip--size-x-small');
+      expect(item.find('[data-testid="mcp-tool-name"]').classes()).to.include('text-disabled');
+      expect(item.find('[data-testid="mcp-tool-icon"]').classes()).to.include('text-disabled');
+      expect(item.find('[data-testid="mcp-tool-icon"]').classes()).to.not.include('text-primary');
+      expect(item.find('.McpServer__toolSummary').classes()).to.include('text-disabled');
+      expect(item.find('.McpServer__toolSummary').classes()).to.not.include('text-medium-emphasis');
+    });
+  });
+
+  it('draws an available tool as before: primary icon, medium-emphasis summary, no badge', async () => {
+    const wrapper = await mountAt('/mcp/project', () => ({ tools: [tool('list_projects')] }));
+    const item = wrapper.find('[data-testid="mcp-tool"]');
+    expect(item.find('[data-testid="mcp-tool-reason"]').exists()).to.equal(false);
+    expect(item.find('[data-testid="mcp-tool-name"]').classes()).to.not.include('text-disabled');
+    expect(item.find('[data-testid="mcp-tool-icon"]').classes()).to.include('text-primary');
+    expect(item.find('[data-testid="mcp-tool-icon"]').classes()).to.not.include('text-disabled');
+    expect(item.find('.McpServer__toolSummary').classes()).to.include('text-medium-emphasis');
+    expect(item.find('.McpServer__toolSummary').classes()).to.not.include('text-disabled');
+  });
+
+  it('refetches on a toggle and changes the state of a tool in place', async () => {
+    const wrapper = await mountAt('/mcp/project', (config) => ({
+      tools: [tool('list_projects'), config.params.run ? tool('run_task') : off('run_task', 'connection')],
+    }));
+    const runTask = () => wrapper.findAll('[data-testid="mcp-tool"]')[1];
+    expect(runTask().attributes('data-available')).to.equal('false');
+    expect(runTask().find('[data-testid="mcp-tool-reason"]').text()).to.equal('Off');
+
+    await toggle(wrapper, 'project', 'run');
+    expect(toolRequests().map((r) => r.params)).to.deep.equal([{ set: 'project' }, { set: 'project', run: 'on' }]);
+    expect(names(wrapper)).to.deep.equal(['list_projects', 'run_task']);
+    expect(runTask().attributes('data-available')).to.equal('true');
+    expect(runTask().find('[data-testid="mcp-tool-reason"]').exists()).to.equal(false);
+    expect(runTask().find('[data-testid="mcp-tool-name"]').classes()).to.not.include('text-disabled');
+
+    await toggle(wrapper, 'project', 'run');
+    expect(runTask().attributes('data-available')).to.equal('false');
+  });
+
+  it('shows the progress line while the list loads', async () => {
+    let answer;
+    const wrapper = await mountAt('/mcp/project', () => new Promise((resolve) => { answer = resolve; }));
+    expect(wrapper.find('[data-testid="mcp-tools-loading"]').exists()).to.equal(true);
+    answer({ tools: [tool('list_projects')] });
+    await settle();
+    expect(wrapper.find('[data-testid="mcp-tools-loading"]').exists()).to.equal(false);
+    expect(names(wrapper)).to.deep.equal(['list_projects']);
   });
 });
 
@@ -546,7 +853,11 @@ describe('McpServer.vue tokens and banners', () => {
   let http;
   const wrappers = [];
   const settings = {
-    allow_run: false, allow_destroy: false, admin_allow_write: false, admin_allow_destroy: false,
+    allow_write: false,
+    allow_run: false,
+    allow_destroy: false,
+    admin_allow_write: false,
+    admin_allow_destroy: false,
   };
 
   beforeAll(async () => {
@@ -597,10 +908,10 @@ describe('McpServer.vue tokens and banners', () => {
     expect(has(wrapper, 'mcp-new-token')).to.equal(false);
     expect(has(wrapper, 'mcp-revoke-only')).to.equal(true);
     expect(has(wrapper, 'tokens-rowDelete')).to.equal(true);
-    expect(has(wrapper, 'mcp-settings-without-mcp'), 'no license: no settings').to.equal(false);
+    expect(has(wrapper, 'mcp-settings-without-mcp'), 'MCP unavailable: no settings, even without a license').to.equal(false);
   });
 
-  it('asks for a Pro seat and still shows a system manager the settings', async () => {
+  it('asks for a Pro seat and shows no settings, even to a system manager', async () => {
     const wrapper = await mountWith({
       features: { task_summary: true, mcp: false },
       subscription_state: 'active',
@@ -609,15 +920,15 @@ describe('McpServer.vue tokens and banners', () => {
     expect(has(wrapper, 'mcp-needs-pro-seat')).to.equal(true);
     expect(has(wrapper, 'mcp-assign-pro-seat')).to.equal(true);
     expect(has(wrapper, 'mcp-revoke-only'), 'no tokens to revoke').to.equal(false);
-    expect(has(wrapper, 'mcp-settings-without-mcp')).to.equal(true);
+    expect(has(wrapper, 'mcp-settings-without-mcp'), 'MCP unavailable: no settings').to.equal(false);
   });
 
-  it('says MCP is switched off', async () => {
+  it('says MCP is switched off and shows no settings', async () => {
     const wrapper = await mountWith({ features: { mcp: true }, mcp: { enabled: false } }, [], {
       admin: false,
     });
     expect(has(wrapper, 'mcp-disabled')).to.equal(true);
     expect(has(wrapper, 'mcp-only-pro')).to.equal(false);
-    expect(has(wrapper, 'mcp-settings-without-mcp'), 'not a system manager').to.equal(false);
+    expect(has(wrapper, 'mcp-settings-without-mcp'), 'MCP unavailable: no settings').to.equal(false);
   });
 });

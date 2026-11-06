@@ -38,36 +38,48 @@ describe('McpSettings.vue', () => {
   }
 
   const off = {
-    allow_run: false, allow_destroy: false, admin_allow_write: false, admin_allow_destroy: false,
+    allow_write: false,
+    allow_run: false,
+    allow_destroy: false,
+    admin_allow_write: false,
+    admin_allow_destroy: false,
   };
 
-  it('shows a section per set, active actions first, then deleting', () => {
+  it('shows a section per set, in the order the user chose: changes, deleting, running', () => {
     expect(MCP_SETTINGS_SECTIONS.map((s) => [s.key, s.switches.map((w) => w.key)])).to.deep.equal([
-      ['project', ['allow_run', 'allow_destroy']],
+      ['project', ['allow_write', 'allow_destroy', 'allow_run']],
       ['admin', ['admin_allow_write', 'admin_allow_destroy']],
     ]);
     expect(MCP_SETTINGS_SWITCHES.map((s) => s.key))
-      .to.deep.equal(['allow_run', 'allow_destroy', 'admin_allow_write', 'admin_allow_destroy']);
+      .to.deep.equal(['allow_write', 'allow_destroy', 'allow_run', 'admin_allow_write', 'admin_allow_destroy']);
     const wrapper = mountWith({ modelValue: off });
     const section = (key) => wrapper.find(`[data-testid="mcp-settings-section-${key}"]`);
     const labels = (key) => section(key).findAll('label').map((l) => l.text());
-    expect(section('project').find('.McpSubheader').text()).to.equal('Project MCP');
-    expect(labels('project')).to.deep.equal(['Run tasks', 'Destructive tools (delete)']);
-    expect(section('admin').find('.McpSubheader').text()).to.equal('Admin MCP');
+    expect(section('project').find('[data-testid="mcp-settings-section-title"]').text()).to.equal('Project MCP');
+    expect(labels('project'))
+      .to.deep.equal(['Allow the change tools', 'Allow the delete tools', 'Allow the task run tools']);
+    expect(section('project').text(), 'the hint of the project change tools')
+      .to.contain('create and change projects').and.contain('generate SSH keys');
+    expect(section('admin').find('[data-testid="mcp-settings-section-title"]').text()).to.equal('Admin MCP');
     expect(labels('admin'))
-      .to.deep.equal(['Changes (add users and other active actions)', 'Destructive tools (delete)']);
-    expect(wrapper.find('[data-testid="mcp-settings-rest-note"]').text()).to.contain('REST API');
+      .to.deep.equal(['Allow the change tools', 'Allow the delete tools']);
+    expect(wrapper.text(), 'no note about REST').to.not.contain('REST API');
+    expect(wrapper.find('[data-testid="mcp-settings-scope-note"]').text())
+      .to.equal('Global setting of tool availability for every user.');
   });
 
-  it('saves all four values at once and passes on what the server stored', async () => {
+  it('saves all five values at once and passes on what the server stored', async () => {
     http.respond((config) => config.data);
     const wrapper = mountWith({ modelValue: off });
 
+    wrapper.vm.draft.allow_write = true;
     wrapper.vm.draft.allow_run = true;
     wrapper.vm.draft.admin_allow_destroy = true;
     await wrapper.vm.save();
 
-    const stored = { ...off, allow_run: true, admin_allow_destroy: true };
+    const stored = {
+      ...off, allow_write: true, allow_run: true, admin_allow_destroy: true,
+    };
     const puts = http.requests.filter((r) => r.method === 'put');
     expect(puts.map((r) => [r.url, r.data])).to.deep.equal([['/api/mcp/settings', stored]]);
     expect(wrapper.emitted('update:modelValue')).to.deep.equal([[stored]]);
@@ -89,6 +101,19 @@ describe('McpSettings.vue', () => {
     expect(wrapper.emitted('update:modelValue')).to.deep.equal([[{ ...off, allow_destroy: true }]]);
   });
 
+  it('saves the project change switch apart from the admin one', async () => {
+    http.respond((config) => config.data);
+    const wrapper = mountWith({ modelValue: off });
+
+    const input = wrapper.find('[data-testid="mcp-settings-allow_write"] input');
+    input.element.checked = true;
+    await input.trigger('input');
+    await flush();
+
+    expect(http.requests.filter((r) => r.method === 'put').map((r) => r.data))
+      .to.deep.equal([{ ...off, allow_write: true }]);
+  });
+
   it('puts the switches back when saving fails', async () => {
     http.respond(() => { throw httpError(403, { error: 'Forbidden' }); });
     const wrapper = mountWith({ modelValue: off });
@@ -108,7 +133,7 @@ describe('McpSettings.vue', () => {
     await wrapper.setProps({ modelValue: { ...off, allow_run: true, admin_allow_write: true } });
     await flush();
     expect(wrapper.vm.draft).to.deep.equal({ ...off, allow_run: true, admin_allow_write: true });
-    expect(wrapper.findAll('input[type="checkbox"]').length).to.equal(4);
+    expect(wrapper.findAll('input[type="checkbox"]').length).to.equal(5);
   });
 
   it('sends every value even when the server answered without some', async () => {

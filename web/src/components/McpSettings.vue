@@ -4,9 +4,10 @@
       type="info"
       density="compact"
       variant="tonal"
-      data-testid="mcp-settings-rest-note"
+      class="mb-4"
+      data-testid="mcp-settings-scope-note"
     >
-      {{ $t('mcp_settings_rest_note') }}
+      {{ $t('mcp_settings_scope_note') }}
     </v-alert>
 
     <v-alert
@@ -23,11 +24,12 @@
 
     <template v-else>
       <div
-        v-for="section in sections"
+        v-for="(section, i) in sections"
         :key="section.key"
+        :class="{ 'mt-6': i > 0 }"
         :data-testid="`mcp-settings-section-${section.key}`"
       >
-        <div class="McpSubheader d-flex align-center text-medium-emphasis">
+        <div class="text-title-medium mb-2" data-testid="mcp-settings-section-title">
           {{ $t(section.title) }}
         </div>
         <v-switch
@@ -40,7 +42,7 @@
           :data-testid="`mcp-settings-${s.key}`"
           persistent-hint
           inset
-          class="mt-0 mb-4"
+          class="McpSwitch McpSettings__switch mt-0 mb-4"
           @update:model-value="save()"
         />
       </div>
@@ -56,14 +58,15 @@ import { getErrorMessage } from '@/lib/error';
 export const MCP_SETTINGS_URL = '/api/mcp/settings';
 
 // One section per set of MCP tools, in the order of the page tabs; in each, the
-// active actions first, then deleting.
+// order the user chose: changes, then deleting, then running.
 export const MCP_SETTINGS_SECTIONS = [
   {
     key: 'project',
     title: 'mcp_tab_project',
     switches: [
-      { key: 'allow_run', label: 'mcp_settings_allow_run', hint: 'mcp_settings_allow_run_hint' },
+      { key: 'allow_write', label: 'mcp_settings_admin_allow_write', hint: 'mcp_settings_allow_write_hint' },
       { key: 'allow_destroy', label: 'mcp_settings_allow_destroy', hint: 'mcp_settings_allow_destroy_hint' },
+      { key: 'allow_run', label: 'mcp_settings_allow_run', hint: 'mcp_settings_allow_run_hint' },
     ],
   },
   {
@@ -147,12 +150,37 @@ export default {
 };
 </script>
 <style lang="scss">
-// v-subheader of Vuetify 2: a 48 px row, 14 px text in the letter spacing of the card text.
-// McpServer.vue uses it too.
-.McpSubheader {
-  height: 48px;
-  font-size: .875rem;
-  font-weight: 400;
-  letter-spacing: .0071428571em;
+// A switch with its hint under the label text, here and on the connection tabs of McpServer.vue.
+// The hint starts under the label, not under the switch: the inset switch and its gap take 58px.
+.McpSwitch.v-input .v-input__details {
+  padding-inline-start: 58px;
+  // The 40px control already leaves 11px under the label text; the hint sits 5px below it.
+  padding-top: 0;
+  margin-top: -6px;
+}
+
+// A hint wraps on a narrow screen; Vuetify sets its line to the font size, which glues the lines.
+.McpSwitch .v-messages__message {
+  line-height: 1rem;
+}
+
+// A label that wraps (a phone, the narrow column of a tablet) grows the control instead of running
+// under the hint: Vuetify stretches the label over the 40px control and centres its text. The label
+// keeps the 10px above and below its text that centring gives one line, so a one-line label stays
+// where it was, and the switch stays level with the first line.
+.McpSwitch .v-selection-control {
+  align-items: flex-start;
+}
+
+.McpSwitch .v-selection-control .v-label {
+  height: auto;
+  padding-block: 10px;
+}
+
+// The hint here has always sat 2px higher than on the connection tabs; its 1rem line would move it
+// down by those 2px, so it is lifted back without moving what follows.
+.McpSettings__switch .v-messages {
+  position: relative;
+  top: -2px;
 }
 </style>

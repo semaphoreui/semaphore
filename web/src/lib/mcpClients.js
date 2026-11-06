@@ -34,8 +34,9 @@ export const MCP_SETS = {
     path: 'api/mcp/project',
     serverName: 'semaphore',
     groups: [
-      { key: 'run', header: MCP_RUN_HEADER, setting: 'allow_run' },
+      { key: 'write', header: MCP_WRITE_HEADER, setting: 'allow_write' },
       { key: 'destroy', header: MCP_DESTROY_HEADER, setting: 'allow_destroy' },
+      { key: 'run', header: MCP_RUN_HEADER, setting: 'allow_run' },
     ],
   },
   admin: {
@@ -48,6 +49,55 @@ export const MCP_SETS = {
     ],
   },
 };
+
+// GET /api/mcp/tools: the tools a connection to a set gets, with the flags of its switched-on
+// groups (the group key of MCP_SETS, value "on"), as the headers would ask for them.
+export const MCP_TOOLS_URL = '/api/mcp/tools';
+
+// The icons of the tools by what they do; a tool of no known kind gets the wrench.
+const TOOL_ICONS = {
+  run_task: 'mdi-play-outline',
+  stop_task: 'mdi-stop-circle-outline',
+  confirm_task: 'mdi-check-circle-outline',
+  reject_task: 'mdi-close-circle-outline',
+};
+const TOOL_PREFIX_ICONS = [
+  ['get_', 'mdi-eye-outline'],
+  ['list_', 'mdi-format-list-bulleted'],
+  ['save_', 'mdi-pencil-outline'],
+  ['generate_', 'mdi-plus'],
+  ['delete_', 'mdi-trash-can-outline'],
+];
+
+/** The mdi icon of an MCP tool by its name. */
+export function mcpToolIcon(name) {
+  if (TOOL_ICONS[name]) {
+    return TOOL_ICONS[name];
+  }
+  const prefixed = TOOL_PREFIX_ICONS.find(([prefix]) => String(name).startsWith(prefix));
+  return prefixed ? prefixed[1] : 'mdi-wrench-outline';
+}
+
+/** The lang keys of the reasons GET /api/mcp/tools gives for a tool that is not available. */
+export const MCP_TOOL_REASONS = {
+  setting: 'mcp_tool_off',
+  connection: 'mcp_tool_off',
+};
+
+/** The lang keys of the global permissions, by the catalog ID GET /api/mcp/tools names. */
+export const MCP_PERMISSION_LABELS = {
+  'global.users.manage': 'canManageGlobalUsers',
+  'global.roles.manage': 'canManageGlobalRoles',
+  'global.system.manage': 'canManageGlobalSystem',
+  'global.audit.read': 'canReadGlobalAudit',
+};
+
+/** The first sentence of a tool description: up to the first ".", "!" or "?" before a space. */
+export function mcpToolSummary(description) {
+  const text = String(description || '').trim();
+  const end = text.search(/[.!?](\s|$)/);
+  return end < 0 ? text : text.slice(0, end + 1);
+}
 
 /**
  * The extra headers of a connection to `set`: `on` — { group key: bool } → { header: 'on' }, in

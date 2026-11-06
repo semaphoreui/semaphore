@@ -51,87 +51,158 @@
 
       <!-- The project and the admin tabs: one layout, the set of the tab fills it. -->
       <div v-else class="pa-4" :data-testid="`mcp-connect-${mcpSet.id}`">
+        <p class="mb-4" data-testid="mcp-intro">{{ $t(`mcp_intro_${mcpSet.id}`) }}</p>
+
         <v-alert
           v-if="plainRemoteHttp"
           type="warning"
           icon="mdi-alert"
           density="compact"
           variant="tonal"
+          class="mb-4"
           data-testid="mcp-plain-http"
         >
           {{ $t('mcp_plain_http_warning') }}
         </v-alert>
 
-        <v-alert type="info" density="compact" variant="tonal" data-testid="mcp-cloud-clients">
-          {{ $t('mcp_cloud_clients_info') }}
-        </v-alert>
-
-        <div>{{ $t('mcp_endpoint') }}:</div>
-        <div style="position: relative">
-          <pre class="McpServer__code" data-testid="mcp-endpoint">{{ endpoint }}</pre>
-          <CopyClipboardButton
-            :text="endpoint"
-            class="McpServer__copy"
-            test-id="mcp-endpoint-copy"
-          />
-        </div>
-
-        <div class="mt-4">{{ $t('mcp_connection_tools') }}:</div>
-        <div class="text-body-small">{{ $t('mcp_connection_tools_hint') }}</div>
-        <v-switch
-          v-for="s in connectionSwitches"
-          :key="s.key"
-          :model-value="s.on"
-          :label="$t(s.label)"
-          :hint="s.allowed
-            ? $t('mcp_connection_header_hint', { header: s.header })
-            : $t('mcp_connection_switched_off_by_admin')"
-          :disabled="!s.allowed"
-          :data-testid="`mcp-connection-${mcpSet.id}-${s.key}`"
-          persistent-hint
-          inset
-          class="McpServer__switch mt-2"
-          @update:model-value="connection[mcpSet.id][s.key] = !!$event"
-        />
-
-        <template v-if="mcpSet.id === 'admin'">
-          <div class="mt-4 text-body-small" data-testid="mcp-admin-groups">
-            <div v-for="s in connectionSwitches" :key="s.key">
-              <b>{{ $t(s.label) }}</b>: {{ $t(s.tools) }}
+        <!-- Left: how to connect a client; right: the limits of the connection. -->
+        <v-row>
+          <v-col cols="12" md="8">
+            <div class="text-title-medium mb-5" data-testid="mcp-connection-title">
+              {{ $t('mcp_connection_title') }}
             </div>
-          </div>
-          <div class="mt-1 text-body-small" data-testid="mcp-admin-hidden-tools">
-            {{ $t('mcp_admin_hidden_tools') }}
-          </div>
-        </template>
 
-        <v-select
-          v-model="clientId"
-          :items="clients"
-          item-title="name"
-          item-value="id"
-          :label="$t('mcp_client')"
-          class="mt-4"
-          style="max-width: 400px"
-          variant="outlined"
-          density="compact"
-          hide-details
-          data-testid="mcp-client"
-        />
-
-        <div v-for="snippet in client.snippets" :key="snippet.title" class="mt-3">
-          <div>{{ snippet.title }}:</div>
-          <div style="position: relative">
-            <pre class="McpServer__code">{{ snippet.code }}</pre>
-            <CopyClipboardButton
-              :text="snippet.code"
-              class="McpServer__copy"
-              test-id="mcp-snippet-copy"
+            <v-select
+              v-model="clientId"
+              :items="clients"
+              item-title="name"
+              item-value="id"
+              :label="$t('mcp_client')"
+              style="max-width: 400px"
+              variant="outlined"
+              density="compact"
+              hide-details
+              data-testid="mcp-client"
             />
-          </div>
-        </div>
 
-        <div v-if="client.note" class="mt-2 text-body-small">{{ client.note }}</div>
+            <div v-for="snippet in client.snippets" :key="snippet.title" class="mt-3">
+              <div>{{ snippet.title }}:</div>
+              <div style="position: relative">
+                <pre class="McpServer__code">{{ snippet.code }}</pre>
+                <CopyClipboardButton
+                  :text="snippet.code"
+                  class="McpServer__copy"
+                  test-id="mcp-snippet-copy"
+                />
+              </div>
+            </div>
+
+            <div v-if="client.note" class="mt-2 text-body-small">{{ client.note }}</div>
+          </v-col>
+
+          <!-- Below md, where the columns stack, the switches go first: they change the configs
+               under them. -->
+          <v-col
+            cols="12"
+            md="4"
+            class="order-first order-md-0"
+            data-testid="mcp-connection-tools"
+          >
+            <div class="text-title-medium mb-1" data-testid="mcp-connection-tools-title">
+              {{ $t('mcp_connection_tools') }}
+            </div>
+            <v-switch
+              v-for="s in connectionSwitches"
+              :key="s.key"
+              :model-value="s.on"
+              :label="$t(s.label)"
+              :hint="s.allowed ? $t(s.tools) : $t('mcp_connection_switched_off_by_admin')"
+              :disabled="!s.allowed"
+              :data-testid="`mcp-connection-${mcpSet.id}-${s.key}`"
+              persistent-hint
+              inset
+              class="McpSwitch McpServer__switch mt-2"
+              @update:model-value="connection[mcpSet.id][s.key] = !!$event"
+            />
+
+          </v-col>
+        </v-row>
+
+        <!-- Every tool of the set; those tools/list of this connection would not show, for the
+             switches above, are greyed out with the reason. -->
+        <v-divider class="mt-8 mb-6" />
+        <div data-testid="mcp-tools">
+          <div class="text-title-medium mb-1" data-testid="mcp-tools-title">
+            {{ $t('mcp_tools_title') }}
+          </div>
+          <v-progress-linear
+            v-if="toolsLoading"
+            indeterminate
+            height="2"
+            color="primary"
+            class="mt-2"
+            data-testid="mcp-tools-loading"
+          />
+          <v-alert
+            v-if="toolsError"
+            type="error"
+            density="compact"
+            variant="tonal"
+            class="mt-2"
+            data-testid="mcp-tools-error"
+          >
+            {{ $t('mcp_tools_load_error') }}: {{ toolsError }}
+          </v-alert>
+          <!-- Four in a row from lg; three below it, where four would push the badge under the
+               name. -->
+          <v-row density="compact">
+            <v-col
+              v-for="tool in tools || []"
+              :key="tool.name"
+              cols="12"
+              sm="6"
+              md="4"
+              lg="3"
+              class="py-2"
+              data-testid="mcp-tool"
+              :data-available="String(tool.available !== false)"
+            >
+              <!-- The icon has its own column, so the name and the summary share one left edge. -->
+              <div class="d-flex align-start">
+                <v-icon
+                  :icon="toolIcon(tool.name)"
+                  size="small"
+                  :color="tool.available === false ? undefined : 'primary'"
+                  class="McpServer__toolIcon mr-2"
+                  :class="{ 'text-disabled': tool.available === false }"
+                  data-testid="mcp-tool-icon"
+                />
+                <div class="McpServer__toolText">
+                  <div class="d-flex flex-wrap align-center ga-1">
+                    <div
+                      class="McpServer__toolName"
+                      :class="{ 'text-disabled': tool.available === false }"
+                      data-testid="mcp-tool-name"
+                    >{{ tool.name }}</div>
+                    <v-chip
+                      v-if="tool.available === false"
+                      size="x-small"
+                      label
+                      class="McpServer__toolReason"
+                      data-testid="mcp-tool-reason"
+                    >{{ toolReason(tool) }}</v-chip>
+                  </div>
+                  <div
+                    class="McpServer__toolSummary text-body-small"
+                    :class="tool.available === false ? 'text-disabled' : 'text-medium-emphasis'"
+                  >
+                    {{ toolSummary(tool.description) }}
+                  </div>
+                </div>
+              </div>
+            </v-col>
+          </v-row>
+        </div>
 
       </div>
     </template>
@@ -202,23 +273,7 @@
       embedded
       hide-empty
       data-testid="mcp-revoke-only"
-    >
-      <div class="px-4 pt-4">{{ $t('mcp_tokens_without_mcp') }}</div>
-    </Tokens>
-
-    <!-- The settings hold for every user who has MCP, so a system manager prepares them even
-         while MCP is not available to them: switched off, or no Pro seat of their own. -->
-    <template v-if="!available && settingsWithoutMcp">
-      <div class="McpSubheader d-flex align-center text-medium-emphasis px-4 mt-4">
-        {{ $t('mcp_tab_settings') }}
-      </div>
-      <div class="px-4 text-body-small">{{ $t('mcp_settings_without_mcp') }}</div>
-      <McpSettings
-        v-model="mcpSettings"
-        :load-error="mcpSettingsError"
-        data-testid="mcp-settings-without-mcp"
-      />
-    </template>
+    />
   </div>
 </template>
 
@@ -233,7 +288,8 @@ import axios from 'axios';
 import McpSettings, { MCP_SETTINGS_URL, MCP_SETTINGS_SWITCHES } from '@/components/McpSettings.vue';
 import { getErrorMessage } from '@/lib/error';
 import {
-  MCP_SETS, mcpClients, mcpConnectionHeaders, isPlainRemoteHttp,
+  MCP_SETS, MCP_TOOLS_URL, mcpClients, mcpConnectionHeaders, isPlainRemoteHttp, mcpToolIcon,
+  mcpToolSummary, MCP_TOOL_REASONS, MCP_PERMISSION_LABELS,
 } from '@/lib/mcpClients';
 
 // The tab is the address. /mcp/connect, the old address of the project tab, redirects to
@@ -299,13 +355,6 @@ export default {
       return MCP_SETS[this.tab] || MCP_SETS.project;
     },
 
-    // Without MCP for this user, a system manager still sees the settings when the instance has
-    // MCP in its license: the user only lacks a Pro seat, or MCP is switched off. Without the
-    // license nobody has MCP, and the page only offers the upgrade.
-    settingsWithoutMcp() {
-      return this.canManageSystem && (!!this.features.mcp || this.proLicenseWithoutSeat);
-    },
-
     // The switches of the tab's set, in the order of the settings. A group the administrator
     // switched off cannot be turned on for a connection, and its switch shows off.
     connectionSwitches() {
@@ -343,6 +392,22 @@ export default {
       } catch (e) {
         return new URL(path, document.baseURI).href;
       }
+    },
+
+    // The query of the tool list of the tab's connection: its set and the flags of the switches
+    // that are on; null on a tab without a connection.
+    toolsQuery() {
+      if (!this.available || !MCP_SETS[this.tab]) {
+        return null;
+      }
+      const query = { set: this.mcpSet.id };
+      this.connectionSwitches.filter((s) => s.on).forEach((s) => { query[s.key] = 'on'; });
+      return query;
+    },
+
+    // A key of the query that changes only with its values, for the watcher.
+    toolsQueryKey() {
+      return JSON.stringify(this.toolsQuery);
     },
 
     clients() {
@@ -384,7 +449,22 @@ export default {
       ])),
       mcpSettings: null,
       mcpSettingsError: null,
+      // The tools of the tab's connection, null before the first answer.
+      tools: null,
+      toolsLoading: false,
+      toolsError: null,
+      // The number of the last tool list request: an answer to an older one is dropped.
+      toolsRequest: 0,
     };
+  },
+
+  watch: {
+    toolsQueryKey: {
+      handler() {
+        this.loadTools();
+      },
+      immediate: true,
+    },
   },
 
   async created() {
@@ -405,6 +485,59 @@ export default {
       } catch (err) {
         this.mcpSettingsError = getErrorMessage(err);
       }
+    },
+
+    // The server builds the list as for an MCP request of this user: the settings, the flags and
+    // the global permissions of this moment.
+    async loadTools() {
+      this.toolsRequest += 1;
+      const request = this.toolsRequest;
+      const query = this.toolsQuery;
+      if (!query) {
+        this.tools = null;
+        this.toolsLoading = false;
+        this.toolsError = null;
+        return;
+      }
+      this.toolsLoading = true;
+      this.toolsError = null;
+      try {
+        const { data } = await axios({
+          method: 'get',
+          url: MCP_TOOLS_URL,
+          params: query,
+          responseType: 'json',
+        });
+        if (request === this.toolsRequest) {
+          this.tools = data?.tools || [];
+        }
+      } catch (err) {
+        if (request === this.toolsRequest) {
+          this.tools = null;
+          this.toolsError = getErrorMessage(err);
+        }
+      } finally {
+        if (request === this.toolsRequest) {
+          this.toolsLoading = false;
+        }
+      }
+    },
+
+    toolIcon: mcpToolIcon,
+
+    toolSummary: mcpToolSummary,
+
+    // Why a tool is not available, in words: the reason of GET /api/mcp/tools, with the missing
+    // global permission by its translated name, or by its catalog ID when the page lacks one.
+    toolReason(tool) {
+      if (tool.reason === 'permission') {
+        const label = MCP_PERMISSION_LABELS[tool.permission];
+        return this.$t('mcp_tool_needs_permission', {
+          permission: label ? this.$t(label) : tool.permission,
+        });
+      }
+      const key = MCP_TOOL_REASONS[tool.reason];
+      return key ? this.$t(key) : tool.reason;
     },
 
     returnToProjects() {
@@ -432,6 +565,41 @@ export default {
 // the switch is off, so it keeps only the field's dimming.
 .McpServer__switch.v-input--disabled .v-input__details {
   opacity: 1;
+}
+
+// The hint under the label text, its lines and a wrapping label — McpSwitch in McpSettings.vue.
+
+.McpServer__toolIcon {
+  opacity: .75;
+  // Centres the 20px icon on the first line of the name.
+  margin-top: 3px;
+}
+
+// Lets the summary shrink and clamp inside the flex row instead of widening it.
+.McpServer__toolText {
+  min-width: 0;
+}
+
+.McpServer__toolName {
+  font-family: monospace;
+  font-size: .875rem;
+  font-weight: 500;
+}
+
+// Smaller than Vuetify's x-small chip: a note next to the name, not a control.
+.McpServer__toolReason.v-chip {
+  height: 16px;
+  padding: 0 5px;
+  font-size: .625rem;
+}
+
+// The first sentence of the description in at most two lines.
+.McpServer__toolSummary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 
 .McpServer__copy {
