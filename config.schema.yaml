@@ -33,6 +33,7 @@ properties:
     type: string
     description: Bind address (empty = all interfaces).
   tls: { $ref: "#/$defs/TLSConfig" }
+  health: { $ref: "#/$defs/HealthConfig" }
 
   # ==========================================================================
   # Authentication
@@ -380,6 +381,22 @@ $defs:
         minimum: 1
         maximum: 65535
         description: Port for the HTTP→HTTPS redirect listener. Mutually exclusive with http_redirect_addr.
+
+  HealthConfig:
+    type: object
+    description: Dedicated Kubernetes probe listener (/livez, /readyz).
+    properties:
+      port:
+        oneOf:
+          - type: string
+            pattern: "^(:?[1-9][0-9]{0,4})?$"
+          - type: integer
+            minimum: 1
+            maximum: 65535
+        default: ":8081"
+        description: >-
+          Port for /livez and /readyz. Defaults to :8081 so it does not collide
+          with the optional TLS HTTP redirect on 8080. Port 0 is rejected.
 
   AuthConfig:
     type: object

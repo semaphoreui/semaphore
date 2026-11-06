@@ -312,6 +312,14 @@ type TLSConfig struct {
 	HTTPRedirectPort *int   `json:"http_redirect_port,omitempty" env:"SEMAPHORE_TLS_HTTP_REDIRECT_PORT"`
 }
 
+// HealthConfig configures the dedicated Kubernetes probe listener (/livez, /readyz).
+type HealthConfig struct {
+	// Port for /livez and /readyz. Defaults to :8081 so it does not collide with
+	// the optional TLS HTTP redirect on 8080. Port 0 / :0 is rejected (ephemeral
+	// ports are not usable for Kubernetes probes).
+	Port ListenPort `json:"port,omitempty" default:":8081" rule:"^(:?[1-9][0-9]{0,4})?$" env:"SEMAPHORE_HEALTH_PORT"`
+}
+
 type TotpConfig struct {
 	Enabled       bool   `json:"enabled" env:"SEMAPHORE_TOTP_ENABLED"`
 	AllowRecovery bool   `json:"allow_recovery" env:"SEMAPHORE_TOTP_ALLOW_RECOVERY"`
@@ -675,6 +683,15 @@ func (p ListenPort) Addr() string {
 	return ":" + port
 }
 
+// HealthListenAddr returns the bind address for /livez and /readyz.
+// When health.port is unset it defaults to :8081.
+func (c *ConfigType) HealthListenAddr() string {
+	if c != nil && c.Health != nil && string(c.Health.Port) != "" {
+		return c.Health.Port.Addr()
+	}
+	return ":8081"
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -686,6 +703,9 @@ type ConfigType struct {
 	// TCP port the HTTP server listens on, as `:port_num` (e.g. `:3000`) or a bare number (`3000`, quoted or not). A missing `:` is added automatically.
 	Port ListenPort `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 	TLS  *TLSConfig `json:"tls,omitempty"`
+
+	// Health is the dedicated probe listener for Kubernetes /livez and /readyz.
+	Health *HealthConfig `json:"health,omitempty"`
 
 	Auth *AuthConfig            `json:"auth,omitempty"`
 	Mfa  *MultifactorAuthConfig `json:"mfa,omitempty"`
@@ -2046,6 +2066,12 @@ func validateConfig() {
 
 	if err := validate(Config.Auth); err != nil {
 		panic(err)
+	}
+
+	if Config.Health != nil {
+		if err := validate(Config.Health); err != nil {
+			panic(err)
+		}
 	}
 
 	if _, err := validateHAConfig(Config.HA); err != nil {

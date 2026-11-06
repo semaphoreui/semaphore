@@ -861,3 +861,35 @@ func TestListenPort_Addr(t *testing.T) {
 		})
 	}
 }
+
+func TestHealthListenAddr(t *testing.T) {
+	assert.Equal(t, ":8081", (*ConfigType)(nil).HealthListenAddr())
+	assert.Equal(t, ":8081", (&ConfigType{}).HealthListenAddr())
+	assert.Equal(t, ":8081", (&ConfigType{Health: &HealthConfig{}}).HealthListenAddr())
+	assert.Equal(t, ":9090", (&ConfigType{Health: &HealthConfig{Port: "9090"}}).HealthListenAddr())
+	assert.Equal(t, ":9090", (&ConfigType{Health: &HealthConfig{Port: ":9090"}}).HealthListenAddr())
+}
+
+func TestValidateConfig_HealthPortRejectsZero(t *testing.T) {
+	Config = new(ConfigType)
+	Config.Port = ":3000"
+	Config.Dialect = DbDriverSQLite
+	Config.CookieHash = "0Sn+edH3doJ4EO4Rl49Y0KrxjUkXuVtR5zKHGGWerxQ="
+	Config.CookieEncryption = Config.CookieHash
+	Config.AccessKeyEncryption = Config.CookieHash
+	Config.GitClientId = GoGitClientId
+	Config.GitSubmoduleJobs = 4
+	Config.EmailTlsMinVersion = "1.2"
+	Config.Auth = &AuthConfig{}
+	Config.Health = &HealthConfig{Port: ":8081"}
+	validateConfig()
+
+	Config.Health.Port = "0"
+	ensureConfigValidationFailure(t, "Health.Port", Config.Health.Port)
+
+	Config.Health.Port = ":0"
+	ensureConfigValidationFailure(t, "Health.Port", Config.Health.Port)
+
+	Config.Health.Port = ":8081"
+	validateConfig()
+}
