@@ -623,6 +623,19 @@
                 <v-divider />
 
                 <v-list-item
+                  key="mcp"
+                  data-testid="sidebar-mcp"
+                  to="/mcp"
+                  :active="isRouteActive('/mcp')"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-robot-outline</v-icon>
+                  </template>
+
+                  {{ $t('mcp_server') }}
+                </v-list-item>
+
+                <v-list-item
                   key="tokens"
                   data-testid="sidebar-tokens"
                   to="/tokens"

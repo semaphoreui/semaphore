@@ -50,6 +50,7 @@ func globalRoutes() []globalRoute {
 		// manage system
 		system(http.MethodGet, "/api/options", ""),
 		system(http.MethodPost, "/api/options", `{"key":"test.option","value":"1"}`),
+		system(http.MethodPut, "/api/mcp/settings", `{"allow_write":false,"allow_run":true,"allow_destroy":false,"admin_allow_write":false,"admin_allow_destroy":false}`),
 		system(http.MethodGet, "/api/admin/info", ""),
 		system(http.MethodGet, "/api/cluster", ""),
 		system(http.MethodGet, "/api/cluster/tasks", ""),
