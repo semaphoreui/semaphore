@@ -1,10 +1,8 @@
 package db
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
@@ -13,38 +11,18 @@ import (
 // part of an environment variable name of the agent process.
 const mcpServerNameMaxLength = 64
 
-// McpServer is one remote MCP server of an InventoryMcp inventory.
+// McpServer is one remote MCP server of an InventoryMcp inventory, a row of
+// project__inventory_mcp. Its authorization token, if any, is an access key
+// with owner "mcp" and access_key.mcp_id pointing at this row.
 type McpServer struct {
+	ID          int `db:"id" json:"id" backup:"-"`
+	InventoryID int `db:"inventory_id" json:"inventory_id" backup:"-"`
 	// Name identifies the server to the agent. Unique within the inventory.
-	Name string `json:"name"`
+	Name string `db:"name" json:"name"`
 	// URL is the HTTP or SSE endpoint of the server.
-	URL string `json:"url"`
-	// Token is not the token itself but the uid of the inventory secret that
-	// holds it. Empty means the server needs no authorization.
-	Token string `json:"token,omitempty"`
-}
-
-// ParseMcpServers decodes and validates the content of an InventoryMcp
-// inventory. An empty content is an empty list.
-func ParseMcpServers(content string) ([]McpServer, error) {
-	if strings.TrimSpace(content) == "" {
-		return []McpServer{}, nil
-	}
-
-	var servers []McpServer
-	if err := json.Unmarshal([]byte(content), &servers); err != nil {
-		return nil, common_errors.NewValidationError("mcp inventory must be a JSON array of servers: " + err.Error())
-	}
-
-	if servers == nil {
-		servers = []McpServer{}
-	}
-
-	if err := ValidateMcpServers(servers); err != nil {
-		return nil, err
-	}
-
-	return servers, nil
+	URL string `db:"url" json:"url"`
+	// Enabled servers are given to the agent; disabled ones are kept but skipped.
+	Enabled bool `db:"enabled" json:"enabled"`
 }
 
 // ValidateMcpServers checks each server and that names are unique.
@@ -104,7 +82,7 @@ func (s McpServer) Validate() error {
 	}
 
 	// A credential in the URL would be stored and shown in plain text;
-	// tokens belong in an inventory secret.
+	// tokens belong in the server's access key.
 	if u.User != nil {
 		return common_errors.NewValidationError("url must not contain credentials, use a token instead")
 	}

@@ -5,57 +5,56 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestParseMcpServers_Valid(t *testing.T) {
-	servers, err := ParseMcpServers(`[
-		{"name": "github", "url": "https://api.githubcopilot.com/mcp/", "token": "q9r34543-qe74tas-wr74tegert"},
-		{"name": "docs_1", "url": "http://mcp.example.com:8080/sse"}
-	]`)
-
-	require.NoError(t, err)
-	assert.Equal(t, []McpServer{
-		{Name: "github", URL: "https://api.githubcopilot.com/mcp/", Token: "q9r34543-qe74tas-wr74tegert"},
+func TestValidateMcpServers_Valid(t *testing.T) {
+	servers := []McpServer{
+		{Name: "github", URL: "https://api.githubcopilot.com/mcp/", Enabled: true},
 		{Name: "docs_1", URL: "http://mcp.example.com:8080/sse"},
-	}, servers)
-}
-
-func TestParseMcpServers_Empty(t *testing.T) {
-	for _, content := range []string{"", "  ", "[]", "null"} {
-		t.Run(content, func(t *testing.T) {
-			servers, err := ParseMcpServers(content)
-			require.NoError(t, err)
-			assert.Empty(t, servers)
-			assert.NotNil(t, servers)
-		})
 	}
+
+	assert.NoError(t, ValidateMcpServers(servers))
+	assert.NoError(t, ValidateMcpServers(nil))
 }
 
-func TestParseMcpServers_Invalid(t *testing.T) {
+func TestMcpServer_Validate_Invalid(t *testing.T) {
 	tests := []struct {
 		name    string
-		content string
+		server  McpServer
 		errPart string
 	}{
-		{"not json", `not json`, "JSON array"},
-		{"object instead of array", `{"name": "a", "url": "https://a"}`, "JSON array"},
-		{"empty name", `[{"name": "", "url": "https://a"}]`, "name can not be empty"},
-		{"name with space", `[{"name": "my server", "url": "https://a"}]`, "only letters"},
-		{"name with quote", `[{"name": "a\"b", "url": "https://a"}]`, "only letters"},
-		{"name with dot", `[{"name": "a.b", "url": "https://a"}]`, "only letters"},
-		{"too long name", `[{"name": "` + strings.Repeat("a", 65) + `", "url": "https://a"}]`, "longer than 64"},
-		{"empty url", `[{"name": "a", "url": ""}]`, "url can not be empty"},
-		{"stdio command", `[{"name": "a", "url": "npx -y server"}]`, "http or https"},
-		{"file scheme", `[{"name": "a", "url": "file:///etc/passwd"}]`, "http or https"},
-		{"no host", `[{"name": "a", "url": "https:///path"}]`, "must have a host"},
-		{"credentials in url", `[{"name": "a", "url": "https://user:pass@a.com"}]`, "credentials"},
-		{"duplicate name", `[{"name": "a", "url": "https://a"}, {"name": "a", "url": "https://b"}]`, "not unique"},
+		{"empty name", McpServer{Name: "", URL: "https://a"}, "name can not be empty"},
+		{"name with space", McpServer{Name: "my server", URL: "https://a"}, "only letters"},
+		{"name with quote", McpServer{Name: `a"b`, URL: "https://a"}, "only letters"},
+		{"name with dot", McpServer{Name: "a.b", URL: "https://a"}, "only letters"},
+		{"too long name", McpServer{Name: strings.Repeat("a", 65), URL: "https://a"}, "longer than 64"},
+		{"empty url", McpServer{Name: "a", URL: ""}, "url can not be empty"},
+		{"stdio command", McpServer{Name: "a", URL: "npx -y server"}, "http or https"},
+		{"file scheme", McpServer{Name: "a", URL: "file:///etc/passwd"}, "http or https"},
+		{"no host", McpServer{Name: "a", URL: "https:///path"}, "must have a host"},
+		{"credentials in url", McpServer{Name: "a", URL: "https://user:pass@a.com"}, "credentials"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseMcpServers(tt.content)
-			assert.ErrorContains(t, err, tt.errPart)
+			assert.ErrorContains(t, tt.server.Validate(), tt.errPart)
 		})
 	}
+}
+
+func TestValidateMcpServers_DuplicateName(t *testing.T) {
+	err := ValidateMcpServers([]McpServer{
+		{Name: "a", URL: "https://a"},
+		{Name: "a", URL: "https://b"},
+	})
+
+	assert.ErrorContains(t, err, "not unique")
+}
+
+func TestValidateMcpServers_ReportsPosition(t *testing.T) {
+	err := ValidateMcpServers([]McpServer{
+		{Name: "ok", URL: "https://a"},
+		{Name: "bad", URL: "ftp://b"},
+	})
+
+	assert.ErrorContains(t, err, "mcp server #2")
 }
