@@ -787,6 +787,8 @@ func (t *LocalExecutor) getTemplateParams() (any, error) {
 		params = &db.AnsibleTemplateParams{}
 	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		params = &db.TerraformTemplateParams{}
+	case db.AppCodex, db.AppClaude:
+		params = &db.AgentTemplateParams{}
 	default:
 		return nil, nil
 	}
@@ -801,6 +803,8 @@ func (t *LocalExecutor) getParams() (params any, err error) {
 		params = &db.AnsibleTaskParams{}
 	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		params = &db.TerraformTaskParams{}
+	case db.AppCodex, db.AppClaude:
+		params = &db.AgentTaskParams{}
 	default:
 		params = &db.DefaultTaskParams{}
 	}

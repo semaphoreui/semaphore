@@ -108,6 +108,12 @@ func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var validationErr *common_errors.ValidationError
+	if errors.Is(err, validationErr) {
+		helpers.WriteErrorStatus(w, validationErr.Error(), http.StatusBadRequest)
+		return
+	}
+
 	if err != nil {
 		log.WithFields(log.Fields{
 			"context":     "AddTask",
