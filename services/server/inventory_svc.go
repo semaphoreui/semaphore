@@ -1,6 +1,10 @@
 package server
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	"fmt"
+
+	"github.com/semaphoreui/semaphore/db"
+)
 
 type InventoryService interface {
 	GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error)
@@ -9,7 +13,7 @@ type InventoryService interface {
 func NewInventoryService(
 	accessKeyRepo db.AccessKeyManager,
 	repositoryRepo db.RepositoryManager,
-	inventoryRepo db.InventoryManager,
+	inventoryRepo InventoryRepository,
 	encryptionService AccessKeyEncryptionService,
 ) InventoryService {
 	return &InventoryServiceImpl{
@@ -20,11 +24,17 @@ func NewInventoryService(
 	}
 }
 
+// InventoryRepository reads inventories and the MCP servers of mcp ones.
+type InventoryRepository interface {
+	db.InventoryManager
+	db.McpServerManager
+}
+
 type InventoryServiceImpl struct {
 	accessKeyRepo     db.AccessKeyManager
 	repositoryRepo    db.RepositoryManager
 	encryptionService AccessKeyEncryptionService
-	inventoryRepo     db.InventoryManager
+	inventoryRepo     InventoryRepository
 }
 
 func (s *InventoryServiceImpl) GetInventory(projectID int, inventoryID int) (inventory db.Inventory, err error) {
@@ -38,6 +48,10 @@ func (s *InventoryServiceImpl) GetInventory(projectID int, inventoryID int) (inv
 }
 
 func (s *InventoryServiceImpl) fillInventory(inventory *db.Inventory) (err error) {
+	if inventory.Type == db.InventoryMcp {
+		return s.fillMcpServers(inventory)
+	}
+
 	if inventory.SSHKeyID != nil {
 		inventory.SSHKey, err = s.accessKeyRepo.GetAccessKey(inventory.ProjectID, *inventory.SSHKeyID)
 	}
@@ -70,4 +84,42 @@ func (s *InventoryServiceImpl) fillInventory(inventory *db.Inventory) (err error
 	}
 
 	return
+}
+
+// fillMcpServers gives an mcp inventory its enabled servers, each with its
+// decrypted token. It runs on the server for a task about to start; the
+// tokens never leave the task: McpServer.Token is not serialized.
+func (s *InventoryServiceImpl) fillMcpServers(inventory *db.Inventory) error {
+	servers, err := s.inventoryRepo.GetMcpServers(inventory.ProjectID, inventory.ID)
+	if err != nil {
+		return err
+	}
+
+	keys, err := s.inventoryRepo.GetMcpServerTokens(inventory.ProjectID, inventory.ID)
+	if err != nil {
+		return err
+	}
+
+	tokens := make(map[int]string, len(keys))
+	for _, key := range keys {
+		if key.McpID == nil {
+			continue
+		}
+		if err = s.encryptionService.DeserializeSecret(&key); err != nil {
+			return fmt.Errorf("token of mcp server %s: %w", key.Name, err)
+		}
+		tokens[*key.McpID] = key.String
+	}
+
+	enabled := make([]db.McpServer, 0, len(servers))
+	for _, server := range servers {
+		if !server.Enabled {
+			continue
+		}
+		server.Token = tokens[server.ID]
+		enabled = append(enabled, server)
+	}
+
+	inventory.McpServers = enabled
+	return nil
 }

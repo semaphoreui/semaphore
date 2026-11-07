@@ -710,6 +710,16 @@ func (t *LocalExecutor) resolveInventoryFile() (string, error) {
 	}
 }
 
+// getAgentArgs returns the extra CLI arguments of an agent run: the
+// template's, then the task's when the template allows them.
+func (t *LocalExecutor) getAgentArgs() ([]string, error) {
+	templateArgs, taskArgs, err := t.getCLIArgs()
+	if err != nil {
+		return nil, err
+	}
+	return append(templateArgs, taskArgs...), nil
+}
+
 func (t *LocalExecutor) getCLIArgs() (templateArgs []string, taskArgs []string, err error) {
 
 	if t.Template.Arguments != nil {
@@ -1081,6 +1091,15 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		argsMap = map[string][]string{"default": args}
 	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		// Already got args earlier for Terraform
+	case db.AppCodex, db.AppClaude:
+		// Only the template and task arguments: unlike a script, an agent gets
+		// no secrets or extra vars on its command line, where ps shows them.
+		args, err = t.getAgentArgs()
+		if err != nil {
+			t.Log(err.Error())
+			return
+		}
+		argsMap = map[string][]string{"default": args}
 	default:
 		args, err = t.getShellArgs(username, incomingVersion)
 		if err != nil {

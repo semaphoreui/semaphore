@@ -27,6 +27,9 @@ type McpServer struct {
 	// McpServerManager.GetMcpServers, never stored. The token itself is never
 	// returned.
 	HasToken bool `db:"has_token" json:"has_token" backup:"-"`
+	// Token is the decrypted token, filled only for a task run
+	// (InventoryService) and never serialized: not to the API, not to a backup.
+	Token string `db:"-" json:"-" backup:"-"`
 }
 
 // McpTokenOperation is what to do with the token of an MCP server.

@@ -32,3 +32,11 @@ and two Semaphore HA nodes (`:3110`, `:3111`) in docker compose, kills and resto
 other, `wsprobe.go` prints the WebSocket events a node receives. Use it whenever the HA Redis
 connection, `ha.engine` / `ha.redis_sentinel` or the Pub/Sub broadcaster change — unit tests run
 on miniredis, which has no Sentinel.
+
+### `agent-cli/` — run the real Codex / Claude Code CLI like AgentApp
+
+`probe.sh codex|claude` writes the same per-task config as `db_lib/AgentApp.go`, sends the
+prompt on stdin, and starts a fake MCP server that shows whether the bearer token arrived. API keys
+come from the tool's git-ignored `.env`. Use it after changing how AgentApp builds the CLI
+config or flags, or to check that a test API key still works. Unit tests use a fake binary and
+cannot catch a CLI that rejects the config.
