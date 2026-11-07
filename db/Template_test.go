@@ -158,6 +158,21 @@ func TestValidateSurveyVar(t *testing.T) {
 		{"int: array of multi rejected", SurveyVar{Name: "V", Type: SurveyVarInt, DefaultValue: arrVal("1", "2")}, "must be a string for type"},
 		{"text: scalar ok", SurveyVar{Name: "V", Type: SurveyVarText, DefaultValue: strVal("long text")}, ""},
 		{"secret: scalar ok", SurveyVar{Name: "V", Type: SurveyVarText, DefaultValue: strVal("s3cr3t")}, ""},
+
+		// --- bool type ---
+		{"bool: nil default ok", SurveyVar{Name: "V", Type: SurveyVarBool}, ""},
+		{"bool: true ok", SurveyVar{Name: "V", Type: SurveyVarBool, DefaultValue: strVal("true")}, ""},
+		{"bool: false ok", SurveyVar{Name: "V", Type: SurveyVarBool, DefaultValue: strVal("false")}, ""},
+		{"bool: array of one ok (lenient)", SurveyVar{Name: "V", Type: SurveyVarBool, DefaultValue: arrVal("true")}, ""},
+		{"bool: array of two rejected", SurveyVar{Name: "V", Type: SurveyVarBool, DefaultValue: arrVal("true", "false")}, "must be \"true\" or \"false\""},
+		{"bool: empty array rejected", SurveyVar{Name: "V", Type: SurveyVarBool, DefaultValue: arrVal()}, "must be \"true\" or \"false\""},
+		{"bool: empty string rejected", SurveyVar{Name: "V", Type: SurveyVarBool, DefaultValue: strVal("")}, "must be \"true\" or \"false\""},
+		{"bool: yes rejected", SurveyVar{Name: "V", Type: SurveyVarBool, DefaultValue: strVal("yes")}, "must be \"true\" or \"false\""},
+		{"bool: 1 rejected", SurveyVar{Name: "V", Type: SurveyVarBool, DefaultValue: strVal("1")}, "must be \"true\" or \"false\""},
+		{"bool: True rejected (lowercase only)", SurveyVar{Name: "V", Type: SurveyVarBool, DefaultValue: strVal("True")}, "must be \"true\" or \"false\""},
+		{"bool: FALSE rejected (lowercase only)", SurveyVar{Name: "V", Type: SurveyVarBool, DefaultValue: strVal("FALSE")}, "must be \"true\" or \"false\""},
+		{"bool: values rejected", SurveyVar{Name: "V", Type: SurveyVarBool, Values: enumValues}, "can not have values"},
+		{"bool: values rejected with valid default", SurveyVar{Name: "V", Type: SurveyVarBool, Values: enumValues, DefaultValue: strVal("true")}, "can not have values"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -187,6 +202,67 @@ func TestTemplateValidate_SurveyVarDefaultValue(t *testing.T) {
 	}
 	err := tpl.Validate()
 	assert.ErrorContains(t, err, "must be a string for type")
+}
+
+// A bool survey var as an API client sends it: the default is the string
+// "true" or "false", never a JSON boolean, and Validate checks its value.
+func TestTemplateValidate_SurveyVarBoolFromJSON(t *testing.T) {
+	tests := []struct {
+		name         string
+		surveyVar    string
+		wantDecodeOK bool
+		wantErr      string
+	}{
+		{"default true", `{"name":"dry","title":"Dry","type":"bool","default_value":"true"}`, true, ""},
+		{"default false", `{"name":"dry","title":"Dry","type":"bool","default_value":"false"}`, true, ""},
+		{"no default", `{"name":"dry","title":"Dry","type":"bool"}`, true, ""},
+		{"stale required is accepted", `{"name":"dry","title":"Dry","type":"bool","required":true}`, true, ""},
+		{"default yes rejected", `{"name":"dry","title":"Dry","type":"bool","default_value":"yes"}`, true, "for bool type"},
+		{"default JSON boolean is not a string", `{"name":"dry","title":"Dry","type":"bool","default_value":true}`, false, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var v SurveyVar
+			err := json.Unmarshal([]byte(tt.surveyVar), &v)
+			if !tt.wantDecodeOK {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			tpl := Template{Name: "test", Playbook: "playbook.yml", SurveyVars: []SurveyVar{v}}
+			err = tpl.Validate()
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestParseSurveyBool(t *testing.T) {
+	tests := []struct {
+		in        string
+		wantValue bool
+		wantOK    bool
+	}{
+		{"true", true, true},
+		{"false", false, true},
+		{"True", false, false},
+		{"TRUE", false, false},
+		{"1", false, false},
+		{"yes", false, false},
+		{"", false, false},
+		{" true", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			value, ok := ParseSurveyBool(tt.in)
+			assert.Equal(t, tt.wantOK, ok)
+			assert.Equal(t, tt.wantValue, value)
+		})
+	}
 }
 
 func TestTemplateValidate_GalaxyArgs(t *testing.T) {
