@@ -317,6 +317,14 @@ type McpServerManager interface {
 	// without an ID is created, a server missing from the list is deleted
 	// together with its token. It returns the stored servers.
 	SetMcpServers(projectID int, inventoryID int, changes []McpServerChange) ([]McpServer, error)
+	// CreateMcpInventory creates an InventoryMcp inventory together with its
+	// servers and tokens in one transaction: either all of it is stored or
+	// nothing is.
+	CreateMcpInventory(inventory Inventory, changes []McpServerChange) (Inventory, []McpServer, error)
+	// UpdateMcpInventory updates an InventoryMcp inventory and replaces its
+	// servers in one transaction, like SetMcpServers. An inventory of another
+	// type is not found: the type can not be switched to mcp.
+	UpdateMcpInventory(inventory Inventory, changes []McpServerChange) ([]McpServer, error)
 }
 
 // RepositoryManager handles repository-related operations

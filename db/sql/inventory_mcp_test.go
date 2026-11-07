@@ -370,3 +370,156 @@ func TestCreateAccessKey_RejectsMcpOwner(t *testing.T) {
 		})
 	}
 }
+
+func countInventories(t *testing.T, store *SqlDb, projectID int) int64 {
+	t.Helper()
+
+	n, err := store.Sql().SelectInt(store.PrepareQuery("select count(*) from project__inventory where project_id = ?"), projectID)
+	require.NoError(t, err)
+	return n
+}
+
+func TestCreateMcpInventory_StoresInventoryServersAndTokens(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "agents"})
+	require.NoError(t, err)
+
+	inv, servers, err := store.CreateMcpInventory(
+		db.Inventory{ProjectID: project.ID, Name: "agent mcp", Type: db.InventoryMcp},
+		[]db.McpServerChange{
+			{Server: db.McpServer{Name: "github", URL: "https://mcp.example.com/github", Enabled: true}, Token: mcpTokenCreate("enc-1")},
+			{Server: db.McpServer{Name: "docs", URL: "https://mcp.example.com/docs", Enabled: true}},
+		})
+	require.NoError(t, err)
+	require.NotZero(t, inv.ID)
+	require.Len(t, servers, 2)
+	assert.True(t, serverByName(t, servers, "github").HasToken)
+	assert.False(t, serverByName(t, servers, "docs").HasToken)
+
+	read, err := store.GetInventory(project.ID, inv.ID)
+	require.NoError(t, err)
+	assert.Equal(t, db.InventoryMcp, read.Type)
+	assert.Equal(t, "agent mcp", read.Name)
+	assert.Equal(t, int64(1), countAccessKeys(t, store, "owner = ? and project_id = ?", db.AccessKeyMcp, project.ID))
+}
+
+// A failure in the middle of the list leaves nothing behind: neither the
+// inventory row nor the servers and tokens written before it.
+func TestCreateMcpInventory_RollsBackOnFailure(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "agents"})
+	require.NoError(t, err)
+
+	inv, servers, err := store.CreateMcpInventory(
+		db.Inventory{ProjectID: project.ID, Name: "agent mcp", Type: db.InventoryMcp},
+		[]db.McpServerChange{
+			{Server: db.McpServer{Name: "github", URL: "https://mcp.example.com/github", Enabled: true}, Token: mcpTokenCreate("enc-1")},
+			// A new server has no token, so update fails inside the transaction.
+			{Server: db.McpServer{Name: "docs", URL: "https://mcp.example.com/docs"},
+				Token: &db.McpTokenChange{Operation: db.McpTokenUpdate, Key: db.AccessKey{Secret: mcpSecret("enc-2")}}},
+		})
+	require.Error(t, err)
+	var validationErr *common_errors.ValidationError
+	assert.ErrorAs(t, err, &validationErr)
+	assert.Zero(t, inv.ID)
+	assert.Nil(t, servers)
+
+	assert.Equal(t, int64(0), countInventories(t, store, project.ID))
+	assert.Equal(t, int64(0), countAccessKeys(t, store, "project_id = ?", project.ID))
+}
+
+func TestCreateMcpInventory_RejectsOtherTypes(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "agents"})
+	require.NoError(t, err)
+
+	_, _, err = store.CreateMcpInventory(db.Inventory{ProjectID: project.ID, Name: "x", Type: db.InventoryStatic}, nil)
+	require.Error(t, err)
+	assert.Equal(t, int64(0), countInventories(t, store, project.ID))
+}
+
+func TestUpdateMcpInventory_UpdatesRowAndServers(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, inventoryID := newMcpTestInventory(t, store)
+
+	created, err := store.SetMcpServers(projectID, inventoryID, []db.McpServerChange{
+		{Server: db.McpServer{Name: "github", URL: "https://mcp.example.com/github", Enabled: true}, Token: mcpTokenCreate("enc-1")},
+		{Server: db.McpServer{Name: "docs", URL: "https://mcp.example.com/docs", Enabled: true}},
+	})
+	require.NoError(t, err)
+	github := serverByName(t, created, "github")
+
+	servers, err := store.UpdateMcpInventory(
+		db.Inventory{ID: inventoryID, ProjectID: projectID, Name: "renamed", Type: db.InventoryMcp},
+		[]db.McpServerChange{
+			{Server: db.McpServer{ID: github.ID, Name: "github", URL: github.URL, Enabled: false},
+				Token: &db.McpTokenChange{Operation: db.McpTokenDelete}},
+		})
+	require.NoError(t, err)
+	require.Len(t, servers, 1)
+	assert.False(t, servers[0].Enabled)
+	assert.False(t, servers[0].HasToken)
+
+	read, err := store.GetInventory(projectID, inventoryID)
+	require.NoError(t, err)
+	assert.Equal(t, "renamed", read.Name)
+	assert.Equal(t, int64(0), countAccessKeys(t, store, "owner = ? and project_id = ?", db.AccessKeyMcp, projectID))
+}
+
+// A failing server change leaves the inventory row as it was, not renamed.
+func TestUpdateMcpInventory_RollsBackOnFailure(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, inventoryID := newMcpTestInventory(t, store)
+
+	created, err := store.SetMcpServers(projectID, inventoryID, []db.McpServerChange{
+		{Server: db.McpServer{Name: "github", URL: "https://mcp.example.com/github", Enabled: true}},
+	})
+	require.NoError(t, err)
+
+	_, err = store.UpdateMcpInventory(
+		db.Inventory{ID: inventoryID, ProjectID: projectID, Name: "renamed", Type: db.InventoryMcp},
+		[]db.McpServerChange{
+			{Server: db.McpServer{Name: "docs", URL: "https://mcp.example.com/docs"}, Token: mcpTokenCreate("enc-1")},
+			{Server: db.McpServer{ID: created[0].ID, Name: "github", URL: created[0].URL},
+				Token: &db.McpTokenChange{Operation: db.McpTokenUpdate, Key: db.AccessKey{Secret: mcpSecret("enc-2")}}},
+		})
+	require.Error(t, err)
+
+	read, err := store.GetInventory(projectID, inventoryID)
+	require.NoError(t, err)
+	assert.Equal(t, "mcp", read.Name)
+
+	servers, err := store.GetMcpServers(projectID, inventoryID)
+	require.NoError(t, err)
+	assert.Equal(t, created, servers)
+	assert.Equal(t, int64(0), countAccessKeys(t, store, "project_id = ?", projectID))
+}
+
+func TestUpdateMcpInventory_TypeAndProjectScoped(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, inventoryID := newMcpTestInventory(t, store)
+
+	static, err := store.CreateInventory(db.Inventory{ProjectID: projectID, Name: "hosts", Type: db.InventoryStatic})
+	require.NoError(t, err)
+
+	other, err := store.CreateProject(db.Project{Name: "other"})
+	require.NoError(t, err)
+
+	t.Run("static inventory can not become mcp", func(t *testing.T) {
+		_, err := store.UpdateMcpInventory(db.Inventory{ID: static.ID, ProjectID: projectID, Name: "hosts", Type: db.InventoryMcp}, nil)
+		assert.ErrorIs(t, err, db.ErrNotFound)
+
+		read, err := store.GetInventory(projectID, static.ID)
+		require.NoError(t, err)
+		assert.Equal(t, db.InventoryStatic, read.Type)
+	})
+
+	t.Run("inventory of another project", func(t *testing.T) {
+		_, err := store.UpdateMcpInventory(db.Inventory{ID: inventoryID, ProjectID: other.ID, Name: "stolen", Type: db.InventoryMcp}, nil)
+		assert.ErrorIs(t, err, db.ErrNotFound)
+
+		read, err := store.GetInventory(projectID, inventoryID)
+		require.NoError(t, err)
+		assert.Equal(t, "mcp", read.Name)
+	})
+}

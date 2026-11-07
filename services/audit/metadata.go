@@ -234,6 +234,17 @@ type HostConfigMetadata struct {
 	Type string `json:"type"`
 }
 
+// InventoryMetadata names the inventory type. For an mcp inventory it also
+// counts its MCP servers after the save and the token changes the save made;
+// never a URL or a token.
+type InventoryMetadata struct {
+	Type          string `json:"type"`
+	McpServers    int    `json:"mcp_servers,omitempty"`
+	TokensCreated int    `json:"tokens_created,omitempty"`
+	TokensUpdated int    `json:"tokens_updated,omitempty"`
+	TokensDeleted int    `json:"tokens_deleted,omitempty"`
+}
+
 type EnvironmentMetadata struct {
 	SecretsCreated int  `json:"secrets_created"`
 	SecretsUpdated int  `json:"secrets_updated"`

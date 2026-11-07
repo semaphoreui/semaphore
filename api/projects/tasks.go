@@ -109,7 +109,7 @@ func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var validationErr *common_errors.ValidationError
-	if errors.Is(err, validationErr) {
+	if errors.As(err, &validationErr) {
 		helpers.WriteErrorStatus(w, validationErr.Error(), http.StatusBadRequest)
 		return
 	}

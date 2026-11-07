@@ -42,21 +42,111 @@ func (d *SqlDb) GetMcpServerTokens(projectID int, inventoryID int) ([]db.AccessK
 }
 
 func (d *SqlDb) SetMcpServers(projectID int, inventoryID int, changes []db.McpServerChange) (servers []db.McpServer, err error) {
+	if err = validateMcpServerChanges(changes); err != nil {
+		return
+	}
+
+	err = d.mcpTx(func(tx *gorp.Transaction) error {
+		if e := d.setMcpServers(tx, projectID, inventoryID, changes); e != nil {
+			return e
+		}
+		var e error
+		servers, e = d.selectMcpServersTx(tx, projectID, inventoryID)
+		return e
+	})
+
+	return
+}
+
+func (d *SqlDb) CreateMcpInventory(inventory db.Inventory, changes []db.McpServerChange) (newInventory db.Inventory, servers []db.McpServer, err error) {
+	if inventory.Type != db.InventoryMcp {
+		err = common_errors.NewValidationError("inventory type must be mcp")
+		return
+	}
+
+	if err = validateMcpServerChanges(changes); err != nil {
+		return
+	}
+
+	err = d.mcpTx(func(tx *gorp.Transaction) error {
+		id, e := d.connection.InsertTx(tx, "id", inventoryInsertQuery, inventoryInsertArgs(inventory)...)
+		if e != nil {
+			return e
+		}
+
+		newInventory = inventory
+		newInventory.ID = id
+
+		if e = d.setMcpServers(tx, inventory.ProjectID, id, changes); e != nil {
+			return e
+		}
+
+		servers, e = d.selectMcpServersTx(tx, inventory.ProjectID, id)
+		return e
+	})
+
+	if err != nil {
+		// The row was rolled back; do not hand out its ID.
+		return db.Inventory{}, nil, err
+	}
+
+	return
+}
+
+func (d *SqlDb) UpdateMcpInventory(inventory db.Inventory, changes []db.McpServerChange) (servers []db.McpServer, err error) {
+	if inventory.Type != db.InventoryMcp {
+		err = common_errors.NewValidationError("inventory type must be mcp")
+		return
+	}
+
+	if err = validateMcpServerChanges(changes); err != nil {
+		return
+	}
+
+	err = d.mcpTx(func(tx *gorp.Transaction) error {
+		// The type check keeps an inventory of another type from being turned
+		// into mcp here: its own data would stay behind, unseen.
+		res, e := d.execTx(tx, inventoryUpdateQuery+" and type=?",
+			append(inventoryUpdateArgs(inventory), db.InventoryMcp)...)
+		if e != nil {
+			return e
+		}
+
+		if n, e := res.RowsAffected(); e != nil {
+			return e
+		} else if n == 0 {
+			return db.ErrNotFound
+		}
+
+		if e = d.setMcpServers(tx, inventory.ProjectID, inventory.ID, changes); e != nil {
+			return e
+		}
+
+		servers, e = d.selectMcpServersTx(tx, inventory.ProjectID, inventory.ID)
+		return e
+	})
+
+	return
+}
+
+// validateMcpServerChanges checks the whole list before anything is written.
+func validateMcpServerChanges(changes []db.McpServerChange) error {
 	list := make([]db.McpServer, len(changes))
 	for i, c := range changes {
 		list[i] = c.Server
 
 		if c.Token != nil {
-			if err = c.Token.Validate(); err != nil {
-				return
+			if err := c.Token.Validate(); err != nil {
+				return err
 			}
 		}
 	}
 
-	if err = db.ValidateMcpServers(list); err != nil {
-		return
-	}
+	return db.ValidateMcpServers(list)
+}
 
+// mcpTx runs fn in a transaction, committing only when fn succeeds.
+func (d *SqlDb) mcpTx(fn func(tx *gorp.Transaction) error) (err error) {
 	tx, err := d.Sql().Begin()
 	if err != nil {
 		return
@@ -68,17 +158,18 @@ func (d *SqlDb) SetMcpServers(projectID int, inventoryID int, changes []db.McpSe
 		}
 	}()
 
-	if err = d.setMcpServers(tx, projectID, inventoryID, changes); err != nil {
-		return
-	}
-
-	servers = make([]db.McpServer, 0)
-	if _, err = tx.Select(&servers, d.PrepareQuery(mcpServerSelect), db.AccessKeyMcp, inventoryID, projectID); err != nil {
+	if err = fn(tx); err != nil {
 		return
 	}
 
 	err = tx.Commit()
 	return
+}
+
+func (d *SqlDb) selectMcpServersTx(tx *gorp.Transaction, projectID int, inventoryID int) ([]db.McpServer, error) {
+	servers := make([]db.McpServer, 0)
+	_, err := tx.Select(&servers, d.PrepareQuery(mcpServerSelect), db.AccessKeyMcp, inventoryID, projectID)
+	return servers, err
 }
 
 func (d *SqlDb) setMcpServers(tx *gorp.Transaction, projectID int, inventoryID int, changes []db.McpServerChange) error {

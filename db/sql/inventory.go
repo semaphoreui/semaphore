@@ -31,19 +31,20 @@ func (d *SqlDb) DeleteInventory(projectID int, inventoryID int) error {
 	return d.deleteObject(projectID, db.InventoryProps, inventoryID)
 }
 
-func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
+// inventoryUpdateQuery and inventoryInsertQuery are shared by the plain and
+// the transactional (MCP) writes of an inventory row.
+const inventoryUpdateQuery = "update project__inventory set " +
+	"name=?, type=?, runner_tag=?, ssh_key_id=?, inventory=?, " +
+	"become_key_id=?, template_id=?, repository_id=? " +
+	"where id=? and project_id=?"
 
-	_, err := d.exec(
-		"update project__inventory set "+
-			"name=?, "+
-			"type=?, "+
-			"runner_tag=?, "+
-			"ssh_key_id=?, "+
-			"inventory=?, "+
-			"become_key_id=?, "+
-			"template_id=?, "+
-			"repository_id=? "+
-			"where id=?",
+const inventoryInsertQuery = "insert into project__inventory (" +
+	"project_id, name, type, ssh_key_id, inventory, become_key_id, " +
+	"template_id, repository_id, runner_tag) values " +
+	"(?, ?, ?, ?, ?, ?, ?, ?, ?)"
+
+func inventoryUpdateArgs(inventory db.Inventory) []any {
+	return []any{
 		inventory.Name,
 		inventory.Type,
 		inventory.RunnerTag,
@@ -52,21 +53,13 @@ func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 		inventory.BecomeKeyID,
 		inventory.TemplateID,
 		inventory.RepositoryID,
-		inventory.ID)
-
-	return err
+		inventory.ID,
+		inventory.ProjectID,
+	}
 }
 
-func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Inventory, err error) {
-	insertID, err := d.insert(
-		"id",
-		"insert into project__inventory ("+
-			"project_id, name, type, "+
-			"ssh_key_id, inventory, become_key_id, "+
-			"template_id, repository_id, runner_tag) values "+
-			"(?, ?, ?, "+
-			"?, ?, ?, "+
-			"?, ?, ?)",
+func inventoryInsertArgs(inventory db.Inventory) []any {
+	return []any{
 		inventory.ProjectID,
 		inventory.Name,
 		inventory.Type,
@@ -76,7 +69,17 @@ func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Invento
 		inventory.TemplateID,
 		inventory.RepositoryID,
 		inventory.RunnerTag,
-	)
+	}
+}
+
+func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
+	_, err := d.exec(inventoryUpdateQuery, inventoryUpdateArgs(inventory)...)
+
+	return err
+}
+
+func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Inventory, err error) {
+	insertID, err := d.insert("id", inventoryInsertQuery, inventoryInsertArgs(inventory)...)
 
 	if err != nil {
 		return
