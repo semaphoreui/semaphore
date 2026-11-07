@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gorilla/mux"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/sql"
@@ -191,4 +192,76 @@ func TestRemoveTask_Events(t *testing.T) {
 	NewTaskController(f.store, nil).RemoveTask(w, r)
 	assert.Equal(t, http.StatusNotFound, w.Code)
 	assert.Empty(t, rec.All())
+}
+
+func TestRemoveTemplateTasks_Events(t *testing.T) {
+	f := newTaskControlFixture(t)
+	finished := f.task(t, task_logger.TaskSuccessStatus, false)
+	running := f.task(t, task_logger.TaskRunningStatus, true)
+	waiting := f.task(t, task_logger.TaskWaitingStatus, false)
+
+	r, rec := f.request("", db.User{ID: 2, Username: "bob"}, db.Task{})
+	w := httptest.NewRecorder()
+	NewTaskController(f.store, nil).RemoveTemplateTasks(w, r)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	denied, err := rec.Only(audit.AuthAuthorizationDeny)
+	require.NoError(t, err)
+	assert.Equal(t, audit.DenyMetadata{Method: http.MethodPost, Permission: "admin"}, denied.Event.Metadata)
+	_, err = f.store.GetTask(f.project.ID, finished.ID)
+	require.NoError(t, err, "a denied request deletes nothing")
+
+	r, rec = f.request("", db.User{ID: 1, Username: "admin", Admin: true}, db.Task{})
+	w = httptest.NewRecorder()
+	NewTaskController(f.store, nil).RemoveTemplateTasks(w, r)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	got, err := rec.Only(audit.TaskHistoryDeleteAll)
+	require.NoError(t, err)
+	assert.Equal(t, &audit.Target{Type: audit.TargetTemplate, ID: strconv.Itoa(f.template.ID), Name: "deploy"}, got.Event.Target)
+	assert.Equal(t, f.project.ID, got.Event.ProjectID)
+	assert.Equal(t, audit.TaskHistoryDeleteAllMetadata{Deleted: 1}, got.Event.Metadata)
+
+	_, err = f.store.GetTask(f.project.ID, finished.ID)
+	assert.ErrorIs(t, err, db.ErrNotFound)
+	for _, task := range []db.Task{running, waiting} {
+		_, err = f.store.GetTask(f.project.ID, task.ID)
+		assert.NoError(t, err, "task %d (%s) stays", task.ID, task.Status)
+	}
+
+	// Nothing left to delete is still a success, and still recorded.
+	r, rec = f.request("", db.User{ID: 1, Username: "admin", Admin: true}, db.Task{})
+	w = httptest.NewRecorder()
+	NewTaskController(f.store, nil).RemoveTemplateTasks(w, r)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	got, err = rec.Only(audit.TaskHistoryDeleteAll)
+	require.NoError(t, err)
+	assert.Equal(t, audit.TaskHistoryDeleteAllMetadata{Deleted: 0}, got.Event.Metadata)
+}
+
+func TestRemoveTemplateTasks_TemplateOfAnotherProject(t *testing.T) {
+	f := newTaskControlFixture(t)
+	task := f.task(t, task_logger.TaskSuccessStatus, false)
+	other, err := f.store.CreateProject(db.Project{Name: "other"})
+	require.NoError(t, err)
+	admin := db.User{ID: 1, Username: "admin", Admin: true}
+
+	// Through the template middleware, as the router serves it.
+	r, rec := f.request("", admin, db.Task{})
+	r = helpers.SetContextValue(r, "project", other)
+	r = helpers.SetContextValue(r, "permissions", db.ProjectUserPermission(0))
+	r = mux.SetURLVars(r, map[string]string{"project_id": strconv.Itoa(other.ID), "template_id": strconv.Itoa(f.template.ID)})
+	w := httptest.NewRecorder()
+	TemplatesMiddleware(http.HandlerFunc(NewTaskController(f.store, nil).RemoveTemplateTasks)).ServeHTTP(w, r)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Empty(t, rec.All())
+
+	// The store scopes the template by the project as well.
+	r, rec = f.request("", admin, db.Task{})
+	r = helpers.SetContextValue(r, "project", other)
+	w = httptest.NewRecorder()
+	NewTaskController(f.store, nil).RemoveTemplateTasks(w, r)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Empty(t, rec.All())
+
+	_, err = f.store.GetTask(f.project.ID, task.ID)
+	assert.NoError(t, err)
 }

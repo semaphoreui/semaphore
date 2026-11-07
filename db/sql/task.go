@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/go-gorp/gorp/v3"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
@@ -410,6 +411,253 @@ func (d *SqlDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
 	}
 
 	return requireDeletedRow(d.exec("delete from task where id=?", taskID))
+}
+
+// deleteTemplateTasksBatch is how many tasks DeleteTemplateTasks removes in one transaction: it keeps
+// the IN lists under the parameter limit of every dialect and the write lock short on SQLite, where
+// the store has a single connection.
+const deleteTemplateTasksBatch = 500
+
+// DeleteTemplateTasks deletes the finished tasks of a template, with their output and task-bound
+// keys, and returns how many it deleted. A task is finished by its status in the database, not by
+// the task pool of this node: in HA mode it may be running on another node or a remote runner.
+// It keeps the tasks of a workflow run that is still going, the build chains unfinished tasks
+// read their version from and, for a build template, the newest task, which the next build takes
+// its version from. Each batch is one transaction, so a long history never holds the database for
+// long.
+func (d *SqlDb) DeleteTemplateTasks(projectID int, templateID int) (deleted int, err error) {
+	tpl, err := d.GetTemplate(projectID, templateID)
+	if err != nil {
+		return
+	}
+
+	// The batches committed before a failed one stay deleted, so the counter is repaired either way.
+	defer func() {
+		_, countErr := d.exec(
+			"update project__template set tasks=(select count(*) from task where template_id=?) where project_id=? and id=?",
+			templateID, projectID, templateID)
+		if err == nil {
+			err = countErr
+		}
+	}()
+
+	finished := task_logger.FinishedTaskStatuses()
+
+	// Read before the chains in use: every batch checks the tasks created after this one.
+	lastTaskID, err := d.Sql().SelectInt(d.PrepareQuery("select coalesce(max(id), 0) from task where project_id=?"), projectID)
+	if err != nil {
+		return
+	}
+
+	keep := make(map[int]struct{})
+	if err = d.addBuildChainsInUse(d.Sql(), projectID, squirrel.NotEq{"status": finished}, keep); err != nil {
+		return
+	}
+
+	// AddTaskFrom numbers a new build after the newest task of the template; without it the
+	// numbering would start over from the start version.
+	if tpl.Type == db.TemplateBuild {
+		var newest int64
+		newest, err = d.Sql().SelectInt(
+			d.PrepareQuery("select coalesce(max(id), 0) from task where project_id=? and template_id=?"),
+			projectID, templateID)
+		if err != nil {
+			return
+		}
+		if newest > 0 {
+			if err = d.addBuildChains(d.Sql(), []int{int(newest)}, keep); err != nil {
+				return
+			}
+		}
+	}
+
+	activeRun, activeRunArgs, err := squirrel.Select("1").
+		From("project__workflow_run r").
+		Where("r.id = t.workflow_run_id").
+		Where(squirrel.NotEq{"r.status": []db.WorkflowRunStatus{
+			db.WorkflowRunSuccess, db.WorkflowRunStopped, db.WorkflowRunFailed,
+		}}).
+		ToSql()
+	if err != nil {
+		return
+	}
+
+	lastID := 0
+	for {
+		var query string
+		var args []any
+		query, args, err = squirrel.Select("t.id").
+			From("task t").
+			Where("t.project_id=? and t.template_id=?", projectID, templateID).
+			Where(squirrel.Eq{"t.status": finished}).
+			Where("t.id > ?", lastID).
+			Where("not exists ("+activeRun+")", activeRunArgs...).
+			OrderBy("t.id").
+			Limit(deleteTemplateTasksBatch).
+			ToSql()
+		if err != nil {
+			return
+		}
+
+		var ids []int
+		if _, err = d.selectAll(&ids, query, args...); err != nil {
+			return
+		}
+		if len(ids) == 0 {
+			break
+		}
+
+		var n int
+		n, err = d.deleteTasksBatch(projectID, templateID, ids, keep, int(lastTaskID))
+		if err != nil {
+			return
+		}
+		deleted += n
+
+		if len(ids) < deleteTemplateTasksBatch {
+			break
+		}
+		lastID = ids[len(ids)-1]
+	}
+
+	return
+}
+
+// addBuildChainsInUse adds to inUse the tasks that the tasks of the project matching referrers read
+// their version from. GetIncomingVersion follows build_task_id from a deploy through finished
+// deploys up to the build, so every task of such a chain is in use, not only the direct parent.
+func (d *SqlDb) addBuildChainsInUse(ex gorp.SqlExecutor, projectID int, referrers squirrel.Sqlizer, inUse map[int]struct{}) error {
+	query, args, err := squirrel.Select("build_task_id").
+		From("task").
+		Where("project_id=?", projectID).
+		Where("build_task_id is not null").
+		Where(referrers).
+		ToSql()
+	if err != nil {
+		return err
+	}
+
+	var parents []int
+	if _, err = ex.Select(&parents, d.PrepareQuery(query), args...); err != nil {
+		return err
+	}
+
+	return d.addBuildChains(ex, parents, inUse)
+}
+
+// addBuildChains adds the given tasks to inUse with every task they read their version from.
+func (d *SqlDb) addBuildChains(ex gorp.SqlExecutor, parents []int, inUse map[int]struct{}) error {
+	for len(parents) > 0 {
+		var next []int
+		for _, id := range parents {
+			if _, ok := inUse[id]; !ok {
+				inUse[id] = struct{}{}
+				next = append(next, id)
+			}
+		}
+		if len(next) == 0 {
+			return nil
+		}
+
+		query, args, err := squirrel.Select("build_task_id").
+			From("task").
+			Where(squirrel.Eq{"id": next}).
+			Where("build_task_id is not null").
+			ToSql()
+		if err != nil {
+			return err
+		}
+
+		parents = nil
+		if _, err = ex.Select(&parents, d.PrepareQuery(query), args...); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// deleteTasksBatch deletes the given tasks of a template and what is bound to them in one
+// transaction. Stages, stage results and Ansible hosts and errors go by ON DELETE CASCADE on every
+// dialect. MySQL has no foreign key on access_key.task_id (added with a column REFERENCES, which
+// MySQL ignores) nor on task.build_task_id (dropped by 2.8.42), so the task-bound keys are deleted
+// and the references of other tasks cleared here. Tasks in keep are left out.
+//
+// keep was read before the first batch. build_task_id is set when a task is created and never
+// changes, so only a task newer than lastTaskID, such as a deploy started meanwhile, can add a
+// reference; those are added to keep inside the transaction, whatever their status.
+func (d *SqlDb) deleteTasksBatch(projectID int, templateID int, candidates []int, keep map[int]struct{}, lastTaskID int) (deleted int, err error) {
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	if err = d.addBuildChainsInUse(tx, projectID, squirrel.Gt{"id": lastTaskID}, keep); err != nil {
+		return
+	}
+
+	ids := make([]int, 0, len(candidates))
+	for _, id := range candidates {
+		if _, ok := keep[id]; !ok {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		err = tx.Commit()
+		return
+	}
+
+	statements := []squirrel.Sqlizer{
+		squirrel.Delete("access_key").Where(squirrel.Eq{
+			"project_id": projectID,
+			"owner":      db.AccessKeyTaskSecret,
+			"task_id":    ids,
+		}),
+		squirrel.Update("task").Set("build_task_id", nil).Where(squirrel.Eq{"build_task_id": ids}),
+		squirrel.Delete("task__output").Where(squirrel.Eq{"task_id": ids}),
+	}
+
+	for _, statement := range statements {
+		var query string
+		var args []any
+		if query, args, err = statement.ToSql(); err != nil {
+			return
+		}
+		if _, err = d.execTx(tx, query, args...); err != nil {
+			return
+		}
+	}
+
+	query, args, err := squirrel.Delete("task").Where(squirrel.Eq{
+		"project_id":  projectID,
+		"template_id": templateID,
+		"id":          ids,
+	}).ToSql()
+	if err != nil {
+		return
+	}
+
+	res, err := d.execTx(tx, query, args...)
+	if err != nil {
+		return
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return
+	}
+
+	if err = tx.Commit(); err != nil {
+		return
+	}
+
+	deleted = int(affected)
+	return
 }
 
 func (d *SqlDb) GetTaskOutputs(projectID int, taskID int, params db.RetrieveQueryParams) (output []db.TaskOutput, err error) {

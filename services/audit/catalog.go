@@ -148,6 +148,7 @@ func Catalog() []Entry {
 		{Kind: WorkflowApprovalApprove, Type: TypeChange, Metadata: WorkflowApprovalMetadata{}, Pro: true},
 		{Kind: WorkflowApprovalReject, Type: TypeChange, Metadata: WorkflowApprovalMetadata{}, Pro: true},
 		{Kind: TaskHistoryDelete, Type: TypeDeletion, Metadata: TaskMetadata{}},
+		{Kind: TaskHistoryDeleteAll, Type: TypeDeletion, Metadata: TaskHistoryDeleteAllMetadata{}},
 
 		{Kind: RunnerLifecycleCreate, Type: TypeCreation},
 		{Kind: RunnerLifecycleUpdate, Type: TypeChange},

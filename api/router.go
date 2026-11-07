@@ -523,6 +523,7 @@ func Route(
 	projectTmplManagement.HandleFunc("/{template_id}", projects.GetTemplate).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/refs", projects.GetTemplateRefs).Methods("GET", "HEAD")
 	projectTmplManagement.HandleFunc("/{template_id}/tasks", taskController.GetAllTasks).Methods("GET")
+	projectTmplManagement.HandleFunc("/{template_id}/tasks", taskController.RemoveTemplateTasks).Methods("DELETE")
 	projectTmplManagement.HandleFunc("/{template_id}/tasks/last", taskController.GetLastTasks).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/schedules", projects.GetTemplateSchedules).Methods("GET")
 	projectTmplManagement.HandleFunc("/{template_id}/stats", taskController.GetTaskStats).Methods("GET")
