@@ -52,6 +52,11 @@ type Inventory struct {
 
 	// RunnerTag is a tag which allow join inventory to the runner.
 	RunnerTag *string `db:"runner_tag" json:"runner_tag,omitempty"`
+
+	// McpServers are the servers of an InventoryMcp inventory, filled by the
+	// API when it returns one inventory. Not a column: servers are rows of
+	// project__inventory_mcp. Tokens are never included, only HasToken.
+	McpServers []McpServer `db:"-" json:"mcp_servers,omitempty" backup:"-"`
 }
 
 func (e Inventory) GetFilename() string {

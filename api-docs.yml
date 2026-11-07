@@ -981,7 +981,20 @@ definitions:
         description: Repository holding the inventory file. Used only by a "file" inventory; for any other type it is dropped and stored as null.
       type:
         type: string
-        enum: [static, static-yaml, file, terraform-workspace]
+        enum: [static, static-yaml, file, terraform-workspace, tofu-workspace, mcp]
+        description: |
+          An "mcp" inventory is a list of remote MCP servers for an AI agent template (apps "codex" and "claude").
+          It has no "inventory" text, ssh/become keys or repository; its servers are given in "mcp_servers".
+          The type can not be changed to or from "mcp".
+      mcp_servers:
+        type: array
+        example: []
+        description: |
+          Servers of an "mcp" inventory; allowed only for that type. The list replaces the servers in one transaction,
+          together with the inventory itself: a server with "id" is updated, one without is created, a server left out
+          is deleted with its token. On update, omit the field to keep the servers as they are.
+        items:
+          $ref: "#/definitions/McpServerRequest"
 
   Inventory:
     type: object
@@ -1008,7 +1021,68 @@ definitions:
         x-nullable: true
       type:
         type: string
-        enum: [static, static-yaml, file, terraform-workspace]
+        enum: [static, static-yaml, file, terraform-workspace, tofu-workspace, mcp]
+      mcp_servers:
+        type: array
+        description: Servers of an "mcp" inventory. Returned by GET of one inventory and by create; never in the list. Tokens are never returned, only "has_token".
+        items:
+          $ref: "#/definitions/McpServer"
+
+  McpServerRequest:
+    type: object
+    required: [name, url]
+    properties:
+      id:
+        type: integer
+        description: ID of an existing server of this inventory; omit for a new server.
+      name:
+        type: string
+        maxLength: 64
+        pattern: "^[A-Za-z0-9_-]+$"
+        example: github
+        description: Unique within the inventory.
+      url:
+        type: string
+        example: https://api.githubcopilot.com/mcp/
+        description: HTTP or SSE endpoint, http or https only, without credentials.
+      enabled:
+        type: boolean
+        description: A disabled server is kept but not given to the agent.
+      token:
+        $ref: "#/definitions/McpTokenRequest"
+
+  McpTokenRequest:
+    type: object
+    required: [operation]
+    description: A change of the server's token; omit to keep the token as it is.
+    properties:
+      operation:
+        type: string
+        enum: [create, update, delete]
+        description: create gives a server without a token its token, update replaces the value, delete removes the token.
+      secret:
+        type: string
+        format: password
+        description: 'The token, sent to the server as a bearer token. Required for create and update. Stored encrypted and never returned.'
+
+  McpServer:
+    type: object
+    properties:
+      id:
+        type: integer
+      inventory_id:
+        type: integer
+      name:
+        type: string
+        example: github
+      url:
+        type: string
+        example: https://api.githubcopilot.com/mcp/
+      enabled:
+        type: boolean
+      has_token:
+        type: boolean
+        description: Whether the server has a token. The token itself is never returned.
 
   Integration:
     type: object
