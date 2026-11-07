@@ -40,9 +40,10 @@ func KeyMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Task-bound survey-secret keys are internal: they must not be
-		// readable or mutable through the generic key endpoints.
-		if key.Owner == db.AccessKeyTaskSecret {
+		// Task-bound survey-secret keys and MCP server tokens are internal:
+		// they must not be readable or mutable through the generic key
+		// endpoints. MCP tokens are managed only through the inventory API.
+		if key.Owner == db.AccessKeyTaskSecret || key.Owner == db.AccessKeyMcp {
 			helpers.WriteError(w, db.ErrNotFound)
 			return
 		}
@@ -105,8 +106,9 @@ func (c *KeyController) AddKey(w http.ResponseWriter, r *http.Request) {
 	key.IgnorePlain = true
 	key.Synchronized = false
 
-	// Task-bound survey-secret keys are created internally at task start only.
-	if key.Owner == db.AccessKeyTaskSecret {
+	// Task-bound survey-secret keys are created internally at task start only,
+	// MCP server tokens only through the inventory API.
+	if key.Owner == db.AccessKeyTaskSecret || key.Owner == db.AccessKeyMcp {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid key owner",
 		})
