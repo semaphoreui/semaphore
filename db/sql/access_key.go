@@ -42,6 +42,7 @@ func (d *SqlDb) GetAccessKeys(projectID int, options db.GetAccessKeyOptions, par
 		{"pe.environment_id", options.EnvironmentID},
 		{"pe.storage_id", options.StorageID},
 		{"pe.task_id", options.TaskID},
+		{"pe.mcp_id", options.McpID},
 		{"pe.source_storage_id", options.SourceStorageID},
 	} {
 		if f.value != nil {
@@ -112,6 +113,13 @@ func (d *SqlDb) UpdateAccessKey(key db.AccessKey) error {
 }
 
 func (d *SqlDb) CreateAccessKey(key db.AccessKey) (newKey db.AccessKey, err error) {
+
+	// An MCP server token exists only together with its server and is written
+	// by SetMcpServers, which sets the owner, project and server itself.
+	if key.Owner == db.AccessKeyMcp || key.McpID != nil {
+		err = common_errors.NewValidationError("mcp server tokens are created through the inventory")
+		return
+	}
 
 	var insertID int
 

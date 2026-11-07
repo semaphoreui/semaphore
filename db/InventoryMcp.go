@@ -23,6 +23,53 @@ type McpServer struct {
 	URL string `db:"url" json:"url"`
 	// Enabled servers are given to the agent; disabled ones are kept but skipped.
 	Enabled bool `db:"enabled" json:"enabled"`
+	// HasToken tells whether the server has a token. Read-only: filled by
+	// McpServerManager.GetMcpServers, never stored. The token itself is never
+	// returned.
+	HasToken bool `db:"has_token" json:"has_token" backup:"-"`
+}
+
+// McpTokenOperation is what to do with the token of an MCP server.
+type McpTokenOperation string
+
+const (
+	// McpTokenCreate gives a server without a token its token.
+	McpTokenCreate McpTokenOperation = "create"
+	// McpTokenUpdate replaces the value of the server's token.
+	McpTokenUpdate McpTokenOperation = "update"
+	// McpTokenDelete removes the server's token.
+	McpTokenDelete McpTokenOperation = "delete"
+)
+
+// McpTokenChange is a change of the token of one MCP server.
+type McpTokenChange struct {
+	Operation McpTokenOperation
+	// Key carries the encrypted secret (Type and Secret) for create and update.
+	// Owner, McpID and ProjectID are set by the store, not taken from here.
+	Key AccessKey
+}
+
+// McpServerChange is one server of the list given to SetMcpServers.
+type McpServerChange struct {
+	// Server with ID 0 is created; with an ID it updates that server, which
+	// must belong to the inventory.
+	Server McpServer
+	// Token is nil when the token stays as it is.
+	Token *McpTokenChange
+}
+
+func (c McpTokenChange) Validate() error {
+	switch c.Operation {
+	case McpTokenCreate, McpTokenUpdate:
+		if c.Key.Secret == nil {
+			return common_errors.NewValidationError("mcp token secret can not be empty")
+		}
+	case McpTokenDelete:
+	default:
+		return common_errors.NewValidationError("invalid mcp token operation: " + string(c.Operation))
+	}
+
+	return nil
 }
 
 // ValidateMcpServers checks each server and that names are unique.

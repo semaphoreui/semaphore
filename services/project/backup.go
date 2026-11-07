@@ -170,10 +170,12 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 	}
 
 	// Task-bound survey-secret keys are ephemeral internals of a single task
-	// run; they don't belong in a project backup.
+	// run; they don't belong in a project backup. MCP server tokens belong to
+	// their server, not to the project key list: restoring one as a project
+	// key would orphan it (and the store refuses to create it).
 	filteredKeys := make([]db.AccessKey, 0, len(b.keys))
 	for _, k := range b.keys {
-		if k.Owner == db.AccessKeyTaskSecret {
+		if k.Owner == db.AccessKeyTaskSecret || k.Owner == db.AccessKeyMcp {
 			continue
 		}
 		filteredKeys = append(filteredKeys, k)

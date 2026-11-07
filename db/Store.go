@@ -303,6 +303,22 @@ type InventoryManager interface {
 	DeleteInventory(projectID int, inventoryID int) error
 }
 
+// McpServerManager handles the MCP servers of InventoryMcp inventories and
+// their tokens. Every method is scoped by the project of the inventory, so an
+// ID taken from a request never reaches a server of another project.
+type McpServerManager interface {
+	// GetMcpServers returns the servers of an inventory, with HasToken filled.
+	GetMcpServers(projectID int, inventoryID int) ([]McpServer, error)
+	// GetMcpServerTokens returns the token keys of the servers of an inventory,
+	// each with McpID set. The secret is still encrypted.
+	GetMcpServerTokens(projectID int, inventoryID int) ([]AccessKey, error)
+	// SetMcpServers replaces the servers of an inventory and applies the token
+	// changes in one transaction: a listed server with an ID is updated, one
+	// without an ID is created, a server missing from the list is deleted
+	// together with its token. It returns the stored servers.
+	SetMcpServers(projectID int, inventoryID int, changes []McpServerChange) ([]McpServer, error)
+}
+
 // RepositoryManager handles repository-related operations
 type RepositoryManager interface {
 	GetRepository(projectID int, repositoryID int) (Repository, error)
@@ -351,6 +367,7 @@ type GetAccessKeyOptions struct {
 	StorageID       *int
 	SourceStorageID *int
 	TaskID          *int
+	McpID           *int
 }
 
 // Validate ensures that querying keys of an owned type always includes the
@@ -371,6 +388,8 @@ func (o GetAccessKeyOptions) Validate() error {
 		value, name = o.StorageID, "storage_id"
 	case AccessKeyTaskSecret:
 		value, name = o.TaskID, "task_id"
+	case AccessKeyMcp:
+		value, name = o.McpID, "mcp_id"
 	default:
 		return nil
 	}
@@ -641,6 +660,7 @@ type Store interface {
 	TemplateManager
 	WorkflowRoleManager
 	InventoryManager
+	McpServerManager
 	RepositoryManager
 	HostConfigManager
 	EnvironmentManager
