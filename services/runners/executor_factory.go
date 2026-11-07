@@ -104,6 +104,18 @@ func hydrateJobAccessKeys(jobData *JobData, accessKeys map[int]db.AccessKey) {
 		jobData.Template.Vaults = vaults
 	}
 
+	// An MCP server token the server did not send stays empty; AgentApp then
+	// refuses to run instead of starting the agent without it.
+	for i := range jobData.Inventory.McpServers {
+		server := &jobData.Inventory.McpServers[i]
+		if server.TokenKeyID == nil {
+			continue
+		}
+		if key, ok := accessKeys[*server.TokenKeyID]; ok {
+			server.Token = key.String
+		}
+	}
+
 	if jobData.Inventory.RepositoryID != nil && jobData.Inventory.Repository != nil {
 		jobData.Inventory.Repository.SSHKey = accessKeys[jobData.Inventory.Repository.SSHKeyID]
 	}

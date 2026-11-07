@@ -1,6 +1,7 @@
 package runners
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -129,4 +130,40 @@ func TestHydrateJobAccessKeys_WiresKeysIntoJobData(t *testing.T) {
 	require.NotNil(t, jobData.Template.Vaults[0].Vault)
 	assert.Equal(t, vaultKeyID, jobData.Template.Vaults[0].Vault.ID, "vault key wired")
 	assert.Equal(t, inventoryRepoSSHKeyID, jobData.Inventory.Repository.SSHKey.ID, "inventory repo SSH key wired")
+}
+
+// The runner gets the MCP server tokens back from the access keys of the
+// runner state after the job itself went over the wire without them.
+func TestHydrateJobAccessKeys_McpTokensAfterJSON(t *testing.T) {
+	keyID := 41
+	sent := JobData{Inventory: db.Inventory{Type: db.InventoryMcp, McpServers: []db.McpServer{
+		{ID: 1, Name: "github", Enabled: true, HasToken: true, Token: "mcp-tok-8d2e41", TokenKeyID: &keyID},
+		{ID: 2, Name: "docs", Enabled: true},
+	}}}
+
+	body, err := json.Marshal(sent)
+	require.NoError(t, err)
+	assert.NotContains(t, string(body), "mcp-tok-8d2e41")
+
+	var jobData JobData
+	require.NoError(t, json.Unmarshal(body, &jobData))
+	assert.Empty(t, jobData.Inventory.McpServers[0].Token)
+
+	hydrateJobAccessKeys(&jobData, map[int]db.AccessKey{keyID: {ID: keyID, Type: db.AccessKeyString, String: "mcp-tok-8d2e41"}})
+
+	assert.Equal(t, "mcp-tok-8d2e41", jobData.Inventory.McpServers[0].Token)
+	assert.Empty(t, jobData.Inventory.McpServers[1].Token)
+}
+
+// Without the key in the runner state the token stays empty, so AgentApp
+// refuses to start the agent rather than run it unauthenticated.
+func TestHydrateJobAccessKeys_McpTokenNotSent(t *testing.T) {
+	keyID := 41
+	jobData := JobData{Inventory: db.Inventory{Type: db.InventoryMcp, McpServers: []db.McpServer{
+		{ID: 1, Name: "github", Enabled: true, HasToken: true, TokenKeyID: &keyID},
+	}}}
+
+	hydrateJobAccessKeys(&jobData, map[int]db.AccessKey{})
+
+	assert.Empty(t, jobData.Inventory.McpServers[0].Token)
 }

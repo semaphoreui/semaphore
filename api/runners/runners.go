@@ -2,6 +2,7 @@ package runners
 
 import (
 	"errors"
+	"fmt"
 	"maps"
 	"net/http"
 	"strings"
@@ -357,6 +358,32 @@ func (c *RunnerController) collectTaskAccessKeys(tsk *tasks.TaskRunner, runnerID
 			return err
 		}
 		keys[tsk.Inventory.Repository.SSHKeyID] = tsk.Inventory.Repository.SSHKey
+	}
+
+	// MCP server tokens were decrypted by InventoryService when the task was
+	// loaded on this node; they travel like every other key of the task, never
+	// in the serialized inventory (McpServer.Token is json:"-").
+	for _, server := range tsk.Inventory.McpServers {
+		if server.TokenKeyID == nil {
+			continue
+		}
+		if server.Token == "" {
+			log.WithFields(log.Fields{
+				"runner_id":     runnerID,
+				"task_id":       tsk.Task.ID,
+				"inventory_id":  tsk.Inventory.ID,
+				"access_key_id": *server.TokenKeyID,
+				"context":       "runner",
+			}).Error("MCP server token is not decrypted")
+			return fmt.Errorf("the token of mcp server %s is not decrypted", server.Name)
+		}
+		keys[*server.TokenKeyID] = db.AccessKey{
+			ID:        *server.TokenKeyID,
+			ProjectID: &tsk.Inventory.ProjectID,
+			Type:      db.AccessKeyString,
+			Owner:     db.AccessKeyMcp,
+			String:    server.Token,
+		}
 	}
 
 	// Decrypt the task repository key here rather than relying on it having

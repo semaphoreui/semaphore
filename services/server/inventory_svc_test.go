@@ -39,6 +39,16 @@ func TestInventoryService_McpServersWithDecryptedTokens(t *testing.T) {
 	require.Len(t, got.McpServers, 2)
 	assert.Equal(t, "github", got.McpServers[0].Name)
 	assert.Equal(t, "gh-token", got.McpServers[0].Token)
+	require.NotNil(t, got.McpServers[0].TokenKeyID)
 	assert.Equal(t, "docs", got.McpServers[1].Name)
 	assert.Empty(t, got.McpServers[1].Token)
+	assert.Nil(t, got.McpServers[1].TokenKeyID)
+
+	tokens, err := store.GetMcpServerTokens(project.ID, inv.ID)
+	require.NoError(t, err)
+	tokenKeyIDs := make([]int, 0, len(tokens))
+	for _, key := range tokens {
+		tokenKeyIDs = append(tokenKeyIDs, key.ID)
+	}
+	assert.Contains(t, tokenKeyIDs, *got.McpServers[0].TokenKeyID)
 }
