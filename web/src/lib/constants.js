@@ -170,6 +170,10 @@ export const APP_TITLE = {
 // The apps which run an AI agent CLI (db.TemplateApp.IsAgent).
 export const AGENT_APPS = ['claude', 'codex'];
 
+// The apps whose template form has a column of their own options next to the common and the
+// advanced ones; their template editor is the wide one. '' is an old Ansible template.
+export const APPS_WITH_OPTIONS_COLUMN = ['', 'ansible', 'terraform', 'tofu', ...AGENT_APPS];
+
 // The variable an agent CLI reads its API key from; the user adds it to a Variable Group of the
 // template as a secret.
 export const AGENT_API_KEY_VARS = {

@@ -21,6 +21,31 @@ const P = ids.project;
   const failed = [];
   page.on('response', (r) => { if (r.status() >= 400 && !r.url().endsWith('/branches')) failed.push(`${r.status()} ${r.request().method()} ${r.url()}`); });
 
+  // 0. The agent templates open in the wide editor of Ansible and Terraform.
+  await page.goto(`/project/${P}/templates`);
+  await page.locator('[data-testid="templates-new"]').waitFor();
+  await page.waitForTimeout(500);
+  const widths = {};
+  for (const app of ['ansible', 'terraform', 'claude', 'codex']) {
+    // eslint-disable-next-line no-await-in-loop
+    await page.locator('[data-testid="templates-new"]').click();
+    // eslint-disable-next-line no-await-in-loop
+    await page.locator(`[data-testid="templates-new-${app}"]`).click();
+    const editor = page.locator('[data-testid="templateDialog"]').last();
+    // eslint-disable-next-line no-await-in-loop
+    await editor.locator('[data-testid="templateForm-form"]').waitFor();
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForTimeout(400);
+    // eslint-disable-next-line no-await-in-loop
+    widths[app] = Math.round((await editor.boundingBox()).width);
+    // eslint-disable-next-line no-await-in-loop
+    await editor.locator('[data-testid="editDialog-cancel"]').click();
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForTimeout(400);
+  }
+  assert.deepStrictEqual([widths.claude, widths.codex], [widths.ansible, widths.terraform], JSON.stringify(widths));
+  console.log('0 editor width as Ansible / Terraform: ok', JSON.stringify(widths));
+
   // 1. Edit the seeded inventory: remove the token of "docs", give "search" one.
   await page.goto(`/project/${P}/inventory`);
   await page.locator('[data-testid="inventory-rowEdit"]').first().click();

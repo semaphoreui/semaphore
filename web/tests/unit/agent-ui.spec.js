@@ -2,6 +2,7 @@ import './setup';
 import { expect } from 'chai';
 import Inventory from '@/views/project/Inventory.vue';
 import TemplateForm from '@/components/TemplateForm.vue';
+import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
 import { MCP_INVENTORY } from '@/lib/constants';
 
 describe('Inventory.vue inventory kinds', () => {
@@ -37,6 +38,17 @@ describe('TemplateForm.vue agent block', () => {
     });
     ['bash', 'python', 'powershell', 'terragrunt', 'pulumi'].forEach((app) => {
       expect(TemplateForm.computed.needAppBlock.call({ app }), app).to.equal(false);
+    });
+  });
+
+  it('opens the agent templates in the wide editor, as Ansible and Terraform', () => {
+    const width = (itemApp) => EditTemplateDialog.computed.dialogWidth.call({ itemApp });
+
+    ['claude', 'codex', 'ansible', 'terraform', 'tofu', ''].forEach((app) => {
+      expect(width(app), app).to.equal(1200);
+    });
+    ['bash', 'python', 'powershell', 'terragrunt', 'pulumi'].forEach((app) => {
+      expect(width(app), app).to.equal(800);
     });
   });
 
