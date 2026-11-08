@@ -1011,7 +1011,7 @@ import ArgsPicker from '@/components/ArgsPicker.vue';
 import TemplateVaults from '@/components/TemplateVaults.vue';
 import {
   AGENT_API_KEY_VARS,
-  AGENT_APPS,
+  APPS_WITH_OPTIONS_COLUMN,
   TEMPLATE_TYPE_ICONS,
   TEMPLATE_TYPE_TITLES,
 } from '@/lib/constants';
@@ -1301,7 +1301,7 @@ export default {
     },
 
     needAppBlock() {
-      return ['', 'ansible', 'tofu', 'terraform', ...AGENT_APPS].includes(this.app);
+      return APPS_WITH_OPTIONS_COLUMN.includes(this.app);
     },
 
     surveyVars() {
