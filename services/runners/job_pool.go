@@ -349,10 +349,16 @@ func (p *JobPool) Unregister() (err error) {
 	return
 }
 
-// runnerProgressInterval is how often the runner reports progress. It is not
-// configurable: the report is also the heartbeat the server uses to decide a
-// runner is still alive.
+// runnerProgressInterval is how often the runner reports progress while it has
+// jobs. It is not configurable: logs and status changes of running jobs reach
+// the server with this delay.
 const runnerProgressInterval = time.Second
+
+// runnerIdleProgressInterval is how often the runner reports progress while it
+// has no jobs. Such a report carries nothing for the server; it only tells the
+// runner that the server is reachable. The heartbeat the server uses to decide
+// a runner is alive is the job check (checkNewJobs), not the progress report.
+const runnerIdleProgressInterval = 30 * time.Second
 
 func (p *JobPool) Run() {
 	launched := false
@@ -370,10 +376,10 @@ func (p *JobPool) Run() {
 		"check_interval": checkInterval,
 	}).Debug("Runner poll interval")
 
-	// The progress report doubles as the runner's heartbeat, and the server marks
-	// a runner offline after RunnersOfflineTimeout (120s by default), so its
-	// cadence is fixed. Only the job check honours the configured interval.
+	// The job check honours the configured interval; it is also the heartbeat
+	// the server uses to mark a runner online.
 	lastJobCheck := time.Time{}
+	lastProgress := time.Time{}
 
 	queueTicker := time.NewTicker(5 * time.Second)
 	requestTimer := time.NewTicker(runnerProgressInterval)
@@ -501,15 +507,21 @@ func (p *JobPool) Run() {
 
 				defer atomic.StoreInt32(&p.processing, 0)
 
-				ok := p.sendProgress()
+				// An idle runner has nothing to report, so once connected it reports
+				// rarely instead of costing the server a request every second.
+				if !launched || p.runningJobsCount() > 0 || time.Since(lastProgress) >= runnerIdleProgressInterval {
+					lastProgress = time.Now()
 
-				if ok && !launched {
-					launched = true
-					fmt.Println("Runner connected")
-				}
+					ok := p.sendProgress()
 
-				if util.Config.Runner.OneOff && ok && p.runningJobsCount() > 0 && !p.hasRunningJobs() {
-					os.Exit(0)
+					if ok && !launched {
+						launched = true
+						fmt.Println("Runner connected")
+					}
+
+					if util.Config.Runner.OneOff && ok && p.runningJobsCount() > 0 && !p.hasRunningJobs() {
+						os.Exit(0)
+					}
 				}
 
 				if time.Since(lastJobCheck) >= checkInterval {
