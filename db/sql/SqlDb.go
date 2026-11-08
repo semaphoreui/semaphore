@@ -28,7 +28,8 @@ type SqlDbConnection struct {
 }
 
 type SqlDb struct {
-	connection SqlDbConnection
+	connection  SqlDbConnection
+	runnerCache db.RunnerCache
 }
 
 func (d *SqlDb) Sql() *gorp.DbMap {
@@ -402,7 +403,14 @@ func CreateDb(dialect string) *SqlDb {
 		connection: SqlDbConnection{
 			dialect: dialect,
 		},
+		runnerCache: newMemoryRunnerCache(),
 	}
+}
+
+// SetRunnerCache replaces the in-memory runner cache, which is only correct
+// on a single node. Call it before the store serves requests.
+func (d *SqlDb) SetRunnerCache(cache db.RunnerCache) {
+	d.runnerCache = cache
 }
 
 func (d *SqlDbConnection) GetDialect() string {
