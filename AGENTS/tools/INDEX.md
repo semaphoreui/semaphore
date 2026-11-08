@@ -33,6 +33,14 @@ other, `wsprobe.go` prints the WebSocket events a node receives. Use it whenever
 connection, `ha.engine` / `ha.redis_sentinel` or the Pub/Sub broadcaster change — unit tests run
 on miniredis, which has no Sentinel.
 
+### `agent-stand/` — check the AI agent UI on a throwaway stand
+
+`stand.sh` builds this work copy and starts it on `:3102` with its own SQLite, `seed.sh` adds an
+mcp inventory and Claude Code / Codex templates, `verify.cjs` saves through the UI and checks the
+API and task logs, `shoot.cjs` takes the screenshots. Agents run a fake CLI unless started with
+`--real`. Use it after changing the mcp inventory form, the agent fields of the template form or
+the task prompt; unlike `agent-cli/`, it goes through the server and the browser.
+
 ### `agent-cli/` — run the real Codex / Claude Code CLI like AgentApp
 
 `probe.sh codex|claude` writes the same per-task config as `db_lib/AgentApp.go`, sends the

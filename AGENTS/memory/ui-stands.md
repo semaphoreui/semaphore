@@ -8,20 +8,19 @@
 - Released version: `gh release download vX.Y.Z -R semaphoreui/semaphore -p
   'semaphore_X.Y.Z_darwin_arm64.tar.gz'` (`-R` needed outside the repo). The Pro build enables
   Workflows without a license; secret storages and executors stay paywalled.
-- Unreleased branch: `cd web && npx vue-cli-service build`, then `go build -tags netgo -o
-  /tmp/semaphore-stand-bin ./cli` (the embed picks up `api/public`), then `migrate --config`,
-  `user add --admin ... --config`, `server --config`.
+- Unreleased branch: `cd web && npm run build` (Vite since the Vue 3 move; it empties `api/public`
+  and deletes the tracked `api/public/.gitkeep` — `git checkout` it back), then `go build -tags
+  netgo -o /tmp/semaphore-stand-bin ./cli` (the embed picks up `api/public`), then `migrate
+  --config`, `user add --admin ... --config`, `server --config`.
 - `use_remote_runner: true` removes the "Global runners disabled" banner; a tagged runner is
   skipped by untagged templates, so mark the runner `is_default`.
 - Seed through the REST API with the login cookie: `POST /api/auth/login {auth, password}` → 204,
   `POST /api/projects` → 201. Workflow nodes may be sent with arbitrary IDs (`nodeIDMap` remaps),
   but every PUT reinserts nodes, so old runs lose node statuses. Seed/shoot scripts live in
   `/tmp/semaphore-stand/` (`seed-hc.sh`, `shoot-hc.cjs`, `wheel-wf*.cjs`).
-- Test current sources without a rebuild: run a second hot-reloading dev server proxying to :3100 —
-  `VUE_CLI_SERVICE_CONFIG_PATH=$PWD/node_modules/.cache/vue.config.stand.js npx vue-cli-service
-  serve --port 8090`, where the config `require`s `web/vue.config.js` and overrides
-  `configureWebpack.devServer.proxy['^/api'].target`. The override file must live under `web/`
-  (is-file-esm crashes on a `/tmp` path without package.json).
+- Test current sources without a rebuild: a hot-reloading Vite dev server proxying `/api` to a
+  stand — `cd web && SEMAPHORE_DEV_API_URL=http://localhost:3100 npx vite --port 8090`
+  (`devApiTarget` in `web/vite.config.mjs`).
 - Stand workflow 1 shows the unsaved-changes dialog after merely selecting a node (pre-existing,
   unexplained).
 - ⚠️ macOS purges files under `/tmp` untouched for ~3 days (directories stay): the stand's config, DB, admin
@@ -59,6 +58,9 @@
   (built from this worktree), users `admin`/`admin123`, `manager`/`manager123` (holds the global
   role `user_manager`), `plain`/`plain1234`; roles were inserted with `sqlite3` because the community
   roles API is a stub. Screenshots in `shots-global-roles/`.
+- AI agent stand (2026-11-08): `:3102`, started and seeded by `AGENTS/tools/agent-stand/`, data in
+  `AGENTS/tmp/agent-stand` (outside `/tmp`, so macOS does not purge it); agents run a fake CLI
+  unless started with `--real`.
 - macOS has no `timeout`; wait for a server with a `for` loop around `curl -sf …/api/ping` and
   `python3 -c 'import time; time.sleep(0.5)'`.
 - Admin pages (`/users`, `/roles`, `/runners`…) render without the navigation drawer; the
@@ -72,8 +74,10 @@
   (`.cjs` + `require('playwright')`). Its browsers are outdated, so
   `chromium.launch({ channel: 'chrome' })`.
 - Log in via `ctx.request.post('/api/auth/login')` — it shares cookies with the page.
-- Vuetify 2 selectors: dialogs `.v-dialog--active`, menus `.v-menu__content.menuable__content__active`
-  (not `--active`), selects click `.v-select` then `getByRole('option')`, tabs `getByRole('tab', {name})`.
+- The UI is Vue 3 + Vuetify 4 (2026-11): select by `data-testid`, which nearly every form control
+  and dialog has (`inventoryDialog`, `editDialog-save`, `templateForm-*`, `newTask-*`); a
+  `v-text-field` keeps its `data-testid` on the wrapper, so target `[data-testid=…] input`.
+  Several dialogs stay in the DOM — take `.last()`.
 - Editor "fit to page" does not zoom out; use a 1680px viewport plus one zoom-out click. The
   playbook picker dropdown never rendered headless.
 - Wheel behaviour is testable: `page.mouse.wheel()` goes through CDP as trusted input; log
