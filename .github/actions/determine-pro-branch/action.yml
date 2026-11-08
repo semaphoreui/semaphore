@@ -33,7 +33,16 @@ runs:
           ALL=$(git branch -r --contains HEAD --format='%(refname:short)' | sed -n 's#^origin/##p' | grep -vx 'HEAD' || true)
           CANDIDATES=$( { echo "$ALL" | grep -vx develop || true; echo "$ALL" | grep -x develop || true; } )
         fi
-        PRO_HEADS=$(git ls-remote --heads "$PRO_REPO" | sed 's#.*refs/heads/##' || true)
+        # Run outside the checkout and drop its extraheader: actions/checkout stores
+        # the GITHUB_TOKEN as http.https://github.com/.extraheader, which takes
+        # precedence over the token in the URL and cannot see the private repo.
+        # Never fall back to main silently: a wrong pro_impl branch fails the build
+        # later with a misleading compile error.
+        PRO_HEADS=$(cd "$RUNNER_TEMP" && git -c http.https://github.com/.extraheader= ls-remote --heads "$PRO_REPO") || {
+          echo "::error::Cannot list branches of semaphorepro-module (check the GH_TOKEN secret)"
+          exit 1
+        }
+        PRO_HEADS=$(echo "$PRO_HEADS" | sed 's#.*refs/heads/##')
         PRO_BRANCH=main
         for c in $CANDIDATES; do
           if echo "$PRO_HEADS" | grep -qx -- "$c"; then
