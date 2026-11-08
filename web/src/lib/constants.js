@@ -128,6 +128,17 @@ export const APP_ICONS = {
   powershell: {
     icon: 'mdi-powershell',
   },
+  // AI agents: icons of the Material set, not the vendors' logos.
+  claude: {
+    icon: 'mdi-asterisk',
+    color: '#D97757',
+    darkColor: '#D97757',
+  },
+  codex: {
+    icon: 'mdi-creation',
+    color: 'black',
+    darkColor: 'white',
+  },
 };
 
 export const APP_SHORT_TITLE = {
@@ -139,6 +150,8 @@ export const APP_SHORT_TITLE = {
   pulumi: 'Pulumi',
   python: 'Python',
   powershell: 'PowerShell',
+  claude: 'Claude Code',
+  codex: 'Codex',
 };
 
 export const APP_TITLE = {
@@ -150,6 +163,25 @@ export const APP_TITLE = {
   pulumi: 'Pulumi Code',
   python: 'Python Script',
   powershell: 'PowerShell Script',
+  claude: 'Claude Code Agent',
+  codex: 'Codex Agent',
+};
+
+// The apps which run an AI agent CLI (db.TemplateApp.IsAgent).
+export const AGENT_APPS = ['claude', 'codex'];
+
+// The variable an agent CLI reads its API key from; the user adds it to a Variable Group of the
+// template as a secret.
+export const AGENT_API_KEY_VARS = {
+  claude: 'ANTHROPIC_API_KEY',
+  codex: 'OPENAI_API_KEY',
+};
+
+// The inventory of the agents: a list of MCP servers, one kind for every agent app.
+export const MCP_INVENTORY = {
+  type: 'mcp',
+  title: 'MCP Inventory',
+  icon: 'mdi-server-network',
 };
 
 export const APP_INVENTORY_TITLE = {
@@ -157,6 +189,8 @@ export const APP_INVENTORY_TITLE = {
   terraform: 'Terraform Workspace',
   tofu: 'OpenTofu Workspace',
   terragrunt: 'Terragrunt Workspace',
+  claude: MCP_INVENTORY.title,
+  codex: MCP_INVENTORY.title,
 };
 
 export const APP_INVENTORY_TYPES = {
@@ -164,6 +198,8 @@ export const APP_INVENTORY_TYPES = {
   terraform: ['terraform-workspace'],
   tofu: ['tofu-workspace'],
   terragrunt: ['terragrunt-workspace'],
+  claude: [MCP_INVENTORY.type],
+  codex: [MCP_INVENTORY.type],
 };
 
 export const DEFAULT_APPS = Object.keys(APP_ICONS);
@@ -285,6 +321,23 @@ export const PULUMI_FIELDS = {
   playbook: TERRAFORM_FIELDS.playbook,
 };
 
+// An AI agent works in a directory of the repository, like the terraform family, with the MCP
+// servers of an mcp inventory; its prompt may be replaced by a task when the template allows it.
+export const AGENT_FIELDS = {
+  ...BASE_FIELDS,
+  playbook: TERRAFORM_FIELDS.playbook,
+  inventory: {
+    label: 'mcpServersOptional',
+    optional: true,
+  },
+  prompt: {
+    label: 'agentPrompt',
+  },
+  allow_override_prompt: {
+    label: 'agentPrompt',
+  },
+};
+
 export const APP_FIELDS = {
   '': ANSIBLE_FIELDS,
   ansible: ANSIBLE_FIELDS,
@@ -292,6 +345,8 @@ export const APP_FIELDS = {
   tofu: TERRAFORM_FIELDS,
   terragrunt: TERRAFORM_FIELDS,
   pulumi: PULUMI_FIELDS,
+  claude: AGENT_FIELDS,
+  codex: AGENT_FIELDS,
 };
 
 export const ROLE_PERMISSIONS = {

@@ -707,6 +707,30 @@
             v-if="needField('backend_filename') && features.terraform_backend"
             data-testid="templateForm-backendFilename"
           ></v-text-field>
+
+          <template v-if="needField('prompt')">
+            <!-- Required unless a task may give its own prompt (db.Template.Validate). -->
+            <v-textarea
+              v-model="item.task_params.prompt"
+              :label="fieldLabel('prompt') + (item.task_params.allow_override_prompt ? '' : ' *')"
+              :rules="[(v) => !!(v && v.trim()) || !!item.task_params.allow_override_prompt
+                || $t('agent_prompt_required')]"
+              rows="6"
+              auto-grow
+              variant="outlined"
+              density="compact"
+              :disabled="formSaving"
+              data-testid="templateForm-agentPrompt"
+            ></v-textarea>
+
+            <v-alert
+              type="info"
+              variant="tonal"
+              density="compact"
+              class="text-body-medium"
+              data-testid="templateForm-agentApiKeyHint"
+            >{{ $t('agentApiKeyHint', { variable: AGENT_API_KEY_VARS[app] }) }}</v-alert>
+          </template>
         </div>
 
         <h2 class="mb-4" data-testid="templateForm-appPromptsTitle">
@@ -767,6 +791,14 @@
             v-model="item.task_params.allow_auto_approve"
             v-if="needField('allow_auto_approve')"
             data-testid="templateForm-allowAutoApprove"
+          />
+
+          <v-checkbox
+            class="mt-0"
+            :label="fieldLabel('allow_override_prompt')"
+            v-model="item.task_params.allow_override_prompt"
+            v-if="needField('allow_override_prompt')"
+            data-testid="templateForm-allowOverridePrompt"
           />
         </div>
 
@@ -977,7 +1009,12 @@ import axios from 'axios';
 import ItemFormBase from '@/components/ItemFormBase';
 import ArgsPicker from '@/components/ArgsPicker.vue';
 import TemplateVaults from '@/components/TemplateVaults.vue';
-import { TEMPLATE_TYPE_ICONS, TEMPLATE_TYPE_TITLES } from '@/lib/constants';
+import {
+  AGENT_API_KEY_VARS,
+  AGENT_APPS,
+  TEMPLATE_TYPE_ICONS,
+  TEMPLATE_TYPE_TITLES,
+} from '@/lib/constants';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import AppsMixin from '@/components/AppsMixin';
 import RichEditor from '@/components/RichEditor.vue';
@@ -1037,6 +1074,7 @@ export default {
       itemTypeIndex: 0,
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_TITLES,
+      AGENT_API_KEY_VARS,
       item: {
         task_params: {},
         jwt_params: { enabled: false, audience: [], ttl: '' },
@@ -1235,17 +1273,17 @@ export default {
     loaderHeight() {
       switch (this.taskType) {
         case 'build':
-          if (['', 'ansible', 'terraform', 'tofu'].includes(this.app)) {
+          if (this.needAppBlock) {
             return 626;
           }
           return 560;
         case 'deploy':
-          if (['', 'ansible', 'terraform', 'tofu'].includes(this.app)) {
+          if (this.needAppBlock) {
             return 676;
           }
           return 610;
         default:
-          if (['', 'ansible', 'terraform', 'tofu'].includes(this.app)) {
+          if (this.needAppBlock) {
             return 564;
           }
           return 514;
@@ -1263,7 +1301,7 @@ export default {
     },
 
     needAppBlock() {
-      return ['', 'ansible', 'ansible', 'tofu', 'terraform'].includes(this.app);
+      return ['', 'ansible', 'tofu', 'terraform', ...AGENT_APPS].includes(this.app);
     },
 
     surveyVars() {

@@ -210,6 +210,13 @@
       :template-params="template.task_params || {}"
     />
 
+    <TaskParamsAgentForm
+      v-else-if="isAgent"
+      v-model="item.params"
+      :template-params="template.task_params || {}"
+      test-id="newTask-agentPrompt"
+    />
+
     <ArgsPicker
       v-if="template.allow_override_args_in_task"
       :vars="args"
@@ -229,6 +236,8 @@ import ArgsPicker from '@/components/ArgsPicker.vue';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import TaskParamsAnsibleForm from '@/components/TaskParamsAnsibleForm.vue';
 import TaskParamsTerraformForm from '@/components/TaskParamsTerraformForm.vue';
+import TaskParamsAgentForm from '@/components/TaskParamsAgentForm.vue';
+import { AGENT_APPS } from '@/lib/constants';
 
 export default {
   mixins: [ItemFormBase, AppFieldsMixin],
@@ -243,6 +252,7 @@ export default {
   components: {
     TaskParamsAnsibleForm,
     TaskParamsTerraformForm,
+    TaskParamsAgentForm,
     ArgsPicker,
   },
 
@@ -294,6 +304,10 @@ export default {
 
     app() {
       return this.template.app;
+    },
+
+    isAgent() {
+      return AGENT_APPS.includes(this.template.app);
     },
 
     inventory_id: {
@@ -401,6 +415,12 @@ export default {
     beforeSave() {
       this.item.environment = JSON.stringify(this.editedEnvironment);
       this.item.secret = JSON.stringify(this.editedSecretEnvironment);
+
+      // A re-run copies the params of the source task. A prompt the template does not let a task
+      // replace (any more) is not shown, and the server would refuse the task for it.
+      if (this.isAgent && !this.template.task_params?.allow_override_prompt && this.item.params) {
+        delete this.item.params.prompt;
+      }
     },
 
     refreshItem() {

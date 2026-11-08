@@ -69,6 +69,12 @@
       :template-params="template.task_params || {}"
     />
 
+    <TaskParamsAgentForm
+      v-else-if="isAgent"
+      v-model="item.params"
+      :template-params="template.task_params || {}"
+    />
+
     <ArgsPicker
       v-if="template.allow_override_args_in_task"
       test-id="taskParams-args"
@@ -86,7 +92,9 @@ import ArgsPicker from '@/components/ArgsPicker.vue';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import TaskParamsAnsibleForm from '@/components/TaskParamsAnsibleForm.vue';
 import TaskParamsTerraformForm from '@/components/TaskParamsTerraformForm.vue';
+import TaskParamsAgentForm from '@/components/TaskParamsAgentForm.vue';
 import SurveyFields from '@/components/SurveyFields.vue';
+import { AGENT_APPS } from '@/lib/constants';
 
 export default {
   mixins: [AppFieldsMixin],
@@ -105,6 +113,7 @@ export default {
   components: {
     TaskParamsAnsibleForm,
     TaskParamsTerraformForm,
+    TaskParamsAgentForm,
     ArgsPicker,
     SurveyFields,
   },
@@ -141,6 +150,10 @@ export default {
 
     app() {
       return this.template.app;
+    },
+
+    isAgent() {
+      return AGENT_APPS.includes(this.template.app);
     },
 
     inventory_id: {
