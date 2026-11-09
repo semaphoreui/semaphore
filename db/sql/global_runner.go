@@ -9,7 +9,14 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/tz"
 )
 
+// GetRunnerByToken authenticates runner requests, so it is called on every
+// runner poll. The result is cached (see db.RunnerCache) and does not include
+// Tags: nothing on the runner request path reads them.
 func (d *SqlDb) GetRunnerByToken(token string) (runner db.Runner, err error) {
+	runner, generation, ok := d.runnerCache.Get(token)
+	if ok {
+		return
+	}
 
 	runners := make([]db.Runner, 0)
 
@@ -27,7 +34,7 @@ func (d *SqlDb) GetRunnerByToken(token string) (runner db.Runner, err error) {
 	}
 
 	runner = runners[0]
-	err = d.loadRunnerTagsSingle(&runner)
+	d.runnerCache.Put(token, runner, generation)
 	return
 }
 
@@ -113,11 +120,14 @@ func (d *SqlDb) GetGlobalRunnerTags() (res []db.RunnerTag, err error) {
 }
 
 func (d *SqlDb) DeleteGlobalRunner(runnerID int) (err error) {
+	defer d.runnerCache.Invalidate()
 	err = d.deleteObject(0, db.GlobalRunnerProps, runnerID)
 	return
 }
 
 func (d *SqlDb) ClearRunnerCache(runner db.Runner) (err error) {
+	defer d.runnerCache.Invalidate()
+
 	if runner.ProjectID == nil {
 		_, err = d.exec(
 			"update `runner` set `cleaning_requested`=? where id=?",
@@ -136,26 +146,33 @@ func (d *SqlDb) ClearRunnerCache(runner db.Runner) (err error) {
 }
 
 func (d *SqlDb) TouchRunner(runner db.Runner) (err error) {
+	now := tz.Now()
+
 	if runner.ProjectID == nil {
 		_, err = d.exec(
 			"update `runner` set `touched`=?, `started_at`=? where id=?",
-			tz.Now(),
+			now,
 			runner.StartedAt,
 			runner.ID)
-		return
+	} else {
+		_, err = d.exec(
+			"update `runner` set `touched`=?, `started_at`=? where id=? and project_id=?",
+			now,
+			runner.StartedAt,
+			runner.ID,
+			runner.ProjectID)
 	}
 
-	_, err = d.exec(
-		"update `runner` set `touched`=?, `started_at`=? where id=? and project_id=?",
-		tz.Now(),
-		runner.StartedAt,
-		runner.ID,
-		runner.ProjectID)
+	if err == nil {
+		d.runnerCache.Forget(runner.Token)
+	}
 
 	return
 }
 
 func (d *SqlDb) UpdateRunner(runner db.Runner) (err error) {
+	defer d.runnerCache.Invalidate()
+
 	_, err = d.exec(
 		"update `runner` set `name`=?, `active`=?, `is_default`=?, webhook=?, max_parallel_tasks=? where id=?",
 		runner.Name,
@@ -174,6 +191,8 @@ func (d *SqlDb) UpdateRunner(runner db.Runner) (err error) {
 }
 
 func (d *SqlDb) RegisterRunner(registrationTokenHash string, publicKey *string) (runner db.Runner, err error) {
+	defer d.runnerCache.Invalidate()
+
 	runners := make([]db.Runner, 0)
 
 	err = d.getObjects(0, db.GlobalRunnerProps, db.RetrieveQueryParams{}, func(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
@@ -223,6 +242,8 @@ func (d *SqlDb) RegisterRunner(registrationTokenHash string, publicKey *string) 
 }
 
 func (d *SqlDb) ResetRunnerRegistration(runnerID int, registrationTokenHash string, expiresAt time.Time) (err error) {
+	defer d.runnerCache.Invalidate()
+
 	_, err = d.exec(
 		"update `runner` set `token`='', `public_key`=null, `registration_token`=?, `registration_token_expires_at`=? where id=?",
 		registrationTokenHash,
@@ -232,6 +253,8 @@ func (d *SqlDb) ResetRunnerRegistration(runnerID int, registrationTokenHash stri
 }
 
 func (d *SqlDb) CreateRunner(runner db.Runner) (newRunner db.Runner, err error) {
+	defer d.runnerCache.Invalidate()
+
 	insertID, err := d.insert(
 		"id",
 		"insert into `runner` (project_id, token, webhook, max_parallel_tasks, `name`, `active`, `is_default`, public_key, registration_token, registration_token_expires_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
