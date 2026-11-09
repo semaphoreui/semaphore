@@ -117,6 +117,38 @@ func TestUpdateUserPassword_IsRecorded(t *testing.T) {
 	}
 }
 
+func TestUpdateUser_OwnPasswordIsRecorded(t *testing.T) {
+	tests := []struct {
+		name       string
+		currentPwd string
+		wantKinds  []audit.Kind
+		wantReason audit.Reason
+	}{
+		{"current password given", "verystrongpassword1", []audit.Kind{audit.IAMUserUpdate, audit.IAMUserPasswordChange}, audit.ReasonNone},
+		{"wrong current password", "wrongpassword", []audit.Kind{audit.IAMUserPasswordChange}, audit.ReasonInvalidCurrentPassword},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := setupSessionTest(t)
+			bob := createUserOptionsTestUser(t, store, "bob")
+			body := `{"username":"bob","name":"bob","email":"bob@example.com","password":"anotherpassword2","current_password":"` + tt.currentPwd + `"}`
+			r, rec := userRequest(store, http.MethodPut, "/api/users/1", body, bob, bob)
+
+			NewUsersController(nil).UpdateUser(httptest.NewRecorder(), r)
+
+			kinds, err := rec.Kinds()
+			require.NoError(t, err)
+			require.Equal(t, tt.wantKinds, kinds)
+			all := rec.All()
+			assert.Equal(t, tt.wantReason, all[len(all)-1].Event.Reason)
+			for _, recorded := range all {
+				assert.NotContains(t, eventJSON(t, recorded), "anotherpassword2")
+				assert.NotContains(t, eventJSON(t, recorded), tt.currentPwd)
+			}
+		})
+	}
+}
+
 func TestDeleteUser_IsRecorded(t *testing.T) {
 	store := setupSessionTest(t)
 	admin := makeAdmin(t, store, createUserOptionsTestUser(t, store, "admin"))
