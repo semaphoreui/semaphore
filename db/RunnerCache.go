@@ -26,7 +26,9 @@ type RunnerCache interface {
 	// generation was returned by Get, so a lookup that raced with a write
 	// never caches what it read before the write.
 	Put(token string, runner Runner, generation uint64)
-	// Forget drops the runner cached for token.
+	// Forget drops the runner cached for token and rejects a pending Put for
+	// it, so a lookup that raced with a heartbeat never caches the runner as
+	// it was before the heartbeat. Other tokens are not affected.
 	Forget(token string)
 	// Invalidate drops every cached runner.
 	Invalidate()

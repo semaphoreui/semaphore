@@ -130,6 +130,51 @@ func TestMemoryRunnerCache_Forget(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestMemoryRunnerCache_ForgetDropsLookupThatRacedWithIt(t *testing.T) {
+	cache := newMemoryRunnerCache()
+
+	_, generation, ok := cache.Get("t")
+	require.False(t, ok)
+	cache.Forget("t") // a heartbeat lands while the lookup reads the database
+	cache.Put("t", db.Runner{ID: 1, Token: "t"}, generation)
+
+	_, _, ok = cache.Get("t")
+	assert.False(t, ok, "the lookup read the runner before the heartbeat")
+
+	// The next lookup caches again.
+	_, generation, _ = cache.Get("t")
+	cache.Put("t", db.Runner{ID: 1, Token: "t"}, generation)
+	_, _, ok = cache.Get("t")
+	assert.True(t, ok)
+}
+
+func TestMemoryRunnerCache_ForgetKeepsLookupsOfOtherTokens(t *testing.T) {
+	cache := newMemoryRunnerCache()
+
+	_, generationT, _ := cache.Get("t")
+	_, generationU, _ := cache.Get("u")
+	cache.Forget("t")
+	cache.Put("t", db.Runner{ID: 1, Token: "t"}, generationT)
+	cache.Put("u", db.Runner{ID: 2, Token: "u"}, generationU)
+
+	_, _, ok := cache.Get("t")
+	assert.False(t, ok)
+	_, _, ok = cache.Get("u")
+	assert.True(t, ok, "forget rejects only the lookups of the given token")
+}
+
+func TestMemoryRunnerCache_InvalidateAfterForgetDropsEveryLookup(t *testing.T) {
+	cache := newMemoryRunnerCache()
+
+	_, generation, _ := cache.Get("u")
+	cache.Forget("t")
+	cache.Invalidate()
+	cache.Put("u", db.Runner{ID: 2, Token: "u"}, generation)
+
+	_, _, ok := cache.Get("u")
+	assert.False(t, ok)
+}
+
 type recordingRunnerCache struct {
 	db.RunnerCache
 	invalidations int
