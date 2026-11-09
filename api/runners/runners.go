@@ -66,16 +66,13 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 
 // maxRunnerTouchInterval caps how stale the stored heartbeat of a polling
 // runner may get before GetRunner writes it again.
-const maxRunnerTouchInterval = 30 * time.Second
+const maxRunnerTouchInterval = 45 * time.Second
 
 // runnerTouchInterval is how often GetRunner persists the heartbeat of a
 // runner that keeps polling. It stays well below the offline timeout, so
 // skipping writes in between never makes a live runner look offline.
 func runnerTouchInterval() time.Duration {
-	interval := util.Config.RunnersOfflineTimeout() / 4
-	if interval > maxRunnerTouchInterval {
-		interval = maxRunnerTouchInterval
-	}
+	interval := min(util.Config.RunnersOfflineTimeout()/3, maxRunnerTouchInterval)
 	return interval
 }
 
@@ -130,8 +127,17 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 	// A clean request is pending until "touched" passes it, so touch right away
 	// to deliver it only once. Otherwise skip the write while the stored
 	// heartbeat is fresh enough.
-	if wasOffline || startedAtChanged || clearCache || runner.Touched == nil ||
-		now.Sub(*runner.Touched) >= runnerTouchInterval() {
+	lastTouch := time.Duration(0)
+	if runner.Touched != nil {
+		lastTouch = now.Sub(*runner.Touched)
+	}
+
+	if wasOffline ||
+		startedAtChanged ||
+		clearCache ||
+		runner.Touched == nil ||
+		lastTouch >= runnerTouchInterval() {
+
 		if err := c.runnerRepo.TouchRunner(runner); err != nil {
 			runnerLog.WithError(err).Error("runner touch failed")
 			helpers.WriteError(w, err)
