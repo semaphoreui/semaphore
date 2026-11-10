@@ -175,6 +175,7 @@ func AddRepository(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Project ID in body and URL must be the same",
 		})
+		return
 	}
 
 	if err := db.ValidateRepository(helpers.Store(r), &repository); err != nil {
