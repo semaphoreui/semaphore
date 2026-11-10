@@ -546,9 +546,24 @@ func (t *TaskRunner) alertInfos() (string, string) {
 		}
 
 		author = user.Name
+	} else if t.Task.ScheduleID != nil {
+		author = t.scheduleAuthor(*t.Task.ScheduleID)
 	}
 
 	return author, version
+}
+
+// scheduleAuthor names the schedule that started the task. The schedule may be
+// gone already (a one-off schedule is deleted after its run), so a failed lookup
+// degrades to the bare word instead of breaking the alert.
+func (t *TaskRunner) scheduleAuthor(scheduleID int) string {
+	schedule, err := t.pool.store.GetSchedule(t.Task.ProjectID, scheduleID)
+
+	if err != nil || schedule.Name == "" {
+		return "schedule"
+	}
+
+	return "schedule " + schedule.Name
 }
 
 func (t *TaskRunner) alertColor(kind string) string {
