@@ -2,6 +2,7 @@ package runners
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -441,7 +442,7 @@ func TestJobPool_TaskOutputs(t *testing.T) {
 		rj := newTestRunningJob(1)
 
 		assert.Nil(t, p.taskOutputs(&job{workflowTask: true}, rj))
-		_, logs, _, _ := rj.getProgress()
+		_, logs, _, _, _ := rj.getProgress()
 		assert.Empty(t, logs)
 	})
 
@@ -456,7 +457,7 @@ func TestJobPool_TaskOutputs(t *testing.T) {
 
 		assert.Nil(t, p.taskOutputs(&job{workflowTask: true}, rj))
 
-		_, logs, _, _ := rj.getProgress()
+		_, logs, _, _, _ := rj.getProgress()
 		require.Len(t, logs, 1)
 		assert.Contains(t, logs[0].Message, "not captured by this runner's executor")
 	})
@@ -505,6 +506,60 @@ func TestJobPool_SendProgressIncludesOutputs(t *testing.T) {
 	assert.Equal(t, document, *received.Jobs[0].Outputs)
 	// The terminal report was accepted, so the job leaves the running list.
 	assert.Nil(t, p.getRunningJob(7))
+}
+
+// hostsExecutor is an executor that captured a host stats document and then
+// failed, as the local executor does when a playbook fails on some hosts.
+type hostsExecutor struct {
+	*tasks.LocalExecutor
+	hosts *string
+}
+
+func (e *hostsExecutor) Run(string, *string, string) error { return errors.New("playbook failed") }
+
+func (e *hostsExecutor) Hosts() *string { return e.hosts }
+
+func TestJobPool_ProgressIncludesHostsOfFailedJob(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	var mu sync.Mutex
+	var received RunnerProgress
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			mu.Lock()
+			defer mu.Unlock()
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&received))
+		}
+		_, _ = w.Write([]byte("{}"))
+	}))
+	t.Cleanup(srv.Close)
+
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "test-token",
+			Executor:   &util.ExecutorConfig{},
+			Connection: &util.RunnerConnectionConfig{},
+		},
+	}
+
+	p := NewJobPool(nil)
+	document := `{"version":1,"hosts":{"web1":{"ok":3,"failed":1}}}`
+	executor := &hostsExecutor{LocalExecutor: &tasks.LocalExecutor{Task: db.Task{ID: 7}}, hosts: &document}
+	rj := &runningJob{job: executor, taskID: 7, status: task_logger.TaskStartingStatus}
+	executor.SetLogger(rj)
+	p.addRunningJob(7, rj)
+
+	p.runJob(&job{job: executor, taskID: 7}, rj)
+	require.True(t, p.sendProgress())
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, received.Jobs, 1)
+	assert.Equal(t, task_logger.TaskFailStatus, received.Jobs[0].Status)
+	require.NotNil(t, received.Jobs[0].Hosts)
+	assert.Equal(t, document, *received.Jobs[0].Hosts)
 }
 
 func TestJobProgress_OutputsOmittedWhenAbsent(t *testing.T) {
