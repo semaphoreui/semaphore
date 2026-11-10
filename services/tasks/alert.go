@@ -6,6 +6,7 @@ import (
 	"fmt"
 	htmltemplate "html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"text/template"
 
@@ -153,7 +154,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 		Color:  t.alertColor("telegram"),
 		Task: alertTask{
 			ID:      strconv.Itoa(t.Task.ID),
-			URL:     t.taskLink(),
+			URL:     t.telegramTaskLink(),
 			Result:  t.Task.Status.Format(),
 			Version: version,
 			Desc:    t.Task.Message,
@@ -601,6 +602,20 @@ func (t *TaskRunner) alertColor(kind string) string {
 	}
 
 	return ""
+}
+
+// telegramTaskLink returns the task link only when it is an absolute http(s)
+// URL. Without web_host the link is a relative path, and Telegram rejects the
+// whole message for such an href, so the template prints a plain task id then.
+func (t *TaskRunner) telegramTaskLink() string {
+	link := t.taskLink()
+
+	u, err := url.Parse(link)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return ""
+	}
+
+	return link
 }
 
 func (t *TaskRunner) taskLink() string {
