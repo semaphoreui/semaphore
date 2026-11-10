@@ -216,6 +216,7 @@ func runService() {
 	state := proTasks.NewTaskStateStore(haRedis)
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
+	hostRepo := proFactory.NewHostRepository(store)
 	workflowStore := proFactory.NewWorkflowStore(store)
 	globalRoleStore := proFactory.NewGlobalRoleStore(store)
 	roleMappingStore := proFactory.NewRoleMappingStore(store)
@@ -362,6 +363,7 @@ func runService() {
 		workflowStore,
 		roleMappingStore,
 		ansibleTaskRepo,
+		hostRepo,
 		&taskPool,
 		projectService,
 		integrationService,

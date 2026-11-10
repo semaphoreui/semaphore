@@ -193,6 +193,20 @@ func main() {
 		})
 	}
 
+	// The hosts registry needs a PRO plan the Dredd stand does not have: a PRO server answers 403, the community one [] for the lists and 404 for a host.
+	if !hostsEnabled() {
+		for _, v := range []string{
+			"project > /api/project/{project_id}/hosts > Get hosts of the project (PRO) > 200 > application/json",
+			"project > /api/project/{project_id}/hosts/{host_id} > Get a host of the project (PRO) > 200 > application/json",
+			"project > /api/project/{project_id}/hosts/{host_id}/tasks > Get project tasks of the host (PRO) > 200 > application/json",
+			"/api/hosts > Get hosts of all projects (PRO) > 200 > application/json",
+			"/api/hosts/{host_id} > Get a host (PRO) > 200 > application/json",
+			"/api/hosts/{host_id}/tasks > Get tasks of the host (PRO) > 200 > application/json",
+		} {
+			h.Before(v, skipTest)
+		}
+	}
+
 	if isProBuild() {
 		h.Before("workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", capabilityWrapper("template"))

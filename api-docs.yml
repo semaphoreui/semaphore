@@ -1225,6 +1225,63 @@ definitions:
         description: Share one checkout of this repository between all templates instead of cloning it per template. Templates of a monorepo can not have a branch of their own or let tasks override the branch or commit.
         example: false
 
+  Host:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      display_name:
+        type: string
+      first_seen:
+        type: string
+      last_seen:
+        type: string
+      last_automated:
+        type: string
+        x-nullable: true
+      runs:
+        type: integer
+      last_status:
+        type: string
+      last_task_id:
+        type: integer
+        x-nullable: true
+      last_template:
+        type: object
+        x-nullable: true
+      templates:
+        type: array
+        items:
+          type: object
+      projects:
+        type: array
+        items:
+          type: object
+
+  HostDetails:
+    allOf:
+      - $ref: "#/definitions/Host"
+      - type: object
+        properties:
+          failed_in_last_10:
+            type: integer
+
+  HostTask:
+    type: object
+    properties:
+      task_id:
+        type: integer
+      project_name:
+        type: string
+      template_name:
+        type: string
+      status:
+        type: string
+      failed:
+        type: integer
+
   Task:
     type: object
     properties:
@@ -2161,6 +2218,13 @@ parameters:
     type: integer
     required: true
     x-example: 18
+  host_id:
+    name: host_id
+    description: Host ID
+    in: path
+    type: integer
+    required: true
+    x-example: 26
   perm_id:
     name: perm_id
     description: role grant ID
@@ -4622,6 +4686,87 @@ paths:
             content-type:
               type: string
               x-example: text/plain; charset=utf-8
+
+  /project/{project_id}/hosts:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get hosts of the project (PRO)
+      responses:
+        200:
+          description: Page of hosts with the numbers of the project, query search, status, not_seen_days, template_id, offset, count; X-Total-Count header
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Host"
+
+  /project/{project_id}/hosts/{host_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/host_id"
+    get:
+      tags:
+        - project
+      summary: Get a host of the project (PRO)
+      responses:
+        200:
+          description: Host, only projects of the user
+          schema:
+            $ref: "#/definitions/HostDetails"
+
+  /project/{project_id}/hosts/{host_id}/tasks:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/host_id"
+    get:
+      tags:
+        - project
+      summary: Get project tasks of the host (PRO)
+      responses:
+        200:
+          description: Tasks newest first, query count and before; X-Has-Next header
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/HostTask"
+
+  /hosts:
+    get:
+      summary: Get hosts of all projects (PRO)
+      responses:
+        200:
+          description: Page of hosts, query search, status, not_seen_days, template_id, offset, count; X-Total-Count header
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Host"
+
+  /hosts/{host_id}:
+    parameters:
+      - $ref: "#/parameters/host_id"
+    get:
+      summary: Get a host (PRO)
+      responses:
+        200:
+          description: Host
+          schema:
+            $ref: "#/definitions/HostDetails"
+
+  /hosts/{host_id}/tasks:
+    parameters:
+      - $ref: "#/parameters/host_id"
+    get:
+      summary: Get tasks of the host (PRO)
+      responses:
+        200:
+          description: Tasks newest first, query count and before; X-Has-Next header
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/HostTask"
+
   /apps:
     get:
       summary: Get apps
