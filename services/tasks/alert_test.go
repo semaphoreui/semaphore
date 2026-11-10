@@ -121,6 +121,12 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 func captureTelegramAlertText(t *testing.T, tr *TaskRunner) string {
 	t.Helper()
 
+	return captureTelegramAlertTextWithWebHost(t, tr, "http://semaphore.example.com:3001")
+}
+
+func captureTelegramAlertTextWithWebHost(t *testing.T, tr *TaskRunner, webHost string) string {
+	t.Helper()
+
 	prevConfig := util.Config
 	prevTransport := http.DefaultTransport
 	defer func() {
@@ -129,7 +135,7 @@ func captureTelegramAlertText(t *testing.T, tr *TaskRunner) string {
 	}()
 
 	util.Config = &util.ConfigType{
-		WebHost:       "http://semaphore.example.com:3001",
+		WebHost:       webHost,
 		TelegramAlert: true,
 		TelegramChat:  "100",
 		TelegramToken: "token",
@@ -274,4 +280,28 @@ func TestAlertInfos_Author(t *testing.T) {
 
 		assert.Equal(t, "schedule", author)
 	})
+}
+
+// Telegram rejects the whole message when href is not an absolute URL.
+func TestSendTelegramAlert_NoAbsoluteTaskURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		webHost string
+	}{
+		{"web host unset", ""},
+		{"web host is a path", "/semaphore"},
+		{"web host without scheme", "semaphore.example.com:3001"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			text := captureTelegramAlertTextWithWebHost(t, newScheduledAlertTaskRunner(), tt.webHost)
+
+			assert.Equal(t,
+				"<code>Funding stop</code>\n"+
+					"#310 <b>✅ SUCCESS</b>\n"+
+					"by schedule Funding stop",
+				text,
+			)
+		})
+	}
 }
