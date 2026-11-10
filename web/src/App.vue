@@ -537,6 +537,20 @@
                 </v-list-item>
 
                 <v-list-item
+                  key="hosts"
+                  to="/hosts"
+                  :active="isRouteActive('/hosts')"
+                  v-if="isPro && canManageSystem"
+                  data-testid="sidebar-userMenu-hosts"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-server</v-icon>
+                  </template>
+
+                  {{ $t('hosts') }}
+                </v-list-item>
+
+                <v-list-item
                   key="cluster"
                   to="/cluster"
                   :active="isRouteActive('/cluster')"
@@ -1573,6 +1587,13 @@ export default {
       }
 
       if (this.isPro && this.project.type === '' && canRead) {
+        items.push({
+          key: 'hosts',
+          icon: 'mdi-server',
+          title: this.$t('hosts'),
+          to: `${base}/hosts`,
+          testId: 'sidebar-hosts',
+        });
         items.push({
           key: 'runners',
           icon: 'mdi-cogs',
