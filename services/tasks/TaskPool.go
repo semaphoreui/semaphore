@@ -644,6 +644,16 @@ func (p *TaskPool) StoreRemoteTaskOutputs(tsk *TaskRunner, document string) erro
 	return nil
 }
 
+// StoreTaskHosts persists the per-host stats document of a task.
+func (p *TaskPool) StoreTaskHosts(tsk *TaskRunner, document string) error {
+	hosts, err := parseHostsDocument(document, tsk.Task.ProjectID, tsk.Task.ID)
+	if err != nil {
+		return err
+	}
+
+	return p.ansibleTaskRepo.ReplaceAnsibleTaskHosts(tsk.Task.ProjectID, tsk.Task.ID, hosts)
+}
+
 // refreshTaskStatusFromDB updates tsk with the persisted task row. In HA mode
 // the in-memory pool can be stale after another node finalizes the task.
 func (p *TaskPool) refreshTaskStatusFromDB(tsk *TaskRunner) {
