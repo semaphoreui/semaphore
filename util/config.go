@@ -1103,7 +1103,7 @@ func (conf *ConfigType) GetSSHAgentSocketsDir(projectID *int) string {
 	if projectID == nil {
 		return base
 	}
-	return path.Join(base, fmt.Sprintf("project_%d", *projectID))
+	return filepath.Join(base, fmt.Sprintf("project_%d", *projectID))
 }
 
 func (conf *ConfigType) GetProjectTmpFile(projectID int, filename string) string {
