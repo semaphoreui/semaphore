@@ -24,3 +24,7 @@ func NewGlobalRoleStore(store db.Store) db.GlobalRoleStore {
 func NewRoleMappingStore(store db.Store) db.RoleMappingStore {
 	return &sql.RoleMappingStoreImpl{}
 }
+
+func NewHostRepository(store db.Store) db.HostRepository {
+	return &sql.HostStoreImpl{}
+}
