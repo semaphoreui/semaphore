@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -67,6 +68,10 @@ type LocalExecutor struct {
 	// outputs is the document to store on the task, set by Run when the task
 	// succeeded and produced outputs.
 	outputs *string
+
+	hostsCapture *hostsCapture
+	// hosts is the host stats document of an Ansible task, set by Run.
+	hosts *string
 
 	// extraVarsFile is the YAML file the extra vars of an Ansible task are
 	// passed through, secretVarsFile the vault-encrypted one holding the
@@ -847,6 +852,8 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		TemplateParams:  t.preparedTplParams,
 		StopCh:          t.stopCh,
 	})
+	// A failed playbook still reaches its stats, so they are read regardless.
+	t.collectHosts()
 	if err != nil {
 		return err
 	}
@@ -859,6 +866,54 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 // stores it before it marks the task successful.
 func (t *LocalExecutor) Outputs() *string {
 	return t.outputs
+}
+
+// Hosts returns the host stats document of an Ansible task, or nil when the
+// playbook did not reach its stats.
+func (t *LocalExecutor) Hosts() *string {
+	return t.hosts
+}
+
+// beginHosts creates the host stats file of an Ansible task and returns the
+// environment variables that load the callback plugin writing it. A failure
+// only loses the stats: the task runs without them.
+func (t *LocalExecutor) beginHosts(env []string) []string {
+	if t.Template.App != db.AppAnsible {
+		return nil
+	}
+
+	capture, err := beginHostsCapture(util.Config.GetProjectTmpDir(t.Template.ProjectID), t.Task.ID)
+	if err != nil {
+		t.Log("Host stats will not be captured: " + err.Error())
+		return nil
+	}
+
+	dir, err := capture.CallbackDir()
+	if err != nil {
+		capture.Close()
+		t.Log("Host stats will not be captured: " + err.Error())
+		return nil
+	}
+
+	t.hostsCapture = capture
+
+	return append(capture.Env(), ansibleCallbackPluginsEnv+"="+t.ansibleCallbackPlugins(env, dir))
+}
+
+// collectHosts reads the host stats after the app has finished. A broken
+// document never fails the task: nothing downstream depends on it.
+func (t *LocalExecutor) collectHosts() {
+	if t.hostsCapture == nil || t.IsKilled() {
+		return
+	}
+
+	document, err := t.hostsCapture.Read()
+	if err != nil {
+		t.Log("Host stats were not captured: " + err.Error())
+		return
+	}
+
+	t.hosts = document
 }
 
 // beginOutputs creates the outputs file of a workflow task and returns the
@@ -891,9 +946,10 @@ func (t *LocalExecutor) beginOutputs(env []string) (res []string, err error) {
 const ansibleCallbackPluginsEnv = "ANSIBLE_CALLBACK_PLUGINS"
 
 // ansibleCallbackPlugins returns the ANSIBLE_CALLBACK_PLUGINS value that adds
-// dir to the callback plugin path. The variable replaces Ansible's whole path,
-// so the value keeps what the task would have had without it: the value already
-// set for the task, or else Ansible's default path.
+// dir to the callback plugin path. The variable replaces Ansible's whole path
+// and beats ansible.cfg, so the value keeps what the task would have had
+// without it: the value set for the task, callback_plugins of its ansible.cfg,
+// or else Ansible's default path.
 func (t *LocalExecutor) ansibleCallbackPlugins(env []string, dir string) string {
 	current := ""
 	for _, e := range env {
@@ -905,6 +961,9 @@ func (t *LocalExecutor) ansibleCallbackPlugins(env []string, dir string) string 
 		current = db_lib.BaseEnvironmentVar(ansibleCallbackPluginsEnv)
 	}
 	if current == "" {
+		current = t.ansibleCfgCallbackPlugins(env)
+	}
+	if current == "" {
 		ansibleHome := "~/.ansible"
 		if util.Config.HomeDirMode == util.HomeDirModeTemplateDir {
 			ansibleHome = filepath.Join(t.Repository.GetHomePath(t.Template.ID), ".ansible")
@@ -914,6 +973,92 @@ func (t *LocalExecutor) ansibleCallbackPlugins(env []string, dir string) string 
 	}
 
 	return current + string(os.PathListSeparator) + dir
+}
+
+// ansibleCfgCallbackPlugins returns callback_plugins of the ansible.cfg that
+// Ansible would load for the task, with its entries made absolute the way
+// Ansible does it. It returns "" when there is no such value.
+func (t *LocalExecutor) ansibleCfgCallbackPlugins(env []string) string {
+	wd := t.Repository.GetFullPath(t.Template.ID)
+	if t.Template.WorkingDirectory != nil {
+		wd = filepath.Join(wd, *t.Template.WorkingDirectory)
+	}
+	home := os.Getenv("HOME")
+	if util.Config.HomeDirMode == util.HomeDirModeProjectHome {
+		home = util.Config.GetProjectTmpDir(t.Template.ProjectID)
+	}
+	resolve := func(path, base string) string {
+		if path == "~" || strings.HasPrefix(path, "~/") {
+			return home + path[1:]
+		}
+		if filepath.IsAbs(path) {
+			return path
+		}
+		return filepath.Join(base, path)
+	}
+
+	var candidates []string
+	ansibleConfig := db_lib.BaseEnvironmentVar("ANSIBLE_CONFIG")
+	for _, e := range env {
+		if v, ok := strings.CutPrefix(e, "ANSIBLE_CONFIG="); ok {
+			ansibleConfig = v
+		}
+	}
+	if ansibleConfig != "" {
+		ansibleConfig = resolve(ansibleConfig, wd)
+		if info, err := os.Stat(ansibleConfig); err == nil && info.IsDir() {
+			ansibleConfig = filepath.Join(ansibleConfig, "ansible.cfg")
+		}
+		candidates = append(candidates, ansibleConfig)
+	}
+	// Ansible ignores ansible.cfg in a world-writable working directory.
+	if info, err := os.Stat(wd); err == nil && info.Mode().Perm()&0o002 == 0 {
+		candidates = append(candidates, filepath.Join(wd, "ansible.cfg"))
+	}
+	if home != "" {
+		candidates = append(candidates, filepath.Join(home, ".ansible.cfg"))
+	}
+	candidates = append(candidates, "/etc/ansible/ansible.cfg")
+
+	var file *os.File
+	for _, path := range candidates {
+		var err error
+		if file, err = os.Open(path); err == nil {
+			break
+		}
+	}
+	if file == nil {
+		return ""
+	}
+	defer file.Close() //nolint:errcheck
+
+	section, value := "", ""
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || line[0] == '#' || line[0] == ';' {
+			continue
+		}
+		if line[0] == '[' {
+			section = line[:strings.LastIndex(line, "]")+1]
+			continue
+		}
+		i := strings.IndexAny(line, "=:")
+		if section != "[defaults]" || i < 0 || !strings.EqualFold(strings.TrimSpace(line[:i]), "callback_plugins") {
+			continue
+		}
+		value, _, _ = strings.Cut(line[i+1:], " ;")
+		value = strings.TrimSpace(value)
+	}
+	if scanner.Err() != nil || value == "" {
+		return ""
+	}
+
+	entries := filepath.SplitList(value)
+	for i, entry := range entries {
+		entries[i] = resolve(entry, filepath.Dir(file.Name()))
+	}
+	return strings.Join(entries, string(os.PathListSeparator))
 }
 
 // collectOutputs reads the outputs of a workflow task after its app has
@@ -1111,6 +1256,8 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 	}
 	environmentVariables = append(environmentVariables, outputsEnv...)
 
+	environmentVariables = append(environmentVariables, t.beginHosts(environmentVariables)...)
+
 	environmentVariables = append(environmentVariables, taskIdentityEnv(t.Task)...)
 
 	if t.Template.Type != db.TemplateTask {
@@ -1149,6 +1296,9 @@ func (t *LocalExecutor) Cleanup() {
 	t.destroyExtraVarsFiles()
 	if t.outputsCapture != nil {
 		t.outputsCapture.Close()
+	}
+	if t.hostsCapture != nil {
+		t.hostsCapture.Close()
 	}
 	if t.App != nil {
 		t.App.Clear()
