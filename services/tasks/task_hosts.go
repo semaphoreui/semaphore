@@ -160,7 +160,8 @@ func parseHostsDocument(document string, projectID int, taskID int) ([]db.Ansibl
 			if !ok {
 				continue
 			}
-			if err := json.Unmarshal(raw, counter); err != nil || *counter < 0 {
+			// Unmarshal leaves the counter at zero for null without an error.
+			if err := json.Unmarshal(raw, counter); err != nil || *counter < 0 || string(raw) == "null" {
 				return nil, fmt.Errorf("hosts document: host %q: %s must be a non-negative integer", name, key)
 			}
 		}
