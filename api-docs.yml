@@ -1258,16 +1258,33 @@ definitions:
         type: boolean
         description: Whether the host is in the license count, set in the global list and card only
       last_template:
-        type: object
+        allOf:
+          - $ref: "#/definitions/HostTemplateRef"
         x-nullable: true
       templates:
         type: array
         items:
-          type: object
+          $ref: "#/definitions/HostTemplateRef"
       projects:
         type: array
         items:
-          type: object
+          $ref: "#/definitions/HostProjectRef"
+
+  HostTemplateRef:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+
+  HostProjectRef:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
 
   HostDetails:
     allOf:
@@ -4725,9 +4742,42 @@ paths:
       tags:
         - project
       summary: Get hosts of the project (PRO)
+      parameters:
+        - name: search
+          in: query
+          required: false
+          type: string
+          description: Part of the host name, case-insensitive
+        - name: status
+          in: query
+          required: false
+          type: string
+          enum: [failed, unreachable]
+          description: Only hosts whose last run ended with this status
+        - name: not_seen_days
+          in: query
+          required: false
+          type: integer
+          description: Only hosts no task reached for this many days
+        - name: template_id
+          in: query
+          required: false
+          type: integer
+          description: Only hosts the template ran on
+        - name: offset
+          in: query
+          required: false
+          type: integer
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 25 by default, 200 at most
       responses:
+        400:
+          description: Invalid query parameter
         200:
-          description: Page of hosts with the numbers of the project, query search, status, not_seen_days, template_id, offset, count; X-Total-Count header
+          description: Page of hosts with the numbers of the project, X-Total-Count header holds the total
           schema:
             type: array
             items:
@@ -4755,9 +4805,22 @@ paths:
       tags:
         - project
       summary: Get project tasks of the host (PRO)
+      parameters:
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 20 by default, 200 at most
+        - name: before
+          in: query
+          required: false
+          type: integer
+          description: Only tasks with an id below this one, for the next page
       responses:
+        400:
+          description: Invalid query parameter
         200:
-          description: Tasks newest first, query count and before; X-Has-Next header
+          description: Tasks newest first, X-Has-Next header says whether a next page exists
           schema:
             type: array
             items:
@@ -4766,9 +4829,37 @@ paths:
   /hosts:
     get:
       summary: Get hosts of all projects (PRO)
+      parameters:
+        - name: search
+          in: query
+          required: false
+          type: string
+          description: Part of the host name, case-insensitive
+        - name: status
+          in: query
+          required: false
+          type: string
+          enum: [failed, unreachable]
+          description: Only hosts whose last run ended with this status
+        - name: not_seen_days
+          in: query
+          required: false
+          type: integer
+          description: Only hosts no task reached for this many days
+        - name: offset
+          in: query
+          required: false
+          type: integer
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 25 by default, 200 at most
       responses:
+        400:
+          description: Invalid query parameter
         200:
-          description: Page of hosts, query search, status, not_seen_days, template_id, offset, count; X-Total-Count header
+          description: Page of hosts, X-Total-Count header holds the total
           schema:
             type: array
             items:
@@ -4790,9 +4881,22 @@ paths:
       - $ref: "#/parameters/host_id"
     get:
       summary: Get tasks of the host (PRO)
+      parameters:
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 20 by default, 200 at most
+        - name: before
+          in: query
+          required: false
+          type: integer
+          description: Only tasks with an id below this one, for the next page
       responses:
+        400:
+          description: Invalid query parameter
         200:
-          description: Tasks newest first, query count and before; X-Has-Next header
+          description: Tasks newest first, X-Has-Next header says whether a next page exists
           schema:
             type: array
             items:
