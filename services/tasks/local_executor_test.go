@@ -22,6 +22,23 @@ func setupExecutorConfig(t *testing.T) {
 	}
 }
 
+func TestGetTaskDetails_IncludesProjectAndTemplateID(t *testing.T) {
+	executor := LocalExecutor{
+		Task: db.Task{ID: 42},
+		Template: db.Template{
+			ID:        7,
+			ProjectID: 3,
+		},
+	}
+
+	details := executor.getTaskDetails("alice", nil)
+
+	assert.Equal(t, 42, details["id"])
+	assert.Equal(t, 3, details["project_id"])
+	assert.Equal(t, 7, details["template_id"])
+	assert.Equal(t, "alice", details["username"])
+}
+
 func TestGetPlaybookArgs_UsesRepositoryRootedPaths(t *testing.T) {
 	setupExecutorConfig(t)
 
