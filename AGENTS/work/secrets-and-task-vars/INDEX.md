@@ -15,3 +15,4 @@ storages.
 | Picking up issue #2244 — survey defaults missing for scheduled, API-created or integration tasks | `schedule-survey-defaults.md` |
 | Touching `TaskRunner.populateTaskEnvironment` or `SurveyVar.DefaultValue` | `schedule-survey-defaults.md` |
 | Changing how a Variable Group secret is stored, linked to a Key Store key, resolved at task start, synced from a secret storage, backed up, or why deleting a linked key / an owning group is refused | `variable-group-secret-refs.md` |
+| Changing the order of writes when a Variable Group secret is saved or deleted, deleting an Access Key, or adding another writer of secret links — what a failed save may leave behind and why a key being deleted refuses links | `variable-group-secret-refs.md` |

@@ -110,7 +110,9 @@ only when the task touches that topic. Keep this file under 150 lines.
   check a generated extra-vars file with the real loader, not yaml.v3 (`extra_vars_ansible_test.go`).
 - Variable Group secrets are links (`project__environment_secret` → `string` access key) since 2.20.19;
   `access_key.owner`/`environment_id` only mark ownership. A `key_id` FK without `on delete` blocks a group
-  delete whose owned key another group links — `EnvironmentService.Delete` refuses first. Details in
+  delete whose owned key another group links — `EnvironmentService.Delete` refuses first. A link write
+  must go through `CreateEnvironmentSecret` / `UpdateEnvironmentSecret`: they refuse a key whose deletion is
+  claimed (`access_key.delete_claim`), raw SQL would not. Details in
   `AGENTS/work/secrets-and-task-vars/variable-group-secret-refs.md`.
 - A new per-task execution step (hooks, extra commands) must be implemented twice: in
   `services/tasks/local_executor.go` (server and runner local executor share it) and in the Pro
