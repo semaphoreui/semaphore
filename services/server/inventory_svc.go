@@ -90,34 +90,25 @@ func (s *InventoryServiceImpl) fillInventory(inventory *db.Inventory) (err error
 // decrypted token. It runs on the server for a task about to start.
 // McpServer.Token is not serialized: a remote runner receives the token only
 // as a decrypted access key of the runner state (RunnerController).
+//
+// A server and its token come from one read: read apart, an inventory edit
+// in between would send the server's new token to its old URL.
 func (s *InventoryServiceImpl) fillMcpServers(inventory *db.Inventory) error {
-	servers, err := s.inventoryRepo.GetMcpServers(inventory.ProjectID, inventory.ID)
+	servers, err := s.inventoryRepo.GetMcpServersWithTokens(inventory.ProjectID, inventory.ID)
 	if err != nil {
 		return err
-	}
-
-	keys, err := s.inventoryRepo.GetMcpServerTokens(inventory.ProjectID, inventory.ID)
-	if err != nil {
-		return err
-	}
-
-	tokens := make(map[int]db.AccessKey, len(keys))
-	for _, key := range keys {
-		if key.McpID == nil {
-			continue
-		}
-		if err = s.encryptionService.DeserializeSecret(&key); err != nil {
-			return fmt.Errorf("token of mcp server %s: %w", key.Name, err)
-		}
-		tokens[*key.McpID] = key
 	}
 
 	enabled := make([]db.McpServer, 0, len(servers))
-	for _, server := range servers {
+	for _, item := range servers {
+		server := item.Server
 		if !server.Enabled {
 			continue
 		}
-		if key, ok := tokens[server.ID]; ok {
+		if key := item.Token; key != nil {
+			if err = s.encryptionService.DeserializeSecret(key); err != nil {
+				return fmt.Errorf("token of mcp server %s: %w", server.Name, err)
+			}
 			server.Token = key.String
 			server.TokenKeyID = &key.ID
 		}

@@ -37,6 +37,15 @@ type McpServer struct {
 	TokenKeyID *int `db:"-" json:"token_key_id,omitempty" backup:"-"`
 }
 
+// McpServerWithToken is an MCP server together with the access key of its
+// token, as they were at one moment: both come from one statement, so the
+// token always belongs to the URL next to it.
+type McpServerWithToken struct {
+	Server McpServer
+	// Token is nil for a server without a token. The secret is still encrypted.
+	Token *AccessKey
+}
+
 // McpTokenOperation is what to do with the token of an MCP server.
 type McpTokenOperation string
 
