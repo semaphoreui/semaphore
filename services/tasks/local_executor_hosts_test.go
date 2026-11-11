@@ -56,7 +56,7 @@ func TestLocalExecutor_PrepareAddsHostsPlugin(t *testing.T) {
 	err := executor.Prepare("", nil, "")
 
 	require.NoError(t, err)
-	files := envValues(executor.preparedEnv, hostsFileEnv)
+	files := envValues(executor.preparedEnv, HostsFileEnv)
 	require.Len(t, files, 1)
 	assert.True(t, strings.HasPrefix(files[0], util.Config.GetProjectTmpDir(3)+string(os.PathSeparator)))
 	plugins := envValues(executor.preparedEnv, ansibleCallbackPluginsEnv)
@@ -71,7 +71,7 @@ func TestLocalExecutor_PrepareAddsHostsPlugin(t *testing.T) {
 		err := executor.Prepare("", nil, "")
 
 		require.NoError(t, err)
-		assert.Empty(t, envValues(executor.preparedEnv, hostsFileEnv))
+		assert.Empty(t, envValues(executor.preparedEnv, HostsFileEnv))
 	})
 }
 
@@ -120,7 +120,7 @@ func TestLocalExecutor_beginHostsError(t *testing.T) {
 func TestLocalExecutor_RunCollectsHostsOfFailedTask(t *testing.T) {
 	document := `{"version":1,"hosts":{"a":{"failed":1}}}`
 	executor := newHostsExecutor(t, db.AppAnsible, func(env []string) error {
-		files := envValues(env, hostsFileEnv)
+		files := envValues(env, HostsFileEnv)
 		require.Len(t, files, 1)
 		if err := os.WriteFile(files[0], []byte(document), 0o600); err != nil {
 			return err

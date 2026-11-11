@@ -51,7 +51,7 @@ func TestHostsCapture(t *testing.T) {
 	dir := t.TempDir()
 	c, err := beginHostsCapture(dir, 42)
 	require.NoError(t, err)
-	path := strings.TrimPrefix(c.Env()[0], hostsFileEnv+"=")
+	path := strings.TrimPrefix(c.Env()[0], HostsFileEnv+"=")
 	assert.Equal(t, dir, filepath.Dir(filepath.Dir(path)))
 	info, err := os.Stat(path)
 	require.NoError(t, err)

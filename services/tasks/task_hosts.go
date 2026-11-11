@@ -17,7 +17,16 @@ import (
 //go:embed callback_plugins/*.py
 var hostsCallbacks embed.FS
 
-const hostsFileEnv = "SEMAPHORE_HOSTS_FILE"
+const HostsFileEnv = "SEMAPHORE_HOSTS_FILE"
+
+// HostsCallbackPlugin returns the callback plugin source embedded in the binary.
+func HostsCallbackPlugin() []byte {
+	data, err := hostsCallbacks.ReadFile("callback_plugins/semaphore_hosts.py")
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
 
 const hostsFileName = "hosts.json"
 
@@ -54,7 +63,7 @@ func beginHostsCapture(dir string, taskID int) (*hostsCapture, error) {
 }
 
 func (c *hostsCapture) Env() []string {
-	return []string{hostsFileEnv + "=" + c.file}
+	return []string{HostsFileEnv + "=" + c.file}
 }
 
 // CallbackDir extracts the embedded callback plugin next to the hosts file.
