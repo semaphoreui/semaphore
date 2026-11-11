@@ -45,175 +45,288 @@
       data-testid="mcpInventoryForm-runnerTag"
     ></v-autocomplete>
 
-    <div class="d-flex align-center McpInventoryForm__subheader">
+    <div class="McpInventoryForm__subheader d-flex align-center text-medium-emphasis">
       <span data-testid="mcpInventoryForm-serversTitle">{{ $t('mcpServers') }}</span>
+
       <v-spacer />
+
       <v-btn
+        icon
         variant="text"
-        prepend-icon="mdi-plus"
+        :title="$t('mcpAddServer')"
+        :aria-label="$t('mcpAddServer')"
         :disabled="formSaving"
         @click="addServer()"
         data-testid="mcpInventoryForm-addServer"
-      >{{ $t('mcpAddServer') }}</v-btn>
-    </div>
-
-    <div
-      v-if="servers.length === 0"
-      class="text-medium-emphasis McpInventoryForm__empty"
-      data-testid="mcpInventoryForm-noServers"
-    >{{ $t('mcpNoServers') }}</div>
-
-    <div
-      v-for="(server, index) in servers"
-      :key="server.key"
-      class="McpInventoryForm__server"
-      data-testid="mcpInventoryForm-server"
-    >
-      <v-switch
-        v-model="server.enabled"
-        class="McpInventoryForm__enabled"
-        color="primary"
-        density="compact"
-        hide-details
-        :title="$t('enabled')"
-        :aria-label="$t('enabled')"
-        :disabled="formSaving"
-        data-testid="mcpInventoryForm-serverEnabled"
-      ></v-switch>
-
-      <v-text-field
-        v-model.trim="server.name"
-        class="McpInventoryForm__name"
-        :label="$t('name')"
-        :rules="nameRules"
-        :disabled="formSaving"
-        variant="outlined"
-        density="compact"
-        hide-details="auto"
-        autocomplete="off"
-        data-testid="mcpInventoryForm-serverName"
-      ></v-text-field>
-
-      <v-text-field
-        v-model.trim="server.url"
-        class="McpInventoryForm__url"
-        label="URL"
-        :rules="urlRules"
-        placeholder="https://mcp.example.com/mcp"
-        :disabled="formSaving"
-        variant="outlined"
-        density="compact"
-        hide-details="auto"
-        autocomplete="off"
-        data-testid="mcpInventoryForm-serverUrl"
-      ></v-text-field>
-
-      <!-- The stored token is never shown: the field takes a new one, "new-password" keeps the
-           browser from filling in the password of the login. -->
-      <v-text-field
-        v-model="server.token"
-        class="McpInventoryForm__token"
-        type="password"
-        autocomplete="new-password"
-        :label="$t('mcpToken')"
-        :placeholder="tokenPlaceholder(server)"
-        persistent-placeholder
-        :readonly="server.removeToken"
-        :disabled="formSaving"
-        variant="outlined"
-        density="compact"
-        hide-details
-        :data-state="tokenState(server)"
-        data-testid="mcpInventoryForm-serverToken"
       >
-        <template v-if="server.hasToken" v-slot:append-inner>
-          <v-btn
-            icon
-            size="x-small"
-            variant="text"
-            :title="server.removeToken ? $t('mcpTokenKeep') : $t('mcpTokenRemove')"
-            :aria-label="server.removeToken ? $t('mcpTokenKeep') : $t('mcpTokenRemove')"
-            @click="toggleRemoveToken(server)"
-            data-testid="mcpInventoryForm-serverTokenRemove"
-          >
-            <v-icon>{{ server.removeToken ? 'mdi-undo' : 'mdi-key-remove' }}</v-icon>
-          </v-btn>
-        </template>
-      </v-text-field>
-
-      <v-btn
-        class="McpInventoryForm__remove"
-        icon
-        size="small"
-        variant="text"
-        :title="$t('mcpRemoveServer')"
-        :aria-label="$t('mcpRemoveServer')"
-        :disabled="formSaving"
-        @click="removeServer(index)"
-        data-testid="mcpInventoryForm-serverRemove"
-      >
-        <v-icon>mdi-delete</v-icon>
+        <v-icon> mdi-plus </v-icon>
       </v-btn>
     </div>
 
-    <div
-      class="text-body-small text-medium-emphasis mt-3"
-      data-testid="mcpInventoryForm-hint"
-    >{{ $t('mcpServersHint') }}</div>
+    <v-data-table
+      :items="servers"
+      :items-per-page="-1"
+      item-value="key"
+      class="elevation-1 FieldTable McpInventoryForm__table"
+      hide-default-footer
+      :headers="serverTableHeaders"
+      hide-default-header
+      data-testid="mcpInventoryForm-servers"
+      :data-state="servers.length === 0 ? 'empty' : 'ready'"
+    >
+      <template v-slot:no-data>
+        <span data-testid="mcpInventoryForm-noServers">{{ $t('mcpNoServers') }}</span>
+      </template>
+
+      <template v-slot:item="props">
+        <tr class="McpInventoryForm__server" data-testid="mcpInventoryForm-server">
+          <td class="pa-1 McpInventoryForm__enabled">
+            <div class="McpInventoryForm__control">
+              <v-switch
+                v-model="props.item.enabled"
+                color="primary"
+                density="compact"
+                hide-details
+                :title="$t('enabled')"
+                :aria-label="$t('enabled')"
+                :disabled="formSaving"
+                data-testid="mcpInventoryForm-serverEnabled"
+              ></v-switch>
+            </div>
+          </td>
+
+          <td class="pa-1 McpInventoryForm__name">
+            <v-text-field
+              v-model.trim="props.item.name"
+              variant="solo-inverted"
+              flat
+              density="comfortable"
+              hide-details="auto"
+              class="McpInventoryForm__field"
+              :placeholder="$t('name')"
+              :aria-label="$t('name')"
+              :rules="nameRules"
+              :disabled="formSaving"
+              autocomplete="off"
+              data-testid="mcpInventoryForm-serverName"
+            ></v-text-field>
+          </td>
+
+          <td class="pa-1 McpInventoryForm__url">
+            <v-text-field
+              v-model.trim="props.item.url"
+              variant="solo-inverted"
+              flat
+              density="comfortable"
+              hide-details="auto"
+              class="McpInventoryForm__field"
+              placeholder="https://mcp.example.com/mcp"
+              aria-label="URL"
+              :rules="urlRules"
+              :disabled="formSaving"
+              autocomplete="off"
+              data-testid="mcpInventoryForm-serverUrl"
+            ></v-text-field>
+          </td>
+
+          <!-- The stored token is never shown: the field takes a new one, "new-password" keeps
+               the browser from filling in the password of the login. -->
+          <td class="pa-1 McpInventoryForm__token">
+            <v-text-field
+              v-model="props.item.token"
+              variant="solo-inverted"
+              flat
+              density="comfortable"
+              hide-details
+              class="McpInventoryForm__field masked-secret-input"
+              autocomplete="new-password"
+              :placeholder="tokenPlaceholder(props.item)"
+              :aria-label="$t('mcpToken')"
+              :readonly="props.item.removeToken"
+              :disabled="formSaving"
+              :data-state="tokenState(props.item)"
+              data-testid="mcpInventoryForm-serverToken"
+            >
+              <template v-if="props.item.hasToken" v-slot:append-inner>
+                <v-btn
+                  icon
+                  size="x-small"
+                  variant="text"
+                  :title="props.item.removeToken ? $t('mcpTokenKeep') : $t('mcpTokenRemove')"
+                  :aria-label="props.item.removeToken ? $t('mcpTokenKeep') : $t('mcpTokenRemove')"
+                  @click="toggleRemoveToken(props.item)"
+                  data-testid="mcpInventoryForm-serverTokenRemove"
+                >
+                  <v-icon>{{ props.item.removeToken ? 'mdi-undo' : 'mdi-close' }}</v-icon>
+                </v-btn>
+              </template>
+            </v-text-field>
+          </td>
+
+          <td class="McpInventoryForm__actions">
+            <div class="McpInventoryForm__control">
+              <v-icon
+                size="small"
+                class="pa-1 McpInventoryForm__remove"
+                :title="$t('mcpRemoveServer')"
+                :aria-label="$t('mcpRemoveServer')"
+                :disabled="formSaving"
+                @click="removeServer(props.item)"
+                data-testid="mcpInventoryForm-serverRemove"
+              >
+                mdi-delete
+              </v-icon>
+            </div>
+          </td>
+        </tr>
+      </template>
+    </v-data-table>
   </v-form>
 </template>
 <style lang="scss">
-// v-subheader of Vuetify 2, as the tables of the Variable Group form: a 48 px row of 14 px text.
+// The list of servers looks as the tables of the Variable Group form (EnvironmentForm.vue, "Extra
+// variables"): a subheader with the add button, then a borderless table of `solo-inverted` fields.
+
+// v-subheader of Vuetify 2: a 48 px row, 14 px text in the letter spacing of the card text.
 .McpInventoryForm__subheader {
-  height: 48px;
+  height: 30px;
   font-size: .875rem;
+  padding-bottom: 10px;
+  font-weight: 400;
   letter-spacing: .0071428571em;
 }
 
-.McpInventoryForm__empty {
-  padding: 8px 0 16px;
+// The grey sheet with the rounded corners of the Vuetify 2 one.
+.McpInventoryForm__table.v-table {
+  background: #8585850f;
+  border-radius: 4px;
 }
 
-// One server per row: the switch, the name, the URL (the widest), the token and the delete
-// button; on a narrow dialog the URL and the token go under the name.
-.McpInventoryForm__server {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.8fr) minmax(0, 1.4fr) auto;
-  grid-template-areas: "enabled name url token remove";
-  column-gap: 8px;
-  align-items: start;
-  margin-bottom: 12px;
+// A row: the switch, the name, the URL (the widest), the token and the delete icon. A cell is
+// aligned to the top, so a validation message under one field does not move the others.
+.McpInventoryForm__server > td {
+  vertical-align: top;
 }
 
+// The switch alone in its cell: without the top offset of a Vuetify 2 form control and the gap
+// to a label it does not have.
 .McpInventoryForm__enabled {
-  grid-area: enabled;
+  width: 59px;
+
+  .v-switch {
+    flex: none;
+    margin: 0 0 0 8px;
+    padding-top: 0;
+  }
+
+  .v-switch.v-input .v-selection-control__wrapper {
+    margin-inline-end: 0;
+  }
+}
+
+.McpInventoryForm__actions {
+  width: 1px;
 }
 
 .McpInventoryForm__name {
-  grid-area: name;
-}
-
-.McpInventoryForm__url {
-  grid-area: url;
+  width: 20%;
 }
 
 .McpInventoryForm__token {
-  grid-area: token;
+  width: 30%;
 }
 
-.McpInventoryForm__remove.v-btn {
-  grid-area: remove;
-  margin-top: 4px;
+// The switch and the delete icon, centred against the 48 px field of their row.
+.McpInventoryForm__control {
+  display: flex;
+  align-items: center;
+  height: 48px;
 }
 
+.McpInventoryForm__actions > .McpInventoryForm__control {
+  margin: 4px 0;
+}
+
+// The `solo-inverted` fields of Vuetify 2 (48 px) — grey at rest, dark with white text in focus
+// (light theme); the dark theme inverts it. A field without a border shows a failed rule by a
+// thin ring in the error colour.
+.McpInventoryForm__field {
+  .v-field.v-theme--light {
+    background: rgba(0, 0, 0, .06);
+
+    &:not(.v-field--focused) > .v-field__field > .v-field__input {
+      color: rgba(0, 0, 0, .87);
+    }
+
+    &.v-field--focused {
+      background: #424242;
+      color: #fff;
+    }
+  }
+
+  .v-field.v-theme--dark {
+    background: rgba(255, 255, 255, .16);
+
+    &.v-field--focused {
+      background: #fff;
+      color: rgba(0, 0, 0, .87);
+    }
+  }
+
+  .v-field.v-field--error {
+    box-shadow: inset 0 0 0 1px rgb(var(--v-theme-error));
+  }
+}
+
+// The delete icon of a row in the icon colour of the theme (`.theme--light.v-icon`: .54); its
+// padding goes around the 16 px glyph (a 24 px box), as on the content-box icon of Vuetify 2.
+.McpInventoryForm__remove {
+  box-sizing: content-box;
+}
+
+.McpInventoryForm__remove.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.McpInventoryForm__remove.v-theme--dark {
+  color: #fff;
+}
+
+// On a narrow dialog three fields do not fit in a row: the URL and the token go under the name.
 @media (max-width: 599px) {
   .McpInventoryForm__server {
+    display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
-      "enabled name remove"
+      "enabled name actions"
       ". url ."
       ". token .";
-    row-gap: 8px;
+    padding-bottom: 8px;
+
+    > td {
+      width: auto;
+      height: auto;
+    }
+  }
+
+  .McpInventoryForm__enabled {
+    grid-area: enabled;
+  }
+
+  .McpInventoryForm__name {
+    grid-area: name;
+  }
+
+  .McpInventoryForm__url {
+    grid-area: url;
+  }
+
+  .McpInventoryForm__token {
+    grid-area: token;
+  }
+
+  .McpInventoryForm__actions {
+    grid-area: actions;
   }
 }
 </style>
@@ -242,6 +355,14 @@ export default {
     return {
       servers: [],
       nextServerKey: 1,
+      // Columns of the servers table (its rows come from the item slot; no header is shown).
+      serverTableHeaders: [
+        { key: 'enabled', sortable: false },
+        { key: 'name' },
+        { key: 'url' },
+        { key: 'token' },
+        { key: 'actions', sortable: false },
+      ],
       runnerTags: null,
     };
   },
@@ -300,8 +421,11 @@ export default {
       this.nextServerKey += 1;
     },
 
-    removeServer(index) {
-      this.servers.splice(index, 1);
+    removeServer(server) {
+      const i = this.servers.indexOf(server);
+      if (i > -1) {
+        this.servers.splice(i, 1);
+      }
     },
 
     toggleRemoveToken(server) {
@@ -328,7 +452,8 @@ export default {
         case 'set':
           return this.$t('mcpTokenSet');
         default:
-          return this.$t('mcpTokenOptional');
+          // The fields of the table have no label: an empty one is named by its placeholder.
+          return this.$t('mcpToken');
       }
     },
 

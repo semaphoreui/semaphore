@@ -63,11 +63,13 @@ describe('McpInventoryForm.vue', () => {
     rows(wrapper).forEach((row) => {
       const token = field(row, 'Token');
       expect(token.element.value).to.equal('');
-      expect(token.attributes('type')).to.equal('password');
+      // Masked by the class (-webkit-text-security), as the other secret fields are.
+      expect(row.find('[data-testid="mcpInventoryForm-serverToken"]').classes())
+        .to.include('masked-secret-input');
       expect(token.attributes('autocomplete')).to.equal('new-password');
     });
     expect(field(rows(wrapper)[0], 'Token').attributes('placeholder')).to.equal('mcpTokenSet');
-    expect(field(rows(wrapper)[2], 'Token').attributes('placeholder')).to.equal('mcpTokenOptional');
+    expect(field(rows(wrapper)[2], 'Token').attributes('placeholder')).to.equal('mcpToken');
     // A server without a token has nothing to remove.
     expect(rows(wrapper)[2].find('[data-testid="mcpInventoryForm-serverTokenRemove"]').exists()).to.equal(false);
   });
