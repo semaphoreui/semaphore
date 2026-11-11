@@ -46,7 +46,7 @@
     "eslint-config-prettier": "^10.0.0",
     "eslint-import-resolver-alias": "1.1.2",
     "eslint-plugin-import": "2.32.0",
-    "eslint-plugin-vue": "10.12.0",
+    "eslint-plugin-vue": "10.12.1",
     "eslint-plugin-vuejs-accessibility": "2.6.3",
     "eslint-plugin-vuetify": "2.7.3",
     "glob-parent": ">=5.1.2",
