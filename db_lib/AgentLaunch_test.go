@@ -43,6 +43,9 @@ func TestNewAgentLaunch_Claude(t *testing.T) {
 	assert.Equal(t, "claude", l.Command)
 	assert.Equal(t, []string{
 		"-p",
+		"--output-format=stream-json",
+		"--verbose",
+		"--include-partial-messages",
 		"--mcp-config=/home/agent/mcp.json",
 		"--strict-mcp-config",
 		"--no-session-persistence",
@@ -51,7 +54,7 @@ func TestNewAgentLaunch_Claude(t *testing.T) {
 	assert.Empty(t, l.TrailingArgs)
 	assert.Equal(t, []string{"CLAUDE_CONFIG_DIR=/home/agent/claude"}, l.Env)
 	assert.Equal(t, []string{"claude"}, l.Dirs)
-	assert.Equal(t, []string{"ANTHROPIC_API_KEY"}, l.APIKeyVars)
+	assert.Equal(t, []string{"ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"}, l.APIKeyVars)
 	assert.Empty(t, l.APIKeyAlias)
 
 	require.Len(t, l.Files, 1)

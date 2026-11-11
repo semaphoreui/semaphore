@@ -131,7 +131,7 @@ func (t *AgentApp) Run(args LocalAppRunningArgs) error {
 
 	t.Logger.Logf("Running %s with %d MCP server(s)", t.Name, launch.Servers)
 
-	finishLog := logCmdMasked(t.Logger, cmd, launch.Secrets)
+	finishLog := logAgentCmd(t.Logger, cmd, launch.NewOutput())
 	defer finishLog()
 
 	err = runCommand(cmd, args.StopCh, t.Logger)
@@ -193,17 +193,10 @@ func (t *AgentApp) warnOnMissingAPIKey(env []string, apiKeyVars []string) {
 		t.Name, strings.Join(apiKeyVars, " or "))
 }
 
-// logCmdMasked logs the command's output line by line with every secret
-// replaced, so a token the agent prints does not reach the task log.
-func logCmdMasked(logger task_logger.Logger, cmd *exec.Cmd, secrets []string) func() {
-	pairs := make([]string, 0, len(secrets)*2)
-	for _, s := range secrets {
-		if s != "" {
-			pairs = append(pairs, s, maskedSecret)
-		}
-	}
-	replacer := strings.NewReplacer(pairs...)
-
+// logAgentCmd logs the command's output as it is printed, line by line,
+// through output, which masks the secrets and makes log lines of the events a
+// CLI reports its progress in.
+func logAgentCmd(logger task_logger.Logger, cmd *exec.Cmd, output AgentOutput) func() {
 	reader, writer := io.Pipe()
 	cmd.Stdout = writer
 	cmd.Stderr = writer
@@ -217,7 +210,12 @@ func logCmdMasked(logger task_logger.Logger, cmd *exec.Cmd, secrets []string) fu
 		const maxCapacity = 10 * 1024 * 1024
 		scanner.Buffer(make([]byte, 64*1024), maxCapacity)
 		for scanner.Scan() {
-			logger.Log(replacer.Replace(scanner.Text()))
+			for _, line := range output.Lines(scanner.Text()) {
+				logger.Log(line)
+			}
+		}
+		for _, line := range output.Flush() {
+			logger.Log(line)
 		}
 		if err := scanner.Err(); err != nil {
 			logger.Logf("Failed to read the agent output: %s", err.Error())
