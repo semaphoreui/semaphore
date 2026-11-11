@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"errors"
@@ -426,6 +427,13 @@ func (d *SqlDb) GetDialect() string {
 
 func (d *SqlDb) Close() {
 	d.connection.Close()
+}
+
+func (d *SqlDb) Ping(ctx context.Context) error {
+	if d.Sql() == nil || d.Sql().Db == nil {
+		return errors.New("database not connected")
+	}
+	return d.Sql().Db.PingContext(ctx)
 }
 
 func getQueryForParams(q squirrel.SelectBuilder, prefix string, props db.ObjectProps, params db.RetrieveQueryParams) (res squirrel.SelectBuilder, err error) {
