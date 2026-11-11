@@ -27,6 +27,7 @@
         icon
         variant="text"
         class="mr-4"
+        :aria-label="$t('host_back_to_projects')"
         data-testid="host-backToProjects"
         @click="returnToProjects()"
       >

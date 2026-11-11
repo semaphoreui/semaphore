@@ -6,6 +6,7 @@
         icon
         variant="text"
         class="mr-4"
+        :aria-label="$t('host_back_to_projects')"
         data-testid="hosts-back"
         @click="returnToProjects()"
       >
@@ -196,6 +197,7 @@
                 v-bind="props"
                 icon
                 variant="text"
+                :aria-label="$t('host_decommission')"
                 data-testid="hosts-decommission"
                 @click="askDecommission(item)"
               >
@@ -227,6 +229,7 @@
           :disabled="loading || offset === 0"
           icon
           variant="text"
+          :aria-label="$t('host_prev_page')"
           data-testid="hosts-prevPage"
           @click="setList({ offset: Math.max(0, offset - count) })"
         >
@@ -241,6 +244,7 @@
           :disabled="loading || offset + count >= total"
           icon
           variant="text"
+          :aria-label="$t('host_next_page')"
           data-testid="hosts-nextPage"
           @click="setList({ offset: offset + count })"
         >

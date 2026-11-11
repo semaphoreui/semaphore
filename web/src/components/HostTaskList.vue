@@ -62,6 +62,7 @@
         :disabled="loading || pageIndex === 0"
         icon
         variant="text"
+        :aria-label="$t('host_prev_page')"
         data-testid="hostTasks-prevPage"
         @click="goPrev()"
       >
@@ -76,6 +77,7 @@
         :disabled="loading || !hasNext"
         icon
         variant="text"
+        :aria-label="$t('host_next_page')"
         data-testid="hostTasks-nextPage"
         @click="goNext()"
       >
