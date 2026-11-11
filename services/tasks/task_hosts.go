@@ -32,6 +32,10 @@ const hostsFileName = "hosts.json"
 
 const maxHostNameLength = 250
 
+// MaxHostsDocumentSize bounds the document: a playbook can print without end, and a bigger
+// document is dropped rather than held in memory. 64 MiB is around 450 000 hosts.
+const MaxHostsDocumentSize = 64 << 20
+
 // hostsCapture is the file the Ansible callback plugin writes per-host
 // statistics to while the task runs.
 type hostsCapture struct {
@@ -103,6 +107,13 @@ func (c *hostsCapture) CallbackDir() (string, error) {
 
 // Read returns the document the plugin wrote, or nil if it never ran.
 func (c *hostsCapture) Read() (*string, error) {
+	info, err := os.Stat(c.file)
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() > MaxHostsDocumentSize {
+		return nil, fmt.Errorf("hosts document is larger than %d bytes", MaxHostsDocumentSize)
+	}
 	data, err := os.ReadFile(c.file)
 	if err != nil {
 		return nil, err

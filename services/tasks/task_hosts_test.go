@@ -71,6 +71,10 @@ func TestHostsCapture(t *testing.T) {
 	_, err = os.Stat(filepath.Join(plugins, "semaphore_hosts.py"))
 	require.NoError(t, err)
 
+	require.NoError(t, os.Truncate(path, MaxHostsDocumentSize+1))
+	_, err = c.Read()
+	assert.Error(t, err)
+
 	c.Close()
 	_, err = os.Stat(filepath.Dir(path))
 	assert.ErrorIs(t, err, os.ErrNotExist)
