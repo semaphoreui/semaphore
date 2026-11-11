@@ -32,9 +32,22 @@ func (m *memSecretsRepo) GetEnvironmentSecret(projectID int, environmentID int, 
 	return s, nil
 }
 
+// taken tells whether another secret of the group holds the type and name, as the unique index does.
+func (m *memSecretsRepo) taken(secret db.EnvironmentSecret) error {
+	for _, s := range m.secrets {
+		if s.ID != secret.ID && s.EnvironmentID == secret.EnvironmentID && s.Type == secret.Type && s.Name == secret.Name {
+			return common_errors.NewValidationError("secret " + secret.Name + " already exists in this variable group")
+		}
+	}
+	return nil
+}
+
 func (m *memSecretsRepo) CreateEnvironmentSecret(secret db.EnvironmentSecret) (db.EnvironmentSecret, error) {
 	if m.createErr != nil {
 		return db.EnvironmentSecret{}, m.createErr
+	}
+	if err := m.taken(secret); err != nil {
+		return db.EnvironmentSecret{}, err
 	}
 	m.nextID++
 	secret.ID = m.nextID
@@ -44,6 +57,9 @@ func (m *memSecretsRepo) CreateEnvironmentSecret(secret db.EnvironmentSecret) (d
 
 func (m *memSecretsRepo) UpdateEnvironmentSecret(secret db.EnvironmentSecret) error {
 	if _, err := m.GetEnvironmentSecret(secret.ProjectID, secret.EnvironmentID, secret.ID); err != nil {
+		return err
+	}
+	if err := m.taken(secret); err != nil {
 		return err
 	}
 	m.secrets[secret.ID] = secret
@@ -91,13 +107,17 @@ func (m *memKeyRepo) GetAccessKey(projectID int, keyID int) (db.AccessKey, error
 	return k, nil
 }
 
-// recordingKeyService creates keys into memKeyRepo and records every call.
+// recordingKeyService creates keys into memKeyRepo and records every call. updateErr and deleteErr make
+// the key service fail the way a secret storage that is down does: nothing is changed.
 type recordingKeyService struct {
-	repo    *memKeyRepo
-	nextID  int
-	created []db.AccessKey
-	updated []db.AccessKey
-	deleted []int
+	repo      *memKeyRepo
+	secrets   *memSecretsRepo
+	nextID    int
+	created   []db.AccessKey
+	updated   []db.AccessKey
+	deleted   []int
+	updateErr error
+	deleteErr error
 }
 
 func (s *recordingKeyService) Create(key db.AccessKey) (db.AccessKey, error) {
@@ -108,13 +128,32 @@ func (s *recordingKeyService) Create(key db.AccessKey) (db.AccessKey, error) {
 	return key, nil
 }
 func (s *recordingKeyService) Update(key db.AccessKey) error {
+	if s.updateErr != nil {
+		return s.updateErr
+	}
 	s.updated = append(s.updated, key)
 	s.repo.keys[key.ID] = key
 	return nil
 }
 func (s *recordingKeyService) Delete(_ int, keyID int) error {
+	if s.deleteErr != nil {
+		return s.deleteErr
+	}
 	s.deleted = append(s.deleted, keyID)
 	delete(s.repo.keys, keyID)
+	return nil
+}
+
+// DeleteWithSecret removes the key and its last link together, or neither.
+func (s *recordingKeyService) DeleteWithSecret(secret db.EnvironmentSecret) error {
+	if s.deleteErr != nil {
+		return s.deleteErr
+	}
+	if err := s.secrets.DeleteEnvironmentSecret(secret.ProjectID, secret.EnvironmentID, secret.ID); err != nil {
+		return err
+	}
+	s.deleted = append(s.deleted, secret.KeyID)
+	delete(s.repo.keys, secret.KeyID)
 	return nil
 }
 func (s *recordingKeyService) GetAll(int, db.GetAccessKeyOptions, db.RetrieveQueryParams) ([]db.AccessKey, error) {
@@ -144,7 +183,7 @@ func newSecretsFixture(t *testing.T) *secretsFixture {
 		secrets: newMemSecretsRepo(),
 		keys:    &memKeyRepo{keys: map[int]db.AccessKey{}},
 	}
-	f.keySvc = &recordingKeyService{repo: f.keys, nextID: 10}
+	f.keySvc = &recordingKeyService{repo: f.keys, secrets: f.secrets, nextID: 10}
 	f.env = db.Environment{ID: 1, ProjectID: projectID, Name: "E"}
 	f.otherEnv = db.Environment{ID: 2, ProjectID: projectID, Name: "F"}
 	taskID := 77
@@ -414,4 +453,128 @@ func TestApplySecrets_DeleteUnknownSecretIsRefused(t *testing.T) {
 	var validation *common_errors.ValidationError
 	require.ErrorAs(t, err, &validation)
 	assert.Empty(t, f.keySvc.deleted)
+}
+
+// Renaming a secret to a name another secret of the group has, together with a new value: the link is
+// refused, so the value must not have reached the key — other groups may read it.
+func TestApplySecrets_UpdateToTakenNameLeavesTheKeyUntouched(t *testing.T) {
+	f := newSecretsFixture(t)
+	_, err := f.secrets.CreateEnvironmentSecret(db.EnvironmentSecret{ProjectID: f.env.ProjectID, EnvironmentID: f.env.ID, Type: db.EnvironmentSecretVar, Name: "taken", KeyID: f.shared.ID})
+	require.NoError(t, err)
+
+	applied, err := f.apply(db.EnvironmentSecret{ID: f.ownedSecret.ID, Type: db.EnvironmentSecretVar, Name: "taken", Secret: "new", Operation: db.EnvironmentSecretUpdate})
+
+	var validation *common_errors.ValidationError
+	require.ErrorAs(t, err, &validation)
+	assert.ErrorContains(t, err, "already exists")
+	assert.Equal(t, audit.EnvironmentMetadata{}, applied)
+	assert.Empty(t, f.keySvc.updated, "neither the value nor the name of the key is written")
+	assert.Equal(t, f.owned, f.keys.keys[f.owned.ID])
+	assert.Equal(t, f.ownedSecret, f.secrets.secrets[f.ownedSecret.ID])
+}
+
+func TestApplySecrets_UpdateToTakenNameLeavesTheOwnedKeyName(t *testing.T) {
+	f := newSecretsFixture(t)
+
+	// SHARED (env) is the linked secret of the fixture.
+	_, err := f.apply(db.EnvironmentSecret{ID: f.ownedSecret.ID, Type: db.EnvironmentSecretEnv, Name: "SHARED", Operation: db.EnvironmentSecretUpdate})
+
+	assert.ErrorContains(t, err, "already exists")
+	assert.Empty(t, f.keySvc.updated)
+	assert.Equal(t, "token", f.keys.keys[f.owned.ID].Name)
+}
+
+// The other half: the link is saved, then the key can not be written. The secret gets its name back, so
+// the group does not show a rename that carries the old value.
+func TestApplySecrets_UpdatePutsTheLinkBackWhenTheKeyFails(t *testing.T) {
+	tests := []struct {
+		name   string
+		update db.EnvironmentSecret
+	}{
+		{"new value", db.EnvironmentSecret{Type: db.EnvironmentSecretEnv, Name: "RENAMED", Secret: "new"}},
+		{"rename only", db.EnvironmentSecret{Type: db.EnvironmentSecretEnv, Name: "RENAMED"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newSecretsFixture(t)
+			f.keySvc.updateErr = errors.New("storage down")
+			tt.update.ID = f.ownedSecret.ID
+			tt.update.Operation = db.EnvironmentSecretUpdate
+
+			applied, err := f.apply(tt.update)
+
+			assert.ErrorContains(t, err, "storage down")
+			assert.Equal(t, audit.EnvironmentMetadata{}, applied)
+			assert.Equal(t, f.ownedSecret, f.secrets.secrets[f.ownedSecret.ID])
+			assert.Equal(t, f.owned, f.keys.keys[f.owned.ID])
+
+			f.keySvc.updateErr = nil
+			applied, err = f.apply(tt.update)
+
+			require.NoError(t, err, "the same request goes through once the storage is back")
+			assert.Equal(t, audit.EnvironmentMetadata{SecretsUpdated: 1}, applied)
+			assert.Equal(t, "RENAMED", f.secrets.secrets[f.ownedSecret.ID].Name)
+			assert.Equal(t, "RENAMED", f.keys.keys[f.owned.ID].Name)
+		})
+	}
+}
+
+// A secret storage that is down while an owned secret is deleted: the secret stays in the group, where
+// the deletion can be repeated. Losing the link first would hide a key nobody can reach any more.
+func TestApplySecrets_DeleteOwnedSecretKeepsTheLinkWhenTheKeyFails(t *testing.T) {
+	f := newSecretsFixture(t)
+	f.keySvc.deleteErr = errors.New("storage down")
+	del := db.EnvironmentSecret{ID: f.ownedSecret.ID, Type: db.EnvironmentSecretVar, Operation: db.EnvironmentSecretDelete}
+
+	applied, err := f.apply(del)
+
+	assert.ErrorContains(t, err, "storage down")
+	assert.Equal(t, audit.EnvironmentMetadata{}, applied)
+	assert.Equal(t, f.ownedSecret, f.secrets.secrets[f.ownedSecret.ID], "the link is still there")
+	assert.Contains(t, f.keys.keys, f.owned.ID)
+
+	f.keySvc.deleteErr = nil
+	applied, err = f.apply(del)
+
+	require.NoError(t, err, "the same request goes through once the storage is back")
+	assert.Equal(t, audit.EnvironmentMetadata{SecretsDeleted: 1}, applied)
+	assert.NotContains(t, f.secrets.secrets, f.ownedSecret.ID)
+	assert.NotContains(t, f.keys.keys, f.owned.ID)
+}
+
+// The same for an owned secret switched to a Key Store key: when its own key can not be removed the
+// secret points back at it, instead of leaving that key behind with no link.
+func TestApplySecrets_UpdateSwitchPutsTheLinkBackWhenTheOwnedKeyFails(t *testing.T) {
+	f := newSecretsFixture(t)
+	f.keySvc.deleteErr = errors.New("storage down")
+	switchToShared := db.EnvironmentSecret{ID: f.ownedSecret.ID, Type: db.EnvironmentSecretVar, Name: "token", KeyID: f.shared.ID, Operation: db.EnvironmentSecretUpdate}
+
+	applied, err := f.apply(switchToShared)
+
+	assert.ErrorContains(t, err, "storage down")
+	assert.Equal(t, audit.EnvironmentMetadata{}, applied)
+	assert.Equal(t, f.ownedSecret, f.secrets.secrets[f.ownedSecret.ID], "the secret still points at its own key")
+	assert.Contains(t, f.keys.keys, f.owned.ID)
+
+	f.keySvc.deleteErr = nil
+	applied, err = f.apply(switchToShared)
+
+	require.NoError(t, err, "the same request goes through once the storage is back")
+	assert.Equal(t, audit.EnvironmentMetadata{SecretsUpdated: 1}, applied)
+	assert.Equal(t, f.shared.ID, f.secrets.secrets[f.ownedSecret.ID].KeyID)
+	assert.NotContains(t, f.keys.keys, f.owned.ID)
+}
+
+// A key linked twice in its own group survives the removal of one of the links.
+func TestApplySecrets_DeleteOwnedSecretKeepsKeyItsGroupLinksTwice(t *testing.T) {
+	f := newSecretsFixture(t)
+	_, err := f.secrets.CreateEnvironmentSecret(db.EnvironmentSecret{ProjectID: f.env.ProjectID, EnvironmentID: f.env.ID, Type: db.EnvironmentSecretEnv, Name: "TOKEN", KeyID: f.owned.ID})
+	require.NoError(t, err)
+
+	_, err = f.apply(db.EnvironmentSecret{ID: f.ownedSecret.ID, Type: db.EnvironmentSecretVar, Operation: db.EnvironmentSecretDelete})
+
+	require.NoError(t, err)
+	assert.NotContains(t, f.secrets.secrets, f.ownedSecret.ID)
+	assert.Empty(t, f.keySvc.deleted)
+	assert.Contains(t, f.keys.keys, f.owned.ID)
 }

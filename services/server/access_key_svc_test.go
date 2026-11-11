@@ -3,9 +3,12 @@ package server
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/db/sql"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,7 +30,7 @@ func TestAccessKeyService_Update_GeneratedSSHKeyIsPersisted(t *testing.T) {
 		return nil
 	}
 
-	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
+	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo, repo)
 
 	err := svc.Update(db.AccessKey{
 		ID:             10,
@@ -74,7 +77,7 @@ func TestAccessKeyService_Update_NoGenerateNoOverrideKeepsSecret(t *testing.T) {
 		return nil
 	}
 
-	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
+	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo, repo)
 
 	err := svc.Update(db.AccessKey{
 		ID:        10,
@@ -115,7 +118,7 @@ func TestAccessKeyService_GenerateSSHKeyRejectedForNonSSHTypes(t *testing.T) {
 					return k, nil
 				},
 			}
-			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
+			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo, repo)
 
 			_, err := svc.Create(db.AccessKey{
 				ProjectID:      &projectID,
@@ -137,7 +140,7 @@ func TestAccessKeyService_GenerateSSHKeyRejectedForNonSSHTypes(t *testing.T) {
 					return nil
 				},
 			}
-			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
+			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo, repo)
 
 			err := svc.Update(db.AccessKey{
 				ID:             10,
@@ -166,7 +169,7 @@ func TestAccessKeyService_Create_GeneratedSSHKeyIsPersisted(t *testing.T) {
 			return k, nil
 		},
 	}
-	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
+	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo, repo)
 
 	clientPlain := "client-supplied"
 	_, err := svc.Create(db.AccessKey{
@@ -212,7 +215,7 @@ func TestAccessKeyService_Create_ClientPlainIsDiscarded(t *testing.T) {
 			return k, nil
 		},
 	}
-	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
+	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo, repo)
 
 	clientPlain := `{"public_key":"forged"}`
 	_, err := svc.Create(db.AccessKey{
@@ -242,7 +245,7 @@ func TestAccessKeyService_Update_GenerateWithoutOverrideKeepsSecret(t *testing.T
 		return nil
 	}
 
-	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo)
+	svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, nil, nil), nil, repo, repo)
 
 	err := svc.Update(db.AccessKey{
 		ID:             10,
@@ -297,7 +300,7 @@ func TestAccessKeyService_GenerateSSHKeyRejectedForReadOnlyStorage(t *testing.T)
 					return k, nil
 				},
 			}
-			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, storageRepo, nil), storageRepo, repo)
+			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, storageRepo, nil), storageRepo, repo, repo)
 
 			key := tt.key
 			key.ProjectID = &projectID
@@ -325,7 +328,7 @@ func TestAccessKeyService_GenerateSSHKeyRejectedForReadOnlyStorage(t *testing.T)
 					return nil
 				},
 			}
-			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, storageRepo, nil), storageRepo, repo)
+			svc := NewAccessKeyService(repo, NewAccessKeyEncryptionService(repo, nil, storageRepo, nil), storageRepo, repo, repo)
 
 			key := tt.key
 			key.ID = 10
@@ -349,6 +352,8 @@ type spyEncryption struct {
 	AccessKeyEncryptionService
 	serialized bool
 	deleted    bool
+	// onDelete runs while the secret is being removed from its storage; its error fails the removal.
+	onDelete func() error
 }
 
 func (s *spyEncryption) SerializeSecret(*db.AccessKey) error {
@@ -357,6 +362,11 @@ func (s *spyEncryption) SerializeSecret(*db.AccessKey) error {
 }
 
 func (s *spyEncryption) DeleteSecret(*db.AccessKey) error {
+	if s.onDelete != nil {
+		if err := s.onDelete(); err != nil {
+			return err
+		}
+	}
 	s.deleted = true
 	return nil
 }
@@ -380,7 +390,7 @@ func TestAccessKeyService_Delete_RefusedBeforeSecretIsRemoved(t *testing.T) {
 	}
 
 	spy := &spyEncryption{}
-	svc := NewAccessKeyService(repo, spy, nil, repo)
+	svc := NewAccessKeyService(repo, spy, nil, repo, repo)
 
 	err := svc.Delete(projectID, 10)
 
@@ -402,7 +412,7 @@ func TestAccessKeyService_Update_RefusedBeforeSecretIsSerialized(t *testing.T) {
 	}
 
 	spy := &spyEncryption{}
-	svc := NewAccessKeyService(repo, spy, nil, repo)
+	svc := NewAccessKeyService(repo, spy, nil, repo, repo)
 
 	err := svc.Update(db.AccessKey{
 		ID: 10, ProjectID: &projectID, Name: "k",
@@ -434,11 +444,177 @@ func TestAccessKeyService_Delete_RefusedWhenVariableGroupLinksKey(t *testing.T) 
 	}
 
 	spy := &spyEncryption{}
-	svc := NewAccessKeyService(repo, spy, nil, repo)
+	svc := NewAccessKeyService(repo, spy, nil, repo, repo)
 
 	err := svc.Delete(projectID, 10)
 
 	assert.ErrorIs(t, err, db.ErrInvalidOperation)
 	assert.ErrorContains(t, err, "prod vars")
 	assert.False(t, spy.deleted, "the secret must still be in its storage")
+}
+
+// vaultKeyRepo is a repository holding one string key whose secret lives in a writable storage.
+func vaultKeyRepo(projectID int) *mockAccessKeyRepo {
+	storageID := 5
+	return &mockAccessKeyRepo{
+		keys: []db.AccessKey{{
+			ID: 10, ProjectID: &projectID, Name: "k",
+			Type: db.AccessKeyString, SourceStorageID: &storageID,
+		}},
+	}
+}
+
+// The secret leaves its storage only between the claim and the row: after the claim no variable group
+// can link the key, so the row delete can not be refused by a link made in the meantime.
+func TestAccessKeyService_Delete_ClaimsTheKeyBeforeTheSecretIsRemoved(t *testing.T) {
+	projectID := 1
+	repo := vaultKeyRepo(projectID)
+	spy := &spyEncryption{}
+	spy.onDelete = func() error {
+		assert.Equal(t, []string{"claim key 10 except secret 0"}, repo.calls, "claimed before the storage is touched")
+		return nil
+	}
+	svc := NewAccessKeyService(repo, spy, &mockSecretStorageRepository{}, repo, repo)
+
+	require.NoError(t, svc.Delete(projectID, 10))
+
+	assert.True(t, spy.deleted)
+	assert.Equal(t, []string{"claim key 10 except secret 0", "delete key 10"}, repo.calls)
+}
+
+// A claim is refused when a variable group linked the key after the usage check, or when another node
+// is deleting it. Either way the credential must stay where it is.
+func TestAccessKeyService_Delete_RefusedClaimKeepsTheSecret(t *testing.T) {
+	projectID := 1
+	repo := vaultKeyRepo(projectID)
+	repo.claimErr = fmt.Errorf("%w: the key is used by a variable group", db.ErrInvalidOperation)
+	spy := &spyEncryption{}
+	svc := NewAccessKeyService(repo, spy, &mockSecretStorageRepository{}, repo, repo)
+
+	err := svc.Delete(projectID, 10)
+
+	assert.ErrorIs(t, err, db.ErrInvalidOperation, "the API answers \"in use\"")
+	assert.False(t, spy.deleted, "the secret must still be in its storage")
+	assert.Equal(t, []string{"claim key 10 except secret 0"}, repo.calls, "no row is deleted, nothing to release")
+}
+
+// A storage that is down: the key stays and its claim is given back, so it can be linked again and the
+// deletion repeated.
+func TestAccessKeyService_Delete_ReleasesTheClaimWhenTheStorageFails(t *testing.T) {
+	projectID := 1
+	repo := vaultKeyRepo(projectID)
+	spy := &spyEncryption{onDelete: func() error { return errors.New("storage down") }}
+	svc := NewAccessKeyService(repo, spy, &mockSecretStorageRepository{}, repo, repo)
+
+	err := svc.Delete(projectID, 10)
+
+	assert.ErrorContains(t, err, "storage down")
+	assert.Equal(t, []string{"claim key 10 except secret 0", "release key 10 claim 42"}, repo.calls)
+
+	spy.onDelete = nil
+	repo.calls = nil
+	require.NoError(t, svc.Delete(projectID, 10), "the deletion can be repeated")
+	assert.Equal(t, []string{"claim key 10 except secret 0", "delete key 10"}, repo.calls)
+}
+
+// The key of a variable group secret goes together with its last link, and the link goes last.
+func TestAccessKeyService_DeleteWithSecret(t *testing.T) {
+	projectID := 1
+	link := db.EnvironmentSecret{ID: 7, ProjectID: projectID, EnvironmentID: 3, Type: db.EnvironmentSecretVar, Name: "token", KeyID: 10}
+
+	t.Run("the link is deleted with the key row, after the secret", func(t *testing.T) {
+		repo := vaultKeyRepo(projectID)
+		repo.refs = db.ObjectReferrers{Environments: []db.ObjectReferrer{{ID: 3, Name: "own group"}}}
+		spy := &spyEncryption{}
+		spy.onDelete = func() error {
+			assert.Equal(t, []string{"claim key 10 except secret 7"}, repo.calls)
+			return nil
+		}
+		svc := NewAccessKeyService(repo, spy, &mockSecretStorageRepository{}, repo, repo)
+
+		require.NoError(t, svc.DeleteWithSecret(link))
+
+		assert.True(t, spy.deleted)
+		assert.Equal(t, []string{"claim key 10 except secret 7", "delete key 10 with secret 7 of group 3"}, repo.calls)
+	})
+
+	t.Run("a storage that is down keeps the link and the key", func(t *testing.T) {
+		repo := vaultKeyRepo(projectID)
+		spy := &spyEncryption{onDelete: func() error { return errors.New("storage down") }}
+		svc := NewAccessKeyService(repo, spy, &mockSecretStorageRepository{}, repo, repo)
+
+		err := svc.DeleteWithSecret(link)
+
+		assert.ErrorContains(t, err, "storage down")
+		assert.Equal(t, []string{"claim key 10 except secret 7", "release key 10 claim 42"}, repo.calls)
+	})
+
+	t.Run("another group linking the key refuses the deletion", func(t *testing.T) {
+		repo := vaultKeyRepo(projectID)
+		repo.refs = db.ObjectReferrers{Environments: []db.ObjectReferrer{{ID: 3, Name: "own group"}, {ID: 4, Name: "prod vars"}}}
+		spy := &spyEncryption{}
+		svc := NewAccessKeyService(repo, spy, &mockSecretStorageRepository{}, repo, repo)
+
+		err := svc.DeleteWithSecret(link)
+
+		assert.ErrorIs(t, err, db.ErrInvalidOperation)
+		assert.ErrorContains(t, err, "prod vars")
+		assert.False(t, spy.deleted)
+		assert.Empty(t, repo.calls)
+	})
+}
+
+// The race itself, against the real store: a variable group tries to link the key at the worst moment,
+// while its secret is being removed from the storage. The link is refused and the deletion completes;
+// before the claim the link was accepted, the row delete then failed on the foreign key and the group
+// was left pointing at a credential that no longer existed.
+func TestAccessKeyService_Delete_LinkDuringSecretRemovalIsRefused(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "p"})
+	require.NoError(t, err)
+	env, err := store.CreateEnvironment(db.Environment{ProjectID: project.ID, Name: "E", JSON: "{}"})
+	require.NoError(t, err)
+	storage, err := store.CreateSecretStorage(db.SecretStorage{ProjectID: project.ID, Name: "vault", Type: db.SecretStorageTypeVault})
+	require.NoError(t, err)
+	storageType := db.AccessKeySourceStorageVault
+	storageKey := "semaphore/token"
+	key, err := store.CreateAccessKey(db.AccessKey{
+		Name: "token", Type: db.AccessKeyString, ProjectID: &project.ID,
+		SourceStorageID: &storage.ID, SourceStorageType: &storageType, SourceStorageKey: &storageKey,
+	})
+	require.NoError(t, err)
+
+	link := db.EnvironmentSecret{ProjectID: project.ID, EnvironmentID: env.ID, Type: db.EnvironmentSecretEnv, Name: "TOKEN", KeyID: key.ID}
+	var linkErr error
+	spy := &spyEncryption{}
+	spy.onDelete = func() error {
+		_, linkErr = store.CreateEnvironmentSecret(link)
+		return nil
+	}
+	svc := NewAccessKeyService(store, spy, store, store, store)
+
+	require.NoError(t, svc.Delete(project.ID, key.ID))
+
+	assert.ErrorIs(t, linkErr, db.ErrInvalidOperation)
+	assert.ErrorContains(t, linkErr, "is being deleted")
+	assert.True(t, spy.deleted)
+	_, err = store.GetAccessKey(project.ID, key.ID)
+	assert.ErrorIs(t, err, db.ErrNotFound, "the key row is gone with its secret")
+	links, err := store.GetEnvironmentSecretKeys(project.ID, env.ID)
+	require.NoError(t, err)
+	assert.Empty(t, links, "no group points at the removed credential")
+
+	// A deletion that fails gives the key back: it can be linked again.
+	kept, err := store.CreateAccessKey(db.AccessKey{
+		Name: "kept", Type: db.AccessKeyString, ProjectID: &project.ID,
+		SourceStorageID: &storage.ID, SourceStorageType: &storageType, SourceStorageKey: &storageKey,
+	})
+	require.NoError(t, err)
+	spy.onDelete = func() error { return errors.New("storage down") }
+
+	require.ErrorContains(t, svc.Delete(project.ID, kept.ID), "storage down")
+
+	link.KeyID = kept.ID
+	_, err = store.CreateEnvironmentSecret(link)
+	assert.NoError(t, err)
 }

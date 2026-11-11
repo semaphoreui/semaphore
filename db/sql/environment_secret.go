@@ -6,6 +6,7 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
+	log "github.com/sirupsen/logrus"
 )
 
 // isUniqueViolation recognises the unique-index error of SQLite, MySQL and Postgres.
@@ -96,12 +97,49 @@ func (d *SqlDb) CreateEnvironmentSecret(secret db.EnvironmentSecret) (newSecret 
 		return
 	}
 
+	// The link is committed, now the claim is read: see ClaimAccessKeyDeletion.
+	if err = d.refuseKeyBeingDeleted(secret.ProjectID, secret.KeyID); err != nil {
+		if undoErr := d.DeleteEnvironmentSecret(secret.ProjectID, secret.EnvironmentID, insertID); undoErr != nil {
+			log.WithError(undoErr).WithFields(log.Fields{
+				"project_id": secret.ProjectID, "environment_id": secret.EnvironmentID, "key_id": secret.KeyID,
+			}).Error("failed to remove the link to a key that is being deleted")
+		}
+		return
+	}
+
 	newSecret = secret
 	newSecret.ID = insertID
 	return
 }
 
 func (d *SqlDb) UpdateEnvironmentSecret(secret db.EnvironmentSecret) error {
+	current, err := d.GetEnvironmentSecret(secret.ProjectID, secret.EnvironmentID, secret.ID)
+	if err != nil {
+		return err
+	}
+
+	if err = d.setEnvironmentSecret(secret); err != nil {
+		return err
+	}
+
+	if secret.KeyID == current.KeyID {
+		return nil
+	}
+
+	// The link to the new key is committed, now the claim is read: see ClaimAccessKeyDeletion.
+	if err = d.refuseKeyBeingDeleted(secret.ProjectID, secret.KeyID); err != nil {
+		if undoErr := d.setEnvironmentSecret(current); undoErr != nil {
+			log.WithError(undoErr).WithFields(log.Fields{
+				"project_id": secret.ProjectID, "environment_id": secret.EnvironmentID, "key_id": secret.KeyID,
+			}).Error("failed to point a secret back from a key that is being deleted")
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (d *SqlDb) setEnvironmentSecret(secret db.EnvironmentSecret) error {
 	res, err := d.exec(
 		"update project__environment_secret set type=?, name=?, key_id=? where project_id=? and environment_id=? and id=?",
 		secret.Type,
@@ -113,18 +151,7 @@ func (d *SqlDb) UpdateEnvironmentSecret(secret db.EnvironmentSecret) error {
 	if isUniqueViolation(err) {
 		return environmentSecretExistsError(secret)
 	}
-	if err = validateMutationResult(res, err); err != nil {
-		return err
-	}
-	affected, err := res.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if affected == 0 {
-		_, err = d.GetEnvironmentSecret(secret.ProjectID, secret.EnvironmentID, secret.ID)
-		return err
-	}
-	return nil
+	return validateMutationResult(res, err)
 }
 
 func (d *SqlDb) DeleteEnvironmentSecret(projectID int, environmentID int, secretID int) error {

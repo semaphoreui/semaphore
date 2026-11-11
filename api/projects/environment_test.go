@@ -63,6 +63,10 @@ func (m *mockAccessKeyService) Delete(_ int, keyID int) error {
 	m.deleted = append(m.deleted, keyID)
 	return nil
 }
+func (m *mockAccessKeyService) DeleteWithSecret(secret db.EnvironmentSecret) error {
+	m.deleted = append(m.deleted, secret.KeyID)
+	return nil
+}
 
 // recordingEnvironmentService captures what the controller hands to ApplySecrets.
 type recordingEnvironmentService struct {

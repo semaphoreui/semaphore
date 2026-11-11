@@ -101,15 +101,20 @@ func (s *EnvironmentServiceImpl) Delete(projectID int, environmentID int) (err e
 
 	// The group's own keys cascade with it on SQLite and Postgres; MySQL ignores the inline cascade of
 	// access_key.environment_id and would leave them behind as orphans. Their links are gone with the group.
+	removed := make([]db.AccessKey, 0, len(secrets))
 	for _, key := range secrets {
 		if delErr := s.accessKeyRepo.DeleteAccessKey(projectID, key.ID); delErr != nil && !errors.Is(delErr, db.ErrNotFound) {
+			// The row stays, so its secret must: another group may have linked the key since the check
+			// above, and the foreign key of that link is what refused the delete.
 			errs = append(errs, delErr)
+			continue
 		}
+		removed = append(removed, key)
 	}
 
 	if storage != nil {
 		if !storage.ReadOnly {
-			for _, secret := range secrets {
+			for _, secret := range removed {
 				if secret.Synchronized {
 					continue
 				}
@@ -266,24 +271,9 @@ func (s *EnvironmentServiceImpl) updateSecret(env db.Environment, secret db.Envi
 	}
 	owned := ownedBy(key, env)
 
-	if secret.Secret != "" {
-		if !owned {
-			return common_errors.NewValidationError(
-				"secret " + secret.Name + " is linked to key " + key.Name + "; change its value in the Key Store or unlink it")
-		}
-		key.Name = secret.Name
-		key.Type = db.AccessKeyString
-		key.String = secret.Secret
-		key.OverrideSecret = true
-		if err = s.accessKeyService.Update(key); err != nil {
-			return err
-		}
-	} else if owned && key.Name != secret.Name && secret.KeyID == 0 {
-		// The owned key is named after the secret, so refs and the audit log read naturally.
-		key.Name = secret.Name
-		if err = s.accessKeyService.Update(key); err != nil {
-			return err
-		}
+	if secret.Secret != "" && !owned {
+		return common_errors.NewValidationError(
+			"secret " + secret.Name + " is linked to key " + key.Name + "; change its value in the Key Store or unlink it")
 	}
 
 	newKeyID := current.KeyID
@@ -294,12 +284,50 @@ func (s *EnvironmentServiceImpl) updateSecret(env db.Environment, secret db.Envi
 		newKeyID = secret.KeyID
 	}
 
+	// The link goes first: its unique index is what refuses a name another secret of the group already
+	// has, and at that point nothing has been written to the key — its value may back other groups too.
 	if err = s.environmentRepo.UpdateEnvironmentSecret(linkRow(env, secret, newKeyID)); err != nil {
 		return err
 	}
 
-	if newKeyID != current.KeyID && owned {
+	if err = s.updateSecretKey(env, secret, key, owned, newKeyID != current.KeyID); err != nil {
+		// The key is as it was, so the link goes back: the secret keeps its name and its key, and the
+		// same request can be sent again.
+		if undoErr := s.environmentRepo.UpdateEnvironmentSecret(current); undoErr != nil {
+			log.WithError(undoErr).WithFields(log.Fields{
+				"project_id": env.ProjectID, "environment_id": env.ID, "secret_id": current.ID,
+			}).Error("failed to put a secret back after its key could not be changed")
+		}
+		return err
+	}
+
+	return nil
+}
+
+// updateSecretKey brings the key in line with a secret whose link has just been saved: it writes the new
+// value or name to the owned key, or drops the owned key the secret no longer points at.
+func (s *EnvironmentServiceImpl) updateSecretKey(
+	env db.Environment,
+	secret db.EnvironmentSecret,
+	key db.AccessKey,
+	owned bool,
+	switched bool,
+) error {
+	switch {
+	case !owned:
+		return nil
+	case switched:
 		return s.dropOwnedKeyIfUnused(env, key)
+	case secret.Secret != "":
+		key.Name = secret.Name
+		key.Type = db.AccessKeyString
+		key.String = secret.Secret
+		key.OverrideSecret = true
+		return s.accessKeyService.Update(key)
+	case key.Name != secret.Name && secret.KeyID == 0:
+		// The owned key is named after the secret, so refs and the audit log read naturally.
+		key.Name = secret.Name
+		return s.accessKeyService.Update(key)
 	}
 
 	return nil
@@ -319,15 +347,22 @@ func (s *EnvironmentServiceImpl) deleteSecret(env db.Environment, secret db.Envi
 		return err
 	}
 
-	if err = s.environmentRepo.DeleteEnvironmentSecret(env.ProjectID, env.ID, current.ID); err != nil {
-		return err
-	}
-
 	if ownedBy(key, env) {
-		return s.dropOwnedKeyIfUnused(env, key)
+		var links int
+		links, err = s.environmentRepo.CountEnvironmentSecretsByKey(env.ProjectID, key.ID)
+		if err != nil {
+			return err
+		}
+
+		// The group's own key goes with its last link. The link is deleted with the key row, after the
+		// value has left its storage: a storage that is down leaves the secret in the group, where the
+		// deletion can be repeated. A key another secret still links to stays, owned by this group.
+		if links <= 1 {
+			return s.accessKeyService.DeleteWithSecret(current)
+		}
 	}
 
-	return nil
+	return s.environmentRepo.DeleteEnvironmentSecret(env.ProjectID, env.ID, current.ID)
 }
 
 // dropOwnedKeyIfUnused removes the group's own key once no secret of any group points at it. A key

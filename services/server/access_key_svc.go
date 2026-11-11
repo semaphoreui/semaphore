@@ -9,6 +9,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 )
 
 type AccessKeyService interface {
@@ -16,6 +17,11 @@ type AccessKeyService interface {
 	Create(key db.AccessKey) (newKey db.AccessKey, err error)
 	GetAll(projectID int, options db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error)
 	Delete(projectID int, keyID int) (err error)
+
+	// DeleteWithSecret deletes the key a variable group owns together with the secret that is its only
+	// link (secret.KeyID). The link is removed last, in one transaction with the key row: when the secret
+	// can not be removed from its storage both stay, and the deletion can be repeated.
+	DeleteWithSecret(secret db.EnvironmentSecret) (err error)
 }
 
 type AccessKeyServiceImpl struct {
@@ -23,6 +29,7 @@ type AccessKeyServiceImpl struct {
 	encryptionService AccessKeyEncryptionService
 	secretStorageRepo db.SecretStorageRepository
 	hostConfigRepo    db.HostConfigManager
+	deletionRepo      db.AccessKeyDeletionManager
 }
 
 func NewAccessKeyService(
@@ -30,12 +37,14 @@ func NewAccessKeyService(
 	encryptionService AccessKeyEncryptionService,
 	secretStorageRepo db.SecretStorageRepository,
 	hostConfigRepo db.HostConfigManager,
+	deletionRepo db.AccessKeyDeletionManager,
 ) AccessKeyService {
 	return &AccessKeyServiceImpl{
 		accessKeyRepo:     accessKeyRepo,
 		encryptionService: encryptionService,
 		secretStorageRepo: secretStorageRepo,
 		hostConfigRepo:    hostConfigRepo,
+		deletionRepo:      deletionRepo,
 	}
 }
 
@@ -63,6 +72,16 @@ func (s *AccessKeyServiceImpl) hostConfigsUsing(projectID *int, keyID int) (used
 }
 
 func (s *AccessKeyServiceImpl) Delete(projectID int, keyID int) (err error) {
+	return s.deleteKey(projectID, keyID, nil)
+}
+
+func (s *AccessKeyServiceImpl) DeleteWithSecret(secret db.EnvironmentSecret) (err error) {
+	return s.deleteKey(secret.ProjectID, secret.KeyID, &secret)
+}
+
+// deleteKey removes the secret of the key from its storage and then the key row. onlyLink, when set, is
+// the one variable group secret allowed to point at the key; it is deleted together with the row.
+func (s *AccessKeyServiceImpl) deleteKey(projectID int, keyID int, onlyLink *db.EnvironmentSecret) (err error) {
 	key, err := s.accessKeyRepo.GetAccessKey(projectID, keyID)
 	if err != nil {
 		return
@@ -82,19 +101,44 @@ func (s *AccessKeyServiceImpl) Delete(projectID int, keyID int) (err error) {
 		return
 	}
 
-	// The same for variable groups: project__environment_secret.key_id is a plain foreign key, so the
-	// repository refuses the delete too, but only after the external secret has been removed. The error
-	// matches the one the foreign key produces, so the API answers "in use" either way.
+	// The same for variable groups, with the name of the group for the answer. This read alone would
+	// leave a window: a link accepted after it, while the secret is being removed below. The claim
+	// closes it.
 	refs, err := s.accessKeyRepo.GetAccessKeyRefs(projectID, keyID)
 	if err != nil {
 		return
 	}
 
-	if len(refs.Environments) > 0 {
-		err = fmt.Errorf("%w: the key is used by the variable group %s",
-			db.ErrInvalidOperation, refs.Environments[0].Name)
+	for _, env := range refs.Environments {
+		if onlyLink != nil && env.ID == onlyLink.EnvironmentID {
+			continue
+		}
+		err = fmt.Errorf("%w: the key is used by the variable group %s", db.ErrInvalidOperation, env.Name)
 		return
 	}
+
+	// From here on no variable group can link the key, on any node, and no link but onlyLink exists.
+	exceptSecretID := 0
+	if onlyLink != nil {
+		exceptSecretID = onlyLink.ID
+	}
+
+	claim, err := s.deletionRepo.ClaimAccessKeyDeletion(projectID, keyID, exceptSecretID)
+	if err != nil {
+		return
+	}
+
+	defer func() {
+		if err == nil {
+			return
+		}
+		// The key stays: give it back, so it can be linked and its deletion repeated.
+		if releaseErr := s.deletionRepo.ReleaseAccessKeyDeletion(projectID, keyID, claim); releaseErr != nil {
+			log.WithError(releaseErr).WithFields(log.Fields{
+				"project_id": projectID, "key_id": keyID,
+			}).Error("failed to release the deletion claim of a key; it expires on its own")
+		}
+	}()
 
 	if key.SourceStorageID != nil {
 		var storage db.SecretStorage
@@ -118,7 +162,11 @@ func (s *AccessKeyServiceImpl) Delete(projectID int, keyID int) (err error) {
 		}
 	}
 
-	err = s.accessKeyRepo.DeleteAccessKey(projectID, keyID)
+	if onlyLink != nil {
+		err = s.deletionRepo.DeleteAccessKeyWithSecret(projectID, keyID, onlyLink.EnvironmentID, onlyLink.ID)
+	} else {
+		err = s.accessKeyRepo.DeleteAccessKey(projectID, keyID)
+	}
 
 	return
 }
