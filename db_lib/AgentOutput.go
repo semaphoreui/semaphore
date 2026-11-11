@@ -1,21 +1,10 @@
 package db_lib
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
 	"strings"
-	"time"
-)
 
-const (
-	// agentToolInputMax limits the arguments of a tool call in the task log,
-	// in characters.
-	agentToolInputMax = 2000
-	// agentToolResultMaxLines and agentToolResultMaxLine limit the result of a
-	// tool call in the task log: a file the agent read is not the log.
-	agentToolResultMaxLines = 20
-	agentToolResultMaxLine  = 1000
+	"github.com/semaphoreui/semaphore/pkg/agentlog"
 )
 
 // AgentOutput turns the lines an agent CLI prints into task log lines, with
@@ -56,6 +45,11 @@ func (plainAgentOutput) Flush() []string              { return nil }
 // stream-json. In its text format Claude Code prints the answer only when the
 // run is over; the events come as things happen: the text as it is written,
 // every tool call and its result.
+//
+// It writes them to the log as agentlog events, one per line: what the CLI
+// reports is too much and too much its own to be the log, and a client can
+// not tell a tool call from the agent's text in plain lines. Whatever is not
+// an event of the CLI goes to the log as it came.
 type claudeStreamOutput struct {
 	mask func(string) string
 
@@ -67,6 +61,8 @@ type claudeStreamOutput struct {
 	streamedID string
 	// said tells that some text of the agent reached the log.
 	said bool
+	// init is the last init event logged: the CLI repeats it at every turn.
+	init string
 }
 
 type claudeEventHead struct {
@@ -93,12 +89,17 @@ type claudeBlock struct {
 	Text string `json:"text"`
 
 	// tool_use
+	ID    string          `json:"id"`
 	Name  string          `json:"name"`
 	Input json.RawMessage `json:"input"`
 
 	// tool_result
-	Content json.RawMessage `json:"content"`
-	IsError bool            `json:"is_error"`
+	ToolUseID string          `json:"tool_use_id"`
+	Content   json.RawMessage `json:"content"`
+	IsError   bool            `json:"is_error"`
+
+	// tool_reference, a block of a tool search's result
+	ToolName string `json:"tool_name"`
 }
 
 type claudeMessageEvent struct {
@@ -107,7 +108,8 @@ type claudeMessageEvent struct {
 		// Content is a list of blocks, or a string for a plain user message.
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
-	// ParentToolUseID is set on the messages of a subagent.
+	// ParentToolUseID is set on the messages of a subagent: the tool call
+	// which started it.
 	ParentToolUseID *string `json:"parent_tool_use_id"`
 }
 
@@ -142,58 +144,68 @@ func (o *claudeStreamOutput) Lines(line string) []string {
 	if len(raw) == 0 || raw[0] != '{' || json.Unmarshal(raw, &head) != nil || head.Type == "" {
 		// Not an event: an error of the CLI itself, or the output of another
 		// format set in the template's arguments.
-		return o.masked(append(o.endText(), line))
+		return append(encodeAgentEvents(o.endText()), o.mask(line))
 	}
 
 	var (
-		lines []string
-		err   error
+		events []agentlog.Event
+		err    error
 	)
 
 	switch head.Type {
 	case "system":
-		lines, err = o.system(head.Subtype, raw)
+		events, err = o.system(head.Subtype, raw)
 	case "stream_event":
-		lines, err = o.streamEvent(raw)
+		events, err = o.streamEvent(raw)
 	case "assistant":
-		lines, err = o.assistant(raw)
+		events, err = o.assistant(raw)
 	case "user":
-		lines, err = o.user(raw)
+		events, err = o.user(raw)
 	case "result":
-		lines, err = o.result(raw)
+		events, err = o.result(raw)
 	}
 
 	if err != nil {
 		// An event of a shape this code does not know is shown as it came
 		// rather than hidden.
-		return o.masked(append(o.endText(), line))
+		return append(encodeAgentEvents(o.endText()), o.mask(line))
 	}
 
-	return o.masked(lines)
+	return encodeAgentEvents(events)
 }
 
 func (o *claudeStreamOutput) Flush() []string {
-	return o.masked(o.endText())
+	return encodeAgentEvents(o.endText())
 }
 
-func (o *claudeStreamOutput) masked(lines []string) []string {
-	for i, line := range lines {
-		lines[i] = o.mask(line)
+func encodeAgentEvents(events []agentlog.Event) []string {
+	lines := make([]string, 0, len(events))
+	for _, event := range events {
+		lines = append(lines, event.Line())
 	}
 	return lines
 }
 
+// textEvents makes an event of every line, with the secrets masked.
+func (o *claudeStreamOutput) textEvents(agent string, lines []string) []agentlog.Event {
+	events := make([]agentlog.Event, 0, len(lines))
+	for _, line := range lines {
+		events = append(events, agentlog.Event{Kind: agentlog.KindText, Agent: agent, Text: o.mask(line)})
+	}
+	return events
+}
+
 // endText returns the unfinished line of the streamed text, if any.
-func (o *claudeStreamOutput) endText() []string {
+func (o *claudeStreamOutput) endText() []agentlog.Event {
 	if o.partial == "" {
 		return nil
 	}
 	line := strings.TrimRight(o.partial, "\r")
 	o.partial = ""
-	return []string{line}
+	return o.textEvents("", []string{line})
 }
 
-func (o *claudeStreamOutput) system(subtype string, raw []byte) ([]string, error) {
+func (o *claudeStreamOutput) system(subtype string, raw []byte) ([]agentlog.Event, error) {
 	if subtype != "init" && subtype != "api_retry" {
 		return nil, nil
 	}
@@ -203,30 +215,33 @@ func (o *claudeStreamOutput) system(subtype string, raw []byte) ([]string, error
 		return nil, err
 	}
 
-	lines := o.endText()
+	events := o.endText()
 
 	if subtype == "api_retry" {
-		line := fmt.Sprintf("API request failed, retry %d of %d", event.Attempt, event.MaxRetries)
-		if event.RetryDelayMs > 0 {
-			line += " in " + agentDuration(event.RetryDelayMs)
-		}
-		if event.Error != "" {
-			line += ": " + event.Error
-		}
-		return append(lines, line), nil
+		return append(events, agentlog.Event{
+			Kind:       agentlog.KindRetry,
+			Attempt:    event.Attempt,
+			MaxRetries: event.MaxRetries,
+			DelayMs:    event.RetryDelayMs,
+			Text:       o.mask(event.Error),
+		}), nil
 	}
 
-	if event.Model != "" {
-		lines = append(lines, "Model: "+event.Model)
-	}
+	init := agentlog.Event{Kind: agentlog.KindInit, Model: o.mask(event.Model)}
 	for _, server := range event.McpServers {
-		lines = append(lines, fmt.Sprintf("MCP server %s: %s", server.Name, server.Status))
+		init.Servers = append(init.Servers, agentlog.Server{Name: o.mask(server.Name), Status: o.mask(server.Status)})
 	}
-	return lines, nil
+
+	// The CLI opens every turn with it; it is news only when it changed.
+	if line := init.Line(); line != o.init {
+		o.init = line
+		events = append(events, init)
+	}
+	return events, nil
 }
 
 // streamEvent logs the agent's text line by line while it is being written.
-func (o *claudeStreamOutput) streamEvent(raw []byte) ([]string, error) {
+func (o *claudeStreamOutput) streamEvent(raw []byte) ([]agentlog.Event, error) {
 	var event claudeStreamEvent
 	if err := json.Unmarshal(raw, &event); err != nil {
 		return nil, err
@@ -269,18 +284,18 @@ func (o *claudeStreamOutput) streamEvent(raw []byte) ([]string, error) {
 		lines = append(lines, strings.TrimRight(o.partial[:i], "\r"))
 		o.partial = o.partial[i+1:]
 	}
-	return lines, nil
+	return o.textEvents("", lines), nil
 }
 
-func (o *claudeStreamOutput) assistant(raw []byte) ([]string, error) {
+func (o *claudeStreamOutput) assistant(raw []byte) ([]agentlog.Event, error) {
 	var event claudeMessageEvent
 	if err := json.Unmarshal(raw, &event); err != nil {
 		return nil, err
 	}
 
-	lines := o.endText()
+	agent, events := o.messageStart(event)
 
-	streamed := event.ParentToolUseID == nil && event.Message.ID != "" && event.Message.ID == o.streamedID
+	streamed := agent == "" && event.Message.ID != "" && event.Message.ID == o.streamedID
 
 	for _, block := range claudeBlocks(event.Message.Content) {
 		switch block.Type {
@@ -289,106 +304,88 @@ func (o *claudeStreamOutput) assistant(raw []byte) ([]string, error) {
 				continue
 			}
 			if text := splitAgentText(block.Text); len(text) > 0 {
-				lines = append(lines, text...)
-				o.said = true
+				events = append(events, o.textEvents(agent, text)...)
+				if agent == "" {
+					o.said = true
+				}
 			}
 		case "tool_use":
-			lines = append(lines, o.toolCall(block))
+			events = append(events, o.toolCall(agent, block))
 		}
 	}
 
-	return lines, nil
+	return events, nil
 }
 
-func (o *claudeStreamOutput) user(raw []byte) ([]string, error) {
+func (o *claudeStreamOutput) user(raw []byte) ([]agentlog.Event, error) {
 	var event claudeMessageEvent
 	if err := json.Unmarshal(raw, &event); err != nil {
 		return nil, err
 	}
 
-	lines := o.endText()
+	agent, events := o.messageStart(event)
 
 	for _, block := range claudeBlocks(event.Message.Content) {
 		if block.Type != "tool_result" {
 			continue
 		}
 
-		prefix := "  "
-		if block.IsError {
-			prefix = "  ! "
-		}
-
-		result := splitAgentText(claudeToolResultText(block.Content))
-		for i, line := range result {
-			if i == agentToolResultMaxLines {
-				lines = append(lines, fmt.Sprintf("%s... %d more line(s)", prefix, len(result)-i))
-				break
-			}
-			lines = append(lines, prefix+truncateChars(line, agentToolResultMaxLine))
-		}
+		result := agentlog.NewResult(block.ToolUseID, claudeToolResultText(block.Content), block.IsError, o.mask)
+		result.Agent = agent
+		events = append(events, result)
 	}
 
-	return lines, nil
+	return events, nil
 }
 
-func (o *claudeStreamOutput) result(raw []byte) ([]string, error) {
+// messageStart returns the subagent a message belongs to, empty for the agent
+// itself, and the line of the agent's text the message ends. A message of a
+// subagent comes at any moment and ends nothing.
+func (o *claudeStreamOutput) messageStart(event claudeMessageEvent) (string, []agentlog.Event) {
+	if event.ParentToolUseID != nil && *event.ParentToolUseID != "" {
+		return o.mask(*event.ParentToolUseID), nil
+	}
+	return "", o.endText()
+}
+
+func (o *claudeStreamOutput) result(raw []byte) ([]agentlog.Event, error) {
 	var event claudeResultEvent
 	if err := json.Unmarshal(raw, &event); err != nil {
 		return nil, err
 	}
 
-	lines := o.endText()
+	events := o.endText()
 
 	// The result repeats the last message; it is the only text when the run
 	// printed nothing before it (the json output format, an early error).
 	if !o.said {
-		lines = append(lines, splitAgentText(event.Result)...)
-	}
-	lines = append(lines, event.Errors...)
-
-	status := "Agent finished"
-	if event.IsError || (event.Subtype != "" && event.Subtype != "success") {
-		status = "Agent failed"
-		if event.Subtype != "" && event.Subtype != "success" {
-			status += " (" + event.Subtype + ")"
-		}
+		events = append(events, o.textEvents("", splitAgentText(event.Result))...)
 	}
 
-	summary := fmt.Sprintf("%s: %d turn(s), %s", status, event.NumTurns, agentDuration(event.DurationMs))
-	if event.TotalCostUSD > 0 {
-		summary += fmt.Sprintf(", $%.4f", event.TotalCostUSD)
+	done := agentlog.Event{
+		Kind:       agentlog.KindDone,
+		Error:      event.IsError,
+		Turns:      event.NumTurns,
+		DurationMs: event.DurationMs,
+		CostUSD:    event.TotalCostUSD,
+	}
+	if event.Subtype != "success" {
+		done.Subtype = o.mask(event.Subtype)
+	}
+	for _, text := range event.Errors {
+		done.Errors = append(done.Errors, o.mask(text))
 	}
 
-	return append(lines, summary), nil
+	return append(events, done), nil
 }
 
-// toolCall renders a tool call as "> name {arguments}" on one line.
-func (o *claudeStreamOutput) toolCall(block claudeBlock) string {
-	line := "> " + block.Name
-
-	var input any
-	decoder := json.NewDecoder(bytes.NewReader(block.Input))
-	decoder.UseNumber()
-	if len(block.Input) == 0 || decoder.Decode(&input) != nil {
-		return line
-	}
-
-	if object, ok := input.(map[string]any); input == nil || (ok && len(object) == 0) {
-		return line
-	}
-
-	// Mask the values before they are encoded: a secret with a character JSON
-	// escapes would not be found in the encoded line.
-	input = maskJSONStrings(input, o.mask)
-
-	var encoded bytes.Buffer
-	encoder := json.NewEncoder(&encoded)
-	encoder.SetEscapeHTML(false)
-	if encoder.Encode(input) != nil {
-		return line
-	}
-
-	return line + " " + truncateChars(strings.TrimSpace(encoded.String()), agentToolInputMax)
+// toolCall makes the event of a tool call. The arguments are masked value by
+// value: a secret with a character JSON escapes would not be found in the
+// encoded text.
+func (o *claudeStreamOutput) toolCall(agent string, block claudeBlock) agentlog.Event {
+	call := agentlog.NewTool(block.ID, block.Name, block.Input, o.mask)
+	call.Agent = agent
+	return call
 }
 
 // claudeBlocks decodes the content of a message; nil when it is not a list.
@@ -401,7 +398,8 @@ func claudeBlocks(content json.RawMessage) []claudeBlock {
 }
 
 // claudeToolResultText returns the text of a tool result, which is a string
-// or a list of blocks; a block that is not text is named, as "[image]".
+// or a list of blocks. A block that is not text is named: the tool a tool
+// search found, "[image]" for an image.
 func claudeToolResultText(content json.RawMessage) string {
 	var text string
 	if json.Unmarshal(content, &text) == nil {
@@ -410,35 +408,16 @@ func claudeToolResultText(content json.RawMessage) string {
 
 	parts := make([]string, 0, 1)
 	for _, block := range claudeBlocks(content) {
-		if block.Type == "text" {
+		switch {
+		case block.Type == "text":
 			parts = append(parts, block.Text)
-		} else if block.Type != "" {
+		case block.Type == "tool_reference" && block.ToolName != "":
+			parts = append(parts, block.ToolName)
+		case block.Type != "":
 			parts = append(parts, "["+block.Type+"]")
 		}
 	}
 	return strings.Join(parts, "\n")
-}
-
-// maskJSONStrings applies mask to every string of a decoded JSON value, the
-// keys of its objects included.
-func maskJSONStrings(value any, mask func(string) string) any {
-	switch v := value.(type) {
-	case string:
-		return mask(v)
-	case []any:
-		for i := range v {
-			v[i] = maskJSONStrings(v[i], mask)
-		}
-		return v
-	case map[string]any:
-		masked := make(map[string]any, len(v))
-		for key, item := range v {
-			masked[mask(key)] = maskJSONStrings(item, mask)
-		}
-		return masked
-	default:
-		return value
-	}
 }
 
 // splitAgentText splits text into lines, without the empty lines around it.
@@ -448,21 +427,4 @@ func splitAgentText(text string) []string {
 		return nil
 	}
 	return strings.Split(text, "\n")
-}
-
-// truncateChars cuts s to max characters, marking the cut.
-func truncateChars(s string, max int) string {
-	count := 0
-	for i := range s {
-		if count == max {
-			return s[:i] + "..."
-		}
-		count++
-	}
-	return s
-}
-
-// agentDuration renders milliseconds as a duration with a tenth of a second.
-func agentDuration(ms float64) string {
-	return (time.Duration(ms) * time.Millisecond).Round(100 * time.Millisecond).String()
 }
