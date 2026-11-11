@@ -119,7 +119,8 @@ func TestAgentApp_RunPassesPromptOnStdinAndMasksTokens(t *testing.T) {
 				assert.NotContains(t, out, "codex home: /elsewhere", "the environment can not redirect the config")
 				assert.Contains(t, out, "codex key: sk-test")
 			} else {
-				assert.True(t, strings.HasPrefix(argsLine, "args: -p --mcp-config="), argsLine)
+				assert.True(t, strings.HasPrefix(argsLine,
+					"args: -p --output-format=stream-json --verbose --include-partial-messages --mcp-config="), argsLine)
 			}
 
 			// The config directory lives until Clear and is gone after it.
@@ -132,6 +133,66 @@ func TestAgentApp_RunPassesPromptOnStdinAndMasksTokens(t *testing.T) {
 			assert.Empty(t, entries)
 		})
 	}
+}
+
+// gateLogger keeps the lines and creates the gate file when a line with the
+// marker is logged.
+type gateLogger struct {
+	lineLogger
+	marker string
+	gate   string
+}
+
+func (l *gateLogger) Log(msg string) {
+	l.lineLogger.Log(msg)
+	if strings.Contains(msg, l.marker) {
+		_ = os.WriteFile(l.gate, nil, 0o600)
+	}
+}
+
+// The agent goes on only after its tool call has reached the log: the log is
+// written while the agent runs, not when it exits.
+func TestAgentApp_RunLogsClaudeEventsWhileRunning(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh is not available")
+	}
+
+	gate := filepath.Join(t.TempDir(), "gate")
+	script := filepath.Join(t.TempDir(), "agent")
+	require.NoError(t, os.WriteFile(script, []byte(`#!/bin/sh
+cat > /dev/null
+echo '{"type":"assistant","message":{"id":"msg_1","content":[{"type":"tool_use","name":"Bash","input":{"command":"ls"}}]}}'
+i=0
+while [ ! -f "`+gate+`" ]; do
+  i=$((i+1))
+  if [ "$i" -gt 200 ]; then
+    echo "the tool call did not reach the log while the agent was running"
+    exit 3
+  fi
+  sleep 0.05
+done
+echo '{"type":"result","subtype":"success","is_error":false,"result":"done","num_turns":1,"duration_ms":1200}'
+`), 0o755))
+
+	setupAgentConfig(t, map[string]util.App{"claude": {Active: true, AppPath: script}})
+
+	logger := &gateLogger{marker: "> Bash", gate: gate}
+	agent := newAgentApp(db.Template{
+		ID: 1, ProjectID: 1, App: db.AppClaude,
+		TaskParams: db.MapStringAnyField{"prompt": "hi"},
+	}, db.Repository{ProjectID: 1, GitURL: t.TempDir()}, db.Inventory{}, logger)
+	t.Cleanup(agent.Clear)
+
+	require.NoError(t, agent.Run(LocalAppRunningArgs{
+		EnvironmentVars: []string{"ANTHROPIC_API_KEY=ak-test"},
+		TaskParams:      &db.AgentTaskParams{},
+	}))
+
+	out := logger.text()
+	assert.Contains(t, out, `> Bash {"command":"ls"}`)
+	assert.Contains(t, out, "done")
+	assert.Contains(t, out, "Agent finished: 1 turn(s), 1.2s")
+	assert.NotContains(t, out, `"type"`, "events are rendered, not dumped")
 }
 
 func TestAgentApp_RunWarnsWithoutAPIKey(t *testing.T) {

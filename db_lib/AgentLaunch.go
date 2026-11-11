@@ -56,6 +56,21 @@ type AgentLaunch struct {
 
 	// Servers is the number of MCP servers given to the agent.
 	Servers int
+
+	// output makes the reader of the CLI's output; nil for a CLI whose output
+	// is the task log as it is.
+	output func(mask func(string) string) AgentOutput
+}
+
+// NewOutput returns the reader of this run's output: it makes task log lines,
+// with Secrets masked, of the lines the CLI prints. Whoever runs the CLI
+// passes every line of its stdout and stderr through one AgentOutput.
+func (l *AgentLaunch) NewOutput() AgentOutput {
+	mask := newSecretMasker(l.Secrets)
+	if l.output == nil {
+		return plainAgentOutput{mask: mask}
+	}
+	return l.output(mask)
 }
 
 // agentMcpServer is an MCP server as an agent CLI gets it. TokenEnv is the
@@ -69,7 +84,8 @@ type agentMcpServer struct {
 // agentCLI is what differs between the agent CLIs.
 type agentCLI interface {
 	// launch fills the CLI-specific part of l for a config directory in home:
-	// Command, Args, TrailingArgs, Env, Dirs, Files and the API key fields.
+	// Command, Args, TrailingArgs, Env, Dirs, Files, the API key fields and
+	// the reader of the output.
 	launch(l *AgentLaunch, home string, servers []agentMcpServer) error
 }
 
@@ -125,7 +141,9 @@ func NewAgentLaunch(app db.TemplateApp, home string, mcpServers []db.McpServer) 
 	return l, nil
 }
 
-// claudeCLI runs Claude Code: claude -p, the prompt on stdin.
+// claudeCLI runs Claude Code: claude -p, the prompt on stdin. In print mode
+// the default text format prints nothing until the run is over, so the run
+// asks for the stream of events, which claudeStreamOutput makes the log of.
 type claudeCLI struct{}
 
 type claudeMcpServer struct {
@@ -162,16 +180,25 @@ func (claudeCLI) launch(l *AgentLaunch, home string, servers []agentMcpServer) e
 	l.Command = string(db.AppClaude)
 	l.Dirs = []string{"claude"}
 	l.Files = []AgentFile{{Path: "mcp.json", Content: data}}
-	l.Args = []string{"-p", "--mcp-config=" + path.Join(home, "mcp.json"), "--strict-mcp-config", "--no-session-persistence"}
+	l.Args = []string{
+		"-p",
+		// stream-json needs --verbose in print mode.
+		"--output-format=stream-json", "--verbose", "--include-partial-messages",
+		"--mcp-config=" + path.Join(home, "mcp.json"), "--strict-mcp-config", "--no-session-persistence",
+	}
 	if len(allowed) > 0 {
 		l.Args = append(l.Args, "--allowedTools="+strings.Join(allowed, ","))
 	}
 	l.Env = []string{"CLAUDE_CONFIG_DIR=" + path.Join(home, "claude")}
 	l.APIKeyVars = []string{"ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"}
+	l.output = func(mask func(string) string) AgentOutput {
+		return &claudeStreamOutput{mask: mask}
+	}
 	return nil
 }
 
-// codexCLI runs Codex: codex exec, the prompt on stdin ("-").
+// codexCLI runs Codex: codex exec, the prompt on stdin ("-"). It reports its
+// progress in plain text as it goes, so its output is the log.
 type codexCLI struct{}
 
 func (codexCLI) launch(l *AgentLaunch, home string, servers []agentMcpServer) error {
