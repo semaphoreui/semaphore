@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE || 'http://localhost:3102';
+const BASE = process.env.BASE || 'http://127.0.0.1:3102';
 const OUT = path.resolve(process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : path.join(process.env.AGENT_STAND_DIR || path.join(__dirname, '..', '..', 'tmp', 'agent-stand'), 'shots'));
 const DARK = process.argv.includes('--dark');
 const DATA = process.env.AGENT_STAND_DIR || path.join(__dirname, '..', '..', 'tmp', 'agent-stand');

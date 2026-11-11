@@ -58,7 +58,7 @@
   (built from this worktree), users `admin`/`admin123`, `manager`/`manager123` (holds the global
   role `user_manager`), `plain`/`plain1234`; roles were inserted with `sqlite3` because the community
   roles API is a stub. Screenshots in `shots-global-roles/`.
-- AI agent stand (2026-11-08): `:3102`, started and seeded by `AGENTS/tools/agent-stand/`, data in
+- AI agent stand (2026-11-08): `127.0.0.1:3102` (loopback only), started and seeded by `AGENTS/tools/agent-stand/`, data in
   `AGENTS/tmp/agent-stand` (outside `/tmp`, so macOS does not purge it); agents run a fake CLI
   unless started with `--real`.
 - macOS has no `timeout`; wait for a server with a `for` loop around `curl -sf …/api/ping` and

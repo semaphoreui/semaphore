@@ -1,7 +1,9 @@
 # agent-stand
 
-A throwaway Semaphore from this work copy on `http://localhost:3102` (admin/admin123, its own
-SQLite) with the AI agent UI seeded. Use it to check the mcp inventory form, the agent template
+A throwaway Semaphore from this work copy on `http://127.0.0.1:3102` (admin/admin123, its own
+SQLite) with the AI agent UI seeded. It listens on the loopback interface only — `stand.sh` writes
+`"interface": "127.0.0.1"` into the config on every start — because the admin password is known
+and `--real` puts real API keys behind it. Use it to check the mcp inventory form, the agent template
 form and agent task runs in the browser after changing them.
 
 ```
@@ -13,7 +15,7 @@ NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules node AGENTS/tools/agent-stan
 
 ```
 $ AGENTS/tools/agent-stand/stand.sh build && AGENTS/tools/agent-stand/stand.sh start
-stand: up at http://localhost:3102 (pid 93629, agents: fake)
+stand: up at http://127.0.0.1:3102 (pid 93629, agents: fake)
 $ AGENTS/tools/agent-stand/seed.sh
 project=1 key=2 repo=1 env=1 inventory=1 claude_template=1 codex_template=2
 $ node AGENTS/tools/agent-stand/verify.cjs

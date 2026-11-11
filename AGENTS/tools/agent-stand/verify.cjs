@@ -7,7 +7,7 @@ const fs = require('fs');
 const assert = require('assert');
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE || 'http://localhost:3102';
+const BASE = process.env.BASE || 'http://127.0.0.1:3102';
 const DATA = process.env.AGENT_STAND_DIR || path.join(__dirname, '..', '..', 'tmp', 'agent-stand');
 const ids = Object.fromEntries(fs.readFileSync(path.join(DATA, 'ids.txt'), 'utf8').trim().split(' ').map((kv) => kv.split('=')));
 const P = ids.project;

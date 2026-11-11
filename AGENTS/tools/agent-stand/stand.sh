@@ -1,6 +1,7 @@
 #!/bin/bash
-# The throwaway stand of the AI agent work: Semaphore from this work copy on :3102, its own SQLite
-# database, admin/admin123. Data in AGENTS/tmp/agent-stand (git-ignored).
+# The throwaway stand of the AI agent work: Semaphore from this work copy on 127.0.0.1:3102 (never
+# on another interface), its own SQLite database, admin/admin123. Data in AGENTS/tmp/agent-stand
+# (git-ignored).
 #   stand.sh build                 web UI + binary from the work copy
 #   stand.sh start [--real]        migrate and start; agents run fake-agent.sh unless --real
 #   stand.sh stop | status | log [n]
@@ -8,7 +9,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 TOOL=$ROOT/AGENTS/tools/agent-stand
 DIR=${AGENT_STAND_DIR:-$ROOT/AGENTS/tmp/agent-stand}
-BASE=http://localhost:3102
+BASE=http://127.0.0.1:3102
 BIN=$DIR/semaphore
 CFG=$DIR/config.json
 
@@ -34,6 +35,9 @@ else:
     c = {"sqlite": {"host": f"{d}/database.sqlite"}, "dialect": "sqlite", "port": ":3102",
          "tmp_path": f"{d}/tmp", "cookie_hash": key(), "cookie_encryption": key(),
          "access_key_encryption": key()}
+# Loopback only, also for a config written before this line: the stand has a known admin password
+# and, with --real, real API keys; an empty interface would listen on every address.
+c["interface"] = "127.0.0.1"
 app = {"active": True} if real else {"active": True, "path": fake}
 c["apps"] = {"claude": dict(app), "codex": dict(app)}
 fd = os.open(cfg, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
