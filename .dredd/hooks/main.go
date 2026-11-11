@@ -202,6 +202,7 @@ func main() {
 			"/api/hosts > Get hosts of all projects (PRO) > 200 > application/json",
 			"/api/hosts/{host_id} > Get a host (PRO) > 200 > application/json",
 			"/api/hosts/{host_id}/tasks > Get tasks of the host (PRO) > 200 > application/json",
+			"/api/hosts/{host_id}/decommission > Decommission the host (PRO) > 204 > application/json",
 		} {
 			h.Before(v, skipTest)
 		}

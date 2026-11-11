@@ -82,6 +82,7 @@ func globalRoutes() []globalRoute {
 		hosts(http.MethodGet, "/api/hosts"),
 		hosts(http.MethodGet, "/api/hosts/1"),
 		hosts(http.MethodGet, "/api/hosts/1/tasks"),
+		hosts(http.MethodPost, "/api/hosts/1/decommission"),
 
 		// manage roles
 		roles(http.MethodGet, "/api/roles"),

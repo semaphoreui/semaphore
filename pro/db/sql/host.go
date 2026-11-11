@@ -18,3 +18,11 @@ func (d *HostStoreImpl) GetHost(hostID int, projectID *int) (db.HostDetails, err
 func (d *HostStoreImpl) GetHostTasks(hostID int, projectID *int, count int, beforeTaskID int) ([]db.HostTask, error) {
 	return nil, nil
 }
+
+func (d *HostStoreImpl) CountActiveHosts() (int, error) {
+	return 0, nil
+}
+
+func (d *HostStoreImpl) DecommissionHost(hostID int) error {
+	return db.ErrNotFound
+}

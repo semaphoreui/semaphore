@@ -42,3 +42,7 @@ func (c *HostControllerImpl) GetHostTasks(w http.ResponseWriter, r *http.Request
 	w.Header().Set("X-Has-Next", "false")
 	helpers.WriteJSON(w, http.StatusOK, []any{})
 }
+
+func (c *HostControllerImpl) DecommissionHost(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+}

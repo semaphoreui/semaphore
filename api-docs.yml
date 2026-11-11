@@ -1248,6 +1248,9 @@ definitions:
       last_task_id:
         type: integer
         x-nullable: true
+      decommissioned:
+        type: string
+        x-nullable: true
       last_template:
         type: object
         x-nullable: true
@@ -4766,6 +4769,17 @@ paths:
             type: array
             items:
               $ref: "#/definitions/HostTask"
+
+  /hosts/{host_id}/decommission:
+    parameters:
+      - $ref: "#/parameters/host_id"
+    post:
+      summary: Decommission the host (PRO)
+      responses:
+        204:
+          description: Host is decommissioned, repeated call changes nothing
+        404:
+          description: Host not found
 
   /apps:
     get:

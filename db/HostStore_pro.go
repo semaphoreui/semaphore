@@ -79,4 +79,8 @@ type HostRepository interface {
 	GetHost(hostID int, projectID *int) (HostDetails, error)
 	// GetHostTasks lists tasks newest first, a nil projectID means all projects.
 	GetHostTasks(hostID int, projectID *int, count int, beforeTaskID int) ([]HostTask, error)
+	// CountActiveHosts counts hosts automated at least once and not decommissioned.
+	CountActiveHosts() (int, error)
+	// DecommissionHost returns ErrNotFound if the host does not exist, a repeated call changes nothing.
+	DecommissionHost(hostID int) error
 }

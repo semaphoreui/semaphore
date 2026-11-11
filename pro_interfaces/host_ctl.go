@@ -9,4 +9,5 @@ type HostController interface {
 	GetHosts(w http.ResponseWriter, r *http.Request)
 	GetHost(w http.ResponseWriter, r *http.Request)
 	GetHostTasks(w http.ResponseWriter, r *http.Request)
+	DecommissionHost(w http.ResponseWriter, r *http.Request)
 }

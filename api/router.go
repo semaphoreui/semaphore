@@ -116,7 +116,7 @@ func Route(
 	projectIntegrationController := projects.NewIntegrationController(subscriptionService)
 	userController := NewUserController(subscriptionService)
 	usersController := NewUsersController(subscriptionService)
-	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore)
+	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore, hostRepo)
 	projectRunnerController := proProjects.NewProjectRunnerController(subscriptionService, runnerService)
 	globalRunnerController := NewGlobalRunnerController(runnerService)
 	taskController := projects.NewTaskController(store, ansibleTaskRepo)
@@ -276,6 +276,7 @@ func Route(
 	systemAPI.Path("/hosts").HandlerFunc(hostController.GetHosts).Methods("GET", "HEAD")
 	systemAPI.Path("/hosts/{host_id}").HandlerFunc(hostController.GetHost).Methods("GET", "HEAD")
 	systemAPI.Path("/hosts/{host_id}/tasks").HandlerFunc(hostController.GetHostTasks).Methods("GET", "HEAD")
+	systemAPI.Path("/hosts/{host_id}/decommission").HandlerFunc(hostController.DecommissionHost).Methods("POST")
 
 	systemAPI.Path("/tasks").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
 	tasksAPI := systemAPI.PathPrefix("/tasks").Subrouter()

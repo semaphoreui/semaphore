@@ -236,7 +236,6 @@ type UserManager interface {
 	GetUserByLoginOrEmail(login string, email string) (User, error)
 	GetAllAdmins() ([]User, error)
 
-	GetNodeCount() (int, error)
 	GetUiCount() (int, error)
 }
 
