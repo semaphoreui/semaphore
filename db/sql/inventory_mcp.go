@@ -106,16 +106,15 @@ func (d *SqlDb) UpdateMcpInventory(inventory db.Inventory, changes []db.McpServe
 	err = d.mcpTx(func(tx *gorp.Transaction) error {
 		// The type check keeps an inventory of another type from being turned
 		// into mcp here: its own data would stay behind, unseen.
-		res, e := d.execTx(tx, inventoryUpdateQuery+" and type=?",
+		//
+		// The number of affected rows does not tell whether the inventory
+		// exists: MySQL counts changed rows, so an edit of the servers alone
+		// reports 0 for a row that is there. setMcpServers looks the row up
+		// itself, after this update holds it, and returns db.ErrNotFound.
+		_, e := d.execTx(tx, inventoryUpdateQuery+" and type=?",
 			append(inventoryUpdateArgs(inventory), db.InventoryMcp)...)
 		if e != nil {
 			return e
-		}
-
-		if n, e := res.RowsAffected(); e != nil {
-			return e
-		} else if n == 0 {
-			return db.ErrNotFound
 		}
 
 		if e = d.setMcpServers(tx, inventory.ProjectID, inventory.ID, changes); e != nil {
