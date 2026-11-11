@@ -252,7 +252,6 @@ properties:
   syslog:       { $ref: "#/$defs/SyslogConfig" }
   metrics:      { $ref: "#/$defs/MetricsConfig" }
   log:          { $ref: "#/$defs/ConfigLog" }
-  process:      { $ref: "#/$defs/ConfigProcess" }
   schedule:     { $ref: "#/$defs/ScheduleConfig" }
   debugging:    { $ref: "#/$defs/DebuggingConfig" }
   ha:           { $ref: "#/$defs/HAConfig" }
@@ -608,26 +607,6 @@ $defs:
         description: Max number of old log files to retain.
       localtime: { type: boolean }
       compress:  { type: boolean }
-
-  ConfigProcess:
-    type: object
-    properties:
-      user:           { type: string }
-      uid:            { type: integer, minimum: 0 }
-      chroot:         { type: string }
-      gid:            { type: integer, minimum: 0 }
-      no_new_privs:   { type: boolean }
-      app_namespaces: { $ref: "#/$defs/ConfigAppNamespaces" }
-
-  ConfigAppNamespaces:
-    type: object
-    description: Linux CLONE_NEW* flags applied to app runs. No-op on non-Linux.
-    properties:
-      user:  { type: boolean }
-      mount: { type: boolean }
-      pid:   { type: boolean }
-      ipc:   { type: boolean }
-      uts:   { type: boolean }
 
   ScheduleConfig:
     type: object

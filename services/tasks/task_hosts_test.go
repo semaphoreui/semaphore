@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,10 +44,6 @@ func TestParseHostsDocument_Invalid(t *testing.T) {
 }
 
 func TestHostsCapture(t *testing.T) {
-	prev := util.Config
-	t.Cleanup(func() { util.Config = prev })
-	util.Config = &util.ConfigType{Process: &util.ConfigProcess{}}
-
 	dir := t.TempDir()
 	c, err := beginHostsCapture(dir, 42)
 	require.NoError(t, err)

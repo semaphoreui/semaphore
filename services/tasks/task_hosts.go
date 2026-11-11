@@ -11,7 +11,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/util"
 )
 
 //go:embed callback_plugins/*.py
@@ -44,8 +43,7 @@ type hostsCapture struct {
 }
 
 // beginHostsCapture creates a directory for the task under dir with an empty
-// hosts file in it. Both belong to the user the task process runs as: the
-// directory is 0700, the file 0600.
+// hosts file in it, readable by the owner only: the directory is 0700, the file 0600.
 func beginHostsCapture(dir string, taskID int) (*hostsCapture, error) {
 	taskDir, err := os.MkdirTemp(dir, fmt.Sprintf("task_%d_hosts_", taskID))
 	if err != nil {
@@ -53,12 +51,7 @@ func beginHostsCapture(dir string, taskID int) (*hostsCapture, error) {
 	}
 
 	file := filepath.Join(taskDir, hostsFileName)
-	if err = os.WriteFile(file, nil, 0o600); err == nil {
-		if err = util.ChownDir(taskDir); err == nil {
-			err = util.ChownDir(file)
-		}
-	}
-	if err != nil {
+	if err = os.WriteFile(file, nil, 0o600); err != nil {
 		_ = os.RemoveAll(taskDir)
 		return nil, err
 	}
@@ -77,9 +70,6 @@ func (c *hostsCapture) CallbackDir() (string, error) {
 	if err := os.MkdirAll(target, 0o700); err != nil {
 		return "", err
 	}
-	if err := util.ChownDir(target); err != nil {
-		return "", err
-	}
 
 	entries, err := fs.ReadDir(hostsCallbacks, "callback_plugins")
 	if err != nil {
@@ -95,9 +85,6 @@ func (c *hostsCapture) CallbackDir() (string, error) {
 		}
 		out := filepath.Join(target, entry.Name())
 		if err = os.WriteFile(out, data, 0o600); err != nil {
-			return "", err
-		}
-		if err = util.ChownDir(out); err != nil {
 			return "", err
 		}
 	}

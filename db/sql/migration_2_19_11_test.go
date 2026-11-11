@@ -21,7 +21,6 @@ func TestMigration_2_19_11(t *testing.T) {
 			Events: &util.EventLogType{},
 			Tasks:  &util.TaskLogType{},
 		},
-		Process: &util.ConfigProcess{},
 	}
 	store := CreateDb(util.DbDriverSQLite)
 	store.Connect()

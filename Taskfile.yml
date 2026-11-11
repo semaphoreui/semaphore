@@ -170,9 +170,12 @@ tasks:
       - npm run test:unit
 
   test:be:
-    desc: Run go code tests
+    desc: Run go code tests, including pro_impl when a go.work workspace is active
     cmds:
-      - go test -v -coverprofile=coverage.out ./...
+      # `./...` stops at a nested go.mod, so it never reaches pro_impl. `go list -m`
+      # prints the directory of every module under test: the main module alone,
+      # or all modules of the go.work workspace when one is active.
+      - go test -v -coverprofile=coverage.out $(go list -m -f '{{ "{{.Dir}}/..." }}')
 
   dredd:goodman:
     desc: Installs goodman which is required by dredd

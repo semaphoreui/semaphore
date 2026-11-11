@@ -634,7 +634,6 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 func TestTaskGetPlaybookArgs(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
-		Process: &util.ConfigProcess{},
 	}
 
 	inventoryID := 1
@@ -682,7 +681,6 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 func TestTaskGetPlaybookArgs2(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
-		Process: &util.ConfigProcess{},
 	}
 
 	inventoryID := 1
@@ -734,7 +732,6 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 func TestTaskGetPlaybookArgs3(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
-		Process: &util.ConfigProcess{},
 	}
 
 	inventoryID := 1

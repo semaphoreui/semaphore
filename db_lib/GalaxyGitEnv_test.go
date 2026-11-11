@@ -144,7 +144,7 @@ func (f *fakeInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, _ task
 func setupGalaxyConfig(t *testing.T) {
 	original := util.Config
 	t.Cleanup(func() { util.Config = original })
-	util.Config = &util.ConfigType{TmpPath: t.TempDir(), Process: &util.ConfigProcess{}}
+	util.Config = &util.ConfigType{TmpPath: t.TempDir()}
 }
 
 // stubGalaxy puts a succeeding ansible-galaxy first on PATH and returns a
