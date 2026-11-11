@@ -152,6 +152,9 @@ export default {
     async hostId() {
       await this.resetAndLoad();
     },
+    async projectId() {
+      await this.resetAndLoad();
+    },
   },
 
   async created() {

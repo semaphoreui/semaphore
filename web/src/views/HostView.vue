@@ -138,6 +138,9 @@ export default {
     async hostId() {
       await this.load();
     },
+    async projectId() {
+      await this.load();
+    },
   },
 
   async created() {
