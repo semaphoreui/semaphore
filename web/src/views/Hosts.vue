@@ -45,6 +45,16 @@
     </v-alert>
 
     <template v-else>
+      <v-alert
+        v-if="limitExceeded"
+        type="warning"
+        variant="tonal"
+        class="mx-4 mt-4"
+        data-testid="hosts-limitAlert"
+      >
+        {{ $t('hosts_limit_exceeded', { used: nodesUsed, limit: nodes }) }}
+      </v-alert>
+
       <div class="d-flex flex-wrap align-center px-4 pt-4" style="gap: 16px">
         <v-text-field
           v-model="searchText"
@@ -116,7 +126,12 @@
         </template>
 
         <template v-slot:item.last_status="{ item }">
-          <HostStatus :status="item.last_status" data-testid="hosts-rowStatus"/>
+          <v-chip
+            v-if="!projectId && item.decommissioned"
+            size="small"
+            data-testid="hosts-rowDecommissioned"
+          >{{ $t('host_decommissioned') }}</v-chip>
+          <HostStatus v-else :status="item.last_status" data-testid="hosts-rowStatus"/>
         </template>
 
         <template v-slot:item.last_task="{ item }">
@@ -160,6 +175,23 @@
             </template>
           </span>
         </template>
+
+        <template v-slot:item.actions="{ item }">
+          <v-tooltip v-if="!item.decommissioned" location="bottom">
+            <template v-slot:activator="{ props }">
+              <v-btn
+                v-bind="props"
+                icon
+                variant="text"
+                data-testid="hosts-decommission"
+                @click="askDecommission(item)"
+              >
+                <v-icon>mdi-archive-arrow-down</v-icon>
+              </v-btn>
+            </template>
+            <span>{{ $t('host_decommission') }}</span>
+          </v-tooltip>
+        </template>
       </v-data-table>
 
       <div class="d-flex align-center justify-end mt-2 mr-2 mb-4" data-testid="hosts-pagination">
@@ -202,6 +234,16 @@
           <v-icon>mdi-chevron-right</v-icon>
         </v-btn>
       </div>
+
+      <YesNoDialog
+        v-model="decommissionDialog"
+        :title="$t('host_decommission')"
+        :text="$t('host_decommission_confirm', {
+          name: decommissionHost ? decommissionHost.display_name : '',
+        })"
+        test-id="hosts-decommissionDialog"
+        @yes="decommission()"
+      />
     </template>
   </div>
 </template>
@@ -214,6 +256,7 @@ import ProjectMixin from '@/components/ProjectMixin';
 import PageMixin from '@/components/PageMixin';
 import HostStatus from '@/components/HostStatus.vue';
 import TaskLink from '@/components/TaskLink.vue';
+import YesNoDialog from '@/components/YesNoDialog.vue';
 import { GLOBAL_PERMISSIONS } from '@/lib/constants';
 import { hasGlobalPermission } from '@/lib/role-permissions';
 
@@ -229,7 +272,7 @@ const NOT_SEEN_DAYS = 30;
 export default {
   mixins: [ProjectMixin, PageMixin],
 
-  components: { HostStatus, TaskLink },
+  components: { HostStatus, TaskLink, YesNoDialog },
 
   props: {
     user: Object,
@@ -249,6 +292,10 @@ export default {
       searchText: '',
       searchTimer: null,
       loadSeq: 0,
+      nodes: 0,
+      nodesUsed: 0,
+      decommissionDialog: false,
+      decommissionHost: null,
     };
   },
 
@@ -273,6 +320,10 @@ export default {
       return hasGlobalPermission(this.user, GLOBAL_PERMISSIONS.manageSystem);
     },
 
+    limitExceeded() {
+      return !this.projectId && this.nodes > 0 && this.nodesUsed > this.nodes;
+    },
+
     state() {
       if (this.loading || this.rows == null) return 'loading';
       return this.rows.length === 0 ? 'empty' : 'ready';
@@ -290,6 +341,9 @@ export default {
         ...(this.projectId
           ? [{ title: this.$t('hosts_col_templates'), key: 'templates', sortable: false }]
           : [{ title: this.$t('hosts_col_projects'), key: 'projects', sortable: false }]),
+        ...(this.projectId ? [] : [{
+          title: '', key: 'actions', sortable: false, align: 'end',
+        }]),
       ];
     },
   },
@@ -334,6 +388,7 @@ export default {
       this.searchText = this.search;
       if (!this.features.hosts) return;
       await Promise.all([this.load(), this.projectId ? this.loadTemplates() : null]);
+      if (!this.projectId) await this.loadLimit();
     },
 
     showDrawer() {
@@ -354,6 +409,32 @@ export default {
         this.templates = await this.loadProjectResources('templates');
       } catch (err) {
         EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+      }
+    },
+
+    askDecommission(host) {
+      this.decommissionHost = host;
+      this.decommissionDialog = true;
+    },
+
+    async decommission() {
+      try {
+        await axios.post(`/api/hosts/${this.decommissionHost.id}/decommission`);
+      } catch (err) {
+        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+        return;
+      }
+      await this.open();
+    },
+
+    async loadLimit() {
+      try {
+        const { data } = await axios.get('/api/subscription');
+        this.nodes = data.nodes || 0;
+        this.nodesUsed = data.nodes_used || 0;
+      } catch {
+        this.nodes = 0;
+        this.nodesUsed = 0;
       }
     },
 

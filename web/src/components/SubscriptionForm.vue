@@ -214,8 +214,14 @@
               </v-list-item>
               <v-list-item class="px-0 py-3" v-if="item.nodes">
                 <v-list-item-title>Nodes</v-list-item-title>
-                <v-list-item-subtitle data-testid="subscription-planNodes">
+                <v-list-item-subtitle
+                  :class="{ 'text-error': item.nodes_used > item.nodes }"
+                  data-testid="subscription-planNodes"
+                >
                   {{ item.nodes_used }} / {{ item.nodes }}
+                  <span v-if="item.nodes_used > item.nodes">
+                    ({{ $t('subscription_limit_exceeded') }})
+                  </span>
                 </v-list-item-subtitle>
               </v-list-item>
               <v-list-item class="px-0 py-3" v-if="item.runners < 100000">
