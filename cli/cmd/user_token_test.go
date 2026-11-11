@@ -22,6 +22,7 @@ type fakeTokenStore struct {
 	tokens       map[int][]db.APIToken
 
 	created    []db.APIToken
+	listedType db.APITokenType
 	getUserErr error
 	createErr  error
 	listErr    error
@@ -38,16 +39,18 @@ func (s *fakeTokenStore) GetUserByLoginOrEmail(login string, _ string) (db.User,
 	return user, nil
 }
 
-func (s *fakeTokenStore) CreateAPIToken(token db.APIToken) (db.APIToken, error) {
+func (s *fakeTokenStore) CreateAPIToken(tokenType db.APITokenType, token db.APIToken) (db.APIToken, error) {
 	if s.createErr != nil {
 		return db.APIToken{}, s.createErr
 	}
+	token.Type = tokenType
 	token.Created = tz.Now()
 	s.created = append(s.created, token)
 	return token, nil
 }
 
-func (s *fakeTokenStore) GetAPITokens(userID int) ([]db.APIToken, error) {
+func (s *fakeTokenStore) GetAPITokens(userID int, tokenType db.APITokenType) ([]db.APIToken, error) {
+	s.listedType = tokenType
 	if s.listErr != nil {
 		return nil, s.listErr
 	}
@@ -95,6 +98,7 @@ func TestCreateUserToken_WithTTL(t *testing.T) {
 	token := store.created[0]
 
 	assert.Equal(t, 42, token.UserID)
+	assert.Equal(t, db.APITokenTypeAPI, token.Type, "the CLI issues REST API tokens")
 	assert.Equal(t, "ci", token.Name)
 	assert.False(t, token.Expired)
 	require.NotNil(t, token.ExpiresAt)
@@ -103,7 +107,7 @@ func TestCreateUserToken_WithTTL(t *testing.T) {
 
 	// create prints the token value
 	assert.Equal(t, token.ID, strings.TrimSpace(out.String()))
-	assert.NotEmpty(t, token.ID)
+	assert.Regexp(t, `^[a-z0-9_-]{43}=$`, token.ID)
 }
 
 func TestCreateUserToken_NoTTL_NeverExpires(t *testing.T) {
@@ -160,6 +164,7 @@ func TestListUserTokens_DoesNotLeakTokenValues(t *testing.T) {
 	require.NoError(t, err)
 
 	output := out.String()
+	assert.Equal(t, db.APITokenTypeAPI, store.listedType, "the CLI lists REST API tokens only")
 
 	// The token IDs (secret values) must never appear in list output.
 	for _, token := range store.tokens[42] {

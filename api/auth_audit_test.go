@@ -40,7 +40,7 @@ func TestAuthentication_ExpiredAPITokenIsRecorded(t *testing.T) {
 	store := setupSessionTest(t)
 	user := createUserOptionsTestUser(t, store, "alice")
 	past := time.Now().Add(-time.Hour)
-	_, err := store.CreateAPIToken(db.APIToken{ID: "expiredtoken1234567890", UserID: user.ID, ExpiresAt: &past, Name: "ci"})
+	_, err := store.CreateAPIToken(db.APITokenTypeAPI, db.APIToken{ID: "expiredtoken1234567890", UserID: user.ID, ExpiresAt: &past, Name: "ci"})
 	require.NoError(t, err)
 
 	r, rec := withAuditRecorder(bearerRequest(store, "expiredtoken1234567890"))
@@ -56,7 +56,7 @@ func TestAuthentication_ExpiredAPITokenIsRecorded(t *testing.T) {
 func TestAuthentication_APITokenActor(t *testing.T) {
 	store := setupSessionTest(t)
 	user := createUserOptionsTestUser(t, store, "alice")
-	_, err := store.CreateAPIToken(db.APIToken{ID: "validtoken1234567890", UserID: user.ID, Name: "ci"})
+	_, err := store.CreateAPIToken(db.APITokenTypeAPI, db.APIToken{ID: "validtoken1234567890", UserID: user.ID, Name: "ci"})
 	require.NoError(t, err)
 
 	r, rec := withAuditRecorder(bearerRequest(store, "validtoken1234567890"))
