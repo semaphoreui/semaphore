@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -188,4 +189,28 @@ func lineWithPrefix(t *testing.T, text string, prefix string) string {
 	}
 	require.Failf(t, "line not found", "no line starting with %q in:\n%s", prefix, text)
 	return ""
+}
+
+// With a process user configured the agent starts as that user, so its config
+// tree is handed to it before the launch. A user this test may not give files
+// to makes the hand-over fail, which shows it happens and happens first.
+func TestAgentApp_RunGivesConfigToProcessUser(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("needs an unprivileged Unix user")
+	}
+
+	setupAgentConfig(t, map[string]util.App{"claude": {Active: true, AppPath: fakeAgent(t)}})
+	uid, gid := uint32(os.Getuid()+1), uint32(os.Getgid()+1)
+	util.Config.Process = &util.ConfigProcess{UID: &uid, GID: &gid}
+
+	logger := &lineLogger{}
+	agent := newAgentApp(db.Template{
+		ID: 1, ProjectID: 1, App: db.AppClaude,
+		TaskParams: db.MapStringAnyField{"prompt": "hi"},
+	}, db.Repository{ProjectID: 1, GitURL: t.TempDir()}, agentInventory(), logger)
+	t.Cleanup(agent.Clear)
+
+	err := agent.Run(LocalAppRunningArgs{TaskParams: &db.AgentTaskParams{}})
+	assert.ErrorContains(t, err, "can't give the agent config directory to the process user")
+	assert.NotContains(t, logger.text(), "prompt: ", "the agent must not start")
 }

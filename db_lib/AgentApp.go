@@ -112,6 +112,13 @@ func (t *AgentApp) Run(args LocalAppRunningArgs) error {
 		return err
 	}
 
+	// The agent runs as the process config user when one is set
+	// (GetAppSysProcAttr), while this tree was written by the server. It
+	// stays private (0700/0600) and gets the owner who has to read it.
+	if err = util.ChownTree(home); err != nil {
+		return fmt.Errorf("can't give the agent config directory to the process user: %w", err)
+	}
+
 	cliArgs := append([]string{}, launch.Args...)
 	cliArgs = append(cliArgs, args.CliArgs["default"]...)
 	cliArgs = append(cliArgs, launch.TrailingArgs...)
