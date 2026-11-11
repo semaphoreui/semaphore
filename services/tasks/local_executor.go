@@ -983,9 +983,12 @@ func (t *LocalExecutor) ansibleCfgCallbackPlugins(env []string) string {
 	if t.Template.WorkingDirectory != nil {
 		wd = filepath.Join(wd, *t.Template.WorkingDirectory)
 	}
-	home := os.Getenv("HOME")
-	if util.Config.HomeDirMode == util.HomeDirModeProjectHome {
-		home = util.Config.GetProjectTmpDir(t.Template.ProjectID)
+	// The HOME the process gets: the one makeCmd sets, unless the task's own environment sets one.
+	home := db_lib.GetHomeDir(t.Repository, t.Template.ID)
+	for _, e := range env {
+		if v, ok := strings.CutPrefix(e, "HOME="); ok {
+			home = v
+		}
 	}
 	resolve := func(path, base string) string {
 		if path == "~" || strings.HasPrefix(path, "~/") {
@@ -1015,9 +1018,7 @@ func (t *LocalExecutor) ansibleCfgCallbackPlugins(env []string) string {
 	if info, err := os.Stat(wd); err == nil && info.Mode().Perm()&0o002 == 0 {
 		candidates = append(candidates, filepath.Join(wd, "ansible.cfg"))
 	}
-	if home != "" {
-		candidates = append(candidates, filepath.Join(home, ".ansible.cfg"))
-	}
+	candidates = append(candidates, resolve("~/.ansible.cfg", ""))
 	candidates = append(candidates, "/etc/ansible/ansible.cfg")
 
 	var file *os.File

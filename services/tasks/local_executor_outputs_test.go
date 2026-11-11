@@ -273,6 +273,12 @@ func TestLocalExecutor_ansibleCallbackPluginsFromCfg(t *testing.T) {
 			expected: "{root}/repo/cb" + sep + "/abs/cb" + sep + "{root}/repo/second" + sep + dir,
 		},
 		{
+			name:     "looks in the HOME set for the task",
+			env:      []string{"HOME={root}/other"},
+			otherCfg: "[defaults]\ncallback_plugins = ~/cb\n",
+			expected: "{root}/other/cb" + sep + dir,
+		},
+		{
 			name:     "takes the cfg named by ANSIBLE_CONFIG of the task first",
 			env:      []string{"ANSIBLE_CONFIG={root}/other/my.cfg"},
 			wdCfg:    wdCfg,
@@ -303,7 +309,7 @@ func TestLocalExecutor_ansibleCallbackPluginsFromCfg(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			prev := util.Config
 			t.Cleanup(func() { util.Config = prev })
-			util.Config = &util.ConfigType{}
+			util.Config = &util.ConfigType{HomeDirMode: util.HomeDirModeUserHome}
 			root := t.TempDir()
 			for _, d := range []string{"repo", "home", "other"} {
 				require.NoError(t, os.Mkdir(filepath.Join(root, d), 0o755))
@@ -313,9 +319,10 @@ func TestLocalExecutor_ansibleCallbackPluginsFromCfg(t *testing.T) {
 				homeCfg = "[defaults]\n"
 			}
 			files := map[string]string{
-				"repo/ansible.cfg":  tt.wdCfg,
-				"home/.ansible.cfg": homeCfg,
-				"other/my.cfg":      tt.otherCfg,
+				"repo/ansible.cfg":   tt.wdCfg,
+				"home/.ansible.cfg":  homeCfg,
+				"other/my.cfg":       tt.otherCfg,
+				"other/.ansible.cfg": tt.otherCfg,
 			}
 			for path, content := range files {
 				if content != "" {
