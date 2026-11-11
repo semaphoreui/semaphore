@@ -75,6 +75,8 @@ func (d *SqlDb) GetProject(projectID int) (project db.Project, err error) {
 }
 
 func (d *SqlDb) DeleteProject(projectID int) error {
+	// Project runners are removed by the cascade.
+	defer d.runnerCache.Invalidate()
 
 	//tpls, err := d.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
 	//

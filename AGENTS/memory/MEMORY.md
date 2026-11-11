@@ -29,6 +29,9 @@ only when the task touches that topic. Keep this file under 150 lines.
   neither executor sweeps leftovers on restart — documented in `docs/docs/admin-guide/executors/`; update it when fixed.
 - `default:` struct tags in `util/config.go` are applied at config load (when the section exists),
   so they — not in-package fallback constants — are the effective documented defaults.
+- Removing a config option that restricted something: refuse it at startup, do not just delete the
+  field — the JSON/YAML decoders drop unknown keys and an unread env var vanishes silently, so the
+  restriction would disappear on upgrade. `util/config_removed.go` does this for `process`.
 - `config.schema.yaml` is not a source of truth; it drifts (gave wrong k8s executor image
   defaults). Generate reference docs from the Go struct with `task docs:gen`.
 - The docs submodule's `main` may be generated from code ahead of `develop` (2026-10-25: it had the

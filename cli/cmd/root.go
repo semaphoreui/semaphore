@@ -200,6 +200,17 @@ func runService() {
 		log.WithField("redis", haRedis.Describe()).Info("HA Redis backend connected")
 	}
 
+	// The store caches runners by token in memory, which is only correct on a
+	// single node: HA nodes must share the cache so that an invalidation made
+	// by one node reaches the others.
+	if runnerCache := proHA.NewRunnerCache(haRedis); runnerCache != nil {
+		holder, ok := store.(db.RunnerCacheHolder)
+		if !ok {
+			log.Fatalf("store %T does not support a shared runner cache", store)
+		}
+		holder.SetRunnerCache(runnerCache)
+	}
+
 	appMetrics := metrics.NewMetrics()
 
 	auditService, auditErr := audit.StartService(

@@ -347,6 +347,10 @@
 
               <v-list-item-title>{{ item.title }}</v-list-item-title>
 
+              <v-list-item-action>
+                <v-chip v-if="item.isBeta" small color="warning">Beta</v-chip>
+              </v-list-item-action>
+
               <template v-slot:append>
                 <div class="nav-pin-wrap" v-if="navEditMode">
                   <v-btn
@@ -1551,6 +1555,7 @@ export default {
             title: this.$t('hostConfig'),
             to: `${base}/host_config`,
             testId: 'sidebar-hostConfig',
+            isBeta: true,
           },
           {
             key: 'integrations',
