@@ -48,6 +48,12 @@ func parseTlsVersion(version string) (uint16, error) {
 	return 0, fmt.Errorf("unsupported TLS version %s", version)
 }
 
+// formatMailDate formats a timestamp for the RFC 5322 Date header.
+// time.RFC1123Z uses a numeric offset (+0000) instead of a zone name (UTC).
+func formatMailDate(t time.Time) string {
+	return t.Format(time.RFC1123Z)
+}
+
 // Send simply sends the defined mail via SMTP.
 func Send(
 	secure bool,
@@ -74,7 +80,7 @@ func Send(
 		Subject string
 		Body    string
 	}{
-		Date:    tz.Now().Format(time.RFC1123),
+		Date:    formatMailDate(tz.Now()),
 		To:      r.Replace(to),
 		From:    r.Replace(from),
 		Subject: r.Replace(subject),
