@@ -1053,7 +1053,7 @@ export default {
   mcpNoServers: 'No servers. The agent runs without MCP tools.',
   mcpToken: 'Token',
   mcpTokenOptional: 'Optional',
-  mcpTokenSet: 'Saved',
+  mcpTokenSet: '*****',
   mcpTokenWillBeRemoved: 'Will be removed',
   mcpTokenRemove: 'Remove token',
   mcpTokenKeep: 'Keep token',
