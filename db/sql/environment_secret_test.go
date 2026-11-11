@@ -192,6 +192,7 @@ func TestEnvironmentSecret_DeletingTheGroupRemovesItsLinks(t *testing.T) {
 func TestEnvironmentSecret_OwnedKeyLinkedElsewhereBlocksGroupDeleteAtDbLevel(t *testing.T) {
 	f := newEnvironmentSecretFixture(t)
 	f.link(t, f.otherEnv, db.EnvironmentSecretVar, "borrowed", f.owned)
+	own := f.link(t, f.env, db.EnvironmentSecretVar, "own", f.owned)
 
 	// The cascade on access_key.environment_id would delete a key the other group points to; the
 	// foreign key without on delete is the safety net — the service refuses earlier with a message.
@@ -199,6 +200,16 @@ func TestEnvironmentSecret_OwnedKeyLinkedElsewhereBlocksGroupDeleteAtDbLevel(t *
 	assert.ErrorIs(t, err, db.ErrInvalidOperation)
 	_, err = f.store.GetEnvironment(f.project.ID, f.env.ID)
 	assert.NoError(t, err, "nothing was deleted")
+	_, err = f.store.GetEnvironmentSecret(f.project.ID, f.env.ID, own.ID)
+	assert.NoError(t, err, "the links of the group are rolled back with it")
+}
+
+func TestDeleteEnvironment_UnknownGroup(t *testing.T) {
+	f := newEnvironmentSecretFixture(t)
+
+	assert.ErrorIs(t, f.store.DeleteEnvironment(f.project.ID, 9999), db.ErrNotFound)
+	assert.ErrorIs(t, f.store.DeleteEnvironment(f.project.ID+1, f.env.ID), db.ErrNotFound,
+		"a group is deleted only through its own project")
 }
 
 // A secret link references access_key with no ON DELETE action, so the project
