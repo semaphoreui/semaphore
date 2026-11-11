@@ -67,9 +67,9 @@ func textDelta(t *testing.T, text string) string {
 
 const claudeMessageStart = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_1"}},"parent_tool_use_id":null}`
 
-func TestAgentLaunch_NewOutput_CodexIsPlain(t *testing.T) {
-	l, err := NewAgentLaunch(db.AppCodex, "/home/agent", agentInventory().McpServers)
-	require.NoError(t, err)
+// A launch without a reader of its own — the output is the log as it is.
+func TestAgentLaunch_NewOutput_Plain(t *testing.T) {
+	l := &AgentLaunch{Secrets: []string{agentTestToken}}
 
 	assert.Equal(t,
 		[]string{"exec", `{"type":"assistant"}`, "token " + maskedSecret},

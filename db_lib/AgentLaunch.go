@@ -6,6 +6,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 )
@@ -197,21 +198,25 @@ func (claudeCLI) launch(l *AgentLaunch, home string, servers []agentMcpServer) e
 	return nil
 }
 
-// codexCLI runs Codex: codex exec, the prompt on stdin ("-"). It reports its
-// progress in plain text as it goes, so its output is the log.
+// codexCLI runs Codex: codex exec, the prompt on stdin ("-"). With --json it
+// reports its progress in events, which codexJSONOutput makes the log of, the
+// same way as for Claude Code.
 type codexCLI struct{}
 
 func (codexCLI) launch(l *AgentLaunch, home string, servers []agentMcpServer) error {
 	l.Command = string(db.AppCodex)
 	l.Dirs = []string{"codex"}
 	l.Files = []AgentFile{{Path: "codex/config.toml", Content: []byte(codexConfig(servers))}}
-	l.Args = []string{"exec", "--skip-git-repo-check"}
+	l.Args = []string{"exec", "--json", "--skip-git-repo-check"}
 	l.TrailingArgs = []string{"-"}
 	l.Env = []string{"CODEX_HOME=" + path.Join(home, "codex")}
 	l.APIKeyVars = []string{"CODEX_API_KEY", "OPENAI_API_KEY"}
 	// codex exec reads CODEX_API_KEY; users know the key as OPENAI_API_KEY.
 	l.APIKeyAlias = "CODEX_API_KEY"
 	l.APIKeyAliasOf = "OPENAI_API_KEY"
+	l.output = func(mask func(string) string) AgentOutput {
+		return &codexJSONOutput{mask: mask, now: time.Now}
+	}
 	return nil
 }
 
@@ -226,8 +231,10 @@ func codexConfig(servers []agentMcpServer) string {
 		if s.TokenEnv != "" {
 			fmt.Fprintf(&b, "bearer_token_env_var = %s\n", tomlString(s.TokenEnv))
 		}
-		// The servers were chosen for this agent; exec can not ask anyone.
-		b.WriteString("default_tools_approval_mode = \"auto\"\n\n")
+		// The servers were chosen for this agent, and exec can not ask anyone:
+		// their tools are approved. With "auto" Codex wants an approval for a
+		// tool it takes for a changing one, and exec refuses the call.
+		b.WriteString("default_tools_approval_mode = \"approve\"\n\n")
 	}
 
 	return b.String()

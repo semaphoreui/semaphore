@@ -113,6 +113,13 @@ func TestLines_EventsAsPlainText(t *testing.T) {
 			[]string{"Reached the turn limit", "Agent failed (error_max_turns): 5 turn(s), 1m1s"},
 		},
 		{"turn failed by the API", Event{Kind: KindDone, Error: true, Turns: 1, DurationMs: 655}, []string{"Agent failed: 1 turn(s), 700ms"}},
+		{
+			"done with tokens and no turns",
+			Event{Kind: KindDone, DurationMs: 14400, InputTokens: 91709, OutputTokens: 191},
+			[]string{"Agent finished: 14.4s, 91709 input / 191 output tokens"},
+		},
+		{"done with nothing to tell", Event{Kind: KindDone, Error: true, Errors: []string{"stream closed"}}, []string{"stream closed", "Agent failed"}},
+		{"thinking", Event{Kind: KindThinking, Text: "Checking the tests first"}, []string{"Checking the tests first"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

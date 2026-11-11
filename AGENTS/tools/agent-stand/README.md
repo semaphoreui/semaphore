@@ -28,15 +28,17 @@ $ node AGENTS/tools/agent-stand/verify.cjs
 - `verify.cjs` saves through the UI and checks the API and the task logs: token operations,
   no token in a GET or a log, the task prompt reaching the agent. It changes the seeded data, so
   shoot first.
-- `shoot-log.cjs` runs the Claude template and checks the task log in the browser: the agent's
-  events are rows of a transcript and not JSON, a result sits in the row of its call, a call
-  opens, a token is masked, the raw log is plain text. Screenshots go to `shots-log/`; it prints
-  the raw log and `ok: task N`.
+- `shoot-log.cjs` runs the Claude and the Codex templates and checks each task log in the
+  browser: the agent's events are rows of a transcript and not JSON, a result sits in the row of
+  its call, a call opens, a token is masked, the raw log is plain text. Screenshots go to
+  `shots-log/`; it prints the raw logs and `ok: tasks N M`.
 - By default `claude` and `codex` run `fake-agent.sh`, which prints what it got and calls
   nothing. Started the way Claude Code is (`--output-format=stream-json`) it then reports a
   made-up run in the events of the real CLI — text in pieces, MCP and built-in tool calls, a
-  failed call, a background subagent, two turns; `FAKE_AGENT_PAUSE` is the pause between events
-  (0.15 s). `start --real` uses the CLIs from `PATH`: a task then calls the vendor API with the
+  failed call, a background subagent, two turns. Started the way Codex is (`exec --json`) it
+  reports one in the events of `codex exec` (`fake-codex-events.sh`): the reasoning, a plan ticked
+  off, an MCP call, commands, a change of files, an error. `FAKE_AGENT_PAUSE` is the pause
+  between events (0.15 s). `start --real` uses the CLIs from `PATH`: a task then calls the vendor API with the
   key of the Variable Group and the MCP servers of the inventory — replace the seeded fake URLs
   and tokens first.
 - Data, logs and screenshots live in `AGENTS/tmp/agent-stand` (`AGENT_STAND_DIR` to move it);

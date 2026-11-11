@@ -81,7 +81,7 @@ func TestNewAgentLaunch_Codex(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "codex", l.Command)
-	assert.Equal(t, []string{"exec", "--skip-git-repo-check"}, l.Args)
+	assert.Equal(t, []string{"exec", "--json", "--skip-git-repo-check"}, l.Args)
 	assert.Equal(t, []string{"-"}, l.TrailingArgs)
 	assert.Equal(t, []string{"CODEX_HOME=/home/agent/codex"}, l.Env)
 	assert.Equal(t, []string{"codex"}, l.Dirs)
@@ -93,11 +93,11 @@ func TestNewAgentLaunch_Codex(t *testing.T) {
 	assert.Equal(t, `[mcp_servers.github]
 url = "https://mcp.example.com/github"
 bearer_token_env_var = "SEMAPHORE_MCP_TOKEN_1"
-default_tools_approval_mode = "auto"
+default_tools_approval_mode = "approve"
 
 [mcp_servers.docs]
 url = "https://mcp.example.com/docs?q=\"x\"\\y"
-default_tools_approval_mode = "auto"
+default_tools_approval_mode = "approve"
 
 `, string(l.Files[0].Content))
 }

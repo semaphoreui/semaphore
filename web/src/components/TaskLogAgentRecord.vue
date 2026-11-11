@@ -26,6 +26,12 @@
       </template>
     </div>
 
+    <div
+      v-else-if="agent.kind === 'thinking'"
+      class="task-log-agent__thinking"
+      data-testid="taskLog-agentThinking"
+    >{{ thinking }}</div>
+
     <div v-else-if="agent.kind === 'tool'" class="task-log-agent__tool">
       <button
         type="button"
@@ -140,10 +146,8 @@
       <div v-for="(error, i) in agent.errors" :key="i">{{ error }}</div>
       <v-icon size="small">{{ doneIcon }}</v-icon>
       {{ agent.failed ? $t('agentLogFailed') : $t('agentLogFinished') }}<template
-        v-if="agent.subtype !== ''"> ({{ agent.subtype }})</template>
-      · {{ $t('agentLogTurns', { n: agent.turns }) }}
-      · {{ duration }}<template
-        v-if="agent.costUsd > 0"> · ${{ agent.costUsd.toFixed(2) }}</template>
+        v-if="agent.subtype !== ''"> ({{ agent.subtype }})</template><template
+        v-for="(part, i) in took" :key="i"> · {{ part }}</template>
     </div>
   </div>
 </template>
@@ -183,6 +187,11 @@
   background: #262626;
   color: #ffcc80;
   font-family: inherit;
+}
+
+.task-log-agent__thinking {
+  color: #9e9e9e;
+  font-style: italic;
 }
 
 .task-log-agent__toolHead {
@@ -317,7 +326,7 @@
 
 <script>
 import {
-  formatAgentDuration, inlineSegments, readable, readableResult,
+  formatAgentDuration, formatAgentTokens, inlineSegments, readable, readableResult,
 } from '@/lib/agentLog';
 
 const TOOL_STATE_ICONS = {
@@ -373,8 +382,31 @@ export default {
       return readableResult(this.agent.text);
     },
 
-    duration() {
-      return formatAgentDuration(this.agent.durationMs);
+    // The reasoning of the agent, without the marks of its headings.
+    thinking() {
+      return inlineSegments(this.agent.text).map((segment) => segment.text).join('');
+    },
+
+    // What the run took, as far as the CLI told: turns, time, tokens, cost.
+    took() {
+      const { agent } = this;
+      const parts = [];
+      if (agent.turns > 0) {
+        parts.push(this.$t('agentLogTurns', { n: agent.turns }));
+      }
+      if (agent.durationMs > 0) {
+        parts.push(formatAgentDuration(agent.durationMs));
+      }
+      if (agent.inputTokens > 0 || agent.outputTokens > 0) {
+        parts.push(this.$t('agentLogTokens', {
+          input: formatAgentTokens(agent.inputTokens),
+          output: formatAgentTokens(agent.outputTokens),
+        }));
+      }
+      if (agent.costUsd > 0) {
+        parts.push(`$${agent.costUsd.toFixed(2)}`);
+      }
+      return parts;
     },
 
     doneIcon() {

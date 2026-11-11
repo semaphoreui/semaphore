@@ -180,6 +180,26 @@ describe('TaskLogAgentRecord.vue', () => {
     expect(done.classes()).to.not.include('task-log-agent__done--failed');
   });
 
+  it('shows what a run took as far as it is told: tokens without turns and cost', () => {
+    const [row] = rowsOf({
+      '@agent': 'done', duration_ms: 14400, input_tokens: 91709, output_tokens: 191,
+    });
+    expect(find(mountAgent(row.agent), 'taskLog-agentDone').text().replace(/\s+/g, ' '))
+      .to.equal('agentLogFinished · 14.4s · agentLogTokens {"input":"91.7k","output":"191"}');
+
+    const [bare] = rowsOf({ '@agent': 'done', error: true });
+    expect(find(mountAgent(bare.agent), 'taskLog-agentDone').text().replace(/\s+/g, ' '))
+      .to.equal('agentLogFailed');
+  });
+
+  it('shows the reasoning of the agent apart from its text, as text', () => {
+    const [row] = rowsOf({ '@agent': 'thinking', text: '**Checking** the `tests` <b>x</b>' });
+    const thinking = find(mountAgent(row.agent), 'taskLog-agentThinking');
+
+    expect(thinking.text()).to.equal('Checking the tests <b>x</b>');
+    expect(thinking.find('b').exists()).to.equal(false);
+  });
+
   it('shows a failed end with its errors', () => {
     const [row] = rowsOf({
       '@agent': 'done', error: true, subtype: 'error_max_turns', errors: ['Reached the turn limit'], turns: 5,
@@ -187,7 +207,7 @@ describe('TaskLogAgentRecord.vue', () => {
     const done = find(mountAgent(row.agent), 'taskLog-agentDone');
 
     expect(done.text().replace(/\s+/g, ' '))
-      .to.equal('Reached the turn limit agentLogFailed (error_max_turns) · agentLogTurns {"n":5} · 0.0s');
+      .to.equal('Reached the turn limit agentLogFailed (error_max_turns) · agentLogTurns {"n":5}');
     expect(done.classes()).to.include('task-log-agent__done--failed');
   });
 
