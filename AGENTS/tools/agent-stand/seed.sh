@@ -5,7 +5,7 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 DIR=${AGENT_STAND_DIR:-$ROOT/AGENTS/tmp/agent-stand}
-BASE=http://localhost:3102
+BASE=http://127.0.0.1:3102
 JAR=$DIR/cookies.txt
 mkdir -p "$DIR"
 if [ ! -d "$DIR/repo/.git" ]; then
