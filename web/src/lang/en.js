@@ -1074,4 +1074,5 @@ export default {
   agentLogFinished: 'Agent finished',
   agentLogFailed: 'Agent failed',
   agentLogTurns: 'turns: {n}',
+  agentLogTokens: 'tokens: {input} in / {output} out',
 };

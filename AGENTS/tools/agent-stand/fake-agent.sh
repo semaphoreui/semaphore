@@ -3,6 +3,8 @@
 # Started as Claude Code is (--output-format=stream-json) it then reports a made-up run in the
 # events the real CLI prints — text in pieces, MCP and built-in tool calls, a failed call, a
 # subagent working at the same time, two turns — so the task log can be checked in the browser.
+# Started as Codex is (exec --json) it reports a made-up run in the events of codex exec instead
+# (fake-codex-events.sh).
 echo "fake agent args: $*"
 echo "prompt: $(cat)"
 echo "mcp token variables: $(env | grep -c '^SEMAPHORE_MCP_TOKEN_')"
@@ -11,6 +13,7 @@ echo "anthropic key set: $([ -n "${ANTHROPIC_API_KEY:-}" ] && echo yes || echo n
 
 case " $* " in
   *" --output-format=stream-json "*) ;;
+  *" --json "*) exec "$(dirname "$0")/fake-codex-events.sh" ;;
   *) exit 0 ;;
 esac
 

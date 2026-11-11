@@ -126,9 +126,13 @@ only when the task touches that topic. Keep this file under 150 lines.
   `pro_impl/services/tasks/containerexec` (Docker and K8s). On `develop` the server stores no runner
   version (`db/Runner.go`), so an old runner silently ignores new `JobData.Template` fields.
 - `claude -p` in its default text format prints nothing until the run is over, so an agent run asks for
-  `--output-format=stream-json --verbose --include-partial-messages`; `codex exec` streams plain text by
-  itself. Check a new agent CLI for this (measured 2026-11-12). How the events reach the log and the
+  `--output-format=stream-json --verbose --include-partial-messages`; Codex runs as `codex exec --json`.
+  Check a new agent CLI for this (measured 2026-11-12). How the events reach the log and the
   client — `AGENTS/work/ai-agents/agent-log.md`.
+- An agent CLI's MCP setup must be tried against a real MCP server: the agent stand's fake CLI calls
+  nothing, and `codex exec` refused every MCP call with `default_tools_approval_mode = "auto"` until
+  2026-11-12 (`"approve"` works). A 60-line HTTP server answering `initialize`, `tools/list` and
+  `tools/call` with JSON is enough.
 - pro_impl `services/tasks/k8s`: the three `TestStreamPodLogsLive_*` tests hang in the fake clientset's
   `GetLogs` (client-go v0.36.2; same on a clean HEAD, 2026-11-12) — run the package with
   `-skip TestStreamPodLogsLive` and test log handling through `pumpContainerLogs`.

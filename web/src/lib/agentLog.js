@@ -6,7 +6,7 @@
 // view shows them as text only.
 
 const EVENT_PREFIX = '{"@agent":"';
-const EVENT_KINDS = new Set(['init', 'text', 'tool', 'result', 'retry', 'done']);
+const EVENT_KINDS = new Set(['init', 'text', 'thinking', 'tool', 'result', 'retry', 'done']);
 
 // The tools which start a subagent; their rows name it.
 const SUBAGENT_TOOLS = new Set(['Agent', 'Task']);
@@ -180,7 +180,16 @@ export function inlineSegments(text) {
   return segments;
 }
 
-// formatAgentDuration: 850 → 0.9s, 19100 → 19.1s, 95000 → 1m 35s.
+// formatAgentTokens: 191 → 191, 91709 → 91.7k, 2400000 → 2.4M.
+export function formatAgentTokens(count) {
+  const n = num(count);
+  if (n < 1000) {
+    return String(Math.round(n));
+  }
+  return n < 1000000 ? `${(n / 1000).toFixed(1)}k` : `${(n / 1000000).toFixed(1)}M`;
+}
+
+// formatAgentDuration: 900 → 0.9s, 19100 → 19.1s, 95000 → 1m 35s.
 export function formatAgentDuration(ms) {
   const seconds = num(ms) / 1000;
   if (seconds < 60) {
@@ -199,6 +208,8 @@ export function formatAgentDuration(ms) {
 //
 // - the result of a tool call goes into the row of the call, wherever it comes: calls run in
 //   parallel and subagents work at the same time, so results do not follow their calls;
+// - a call that comes again with the same id replaces the arguments of its row: a plan the
+//   agent ticks off is one row;
 // - a row of a subagent carries the name the agent gave it;
 // - the ends of the agent's turns are one row, the last one, with the totals.
 //
@@ -233,7 +244,8 @@ export default class AgentLog {
         break;
 
       case 'text':
-        this.add(record, sub, { kind: 'text', text: str(event.text) });
+      case 'thinking':
+        this.add(record, sub, { kind: event['@agent'], text: str(event.text) });
         break;
 
       case 'tool':
@@ -291,6 +303,15 @@ export default class AgentLog {
       }
     }
 
+    const summary = subagent === '' ? inputSummary(input) : subagent;
+    const truncated = num(event.truncated);
+
+    const known = id === '' ? undefined : this.tools.get(id);
+    if (known !== undefined) {
+      Object.assign(known.agent, { input, summary, truncated });
+      return;
+    }
+
     const row = this.add(record, sub, {
       kind: 'tool',
       toolId: id,
@@ -299,8 +320,8 @@ export default class AgentLog {
       // The name of the subagent the call starts, empty for any other tool.
       subagent,
       input,
-      summary: subagent === '' ? inputSummary(input) : subagent,
-      truncated: num(event.truncated),
+      summary,
+      truncated,
       // running until the result comes, then done or failed.
       state: 'running',
       result: '',
@@ -347,6 +368,8 @@ export default class AgentLog {
       turns: num(event.turns),
       durationMs: num(event.duration_ms),
       costUsd: num(event.cost_usd),
+      inputTokens: num(event.input_tokens),
+      outputTokens: num(event.output_tokens),
     };
 
     // An agent with background work ends several turns; the cost the CLI reports is already
@@ -355,6 +378,8 @@ export default class AgentLog {
       const previous = this.done.agent;
       done.turns += previous.turns;
       done.durationMs += previous.durationMs;
+      done.inputTokens += previous.inputTokens;
+      done.outputTokens += previous.outputTokens;
       done.costUsd = Math.max(done.costUsd, previous.costUsd);
       done.errors = [...previous.errors, ...done.errors];
 

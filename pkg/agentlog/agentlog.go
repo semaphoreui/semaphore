@@ -22,7 +22,10 @@ const (
 	KindInit = "init"
 	// KindText is one line of the agent's text.
 	KindText = "text"
-	// KindTool is a tool call: ID, Name and Input.
+	// KindThinking is one line of the agent's reasoning, when the CLI shows it.
+	KindThinking = "thinking"
+	// KindTool is a tool call: ID, Name and Input. A call logged again with
+	// the same ID replaces what was logged: a plan the agent ticks off.
 	KindTool = "tool"
 	// KindResult is the result of the tool call ID: Text, Error.
 	KindResult = "result"
@@ -78,8 +81,8 @@ type Event struct {
 	Name  string          `json:"name,omitempty"`
 	Input json.RawMessage `json:"input,omitempty"`
 
-	// Text is a line of the agent's text, the result of a tool call or the
-	// reason of a retry.
+	// Text is a line of the agent's text or reasoning, the result of a tool
+	// call or the reason of a retry.
 	Text string `json:"text,omitempty"`
 	// Error tells that the tool call or the turn failed.
 	Error bool `json:"error,omitempty"`
@@ -94,11 +97,14 @@ type Event struct {
 	DelayMs    float64 `json:"delay_ms,omitempty"`
 
 	// Subtype is how the turn ended when not with success, as error_max_turns.
-	Subtype    string   `json:"subtype,omitempty"`
-	Errors     []string `json:"errors,omitempty"`
-	Turns      int      `json:"turns,omitempty"`
-	DurationMs float64  `json:"duration_ms,omitempty"`
-	CostUSD    float64  `json:"cost_usd,omitempty"`
+	Subtype string   `json:"subtype,omitempty"`
+	Errors  []string `json:"errors,omitempty"`
+	// What the turn took, as far as the CLI tells.
+	Turns        int     `json:"turns,omitempty"`
+	DurationMs   float64 `json:"duration_ms,omitempty"`
+	CostUSD      float64 `json:"cost_usd,omitempty"`
+	InputTokens  int64   `json:"input_tokens,omitempty"`
+	OutputTokens int64   `json:"output_tokens,omitempty"`
 }
 
 // Line encodes the event as a log line.
@@ -123,7 +129,7 @@ func Parse(line string) (Event, bool) {
 	}
 
 	switch event.Kind {
-	case KindInit, KindText, KindTool, KindResult, KindRetry, KindDone:
+	case KindInit, KindText, KindThinking, KindTool, KindResult, KindRetry, KindDone:
 		return event, true
 	default:
 		return Event{}, false
@@ -285,7 +291,7 @@ func (e Event) Plain() []string {
 		}
 		return lines
 
-	case KindText:
+	case KindText, KindThinking:
 		return []string{e.Text}
 
 	case KindTool:
@@ -334,9 +340,23 @@ func (e Event) Plain() []string {
 				status += " (" + e.Subtype + ")"
 			}
 		}
-		summary := fmt.Sprintf("%s: %d turn(s), %s", status, e.Turns, duration(e.DurationMs))
+		var took []string
+		if e.Turns > 0 {
+			took = append(took, fmt.Sprintf("%d turn(s)", e.Turns))
+		}
+		if e.DurationMs > 0 {
+			took = append(took, duration(e.DurationMs))
+		}
+		if e.InputTokens > 0 || e.OutputTokens > 0 {
+			took = append(took, fmt.Sprintf("%d input / %d output tokens", e.InputTokens, e.OutputTokens))
+		}
 		if e.CostUSD > 0 {
-			summary += fmt.Sprintf(", $%.4f", e.CostUSD)
+			took = append(took, fmt.Sprintf("$%.4f", e.CostUSD))
+		}
+
+		summary := status
+		if len(took) > 0 {
+			summary += ": " + strings.Join(took, ", ")
 		}
 		return append(append([]string{}, e.Errors...), summary)
 	}

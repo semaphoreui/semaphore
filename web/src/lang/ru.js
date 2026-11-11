@@ -406,4 +406,5 @@ export default {
   agentLogFinished: 'Агент завершил работу',
   agentLogFailed: 'Агент завершился с ошибкой',
   agentLogTurns: 'ходов: {n}',
+  agentLogTokens: 'токены: {input} вход / {output} выход',
 };

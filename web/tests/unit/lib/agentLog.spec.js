@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import { reactive } from 'vue';
 import AgentLog, {
   formatAgentDuration,
+  formatAgentTokens,
   inlineSegments,
   inputSummary,
   parseAgentEvent,
@@ -167,6 +168,15 @@ describe('lib/agentLog.js formatAgentDuration', () => {
   });
 });
 
+describe('lib/agentLog.js formatAgentTokens', () => {
+  it('formats', () => {
+    expect(formatAgentTokens(191)).to.equal('191');
+    expect(formatAgentTokens(91709)).to.equal('91.7k');
+    expect(formatAgentTokens(2400000)).to.equal('2.4M');
+    expect(formatAgentTokens(undefined)).to.equal('0');
+  });
+});
+
 describe('lib/agentLog.js AgentLog', () => {
   it('keeps a record that is not an event as its own row', () => {
     const rows = [];
@@ -241,6 +251,35 @@ describe('lib/agentLog.js AgentLog', () => {
     expect(rows[2].agent.kind).to.equal('text');
   });
 
+  it('replaces the arguments of a call that comes again: a plan is one row', () => {
+    const rows = fold(
+      {
+        '@agent': 'tool', id: 'p1', name: 'todo_list', input: { progress: '0/2', steps: ['[ ] a', '[ ] b'] },
+      },
+      { '@agent': 'thinking', text: 'Reading the test.' },
+      {
+        '@agent': 'tool',
+        id: 'p1',
+        name: 'todo_list',
+        input: { progress: '1/2', steps: ['[x] a', '[ ] b'] },
+        truncated: 4,
+      },
+      { '@agent': 'result', id: 'p1' },
+      { '@agent': 'tool', name: 'no id' },
+      { '@agent': 'tool', name: 'no id' },
+    );
+
+    expect(rows.map((row) => row.agent.kind)).to.deep.equal(['tool', 'thinking', 'tool', 'tool']);
+    expect(rows[0].agent).to.deep.include({
+      tool: 'todo_list',
+      input: { progress: '1/2', steps: ['[x] a', '[ ] b'] },
+      summary: 'progress: 1/2, steps: ["[x] a","[ ] b"]',
+      truncated: 4,
+      state: 'done',
+    });
+    expect(rows[1].agent).to.deep.equal({ kind: 'thinking', text: 'Reading the test.', sub: '' });
+  });
+
   it('leaves a call without a result running, and shows a result without a call', () => {
     const rows = fold(
       { '@agent': 'tool', id: 't1', name: 'Bash' },
@@ -297,7 +336,12 @@ describe('lib/agentLog.js AgentLog', () => {
         '@agent': 'done', turns: 1, duration_ms: 4700, cost_usd: 2.1784, error: true, errors: ['boom', 5],
       },
       {
-        '@agent': 'done', turns: 2, duration_ms: 15500, cost_usd: 2.1784,
+        '@agent': 'done',
+        turns: 2,
+        duration_ms: 15500,
+        cost_usd: 2.1784,
+        input_tokens: 100,
+        output_tokens: 7,
       },
     );
 
@@ -310,6 +354,8 @@ describe('lib/agentLog.js AgentLog', () => {
       turns: 11,
       durationMs: 39300,
       costUsd: 2.1784,
+      inputTokens: 100,
+      outputTokens: 7,
       sub: '',
     });
   });
