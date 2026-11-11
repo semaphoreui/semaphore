@@ -30,8 +30,7 @@ Status (2026-09-27):
   admin config.
 - **One agent per mapping, keys never on disk.** Code comment in `InstallHostConfigs`: a single
   agent holding every key would let ssh offer the wrong one first and sshd closes the connection
-  after `MaxAuthTries`. Private keys live only in the in-memory keyring; sockets are `0600` and
-  chowned to the process user.
+  after `MaxAuthTries`. Private keys live only in the in-memory keyring; sockets are `0600`.
 - **Strict allowlists on everything that lands in config text**: host regex, URL must be
   http/https without userinfo and without `=`/quotes/whitespace (git splits an entry at the first
   `=`), ssh login regex (a newline would inject a `ProxyCommand`). Login/password mappings only

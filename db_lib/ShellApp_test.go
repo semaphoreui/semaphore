@@ -32,9 +32,7 @@ func TestShellApp_RunDrainsOutputBeforeWait(t *testing.T) {
 
 	// ShellApp reads the global config; do not run this test in parallel.
 	previousConfig := util.Config
-	util.Config = &util.ConfigType{
-		Process: &util.ConfigProcess{},
-	}
+	util.Config = &util.ConfigType{}
 	t.Cleanup(func() { util.Config = previousConfig })
 
 	logger := &outputCaptureLogger{}
@@ -60,9 +58,7 @@ func TestShellApp_RunBoundsOutputDrainWhenBackgroundChildKeepsPipesOpen(t *testi
 	}
 
 	previousConfig := util.Config
-	util.Config = &util.ConfigType{
-		Process: &util.ConfigProcess{},
-	}
+	util.Config = &util.ConfigType{}
 	t.Cleanup(func() { util.Config = previousConfig })
 
 	logger := &outputCaptureLogger{}

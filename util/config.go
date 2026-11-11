@@ -362,35 +362,6 @@ type MetricsConfig struct {
 	Password string `json:"password,omitempty" env:"SEMAPHORE_METRICS_PASSWORD,sensitive"`
 }
 
-type ConfigProcess struct {
-	User       string  `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
-	UID        *uint32 `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
-	Chroot     string  `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
-	GID        *uint32 `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
-	NoNewPrivs bool    `json:"no_new_privs,omitempty" env:"SEMAPHORE_PROCESS_NO_NEW_PRIVS"`
-
-	// AppNamespaces controls Linux namespace isolation for child apps
-	// (ansible, terraform, shell templates). Git is never isolated —
-	// SSH agent forwarding and credential helpers need host access.
-	AppNamespaces ConfigAppNamespaces `json:"app_namespaces"`
-}
-
-// ConfigAppNamespaces mirrors the CLONE_NEW* flags applied to app runs.
-// Each flag is a standard Linux namespace and is a no-op on non-Linux.
-type ConfigAppNamespaces struct {
-	// User isolates UIDs/GIDs (CLONE_NEWUSER). Enables unprivileged use
-	// of the other namespaces.
-	User bool `json:"user,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_USER"`
-	// Mount hides host mount points such as secret tmpfs (CLONE_NEWNS).
-	Mount bool `json:"mount,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_MOUNT"`
-	// PID hides host processes from child apps (CLONE_NEWPID).
-	PID bool `json:"pid,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_PID"`
-	// IPC isolates SysV IPC and POSIX message queues (CLONE_NEWIPC).
-	IPC bool `json:"ipc,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_IPC"`
-	// UTS isolates hostname and domain (CLONE_NEWUTS).
-	UTS bool `json:"uts,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_UTS"`
-}
-
 type ScheduleConfig struct {
 	Timezone string `json:"timezone,omitempty" env:"SEMAPHORE_SCHEDULE_TIMEZONE" default:"UTC"`
 }
@@ -863,8 +834,6 @@ type ConfigType struct {
 
 	Log *ConfigLog `json:"log,omitempty"`
 
-	Process *ConfigProcess `json:"process,omitempty"`
-
 	Schedule *ScheduleConfig `json:"schedule,omitempty"`
 
 	Debugging *DebuggingConfig `json:"debugging,omitempty"`
@@ -1099,6 +1068,12 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		usedConfigPath = loadConfigFile(configPath)
 	}
 
+	// Refuse to start on the removed `process` settings: ignoring them would
+	// silently run tasks with the privileges of the Semaphore process.
+	if err := checkRemovedProcessSettings(usedConfigPath); err != nil {
+		exitOnConfigError("Configuration error: " + err.Error() + ".")
+	}
+
 	loadConfigEnvironment()
 	loadConfigDefaults()
 
@@ -1108,12 +1083,6 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 
 	//fmt.Println("Validating config")
 	validateConfig()
-
-	if Config.Process.NoNewPrivs {
-		if err := SetNoNewPrivs(); err != nil {
-			panic(fmt.Errorf("failed to set no_new_privs: %w", err))
-		}
-	}
 
 	var encryption []byte
 
