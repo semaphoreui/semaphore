@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/agentlog"
 	"github.com/semaphoreui/semaphore/pkg/apiclient"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
@@ -253,13 +254,16 @@ func (r *runtime) printNewOutput(ctx context.Context, api *apiclient.Client, pro
 }
 
 // printLogLine writes one task log line to stdout, with ANSI colours kept only
-// for a colour-capable terminal.
-func (r *runtime) printLogLine(text string) {
+// for a colour-capable terminal. An agent's event (see agentlog) is printed as
+// the text it stands for.
+func (r *runtime) printLogLine(line string) {
 	opts := r.printer.Options()
-	if !(opts.TTY && opts.Color) {
-		text = util.ClearFromAnsiCodes(text)
+	for _, text := range agentlog.Lines(line) {
+		if !(opts.TTY && opts.Color) {
+			text = util.ClearFromAnsiCodes(text)
+		}
+		r.printer.Printf("%s\n", strings.TrimRight(text, "\r\n"))
 	}
-	r.printer.Printf("%s\n", strings.TrimRight(text, "\r\n"))
 }
 
 // waitEnded turns a cancelled or expired wait into the right error, sending a

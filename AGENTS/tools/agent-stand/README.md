@@ -11,6 +11,7 @@ AGENTS/tools/agent-stand/stand.sh {build|start [--real]|stop|status|log [n]}
 AGENTS/tools/agent-stand/seed.sh
 NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules node AGENTS/tools/agent-stand/verify.cjs
 NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules node AGENTS/tools/agent-stand/shoot.cjs [out_dir] [--dark]
+NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules node AGENTS/tools/agent-stand/shoot-log.cjs [out_dir]
 ```
 
 ```
@@ -27,8 +28,15 @@ $ node AGENTS/tools/agent-stand/verify.cjs
 - `verify.cjs` saves through the UI and checks the API and the task logs: token operations,
   no token in a GET or a log, the task prompt reaching the agent. It changes the seeded data, so
   shoot first.
+- `shoot-log.cjs` runs the Claude template and checks the task log in the browser: the agent's
+  events are rows of a transcript and not JSON, a result sits in the row of its call, a call
+  opens, a token is masked, the raw log is plain text. Screenshots go to `shots-log/`; it prints
+  the raw log and `ok: task N`.
 - By default `claude` and `codex` run `fake-agent.sh`, which prints what it got and calls
-  nothing. `start --real` uses the CLIs from `PATH`: a task then calls the vendor API with the
+  nothing. Started the way Claude Code is (`--output-format=stream-json`) it then reports a
+  made-up run in the events of the real CLI — text in pieces, MCP and built-in tool calls, a
+  failed call, a background subagent, two turns; `FAKE_AGENT_PAUSE` is the pause between events
+  (0.15 s). `start --real` uses the CLIs from `PATH`: a task then calls the vendor API with the
   key of the Variable Group and the MCP servers of the inventory — replace the seeded fake URLs
   and tokens first.
 - Data, logs and screenshots live in `AGENTS/tmp/agent-stand` (`AGENT_STAND_DIR` to move it);

@@ -308,3 +308,18 @@ func TestNewTaskMiddleware_ResolvesTemplateName(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, w.Code, "the grant on the named template is found")
 	assert.Equal(t, f.template.ID, seen.TemplateID)
 }
+
+// The raw log is plain text: ANSI codes are dropped and an agent's events are
+// the text they stand for.
+func TestOutputToBytes(t *testing.T) {
+	out := outputToBytes([]db.TaskOutput{
+		{Output: "\x1b[32mok\x1b[0m: [web1]"},
+		{Output: `{"@agent":"tool","id":"t1","name":"Bash","input":{"command":"ls"}}`},
+		{Output: `{"@agent":"result","id":"t1","text":"a.txt\nb.txt"}`},
+		{Output: `{"@agent":"text","text":"Two files."}`},
+		{Output: `{"@agent":"result","id":"t2"}`},
+		{Output: `{"type":"not ours"}`},
+	})
+
+	assert.Equal(t, "ok: [web1]\n> Bash {\"command\":\"ls\"}\n  a.txt\n  b.txt\nTwo files.\n{\"type\":\"not ours\"}\n", string(out))
+}

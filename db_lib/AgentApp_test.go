@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/agentlog"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -161,7 +162,7 @@ func TestAgentApp_RunLogsClaudeEventsWhileRunning(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "agent")
 	require.NoError(t, os.WriteFile(script, []byte(`#!/bin/sh
 cat > /dev/null
-echo '{"type":"assistant","message":{"id":"msg_1","content":[{"type":"tool_use","name":"Bash","input":{"command":"ls"}}]}}'
+echo '{"type":"assistant","message":{"id":"msg_1","content":[{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"ls"}}]}}'
 i=0
 while [ ! -f "`+gate+`" ]; do
   i=$((i+1))
@@ -176,7 +177,7 @@ echo '{"type":"result","subtype":"success","is_error":false,"result":"done","num
 
 	setupAgentConfig(t, map[string]util.App{"claude": {Active: true, AppPath: script}})
 
-	logger := &gateLogger{marker: "> Bash", gate: gate}
+	logger := &gateLogger{marker: `"name":"Bash"`, gate: gate}
 	agent := newAgentApp(db.Template{
 		ID: 1, ProjectID: 1, App: db.AppClaude,
 		TaskParams: db.MapStringAnyField{"prompt": "hi"},
@@ -188,11 +189,19 @@ echo '{"type":"result","subtype":"success","is_error":false,"result":"done","num
 		TaskParams:      &db.AgentTaskParams{},
 	}))
 
+	// The log holds the agent's events in the format of agentlog, not the
+	// CLI's own; as plain text they read as a transcript.
 	out := logger.text()
-	assert.Contains(t, out, `> Bash {"command":"ls"}`)
-	assert.Contains(t, out, "done")
-	assert.Contains(t, out, "Agent finished: 1 turn(s), 1.2s")
-	assert.NotContains(t, out, `"type"`, "events are rendered, not dumped")
+	assert.Contains(t, out, `{"@agent":"tool","id":"toolu_1","name":"Bash","input":{"command":"ls"}}`)
+	assert.NotContains(t, out, `"type"`, "the CLI's events are not dumped")
+
+	text := []string{}
+	for _, line := range strings.Split(out, "\n") {
+		text = append(text, agentlog.Lines(line)...)
+	}
+	assert.Contains(t, text, `> Bash {"command":"ls"}`)
+	assert.Contains(t, text, "done")
+	assert.Contains(t, text, "Agent finished: 1 turn(s), 1.2s")
 }
 
 func TestAgentApp_RunWarnsWithoutAPIKey(t *testing.T) {
