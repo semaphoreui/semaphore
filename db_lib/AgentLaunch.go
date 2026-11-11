@@ -167,7 +167,7 @@ func (claudeCLI) launch(l *AgentLaunch, home string, servers []agentMcpServer) e
 		l.Args = append(l.Args, "--allowedTools="+strings.Join(allowed, ","))
 	}
 	l.Env = []string{"CLAUDE_CONFIG_DIR=" + path.Join(home, "claude")}
-	l.APIKeyVars = []string{"ANTHROPIC_API_KEY"}
+	l.APIKeyVars = []string{"ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"}
 	return nil
 }
 
