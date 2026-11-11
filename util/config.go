@@ -1068,6 +1068,12 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		usedConfigPath = loadConfigFile(configPath)
 	}
 
+	// Refuse to start on the removed `process` settings: ignoring them would
+	// silently run tasks with the privileges of the Semaphore process.
+	if err := checkRemovedProcessSettings(usedConfigPath); err != nil {
+		exitOnConfigError("Configuration error: " + err.Error() + ".")
+	}
+
 	loadConfigEnvironment()
 	loadConfigDefaults()
 
