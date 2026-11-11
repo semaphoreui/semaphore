@@ -144,7 +144,6 @@ func InitConfigCreateTestStoreAt(targetVersion *string) *SqlDb {
 			Events: &util.EventLogType{},
 			Tasks:  &util.TaskLogType{},
 		},
-		Process: &util.ConfigProcess{},
 		Runners: &util.RunnersConfig{},
 		Apps: map[string]util.App{
 			"ansible": {},
