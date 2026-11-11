@@ -3936,6 +3936,31 @@ paths:
           schema:
             $ref: "#/definitions/Template"
 
+  /project/{project_id}/templates/{template_id}/tasks:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    delete:
+      tags:
+        - template
+      summary: Delete finished tasks of template
+      description: |
+        Deletes the finished tasks (success, error, stopped) of the template with their output.
+        Tasks that are queued, running or waiting for confirmation are kept, as are tasks of a
+        workflow run that has not finished and build tasks used by an unfinished task.
+        For a build template the newest task is kept as well: the next build takes its version
+        from it.
+        Only an administrator may delete task history.
+      responses:
+        204:
+          description: finished tasks deleted
+        401:
+          description: the user may manage the project resources but is not an administrator
+        403:
+          description: the user may not manage the project resources
+        404:
+          description: template not found
+
   /project/{project_id}/templates/{template_id}/stop_all_tasks:
     parameters:
       - $ref: "#/parameters/project_id"

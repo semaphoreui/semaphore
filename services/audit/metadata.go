@@ -276,6 +276,13 @@ type TaskMetadata struct {
 	TemplateID int `json:"template_id"`
 }
 
+// The target of a template's history deletion is the template; Deleted counts the tasks removed.
+type TaskHistoryDeleteAllMetadata struct {
+	Deleted int `json:"deleted"`
+	// Set when a later batch failed after earlier ones had been deleted.
+	Partial bool `json:"partial,omitempty"`
+}
+
 // The target of a workflow approval event is the workflow; the run and the node say which step.
 type WorkflowApprovalMetadata struct {
 	RunID  int `json:"run_id"`
