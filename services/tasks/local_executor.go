@@ -1032,13 +1032,21 @@ func (t *LocalExecutor) ansibleCfgCallbackPlugins(env []string) string {
 	}
 	defer file.Close() //nolint:errcheck
 
-	section, value := "", ""
+	section, value, continued := "", "", false
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+		raw := scanner.Text()
+		line := strings.TrimSpace(raw)
 		if line == "" || line[0] == '#' || line[0] == ';' {
 			continue
 		}
+		// An indented line continues the value above it, as in Python's configparser.
+		if continued && (raw[0] == ' ' || raw[0] == '\t') {
+			entry, _, _ := strings.Cut(line, " ;")
+			value += string(os.PathListSeparator) + strings.TrimSpace(entry)
+			continue
+		}
+		continued = false
 		if line[0] == '[' {
 			section = line[:strings.LastIndex(line, "]")+1]
 			continue
@@ -1049,14 +1057,17 @@ func (t *LocalExecutor) ansibleCfgCallbackPlugins(env []string) string {
 		}
 		value, _, _ = strings.Cut(line[i+1:], " ;")
 		value = strings.TrimSpace(value)
+		continued = true
 	}
 	if scanner.Err() != nil || value == "" {
 		return ""
 	}
 
-	entries := filepath.SplitList(value)
-	for i, entry := range entries {
-		entries[i] = resolve(entry, filepath.Dir(file.Name()))
+	var entries []string
+	for _, entry := range filepath.SplitList(value) {
+		if entry != "" {
+			entries = append(entries, resolve(entry, filepath.Dir(file.Name())))
+		}
 	}
 	return strings.Join(entries, string(os.PathListSeparator))
 }

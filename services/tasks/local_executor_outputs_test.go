@@ -268,6 +268,11 @@ func TestLocalExecutor_ansibleCallbackPluginsFromCfg(t *testing.T) {
 			expected: "{root}/repo/cb" + sep + dir,
 		},
 		{
+			name:     "joins a value continued on indented lines",
+			wdCfg:    "[defaults]\ncallback_plugins = ./cb:\n    /abs/cb ; comment\n\tsecond\nforks = 5\n",
+			expected: "{root}/repo/cb" + sep + "/abs/cb" + sep + "{root}/repo/second" + sep + dir,
+		},
+		{
 			name:     "takes the cfg named by ANSIBLE_CONFIG of the task first",
 			env:      []string{"ANSIBLE_CONFIG={root}/other/my.cfg"},
 			wdCfg:    wdCfg,
