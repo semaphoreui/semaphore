@@ -126,6 +126,19 @@
       </template>
     </v-select>
 
+      <!-- A bool is always answered (false when unchecked), so it is never required -->
+      <v-checkbox
+        v-else-if="v.type === 'bool'"
+        :label="v.title"
+        :hint="v.description"
+        :persistent-hint="!!v.description"
+        :hide-details="!v.description"
+        v-model="editedEnvironment[v.name]"
+        density="compact"
+        class="mt-0 mb-4"
+        :data-testid="`newTask-survey-${v.name}`"
+      />
+
       <v-textarea
         v-else-if="v.type === 'text'"
         :label="v.title + (v.required ? ' *' : '')"
@@ -229,6 +242,7 @@ import ArgsPicker from '@/components/ArgsPicker.vue';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import TaskParamsAnsibleForm from '@/components/TaskParamsAnsibleForm.vue';
 import TaskParamsTerraformForm from '@/components/TaskParamsTerraformForm.vue';
+import { normalizeBoolAnswers, surveyDefaults } from '@/lib/surveyVars';
 
 export default {
   mixins: [ItemFormBase, AppFieldsMixin],
@@ -473,18 +487,10 @@ export default {
         }
       });
 
-      const defaultVars = (this.template.survey_vars || [])
-        .filter((s) => s.default_value)
-        .reduce((res, curr) => ({
-          ...res,
-          [curr.name]: curr.default_value,
-        }), {});
-
-      this.editedEnvironment = {
-        ...defaultVars,
+      this.editedEnvironment = normalizeBoolAnswers(this.template.survey_vars, {
+        ...surveyDefaults(this.template.survey_vars),
         ...this.editedEnvironment,
-      };
-
+      });
       this.normalizeSelectValues();
     },
 

@@ -363,9 +363,11 @@ func (status WorkflowApprovalStatus) Validate() error {
 
 // ValidateWorkflowSurveyVars checks the survey of a workflow: every variable
 // has a unique, non-empty name, a known target, a default that fits its type
-// (ValidateSurveyVar) and is not a secret. A secret can not be a workflow
-// variable because the run stores its survey values in clear in
-// WorkflowRun.Environment, exactly as a task does.
+// (ValidateSurveyVar) and is not a secret or a bool. A secret can not be a
+// workflow variable because the run stores its survey values in clear in
+// WorkflowRun.Environment, exactly as a task does. A bool is not a workflow
+// variable yet: the engine that checks the run's answers and feeds them to
+// the nodes does not know that type.
 func ValidateWorkflowSurveyVars(vars []SurveyVar) error {
 	seen := make(map[string]struct{}, len(vars))
 	for _, v := range vars {
@@ -379,6 +381,10 @@ func ValidateWorkflowSurveyVars(vars []SurveyVar) error {
 
 		if v.Type == SurveyVarSecret {
 			return common_errors.NewValidationError("workflow survey variable \"" + v.Name + "\" can not be a secret")
+		}
+
+		if v.Type == SurveyVarBool {
+			return common_errors.NewValidationError("workflow survey variable \"" + v.Name + "\" can not be a bool")
 		}
 
 		switch v.Target {
