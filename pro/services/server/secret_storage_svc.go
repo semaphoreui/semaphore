@@ -17,6 +17,7 @@ func SyncSecrets(
 	sync db.SecretSync,
 	storageRepo db.SecretStorageRepository,
 	accessKeyRepo db.AccessKeyManager,
+	environmentRepo db.EnvironmentManager,
 	decryptor DvlsStorageTokenDeserializer,
 ) error {
 	return nil

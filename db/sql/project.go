@@ -109,6 +109,9 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		// The restriction stays, so deleting a key on its own still reports the
 		// mappings using it.
 		"delete from project__host_config where project_id=?",
+		// Same for a secret link: project__environment_secret.key_id has no
+		// ON DELETE action either, so the links go before the keys they use.
+		"delete from project__environment_secret where project_id=?",
 		"delete from access_key where project_id=?",
 	}
 

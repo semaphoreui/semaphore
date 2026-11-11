@@ -6,14 +6,17 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockEnvironmentManager struct {
-	GetEnvironmentFn        func(projectID int, environmentID int) (db.Environment, error)
-	GetEnvironmentSecretsFn func(projectID int, environmentID int) ([]db.AccessKey, error)
-	DeleteEnvironmentFn     func(projectID int, environmentID int) error
+	GetEnvironmentFn              func(projectID int, environmentID int) (db.Environment, error)
+	GetEnvironmentOwnedKeysFn     func(projectID int, environmentID int) ([]db.AccessKey, error)
+	GetEnvironmentSecretKeysFn    func(projectID int, environmentID int) ([]db.EnvironmentSecretWithKey, error)
+	GetAccessKeyEnvironmentRefsFn func(projectID int, keyID int) ([]db.ObjectReferrer, error)
+	DeleteEnvironmentFn           func(projectID int, environmentID int) error
 
 	DeleteEnvironmentCalls int
 }
@@ -25,9 +28,9 @@ func (m *mockEnvironmentManager) GetEnvironment(projectID int, environmentID int
 	return db.Environment{}, nil
 }
 
-func (m *mockEnvironmentManager) GetEnvironmentSecrets(projectID int, environmentID int) ([]db.AccessKey, error) {
-	if m.GetEnvironmentSecretsFn != nil {
-		return m.GetEnvironmentSecretsFn(projectID, environmentID)
+func (m *mockEnvironmentManager) GetEnvironmentOwnedKeys(projectID int, environmentID int) ([]db.AccessKey, error) {
+	if m.GetEnvironmentOwnedKeysFn != nil {
+		return m.GetEnvironmentOwnedKeysFn(projectID, environmentID)
 	}
 	return nil, nil
 }
@@ -50,6 +53,36 @@ func (m *mockEnvironmentManager) GetEnvironments(projectID int, params db.Retrie
 func (m *mockEnvironmentManager) UpdateEnvironment(env db.Environment) error { return nil }
 func (m *mockEnvironmentManager) CreateEnvironment(env db.Environment) (db.Environment, error) {
 	return db.Environment{}, nil
+}
+func (m *mockEnvironmentManager) GetEnvironmentSecretKeys(projectID int, environmentID int) ([]db.EnvironmentSecretWithKey, error) {
+	if m.GetEnvironmentSecretKeysFn != nil {
+		return m.GetEnvironmentSecretKeysFn(projectID, environmentID)
+	}
+	return nil, nil
+}
+func (m *mockEnvironmentManager) GetEnvironmentSecret(projectID int, environmentID int, secretID int) (db.EnvironmentSecret, error) {
+	return db.EnvironmentSecret{}, nil
+}
+func (m *mockEnvironmentManager) CreateEnvironmentSecret(secret db.EnvironmentSecret) (db.EnvironmentSecret, error) {
+	return secret, nil
+}
+func (m *mockEnvironmentManager) UpdateEnvironmentSecret(secret db.EnvironmentSecret) error {
+	return nil
+}
+func (m *mockEnvironmentManager) DeleteEnvironmentSecret(projectID int, environmentID int, secretID int) error {
+	return nil
+}
+func (m *mockEnvironmentManager) DeleteEnvironmentSecretsByKey(projectID int, keyID int) error {
+	return nil
+}
+func (m *mockEnvironmentManager) CountEnvironmentSecretsByKey(projectID int, keyID int) (int, error) {
+	return 0, nil
+}
+func (m *mockEnvironmentManager) GetAccessKeyEnvironmentRefs(projectID int, keyID int) ([]db.ObjectReferrer, error) {
+	if m.GetAccessKeyEnvironmentRefsFn != nil {
+		return m.GetAccessKeyEnvironmentRefsFn(projectID, keyID)
+	}
+	return nil, nil
 }
 
 type mockSecretStorageRepository struct {
@@ -134,6 +167,7 @@ func TestEnvironmentServiceImpl_Delete_InvalidIDs(t *testing.T) {
 				environmentRepo:   envRepo,
 				encryptionService: &mockAccessKeyEncryptionService{},
 				secretStorageRepo: &mockSecretStorageRepository{},
+				accessKeyRepo:     &mockAccessKeyManager{},
 			}
 
 			err := service.Delete(tt.projectID, tt.environmentID)
@@ -151,7 +185,7 @@ func TestEnvironmentServiceImpl_Delete_NoSecretStorage(t *testing.T) {
 			assert.Equal(t, 2, environmentID)
 			return db.Environment{ID: environmentID, ProjectID: projectID}, nil
 		},
-		GetEnvironmentSecretsFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
 			return []db.AccessKey{{ID: 10}}, nil
 		},
 	}
@@ -160,6 +194,7 @@ func TestEnvironmentServiceImpl_Delete_NoSecretStorage(t *testing.T) {
 		environmentRepo:   envRepo,
 		encryptionService: encryption,
 		secretStorageRepo: &mockSecretStorageRepository{},
+		accessKeyRepo:     &mockAccessKeyManager{},
 	}
 
 	err := service.Delete(1, 2)
@@ -175,7 +210,7 @@ func TestEnvironmentServiceImpl_Delete_DeletesUnsynchronizedSecrets(t *testing.T
 		GetEnvironmentFn: func(projectID int, environmentID int) (db.Environment, error) {
 			return db.Environment{ID: environmentID, ProjectID: projectID, SecretStorageID: &storageID}, nil
 		},
-		GetEnvironmentSecretsFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
 			return []db.AccessKey{
 				{ID: 10},
 				{ID: 11, Synchronized: true},
@@ -194,6 +229,7 @@ func TestEnvironmentServiceImpl_Delete_DeletesUnsynchronizedSecrets(t *testing.T
 		environmentRepo:   envRepo,
 		encryptionService: encryption,
 		secretStorageRepo: storageRepo,
+		accessKeyRepo:     &mockAccessKeyManager{},
 	}
 
 	err := service.Delete(1, 2)
@@ -209,7 +245,7 @@ func TestEnvironmentServiceImpl_Delete_ReadOnlyStorageKeepsSecrets(t *testing.T)
 		GetEnvironmentFn: func(projectID int, environmentID int) (db.Environment, error) {
 			return db.Environment{ID: environmentID, ProjectID: projectID, SecretStorageID: &storageID}, nil
 		},
-		GetEnvironmentSecretsFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
 			return []db.AccessKey{{ID: 10}}, nil
 		},
 	}
@@ -223,6 +259,7 @@ func TestEnvironmentServiceImpl_Delete_ReadOnlyStorageKeepsSecrets(t *testing.T)
 		environmentRepo:   envRepo,
 		encryptionService: encryption,
 		secretStorageRepo: storageRepo,
+		accessKeyRepo:     &mockAccessKeyManager{},
 	}
 
 	err := service.Delete(1, 2)
@@ -238,7 +275,7 @@ func TestEnvironmentServiceImpl_Delete_AggregatesSecretDeletionErrors(t *testing
 		GetEnvironmentFn: func(projectID int, environmentID int) (db.Environment, error) {
 			return db.Environment{ID: environmentID, ProjectID: projectID, SecretStorageID: &storageID}, nil
 		},
-		GetEnvironmentSecretsFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
 			return []db.AccessKey{{ID: 10}, {ID: 11}}, nil
 		},
 	}
@@ -254,6 +291,7 @@ func TestEnvironmentServiceImpl_Delete_AggregatesSecretDeletionErrors(t *testing
 		environmentRepo:   envRepo,
 		encryptionService: encryption,
 		secretStorageRepo: &mockSecretStorageRepository{},
+		accessKeyRepo:     &mockAccessKeyManager{},
 	}
 
 	err := service.Delete(1, 2)
@@ -278,6 +316,7 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 			environmentRepo:   envRepo,
 			encryptionService: &mockAccessKeyEncryptionService{},
 			secretStorageRepo: &mockSecretStorageRepository{},
+			accessKeyRepo:     &mockAccessKeyManager{},
 		}
 
 		err := service.Delete(1, 2)
@@ -286,9 +325,9 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 		assert.Equal(t, 0, envRepo.DeleteEnvironmentCalls)
 	})
 
-	t.Run("GetEnvironmentSecrets fails", func(t *testing.T) {
+	t.Run("GetEnvironmentOwnedKeys fails", func(t *testing.T) {
 		envRepo := &mockEnvironmentManager{
-			GetEnvironmentSecretsFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+			GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
 				return nil, errors.New("secrets query failed")
 			},
 		}
@@ -296,6 +335,7 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 			environmentRepo:   envRepo,
 			encryptionService: &mockAccessKeyEncryptionService{},
 			secretStorageRepo: &mockSecretStorageRepository{},
+			accessKeyRepo:     &mockAccessKeyManager{},
 		}
 
 		err := service.Delete(1, 2)
@@ -315,6 +355,7 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 			environmentRepo:   envRepo,
 			encryptionService: encryption,
 			secretStorageRepo: &mockSecretStorageRepository{},
+			accessKeyRepo:     &mockAccessKeyManager{},
 		}
 
 		err := service.Delete(1, 2)
@@ -328,7 +369,7 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 			GetEnvironmentFn: func(projectID int, environmentID int) (db.Environment, error) {
 				return db.Environment{ID: environmentID, ProjectID: projectID, SecretStorageID: &storageID}, nil
 			},
-			GetEnvironmentSecretsFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+			GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
 				return []db.AccessKey{{ID: 10}}, nil
 			},
 		}
@@ -342,6 +383,7 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 			environmentRepo:   envRepo,
 			encryptionService: encryption,
 			secretStorageRepo: storageRepo,
+			accessKeyRepo:     &mockAccessKeyManager{},
 		}
 
 		err := service.Delete(1, 2)
@@ -350,4 +392,78 @@ func TestEnvironmentServiceImpl_Delete_RepositoryErrors(t *testing.T) {
 		assert.Zero(t, envRepo.DeleteEnvironmentCalls, "a failed lookup leaves the environment in place")
 		assert.Empty(t, encryption.DeletedSecretIDs)
 	})
+}
+
+func TestEnvironmentServiceImpl_Delete_RefusesWhenAnotherGroupLinksAnOwnedKey(t *testing.T) {
+	envRepo := &mockEnvironmentManager{
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+			return []db.AccessKey{{ID: 10, Name: "db_password"}, {ID: 11, Name: "token"}}, nil
+		},
+		GetAccessKeyEnvironmentRefsFn: func(projectID int, keyID int) ([]db.ObjectReferrer, error) {
+			if keyID == 11 {
+				return []db.ObjectReferrer{{ID: 2, Name: "this group"}, {ID: 3, Name: "staging"}}, nil
+			}
+			return []db.ObjectReferrer{{ID: 2, Name: "this group"}}, nil
+		},
+	}
+	service := &EnvironmentServiceImpl{
+		environmentRepo:   envRepo,
+		encryptionService: &mockAccessKeyEncryptionService{},
+		secretStorageRepo: &mockSecretStorageRepository{},
+		accessKeyRepo:     &mockAccessKeyManager{},
+	}
+
+	err := service.Delete(1, 2)
+
+	var validation *common_errors.ValidationError
+	require.ErrorAs(t, err, &validation)
+	assert.ErrorContains(t, err, `secret "token" is used by variable group "staging"`)
+	assert.Equal(t, 0, envRepo.DeleteEnvironmentCalls, "nothing is deleted")
+}
+
+func TestEnvironmentServiceImpl_Delete_OwnKeyLinkedOnlyByItselfIsFine(t *testing.T) {
+	envRepo := &mockEnvironmentManager{
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+			return []db.AccessKey{{ID: 10, Name: "db_password"}}, nil
+		},
+		GetAccessKeyEnvironmentRefsFn: func(projectID int, keyID int) ([]db.ObjectReferrer, error) {
+			return []db.ObjectReferrer{{ID: 2, Name: "this group"}}, nil
+		},
+	}
+	service := &EnvironmentServiceImpl{
+		environmentRepo:   envRepo,
+		encryptionService: &mockAccessKeyEncryptionService{},
+		secretStorageRepo: &mockSecretStorageRepository{},
+		accessKeyRepo:     &mockAccessKeyManager{},
+	}
+
+	require.NoError(t, service.Delete(1, 2))
+	assert.Equal(t, 1, envRepo.DeleteEnvironmentCalls)
+}
+
+func TestEnvironmentServiceImpl_Delete_RemovesOwnedKeysExplicitly(t *testing.T) {
+	envRepo := &mockEnvironmentManager{
+		GetEnvironmentOwnedKeysFn: func(projectID int, environmentID int) ([]db.AccessKey, error) {
+			return []db.AccessKey{{ID: 10, Name: "a"}, {ID: 11, Name: "b"}}, nil
+		},
+	}
+	var deleted []int
+	keys := &mockAccessKeyManager{
+		DeleteAccessKeyFn: func(projectID, keyID int) error {
+			deleted = append(deleted, keyID)
+			if keyID == 10 {
+				return db.ErrNotFound // already gone by cascade
+			}
+			return nil
+		},
+	}
+	service := &EnvironmentServiceImpl{
+		environmentRepo:   envRepo,
+		encryptionService: &mockAccessKeyEncryptionService{},
+		secretStorageRepo: &mockSecretStorageRepository{},
+		accessKeyRepo:     keys,
+	}
+
+	require.NoError(t, service.Delete(1, 2))
+	assert.Equal(t, []int{10, 11}, deleted, "a key the cascade already removed is not an error")
 }

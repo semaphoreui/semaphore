@@ -122,11 +122,33 @@ func (d *SqlDb) CreateEnvironment(env db.Environment) (newEnv db.Environment, er
 	return
 }
 
+// DeleteEnvironment deletes the group with the links of its secrets, in one transaction. The links go
+// first, by hand: the group also cascades to the keys it owns, and MariaDB walks that cascade before the
+// one of the links, where the foreign key of a link still holds the key and refuses the whole delete.
+// A key another group links is still refused, and then nothing is deleted.
 func (d *SqlDb) DeleteEnvironment(projectID int, environmentID int) error {
-	return d.deleteObject(projectID, db.EnvironmentProps, environmentID)
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = d.execTx(tx,
+		"delete from project__environment_secret where project_id=? and environment_id=?",
+		projectID, environmentID)
+	if err == nil {
+		err = requireDeletedRow(d.execTx(tx,
+			"delete from project__environment where project_id=? and id=?", projectID, environmentID))
+	}
+
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
 
-func (d *SqlDb) GetEnvironmentSecrets(projectID int, environmentID int) (keys []db.AccessKey, err error) {
+func (d *SqlDb) GetEnvironmentOwnedKeys(projectID int, environmentID int) (keys []db.AccessKey, err error) {
 	keys = make([]db.AccessKey, 0)
 
 	q, err := d.makeObjectsQuery(projectID, db.AccessKeyProps, db.RetrieveQueryParams{})

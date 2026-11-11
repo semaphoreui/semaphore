@@ -77,6 +77,8 @@ type ObjectReferrers struct {
 	Schedules    []ObjectReferrer `json:"schedules"`
 	AccessKeys   []ObjectReferrer `json:"access_keys"`
 	HostConfigs  []ObjectReferrer `json:"host_configs"`
+	// Environments are the variable groups whose secrets point at an access key.
+	Environments []ObjectReferrer `json:"environments"`
 }
 
 type IntegrationReferrers struct {
@@ -331,7 +333,26 @@ type EnvironmentManager interface {
 	UpdateEnvironment(env Environment) error
 	CreateEnvironment(env Environment) (Environment, error)
 	DeleteEnvironment(projectID int, templateID int) error
-	GetEnvironmentSecrets(projectID int, environmentID int) ([]AccessKey, error)
+
+	// GetEnvironmentOwnedKeys returns the access keys the group owns (access_key.environment_id), for
+	// cleaning them up with the group. Secret values are read through GetEnvironmentSecretKeys.
+	GetEnvironmentOwnedKeys(projectID int, environmentID int) ([]AccessKey, error)
+
+	// GetEnvironmentSecretKeys returns the group's secrets with the key each one points to, Owned set.
+	GetEnvironmentSecretKeys(projectID int, environmentID int) ([]EnvironmentSecretWithKey, error)
+	GetEnvironmentSecret(projectID int, environmentID int, secretID int) (EnvironmentSecret, error)
+	// CreateEnvironmentSecret links a key to the group. A key that is being deleted
+	// (AccessKeyDeletionManager.ClaimAccessKeyDeletion) is refused with ErrInvalidOperation.
+	CreateEnvironmentSecret(secret EnvironmentSecret) (EnvironmentSecret, error)
+	// UpdateEnvironmentSecret changes type, name and key of the row with secret.ID in secret.EnvironmentID.
+	// Pointing the secret at a key that is being deleted is refused, the row stays as it was.
+	UpdateEnvironmentSecret(secret EnvironmentSecret) error
+	DeleteEnvironmentSecret(projectID int, environmentID int, secretID int) error
+	// DeleteEnvironmentSecretsByKey unlinks a key from every group, before the key itself is deleted.
+	DeleteEnvironmentSecretsByKey(projectID int, keyID int) error
+	CountEnvironmentSecretsByKey(projectID int, keyID int) (int, error)
+	// GetAccessKeyEnvironmentRefs lists the groups whose secrets point to the key.
+	GetAccessKeyEnvironmentRefs(projectID int, keyID int) ([]ObjectReferrer, error)
 }
 
 type GetAccessKeyOptions struct {
@@ -400,6 +421,27 @@ type AccessKeyManager interface {
 	// whose expire_at is in the past, across all projects. Idempotent, safe to
 	// run concurrently on several HA nodes.
 	DeleteExpiredTaskAccessKeys() error
+}
+
+// AccessKeyDeletionManager coordinates the deletion of an access key with the variable groups that may
+// link it. The secret of a key is removed from its storage before the key row, and the foreign key of a
+// link only fires at the row: without the claim a link made in between would be left pointing at a
+// credential that no longer exists.
+type AccessKeyDeletionManager interface {
+	// ClaimAccessKeyDeletion announces that the key is about to be deleted and returns the claim to
+	// release it with. It must be called before the secret of the key is removed from its storage: from
+	// the moment it returns, no variable group secret can be linked to the key, on any node. It fails
+	// with ErrInvalidOperation when a secret other than exceptSecretID (0 for none) links the key, or
+	// when another deletion of the key is in progress.
+	ClaimAccessKeyDeletion(projectID int, accessKeyID int, exceptSecretID int) (claim int64, err error)
+	// ReleaseAccessKeyDeletion gives the claim back after a deletion that did not happen, so the key
+	// can be linked and deleted again. A claim that was taken over meanwhile is left alone. It must not
+	// be called once the secret has been removed from its storage: a link being written at that moment
+	// reads the claim after it is released, and would stay on a key without a secret.
+	ReleaseAccessKeyDeletion(projectID int, accessKeyID int, claim int64) error
+	// DeleteAccessKeyWithSecret deletes the key together with the one variable group secret linking it,
+	// in one transaction: either both rows go or none.
+	DeleteAccessKeyWithSecret(projectID int, accessKeyID int, environmentID int, secretID int) error
 }
 
 // IntegrationManager handles integration-related operations
@@ -645,6 +687,7 @@ type Store interface {
 	HostConfigManager
 	EnvironmentManager
 	AccessKeyManager
+	AccessKeyDeletionManager
 	IntegrationManager
 	SessionManager
 	TokenManager
@@ -704,6 +747,12 @@ var IntegrationMatcherProps = ObjectProps{
 var IntegrationAliasProps = ObjectProps{
 	TableName:         "project__integration_alias",
 	Type:              reflect.TypeFor[IntegrationAlias](),
+	PrimaryColumnName: "id",
+}
+
+var EnvironmentSecretProps = ObjectProps{
+	TableName:         "project__environment_secret",
+	Type:              reflect.TypeFor[EnvironmentSecret](),
 	PrimaryColumnName: "id",
 }
 
