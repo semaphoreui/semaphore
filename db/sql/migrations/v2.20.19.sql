@@ -4,7 +4,7 @@ create table `project__environment_secret`
     `project_id`     int          not null,
     `environment_id` int          not null,
     `type`           varchar(10)  not null,
-    `name`           varchar(255) not null,
+    `name`           varchar(255){{if .Mysql}} character set utf8mb4 collate utf8mb4_bin{{end}} not null,
     `key_id`         int          not null,
 
     unique (`environment_id`, `type`, `name`),
