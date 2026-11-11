@@ -154,6 +154,9 @@ func parseHostsDocument(document string, projectID int, taskID int) ([]db.Ansibl
 		if utf8.RuneCountInString(name) > maxHostNameLength {
 			return nil, fmt.Errorf("hosts document: host name %.20q... is longer than %d characters", name, maxHostNameLength)
 		}
+		if stats == nil {
+			return nil, fmt.Errorf("hosts document: host %q: stats is null", name)
+		}
 
 		host := db.AnsibleTaskHost{ProjectID: projectID, TaskID: taskID, Host: name}
 		counters := map[string]*int{

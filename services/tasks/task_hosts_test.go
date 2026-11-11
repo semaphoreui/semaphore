@@ -36,6 +36,7 @@ func TestParseHostsDocument_Invalid(t *testing.T) {
 		"empty name":   `{"version":1,"hosts":{"":{}}}`,
 		"long name":    `{"version":1,"hosts":{"` + strings.Repeat("a", 251) + `":{}}}`,
 		"negative":     `{"version":1,"hosts":{"a":{"ok":-1}}}`,
+		"null stats":   `{"version":1,"hosts":{"a":null}}`,
 		"not a number": `{"version":1,"hosts":{"a":{"ok":"1"}}}`,
 	} {
 		_, err := parseHostsDocument(doc, 7, 42)
