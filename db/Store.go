@@ -310,8 +310,14 @@ type McpServerManager interface {
 	// GetMcpServers returns the servers of an inventory, with HasToken filled.
 	GetMcpServers(projectID int, inventoryID int) ([]McpServer, error)
 	// GetMcpServerTokens returns the token keys of the servers of an inventory,
-	// each with McpID set. The secret is still encrypted.
+	// each with McpID set. The secret is still encrypted. Never pair them
+	// with the result of GetMcpServers: an edit between the two reads would
+	// give a server's old URL the new token. Use GetMcpServersWithTokens.
 	GetMcpServerTokens(projectID int, inventoryID int) ([]AccessKey, error)
+	// GetMcpServersWithTokens returns the servers of an inventory, each with
+	// the key of its token, read by one statement and so from one snapshot of
+	// the database. The secret is still encrypted.
+	GetMcpServersWithTokens(projectID int, inventoryID int) ([]McpServerWithToken, error)
 	// SetMcpServers replaces the servers of an inventory and applies the token
 	// changes in one transaction: a listed server with an ID is updated, one
 	// without an ID is created, a server missing from the list is deleted

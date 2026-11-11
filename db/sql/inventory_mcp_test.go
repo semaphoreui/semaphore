@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -563,4 +564,65 @@ func TestUpdateMcpInventory_TypeAndProjectScoped(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "mcp", read.Name)
 	})
+}
+
+func TestGetMcpServersWithTokens(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, inventoryID := newMcpTestInventory(t, store)
+
+	_, err := store.SetMcpServers(projectID, inventoryID, []db.McpServerChange{
+		{Server: db.McpServer{Name: "github", URL: "https://mcp.example.com/github", Enabled: true}, Token: mcpTokenCreate("enc-1")},
+		{Server: db.McpServer{Name: "docs", URL: "https://mcp.example.com/docs", Enabled: false}},
+	})
+	require.NoError(t, err)
+
+	servers, err := store.GetMcpServersWithTokens(projectID, inventoryID)
+	require.NoError(t, err)
+	require.Len(t, servers, 2)
+
+	// The same servers and keys the separate reads give, paired by server.
+	plain, err := store.GetMcpServers(projectID, inventoryID)
+	require.NoError(t, err)
+	keys, err := store.GetMcpServerTokens(projectID, inventoryID)
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+
+	assert.Equal(t, plain[0], servers[0].Server)
+	assert.Equal(t, "github", servers[0].Server.Name)
+	require.NotNil(t, servers[0].Token)
+	assert.Equal(t, keys[0], *servers[0].Token)
+
+	assert.Equal(t, plain[1], servers[1].Server)
+	assert.False(t, servers[1].Server.HasToken)
+	assert.Nil(t, servers[1].Token)
+
+	t.Run("scoped by project", func(t *testing.T) {
+		other, err := store.CreateProject(db.Project{Name: "other"})
+		require.NoError(t, err)
+
+		servers, err := store.GetMcpServersWithTokens(other.ID, inventoryID)
+		require.NoError(t, err)
+		assert.Empty(t, servers)
+	})
+}
+
+// A column added to access_key must be added to mcpServerWithTokenSelect and
+// its row too, or the token key of a task would silently come without it.
+func TestMcpServerWithTokenRow_CoversAccessKeyColumns(t *testing.T) {
+	rowColumns := make(map[string]struct{})
+	rowType := reflect.TypeOf(mcpServerWithTokenRow{})
+	for i := 0; i < rowType.NumField(); i++ {
+		rowColumns[rowType.Field(i).Tag.Get("db")] = struct{}{}
+	}
+
+	keyType := reflect.TypeOf(db.AccessKey{})
+	for i := 0; i < keyType.NumField(); i++ {
+		column := keyType.Field(i).Tag.Get("db")
+		if column == "" || column == "-" {
+			continue
+		}
+
+		assert.Contains(t, rowColumns, "key_"+column)
+		assert.Contains(t, mcpServerWithTokenSelect, "k."+column+" as key_"+column)
+	}
 }

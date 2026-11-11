@@ -3,6 +3,7 @@ package sql
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/go-gorp/gorp/v3"
 	"github.com/semaphoreui/semaphore/db"
@@ -39,6 +40,116 @@ func (d *SqlDb) GetMcpServerTokens(projectID int, inventoryID int) ([]db.AccessK
 		inventoryID, projectID, projectID, db.AccessKeyMcp)
 
 	return keys, err
+}
+
+// mcpServerWithTokenSelect reads servers and the keys of their tokens in one
+// statement: two statements, even in one transaction, may see different
+// commits (READ COMMITTED is the PostgreSQL default). It lists every column of
+// access_key, each as key_<column>; mcpServerWithTokenRow maps them.
+const mcpServerWithTokenSelect = "select m.id, m.inventory_id, m.name, m.url, m.enabled, " +
+	"k.id as key_id, k.name as key_name, k.type as key_type, k.project_id as key_project_id, " +
+	"k.secret as key_secret, k.plain as key_plain, k.storage_id as key_storage_id, " +
+	"k.environment_id as key_environment_id, k.mcp_id as key_mcp_id, k.user_id as key_user_id, " +
+	"k.task_id as key_task_id, k.expire_at as key_expire_at, k.owner as key_owner, " +
+	"k.source_storage_id as key_source_storage_id, k.source_storage_key as key_source_storage_key, " +
+	"k.source_storage_type as key_source_storage_type, k.synchronized as key_synchronized " +
+	"from project__inventory_mcp m " +
+	"join project__inventory i on i.id = m.inventory_id " +
+	"left join access_key k on k.mcp_id = m.id and k.owner = ? and k.project_id = ? " +
+	"where i.id = ? and i.project_id = ? " +
+	"order by m.id"
+
+// mcpServerWithTokenRow is a row of mcpServerWithTokenSelect. The key columns
+// are all null for a server without a token.
+type mcpServerWithTokenRow struct {
+	ID          int    `db:"id"`
+	InventoryID int    `db:"inventory_id"`
+	Name        string `db:"name"`
+	URL         string `db:"url"`
+	Enabled     bool   `db:"enabled"`
+
+	KeyID                *int                           `db:"key_id"`
+	KeyName              *string                        `db:"key_name"`
+	KeyType              *db.AccessKeyType              `db:"key_type"`
+	KeyProjectID         *int                           `db:"key_project_id"`
+	KeySecret            *string                        `db:"key_secret"`
+	KeyPlain             *string                        `db:"key_plain"`
+	KeyStorageID         *int                           `db:"key_storage_id"`
+	KeyEnvironmentID     *int                           `db:"key_environment_id"`
+	KeyMcpID             *int                           `db:"key_mcp_id"`
+	KeyUserID            *int                           `db:"key_user_id"`
+	KeyTaskID            *int                           `db:"key_task_id"`
+	KeyExpireAt          *time.Time                     `db:"key_expire_at"`
+	KeyOwner             *db.AccessKeyOwner             `db:"key_owner"`
+	KeySourceStorageID   *int                           `db:"key_source_storage_id"`
+	KeySourceStorageKey  *string                        `db:"key_source_storage_key"`
+	KeySourceStorageType *db.AccessKeySourceStorageType `db:"key_source_storage_type"`
+	KeySynchronized      *bool                          `db:"key_synchronized"`
+}
+
+func (r mcpServerWithTokenRow) server() db.McpServer {
+	return db.McpServer{
+		ID:          r.ID,
+		InventoryID: r.InventoryID,
+		Name:        r.Name,
+		URL:         r.URL,
+		Enabled:     r.Enabled,
+		HasToken:    r.KeyID != nil,
+	}
+}
+
+// token returns the key of the row, nil for a server without a token.
+func (r mcpServerWithTokenRow) token() *db.AccessKey {
+	if r.KeyID == nil {
+		return nil
+	}
+
+	key := db.AccessKey{
+		ID:                *r.KeyID,
+		ProjectID:         r.KeyProjectID,
+		Secret:            r.KeySecret,
+		Plain:             r.KeyPlain,
+		StorageID:         r.KeyStorageID,
+		EnvironmentID:     r.KeyEnvironmentID,
+		McpID:             r.KeyMcpID,
+		UserID:            r.KeyUserID,
+		TaskID:            r.KeyTaskID,
+		ExpireAt:          r.KeyExpireAt,
+		SourceStorageID:   r.KeySourceStorageID,
+		SourceStorageKey:  r.KeySourceStorageKey,
+		SourceStorageType: r.KeySourceStorageType,
+	}
+
+	if r.KeyName != nil {
+		key.Name = *r.KeyName
+	}
+	if r.KeyType != nil {
+		key.Type = *r.KeyType
+	}
+	if r.KeyOwner != nil {
+		key.Owner = *r.KeyOwner
+	}
+	if r.KeySynchronized != nil {
+		key.Synchronized = *r.KeySynchronized
+	}
+
+	return &key
+}
+
+func (d *SqlDb) GetMcpServersWithTokens(projectID int, inventoryID int) ([]db.McpServerWithToken, error) {
+	rows := make([]mcpServerWithTokenRow, 0)
+
+	if _, err := d.selectAll(&rows, mcpServerWithTokenSelect,
+		db.AccessKeyMcp, projectID, inventoryID, projectID); err != nil {
+		return nil, err
+	}
+
+	servers := make([]db.McpServerWithToken, 0, len(rows))
+	for _, row := range rows {
+		servers = append(servers, db.McpServerWithToken{Server: row.server(), Token: row.token()})
+	}
+
+	return servers, nil
 }
 
 func (d *SqlDb) SetMcpServers(projectID int, inventoryID int, changes []db.McpServerChange) (servers []db.McpServer, err error) {
