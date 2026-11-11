@@ -53,7 +53,7 @@ func agentInventory() db.Inventory {
 func setupAgentConfig(t *testing.T, apps map[string]util.App) {
 	t.Helper()
 	previous := util.Config
-	util.Config = &util.ConfigType{TmpPath: t.TempDir(), Process: &util.ConfigProcess{}, Apps: apps}
+	util.Config = &util.ConfigType{TmpPath: t.TempDir(), Apps: apps}
 	t.Cleanup(func() { util.Config = previous })
 	require.NoError(t, os.MkdirAll(util.Config.GetProjectTmpDir(1), 0o755))
 }

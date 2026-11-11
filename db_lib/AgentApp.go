@@ -175,7 +175,7 @@ func (t *AgentApp) makeCmd(command string, args []string, environmentVars []stri
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	cmd.Env = append(cmd.Env, environmentVars...)
 
-	cmd.SysProcAttr = util.Config.GetAppSysProcAttr()
+	cmd.SysProcAttr = appSysProcAttr()
 
 	return cmd
 }
