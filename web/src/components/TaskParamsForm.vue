@@ -69,8 +69,10 @@
       :template-params="template.task_params || {}"
     />
 
+    <!-- Keyed by the template: the field starts over with the prompt of the new one. -->
     <TaskParamsAgentForm
       v-else-if="isAgent"
+      :key="template.id"
       v-model="item.params"
       :template-params="template.task_params || {}"
     />
@@ -211,6 +213,16 @@ export default {
       immediate: true,
     },
 
+    // A schedule or an integration keeps this form while its template is changed. A prompt
+    // kept from the previous template would be saved unseen where the new one shows no field,
+    // and the server refuses every run for it; where it shows one, the task would run with a
+    // prompt written for another template.
+    'template.id': function onTemplateChange(id, oldId) {
+      if (oldId != null && id !== oldId) {
+        this.dropAgentPrompt();
+      }
+    },
+
     needReset(val) {
       if (val) {
         // if (this.item) {
@@ -269,11 +281,24 @@ export default {
       return this.item != null && this.template != null;
     },
 
+    // Removes the task's own prompt, so that it runs with the prompt of the template.
+    dropAgentPrompt() {
+      if (this.item?.params && 'prompt' in this.item.params) {
+        delete this.item.params.prompt;
+      }
+    },
+
     refreshItem() {
       this.assignItem(this.modelValue);
 
       if (!this.item.params) {
         this.item.params = {};
+      }
+
+      // A prompt saved while the template let a task replace it is not shown once the template
+      // forbids that, and the server would refuse the task for it (like TaskForm.beforeSave).
+      if (this.isAgent && !this.template.task_params?.allow_override_prompt) {
+        this.dropAgentPrompt();
       }
 
       ['tags', 'limit', 'skip_tags'].forEach((param) => {
