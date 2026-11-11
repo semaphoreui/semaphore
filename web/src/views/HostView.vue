@@ -121,6 +121,7 @@ export default {
     return {
       host: null,
       state: 'loading',
+      loadSeq: 0,
     };
   },
 
@@ -157,6 +158,8 @@ export default {
     },
 
     async load() {
+      this.loadSeq += 1;
+      const seq = this.loadSeq;
       this.state = 'loading';
       try {
         const response = await axios.get(
@@ -164,9 +167,11 @@ export default {
             ? `/api/project/${this.projectId}/hosts/${this.hostId}`
             : `/api/hosts/${this.hostId}`,
         );
+        if (seq !== this.loadSeq) return;
         this.host = response.data;
         this.state = 'ready';
       } catch (err) {
+        if (seq !== this.loadSeq) return;
         this.state = 'error';
         if (!err.response || err.response.status !== 404) {
           EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
