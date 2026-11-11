@@ -1251,6 +1251,9 @@ definitions:
       decommissioned:
         type: string
         x-nullable: true
+      counted:
+        type: boolean
+        description: Whether the host is in the license count, set in the global list and card only
       last_template:
         type: object
         x-nullable: true

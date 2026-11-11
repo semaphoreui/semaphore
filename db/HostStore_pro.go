@@ -23,6 +23,7 @@ type Host struct {
 	LastProjectID     *int              `db:"last_project_id" json:"last_project_id"`
 	Decommissioned    *time.Time        `db:"decommissioned" json:"decommissioned"`
 	DecommissionCount int               `db:"decommission_count" json:"-"`
+	Counted           bool              `db:"-" json:"counted"` // in the license count, set in the global list and card only
 	LastTemplate      *HostTemplateRef  `db:"-" json:"last_template"`
 	Templates         []HostTemplateRef `db:"-" json:"templates"`
 	Projects          []HostProjectRef  `db:"-" json:"projects"`
@@ -79,7 +80,7 @@ type HostRepository interface {
 	GetHost(hostID int, projectID *int) (HostDetails, error)
 	// GetHostTasks lists tasks newest first, a nil projectID means all projects.
 	GetHostTasks(hostID int, projectID *int, count int, beforeTaskID int) ([]HostTask, error)
-	// CountActiveHosts counts hosts automated at least once and not decommissioned.
+	// CountActiveHosts counts hosts automated in the last month and not decommissioned.
 	CountActiveHosts() (int, error)
 	// DecommissionHost returns ErrNotFound if the host does not exist, a repeated call changes nothing.
 	DecommissionHost(hostID int) error
