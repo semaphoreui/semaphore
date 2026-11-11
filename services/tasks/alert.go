@@ -6,6 +6,7 @@ import (
 	"fmt"
 	htmltemplate "html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"text/template"
 
@@ -153,7 +154,7 @@ func (t *TaskRunner) sendTelegramAlert() {
 		Color:  t.alertColor("telegram"),
 		Task: alertTask{
 			ID:      strconv.Itoa(t.Task.ID),
-			URL:     t.taskLink(),
+			URL:     t.telegramTaskLink(),
 			Result:  t.Task.Status.Format(),
 			Version: version,
 			Desc:    t.Task.Message,
@@ -546,9 +547,24 @@ func (t *TaskRunner) alertInfos() (string, string) {
 		}
 
 		author = user.Name
+	} else if t.Task.ScheduleID != nil {
+		author = t.scheduleAuthor(*t.Task.ScheduleID)
 	}
 
 	return author, version
+}
+
+// scheduleAuthor names the schedule that started the task. The schedule may be
+// gone already (a one-off schedule is deleted after its run), so a failed lookup
+// degrades to the bare word instead of breaking the alert.
+func (t *TaskRunner) scheduleAuthor(scheduleID int) string {
+	schedule, err := t.pool.store.GetSchedule(t.Task.ProjectID, scheduleID)
+
+	if err != nil || schedule.Name == "" {
+		return "schedule"
+	}
+
+	return "schedule " + schedule.Name
 }
 
 func (t *TaskRunner) alertColor(kind string) string {
@@ -586,6 +602,20 @@ func (t *TaskRunner) alertColor(kind string) string {
 	}
 
 	return ""
+}
+
+// telegramTaskLink returns the task link only when it is an absolute http(s)
+// URL. Without web_host the link is a relative path, and Telegram rejects the
+// whole message for such an href, so the template prints a plain task id then.
+func (t *TaskRunner) telegramTaskLink() string {
+	link := t.taskLink()
+
+	u, err := url.Parse(link)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return ""
+	}
+
+	return link
 }
 
 func (t *TaskRunner) taskLink() string {
