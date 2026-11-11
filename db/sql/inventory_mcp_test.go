@@ -466,6 +466,47 @@ func TestUpdateMcpInventory_UpdatesRowAndServers(t *testing.T) {
 	assert.Equal(t, int64(0), countAccessKeys(t, store, "owner = ? and project_id = ?", db.AccessKeyMcp, projectID))
 }
 
+// An edit of a server or a token alone leaves the inventory row as it is.
+// MySQL reports no affected rows for such an update, which must not be taken
+// for a missing inventory.
+func TestUpdateMcpInventory_UnchangedRowIsNotMissing(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, inventoryID := newMcpTestInventory(t, store)
+
+	created, err := store.SetMcpServers(projectID, inventoryID, []db.McpServerChange{
+		{Server: db.McpServer{Name: "github", URL: "https://mcp.example.com/github", Enabled: true}, Token: mcpTokenCreate("enc-1")},
+	})
+	require.NoError(t, err)
+
+	unchanged, err := store.GetInventory(projectID, inventoryID)
+	require.NoError(t, err)
+
+	servers, err := store.UpdateMcpInventory(unchanged, []db.McpServerChange{
+		{Server: db.McpServer{ID: created[0].ID, Name: "github", URL: "https://mcp.example.com/v2", Enabled: true},
+			Token: &db.McpTokenChange{Operation: db.McpTokenUpdate, Key: db.AccessKey{Secret: mcpSecret("enc-2")}}},
+	})
+	require.NoError(t, err)
+	require.Len(t, servers, 1)
+	assert.Equal(t, "https://mcp.example.com/v2", servers[0].URL)
+
+	tokens, err := store.GetMcpServerTokens(projectID, inventoryID)
+	require.NoError(t, err)
+	require.Len(t, tokens, 1)
+	require.NotNil(t, tokens[0].Secret)
+	assert.Equal(t, "enc-2", *tokens[0].Secret)
+}
+
+func TestUpdateMcpInventory_MissingInventory(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, inventoryID := newMcpTestInventory(t, store)
+
+	_, err := store.UpdateMcpInventory(
+		db.Inventory{ID: inventoryID + 1000, ProjectID: projectID, Name: "ghost", Type: db.InventoryMcp},
+		[]db.McpServerChange{{Server: db.McpServer{Name: "docs", URL: "https://mcp.example.com/docs"}}})
+	assert.ErrorIs(t, err, db.ErrNotFound)
+	assert.Equal(t, int64(1), countInventories(t, store, projectID))
+}
+
 // A failing server change leaves the inventory row as it was, not renamed.
 func TestUpdateMcpInventory_RollsBackOnFailure(t *testing.T) {
 	store := InitConfigCreateTestStore()
