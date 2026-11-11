@@ -435,7 +435,9 @@ type AccessKeyDeletionManager interface {
 	// when another deletion of the key is in progress.
 	ClaimAccessKeyDeletion(projectID int, accessKeyID int, exceptSecretID int) (claim int64, err error)
 	// ReleaseAccessKeyDeletion gives the claim back after a deletion that did not happen, so the key
-	// can be linked and deleted again. A claim that was taken over meanwhile is left alone.
+	// can be linked and deleted again. A claim that was taken over meanwhile is left alone. It must not
+	// be called once the secret has been removed from its storage: a link being written at that moment
+	// reads the claim after it is released, and would stay on a key without a secret.
 	ReleaseAccessKeyDeletion(projectID int, accessKeyID int, claim int64) error
 	// DeleteAccessKeyWithSecret deletes the key together with the one variable group secret linking it,
 	// in one transaction: either both rows go or none.

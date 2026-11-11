@@ -63,8 +63,13 @@ order of the writes is the design, and every failure leaves a state the same req
   write commits the row and then reads the claim (`CreateEnvironmentSecret`, `UpdateEnvironmentSecret` when the
   key changes). At least one of the two sees the other and steps back, on any node, with no lock. Every link
   writer is covered because the check sits in the store — the Pro sync and the restore call it directly.
-- Deleting a **group**: the owned key rows go first and only the removed ones lose their remote value — on
-  MySQL (no cascade on `access_key.environment_id`) a link made after the usage check keeps the row.
+  ⚠️ 2026-11-11: the link of a writer that steps back sits in the table for a moment and makes the key row
+  delete fail on the foreign key. Once the remote value is gone the claim is therefore **never released** (a
+  released claim lets that writer keep its link) and the row is retried for ~0.4 s. Found only by racing the
+  real service against MariaDB: 3 broken rounds in 400; MySQL and Postgres happened not to hit it.
+- Deleting a **group**: `DeleteEnvironment` removes the group's links and the group in one transaction; then
+  the owned key rows go, and only the removed ones lose their remote value — on MySQL (no cascade on
+  `access_key.environment_id`) a link made after the usage check keeps the row.
 
 ## Rejected
 
@@ -83,6 +88,12 @@ order of the writes is the design, and every failure leaves a state the same req
 - ⚠️ 2026-11-11: `project__environment_secret.name` is `utf8mb4_bin` on MySQL. With the default collation
   `TEST` and `Test` collided on the unique index — Dredd failed on MySQL/MariaDB only, and the `2.20.19` data
   migration (case-sensitive in Go) would have stopped on a group holding both.
+- ⚠️ 2026-11-11: MariaDB 10.11 honours the inline `references … on delete cascade` of
+  `access_key.environment_id` (MySQL 8 ignores it) and walks it before the cascade of the links, so the plain
+  group delete was refused by the links' foreign key — every group with an owned secret, MariaDB only. Hence
+  the explicit link delete in `DeleteEnvironment`. SQLite and Postgres check at the end of the statement.
+- A key whose remote value was removed but whose row could not be deleted (another object still references
+  it) stays claimed: no links and no second deletion until the claim expires.
 - A deletion claim holds for `db.AccessKeyDeleteClaimTTL` (15 min) and is compared with the node clock: it
   must outlast the storage call, and a node that died holding one blocks new links to that key until then.
   A race lost by both sides (link refused, deletion refused) is expected; either request can be repeated.

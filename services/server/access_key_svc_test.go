@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/sql"
@@ -617,4 +618,132 @@ func TestAccessKeyService_Delete_LinkDuringSecretRemovalIsRefused(t *testing.T) 
 	link.KeyID = kept.ID
 	_, err = store.CreateEnvironmentSecret(link)
 	assert.NoError(t, err)
+}
+
+// A link can still be in the table when the key row is deleted: its writer has committed it and reads
+// the claim next. The foreign key refuses the row until that writer takes the link back. The secret is
+// gone by then, so the row is tried again and the claim is never released in between — a released claim
+// is exactly what would let that writer keep its link.
+func TestAccessKeyService_Delete_AfterTheSecretIsGone(t *testing.T) {
+	projectID := 1
+	inUse := fmt.Errorf("%w: foreign key", db.ErrInvalidOperation)
+
+	t.Run("the row is tried again", func(t *testing.T) {
+		repo := vaultKeyRepo(projectID)
+		repo.deleteErrs = []error{inUse, inUse}
+		svc := NewAccessKeyService(repo, &spyEncryption{}, &mockSecretStorageRepository{}, repo, repo)
+
+		require.NoError(t, svc.Delete(projectID, 10))
+
+		assert.Equal(t, []string{"claim key 10 except secret 0", "delete key 10", "delete key 10", "delete key 10"}, repo.calls)
+	})
+
+	t.Run("a row that stays keeps its claim", func(t *testing.T) {
+		repo := vaultKeyRepo(projectID)
+		repo.deleteErrs = []error{inUse, inUse, inUse, inUse, inUse, inUse}
+		svc := NewAccessKeyService(repo, &spyEncryption{}, &mockSecretStorageRepository{}, repo, repo)
+
+		err := svc.Delete(projectID, 10)
+
+		assert.ErrorIs(t, err, db.ErrInvalidOperation)
+		assert.NotContains(t, repo.calls, "release key 10 claim 42", "no link may be accepted on a key without a secret")
+		assert.Equal(t, "claim key 10 except secret 0", repo.calls[0])
+	})
+
+	t.Run("the link of the secret is tried again with the row", func(t *testing.T) {
+		repo := vaultKeyRepo(projectID)
+		repo.deleteErrs = []error{inUse}
+		svc := NewAccessKeyService(repo, &spyEncryption{}, &mockSecretStorageRepository{}, repo, repo)
+
+		require.NoError(t, svc.DeleteWithSecret(db.EnvironmentSecret{ID: 7, ProjectID: projectID, EnvironmentID: 3, KeyID: 10}))
+
+		assert.Equal(t, []string{
+			"claim key 10 except secret 7",
+			"delete key 10 with secret 7 of group 3",
+			"delete key 10 with secret 7 of group 3",
+		}, repo.calls)
+	})
+
+	t.Run("a key with no secret in a storage is given back at once", func(t *testing.T) {
+		repo := &mockAccessKeyRepo{
+			keys:       []db.AccessKey{{ID: 10, ProjectID: &projectID, Name: "k", Type: db.AccessKeyString}},
+			deleteErrs: []error{inUse},
+		}
+		svc := NewAccessKeyService(repo, &spyEncryption{}, &mockSecretStorageRepository{}, repo, repo)
+
+		err := svc.Delete(projectID, 10)
+
+		assert.ErrorIs(t, err, db.ErrInvalidOperation)
+		assert.Equal(t, []string{"claim key 10 except secret 0", "delete key 10", "release key 10 claim 42"}, repo.calls,
+			"nothing was removed, so nothing is tried again")
+	})
+}
+
+// The same against the real store. The link is written straight into the table, as a writer on another
+// node has it between its insert and its look at the claim.
+func TestAccessKeyService_Delete_LinkWrittenDuringSecretRemoval(t *testing.T) {
+	setup := func(t *testing.T) (*sql.SqlDb, db.Project, db.Environment, db.AccessKey) {
+		store := sql.InitConfigCreateTestStore()
+		project, err := store.CreateProject(db.Project{Name: "p"})
+		require.NoError(t, err)
+		env, err := store.CreateEnvironment(db.Environment{ProjectID: project.ID, Name: "E", JSON: "{}"})
+		require.NoError(t, err)
+		storage, err := store.CreateSecretStorage(db.SecretStorage{ProjectID: project.ID, Name: "vault", Type: db.SecretStorageTypeVault})
+		require.NoError(t, err)
+		storageType := db.AccessKeySourceStorageVault
+		storageKey := "semaphore/token"
+		key, err := store.CreateAccessKey(db.AccessKey{
+			Name: "token", Type: db.AccessKeyString, ProjectID: &project.ID,
+			SourceStorageID: &storage.ID, SourceStorageType: &storageType, SourceStorageKey: &storageKey,
+		})
+		require.NoError(t, err)
+		return store, project, env, key
+	}
+	writeLink := func(store *sql.SqlDb, project db.Project, env db.Environment, key db.AccessKey) error {
+		_, err := store.Sql().Exec(store.PrepareQuery(
+			"insert into project__environment_secret (project_id, environment_id, type, name, key_id) values (?, ?, 'env', 'TOKEN', ?)"),
+			project.ID, env.ID, key.ID)
+		return err
+	}
+
+	t.Run("the writer takes its link back and the key is deleted", func(t *testing.T) {
+		store, project, env, key := setup(t)
+		done := make(chan error, 1)
+		spy := &spyEncryption{}
+		spy.onDelete = func() error {
+			if err := writeLink(store, project, env, key); err != nil {
+				return err
+			}
+			go func() {
+				time.Sleep(40 * time.Millisecond)
+				done <- store.DeleteEnvironmentSecretsByKey(project.ID, key.ID)
+			}()
+			return nil
+		}
+		svc := NewAccessKeyService(store, spy, store, store, store)
+
+		require.NoError(t, svc.Delete(project.ID, key.ID))
+
+		require.NoError(t, <-done)
+		_, err := store.GetAccessKey(project.ID, key.ID)
+		assert.ErrorIs(t, err, db.ErrNotFound)
+	})
+
+	t.Run("a link that stays leaves the key claimed", func(t *testing.T) {
+		store, project, env, key := setup(t)
+		spy := &spyEncryption{}
+		spy.onDelete = func() error { return writeLink(store, project, env, key) }
+		svc := NewAccessKeyService(store, spy, store, store, store)
+
+		err := svc.Delete(project.ID, key.ID)
+
+		assert.ErrorIs(t, err, db.ErrInvalidOperation)
+		kept, err := store.GetAccessKey(project.ID, key.ID)
+		require.NoError(t, err)
+		assert.True(t, kept.DeletionClaimed(time.Now()), "its secret is gone: the key takes no new links")
+		_, err = store.CreateEnvironmentSecret(db.EnvironmentSecret{
+			ProjectID: project.ID, EnvironmentID: env.ID, Type: db.EnvironmentSecretVar, Name: "another", KeyID: key.ID,
+		})
+		assert.ErrorIs(t, err, db.ErrInvalidOperation)
+	})
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -128,15 +129,28 @@ func (s *AccessKeyServiceImpl) deleteKey(projectID int, keyID int, onlyLink *db.
 		return
 	}
 
+	// Set once the secret has left its storage: from then on the key is not given back.
+	secretRemoved := false
+
 	defer func() {
 		if err == nil {
 			return
 		}
-		// The key stays: give it back, so it can be linked and its deletion repeated.
+
+		fields := log.Fields{"project_id": projectID, "key_id": keyID}
+
+		if secretRemoved {
+			// The claim stays until it expires. Releasing it here would let a link that is being
+			// written right now pass its check and stay on a key that has no secret any more.
+			log.WithError(err).WithFields(fields).Error(
+				"the secret of a key was removed from its storage, but the key could not be deleted")
+			return
+		}
+
+		// The key is as it was: give it back, so it can be linked and its deletion repeated.
 		if releaseErr := s.deletionRepo.ReleaseAccessKeyDeletion(projectID, keyID, claim); releaseErr != nil {
-			log.WithError(releaseErr).WithFields(log.Fields{
-				"project_id": projectID, "key_id": keyID,
-			}).Error("failed to release the deletion claim of a key; it expires on its own")
+			log.WithError(releaseErr).WithFields(fields).Error(
+				"failed to release the deletion claim of a key; it expires on its own")
 		}
 	}()
 
@@ -155,6 +169,7 @@ func (s *AccessKeyServiceImpl) deleteKey(projectID int, keyID int, onlyLink *db.
 			//}
 		} else {
 			err = s.encryptionService.DeleteSecret(&key)
+			secretRemoved = err == nil
 		}
 
 		if err != nil {
@@ -162,13 +177,27 @@ func (s *AccessKeyServiceImpl) deleteKey(projectID int, keyID int, onlyLink *db.
 		}
 	}
 
-	if onlyLink != nil {
-		err = s.deletionRepo.DeleteAccessKeyWithSecret(projectID, keyID, onlyLink.EnvironmentID, onlyLink.ID)
-	} else {
-		err = s.accessKeyRepo.DeleteAccessKey(projectID, keyID)
+	err = s.deleteKeyRow(projectID, keyID, onlyLink)
+
+	// A link written while the key was being claimed is still in the table for a moment: its writer
+	// reads the claim next and takes the link back. Until then the foreign key refuses the row. With the
+	// secret already gone this is not the time to give up, so the row is tried again.
+	for _, pause := range []time.Duration{25 * time.Millisecond, 50 * time.Millisecond, 100 * time.Millisecond, 200 * time.Millisecond} {
+		if !secretRemoved || !errors.Is(err, db.ErrInvalidOperation) {
+			break
+		}
+		time.Sleep(pause)
+		err = s.deleteKeyRow(projectID, keyID, onlyLink)
 	}
 
 	return
+}
+
+func (s *AccessKeyServiceImpl) deleteKeyRow(projectID int, keyID int, onlyLink *db.EnvironmentSecret) error {
+	if onlyLink != nil {
+		return s.deletionRepo.DeleteAccessKeyWithSecret(projectID, keyID, onlyLink.EnvironmentID, onlyLink.ID)
+	}
+	return s.accessKeyRepo.DeleteAccessKey(projectID, keyID)
 }
 
 func (s *AccessKeyServiceImpl) GetAll(projectID int, options db.GetAccessKeyOptions, params db.RetrieveQueryParams) ([]db.AccessKey, error) {

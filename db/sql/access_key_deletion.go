@@ -15,6 +15,10 @@ import (
 // Whatever the interleaving, of a deletion and a link racing each other at least one sees the other and
 // steps back, so the secret is never removed from its storage under a link that stays. It needs no lock
 // and no transaction around the call to the storage, and it holds across HA nodes: the claim is a column.
+//
+// The link of a writer that steps back is in the table for a moment, between its insert and its look at
+// the claim. A deletion that has removed the secret must therefore keep the claim until the key row is
+// gone, and try the row again when that link is in its way (AccessKeyService.Delete).
 func (d *SqlDb) ClaimAccessKeyDeletion(projectID int, accessKeyID int, exceptSecretID int) (claim int64, err error) {
 	now := tz.Now()
 	claim = now.Add(db.AccessKeyDeleteClaimTTL).UnixMilli()

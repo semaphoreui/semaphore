@@ -298,9 +298,19 @@ type mockAccessKeyRepo struct {
 	UpdateAccessKeyFn func(db.AccessKey) error
 	CreateAccessKeyFn func(db.AccessKey) (db.AccessKey, error)
 
-	// claimErr refuses ClaimAccessKeyDeletion; calls lists what a deletion did to the repository, in order.
-	claimErr error
-	calls    []string
+	// claimErr refuses ClaimAccessKeyDeletion; deleteErrs fails the next deletes of the key row, one
+	// error per call; calls lists what a deletion did to the repository, in order.
+	claimErr   error
+	deleteErrs []error
+	calls      []string
+}
+
+func (m *mockAccessKeyRepo) nextDeleteErr() (err error) {
+	if len(m.deleteErrs) > 0 {
+		err = m.deleteErrs[0]
+		m.deleteErrs = m.deleteErrs[1:]
+	}
+	return
 }
 
 func (m *mockAccessKeyRepo) GetAccessKey(_ int, keyID int) (db.AccessKey, error) {
@@ -331,7 +341,7 @@ func (m *mockAccessKeyRepo) CreateAccessKey(k db.AccessKey) (db.AccessKey, error
 }
 func (m *mockAccessKeyRepo) DeleteAccessKey(_ int, keyID int) error {
 	m.calls = append(m.calls, fmt.Sprintf("delete key %d", keyID))
-	return nil
+	return m.nextDeleteErr()
 }
 func (m *mockAccessKeyRepo) ClaimAccessKeyDeletion(_ int, keyID int, exceptSecretID int) (int64, error) {
 	m.calls = append(m.calls, fmt.Sprintf("claim key %d except secret %d", keyID, exceptSecretID))
@@ -346,7 +356,7 @@ func (m *mockAccessKeyRepo) ReleaseAccessKeyDeletion(_ int, keyID int, claim int
 }
 func (m *mockAccessKeyRepo) DeleteAccessKeyWithSecret(_ int, keyID int, environmentID int, secretID int) error {
 	m.calls = append(m.calls, fmt.Sprintf("delete key %d with secret %d of group %d", keyID, secretID, environmentID))
-	return nil
+	return m.nextDeleteErr()
 }
 func (m *mockAccessKeyRepo) GetTaskAccessKey(int, int) (db.AccessKey, error) {
 	return db.AccessKey{}, db.ErrNotFound
