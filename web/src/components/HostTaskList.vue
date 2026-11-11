@@ -140,11 +140,11 @@ export default {
     },
 
     rangeStart() {
-      return this.pageIndex * COUNT;
+      return this.tasks && this.tasks.length ? this.pageIndex * COUNT + 1 : 0;
     },
 
     rangeEnd() {
-      return this.rangeStart + (this.tasks ? this.tasks.length : 0);
+      return this.pageIndex * COUNT + (this.tasks ? this.tasks.length : 0);
     },
   },
 
