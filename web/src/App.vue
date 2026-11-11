@@ -308,6 +308,10 @@
                 <v-list-item-title>{{ item.title }}</v-list-item-title>
               </v-list-item-content>
 
+              <v-list-item-action>
+                <v-chip v-if="item.isBeta" small color="warning">Beta</v-chip>
+              </v-list-item-action>
+
               <div class="nav-pin-wrap" v-if="navEditMode">
                 <v-btn icon @click.stop.prevent="togglePin(item.key)" :title="$t('pin')">
                   <v-icon small>mdi-pin-outline</v-icon>
@@ -1279,6 +1283,7 @@ export default {
             icon: 'mdi-server-network',
             title: this.$t('hostConfig'),
             to: `${base}/host_config`,
+            isBeta: true,
           },
           {
             key: 'integrations',
