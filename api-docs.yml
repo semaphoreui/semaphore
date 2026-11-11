@@ -1248,6 +1248,9 @@ definitions:
       last_task_id:
         type: integer
         x-nullable: true
+      last_project_id:
+        type: integer
+        x-nullable: true
       decommissioned:
         type: string
         x-nullable: true
@@ -1279,13 +1282,35 @@ definitions:
     properties:
       task_id:
         type: integer
+      project_id:
+        type: integer
       project_name:
         type: string
+      template_id:
+        type: integer
       template_name:
         type: string
       status:
         type: string
+      start:
+        type: string
+        x-nullable: true
+      user_name:
+        type: string
+        x-nullable: true
+      ok:
+        type: integer
+      changed:
+        type: integer
       failed:
+        type: integer
+      unreachable:
+        type: integer
+      skipped:
+        type: integer
+      rescued:
+        type: integer
+      ignored:
         type: integer
 
   Task:
