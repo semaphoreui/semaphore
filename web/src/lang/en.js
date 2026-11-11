@@ -392,6 +392,8 @@ export default {
   host_tab_tasks: 'Tasks',
   host_col_result: 'Result on host',
   host_decommissioned: 'Decommissioned',
+  host_not_counted: 'Not counted',
+  host_not_counted_hint: 'No run reached this host in the last month',
   host_decommission: 'Decommission',
   host_decommission_confirm: 'Remove {name} from the license count? It comes back the next time a task reaches it.',
   hosts_limit_exceeded: 'Host limit exceeded: {used} of {limit} hosts in use',

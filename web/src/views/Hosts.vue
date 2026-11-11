@@ -131,7 +131,20 @@
             size="small"
             data-testid="hosts-rowDecommissioned"
           >{{ $t('host_decommissioned') }}</v-chip>
-          <HostStatus v-else :status="item.last_status" data-testid="hosts-rowStatus"/>
+          <template v-else>
+            <HostStatus :status="item.last_status" data-testid="hosts-rowStatus"/>
+            <v-tooltip v-if="!projectId && !item.counted" location="bottom">
+              <template v-slot:activator="{ props }">
+                <v-chip
+                  v-bind="props"
+                  size="small"
+                  class="ml-2"
+                  data-testid="hosts-rowNotCounted"
+                >{{ $t('host_not_counted') }}</v-chip>
+              </template>
+              <span>{{ $t('host_not_counted_hint') }}</span>
+            </v-tooltip>
+          </template>
         </template>
 
         <template v-slot:item.last_task="{ item }">
