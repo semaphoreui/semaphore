@@ -115,9 +115,15 @@ func (r Repository) GetInternalPath(templateID int) string {
 // directory (e.g. repository_15_template_114_main_1a2b3c4d).
 func (r Repository) GetFullPath(templateID int) string {
 	if r.GetType() == RepositoryLocal {
-		return r.GetGitURL(false)
+		return r.GetLocalPath()
 	}
 	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetCheckoutDirName(templateID))
+}
+
+// GetLocalPath returns the directory of a local repository. It is taken from the
+// field, not from GetGitURL, so nothing built from it can carry credentials.
+func (r Repository) GetLocalPath() string {
+	return util.NormalizeLocalFilesystemPath(r.GitURL)
 }
 
 // GetGitURL returns the URL git is invoked with. With embedCredentials set,

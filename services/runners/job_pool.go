@@ -429,59 +429,7 @@ func (p *JobPool) Run() {
 
 			t.job.SetLogger(rj)
 
-			go func(running *runningJob) {
-				running.SetStatus(task_logger.TaskRunningStatus)
-
-				log.WithFields(log.Fields{
-					"context":          "job_running",
-					"task_id":          running.taskID,
-					"username":         t.username,
-					"alias":            t.alias,
-					"incoming_version": derefString(t.incomingVersion),
-				}).Debug("Running job")
-
-				err := running.job.Run(t.username, t.incomingVersion, t.alias)
-
-				if err != nil {
-
-					log.WithFields(log.Fields{
-						"context":     "job_running",
-						"task_id":     t.taskID,
-						"task_status": t.status,
-					}).WithError(err).Error("launch job failed")
-
-					running.Log("Unable to launch the application. Please contact your system administrator for assistance.")
-
-					if running.getStatus() == task_logger.TaskStoppingStatus {
-						running.SetStatus(task_logger.TaskStoppedStatus)
-					} else {
-						running.SetStatus(task_logger.TaskFailStatus)
-					}
-				} else {
-
-					log.WithFields(log.Fields{
-						"context": "job_running",
-						"task_id": running.taskID,
-						"status":  string(running.getStatus()),
-					}).Debug("Job run returned")
-
-					if running.getStatus().IsFinished() {
-						return
-					}
-
-					if running.getStatus() == task_logger.TaskStoppingStatus {
-						running.SetStatus(task_logger.TaskStoppedStatus)
-					} else {
-						running.finish(task_logger.TaskSuccessStatus, p.taskOutputs(t, running))
-					}
-				}
-
-				log.WithFields(log.Fields{
-					"context": "job_running",
-					"task_id": running.taskID,
-					"status":  string(running.getStatus()),
-				}).Info("Task finished")
-			}(rj)
+			go p.runJob(t, rj)
 
 			log.WithFields(log.Fields{
 				"context": "job_running",
@@ -534,6 +482,65 @@ func (p *JobPool) Run() {
 	}
 }
 
+// runJob runs a dequeued task to its final status.
+func (p *JobPool) runJob(t *job, running *runningJob) {
+	running.SetStatus(task_logger.TaskRunningStatus)
+
+	log.WithFields(log.Fields{
+		"context":          "job_running",
+		"task_id":          running.taskID,
+		"username":         t.username,
+		"alias":            t.alias,
+		"incoming_version": derefString(t.incomingVersion),
+	}).Debug("Running job")
+
+	err := running.job.Run(t.username, t.incomingVersion, t.alias)
+	// Before the final status this goroutine sets, so a report of it carries the hosts.
+	if provider, ok := running.job.(tasks.HostsProvider); ok {
+		running.setHosts(provider.Hosts())
+	}
+
+	if err != nil {
+
+		log.WithFields(log.Fields{
+			"context":     "job_running",
+			"task_id":     t.taskID,
+			"task_status": t.status,
+		}).WithError(err).Error("launch job failed")
+
+		running.Log("Unable to launch the application. Please contact your system administrator for assistance.")
+
+		if running.getStatus() == task_logger.TaskStoppingStatus {
+			running.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			running.SetStatus(task_logger.TaskFailStatus)
+		}
+	} else {
+
+		log.WithFields(log.Fields{
+			"context": "job_running",
+			"task_id": running.taskID,
+			"status":  string(running.getStatus()),
+		}).Debug("Job run returned")
+
+		if running.getStatus().IsFinished() {
+			return
+		}
+
+		if running.getStatus() == task_logger.TaskStoppingStatus {
+			running.SetStatus(task_logger.TaskStoppedStatus)
+		} else {
+			running.finish(task_logger.TaskSuccessStatus, p.taskOutputs(t, running))
+		}
+	}
+
+	log.WithFields(log.Fields{
+		"context": "job_running",
+		"task_id": running.taskID,
+		"status":  string(running.getStatus()),
+	}).Info("Task finished")
+}
+
 func (p *JobPool) sendProgress() (ok bool) {
 
 	url := util.Config.WebHost + "/api/internal/runners"
@@ -544,7 +551,7 @@ func (p *JobPool) sendProgress() (ok bool) {
 
 	for id, j := range p.snapshotRunningJobs() {
 
-		status, logRecords, commit, outputs := j.getProgress()
+		status, logRecords, commit, outputs, hosts := j.getProgress()
 
 		body.Jobs = append(body.Jobs, JobProgress{
 			ID:         id,
@@ -552,6 +559,7 @@ func (p *JobPool) sendProgress() (ok bool) {
 			Status:     status,
 			Commit:     commit,
 			Outputs:    outputs,
+			Hosts:      hosts,
 		})
 
 		log.WithFields(log.Fields{

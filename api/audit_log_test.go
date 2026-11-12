@@ -185,6 +185,7 @@ func TestAuditRoutes_AreGetOnly(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		nil)
 	for _, target := range []string{"/api/audit/events", "/api/audit/events/export?format=csv"} {
 		w := httptest.NewRecorder()

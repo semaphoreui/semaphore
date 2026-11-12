@@ -327,6 +327,8 @@ func (t *TaskRunner) run() {
 		return
 	}
 
+	t.saveHosts()
+
 	// A SIGTERM handler may exit successfully, so cancellation is independent
 	// of whether Run returns a nil or non-nil error.
 	if t.job.IsKilled() {
@@ -392,6 +394,28 @@ func (t *TaskRunner) saveOutputs() error {
 	t.Task.Artifacts = outputs
 
 	return nil
+}
+
+// saveHosts stores the host stats of a locally run task. It runs for every
+// outcome, and a failure to store them never changes the task status.
+func (t *TaskRunner) saveHosts() {
+	provider, ok := t.job.(HostsProvider)
+	if !ok {
+		return
+	}
+
+	hosts := provider.Hosts()
+	if hosts == nil {
+		return
+	}
+
+	if err := t.pool.StoreTaskHosts(t, *hosts); err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"task_id": t.Task.ID,
+			"context": "task_hosts",
+		}).Error("failed to save task hosts")
+		t.Log("Host stats were not saved. More details in the server logs.")
+	}
 }
 
 // finishRun records the end of a task run, persists it, and notifies the pool

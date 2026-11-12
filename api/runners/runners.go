@@ -504,6 +504,14 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 			}
 		}
 
+		// Host stats arrive with any final status and never fail the task.
+		if job.Hosts != nil && job.Status.IsFinished() {
+			if err = taskPool.StoreTaskHosts(tsk, *job.Hosts); err != nil {
+				jobLog.WithError(err).Warn("runner reported invalid host stats")
+				tsk.Log("Invalid host stats reported by the runner: " + err.Error())
+			}
+		}
+
 		tsk.SetStatus(job.Status)
 
 		if job.Commit != nil {

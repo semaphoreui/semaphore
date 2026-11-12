@@ -6,7 +6,9 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -304,6 +306,21 @@ func (c *outputsCollectorFake) Validate(document string) (*string, error) {
 	return &document, nil
 }
 
+// ansibleTaskRepoFake records the host stats the handler stores.
+type ansibleTaskRepoFake struct {
+	db.AnsibleTaskRepository
+	calls     int
+	projectID int
+	taskID    int
+}
+
+func (f *ansibleTaskRepoFake) ReplaceAnsibleTaskHosts(projectID int, taskID int, hosts []db.AnsibleTaskHost) error {
+	f.calls++
+	f.projectID = projectID
+	f.taskID = taskID
+	return nil
+}
+
 type nopLogWriteService struct{}
 
 func (nopLogWriteService) WriteEventLog(pro_interfaces.EventLogRecord) error { return nil }
@@ -316,6 +333,7 @@ type remoteWorkflowTaskFixture struct {
 	store     db.Store
 	pool      *tasks.TaskPool
 	collector *outputsCollectorFake
+	hostsRepo *ansibleTaskRepoFake
 	runner    db.Runner
 	task      *tasks.TaskRunner
 }
@@ -327,13 +345,14 @@ func newRemoteWorkflowTaskFixture(t *testing.T) remoteWorkflowTaskFixture {
 	t.Cleanup(func() { util.Config = prevCfg })
 
 	store := sql.InitConfigCreateTestStore()
+	hostsRepo := &ansibleTaskRepoFake{}
 
 	// Finalizing a terminal status writes the task event through the log
 	// write service, so the fixture needs one.
 	pool := tasks.CreateTaskPool(
 		store,
 		tasks.NewMemoryTaskStateStore(),
-		nil,
+		hostsRepo,
 		nil,
 		nil,
 		nil,
@@ -385,6 +404,7 @@ func newRemoteWorkflowTaskFixture(t *testing.T) remoteWorkflowTaskFixture {
 		store:     store,
 		pool:      &pool,
 		collector: collector,
+		hostsRepo: hostsRepo,
 		runner:    runner,
 		task:      tr,
 	}
@@ -494,4 +514,78 @@ func TestUpdateRunner_SuccessWithoutOutputs(t *testing.T) {
 	assert.Empty(t, fixture.collector.validated)
 	assert.Equal(t, task_logger.TaskSuccessStatus, fixture.task.Task.Status)
 	assert.Nil(t, fixture.task.Task.Artifacts)
+}
+
+func TestUpdateRunner_FailedStatusStoresHosts(t *testing.T) {
+	fixture := newRemoteWorkflowTaskFixture(t)
+	ctrl := NewRunnerController(nil, fixture.pool, nil, nil)
+	document := `{"version":1,"hosts":{"web-01":{"ok":2,"failed":1}}}`
+
+	req := newProgressRequest(t, fixture.store, fixture.runner, runners.RunnerProgress{
+		Jobs: []runners.JobProgress{{
+			ID:     fixture.task.Task.ID,
+			Status: task_logger.TaskFailStatus,
+			Hosts:  &document,
+		}},
+	})
+	w := httptest.NewRecorder()
+
+	ctrl.UpdateRunner(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, 1, fixture.hostsRepo.calls)
+	assert.Equal(t, fixture.task.Task.ProjectID, fixture.hostsRepo.projectID)
+	assert.Equal(t, fixture.task.Task.ID, fixture.hostsRepo.taskID)
+	persisted, err := fixture.store.GetTaskByID(fixture.task.Task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, task_logger.TaskFailStatus, persisted.Status)
+}
+
+func TestUpdateRunner_HostsIgnoredWhileRunning(t *testing.T) {
+	fixture := newRemoteWorkflowTaskFixture(t)
+	ctrl := NewRunnerController(nil, fixture.pool, nil, nil)
+	document := `{"version":1,"hosts":{"web-01":{"ok":2}}}`
+
+	req := newProgressRequest(t, fixture.store, fixture.runner, runners.RunnerProgress{
+		Jobs: []runners.JobProgress{{
+			ID:     fixture.task.Task.ID,
+			Status: task_logger.TaskRunningStatus,
+			Hosts:  &document,
+		}},
+	})
+	w := httptest.NewRecorder()
+
+	ctrl.UpdateRunner(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, 0, fixture.hostsRepo.calls)
+	assert.Equal(t, task_logger.TaskRunningStatus, fixture.task.Task.Status)
+}
+
+func TestUpdateRunner_InvalidHostsKeepStatus(t *testing.T) {
+	fixture := newRemoteWorkflowTaskFixture(t)
+	ctrl := NewRunnerController(nil, fixture.pool, nil, nil)
+	document := `{`
+	var output strings.Builder
+	fixture.task.AddLogListener(func(_ time.Time, msg string) {
+		output.WriteString(msg)
+	})
+
+	req := newProgressRequest(t, fixture.store, fixture.runner, runners.RunnerProgress{
+		Jobs: []runners.JobProgress{{
+			ID:     fixture.task.Task.ID,
+			Status: task_logger.TaskSuccessStatus,
+			Hosts:  &document,
+		}},
+	})
+	w := httptest.NewRecorder()
+
+	ctrl.UpdateRunner(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, 0, fixture.hostsRepo.calls)
+	assert.Contains(t, output.String(), "Invalid host stats")
+	persisted, err := fixture.store.GetTaskByID(fixture.task.Task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, task_logger.TaskSuccessStatus, persisted.Status)
 }

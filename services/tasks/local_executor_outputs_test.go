@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -221,6 +222,10 @@ func TestLocalExecutor_ansibleCallbackPlugins(t *testing.T) {
 			config := tt.config
 			util.Config = &config
 			t.Setenv("ANSIBLE_CALLBACK_PLUGINS", tt.osEnv)
+			// A cfg without callback_plugins stops the lookup before /etc/ansible.
+			home := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(home, ".ansible.cfg"), []byte("[defaults]\n"), 0o644))
+			t.Setenv("HOME", home)
 
 			executor := &LocalExecutor{
 				Template:   db.Template{ID: 7, ProjectID: 3},
@@ -232,6 +237,114 @@ func TestLocalExecutor_ansibleCallbackPlugins(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.expected, executor.ansibleCallbackPlugins(tt.env, dir))
+		})
+	}
+}
+
+func TestLocalExecutor_ansibleCallbackPluginsFromCfg(t *testing.T) {
+	sep := string(os.PathListSeparator)
+	const dir = "/tmp/callback_plugins"
+	const wdCfg = "[defaults]\ncallback_plugins = ./cb:/abs/cb\n"
+
+	// {root} in env and expected stands for the temp dir that holds the
+	// working directory, HOME and the other cfg.
+	tests := []struct {
+		name          string
+		env           []string
+		wdCfg         string
+		homeCfg       string
+		otherCfg      string
+		worldWritable bool
+		expected      string
+	}{
+		{
+			name:     "takes callback_plugins of the cfg in the working directory",
+			wdCfg:    wdCfg,
+			expected: "{root}/repo/cb" + sep + "/abs/cb" + sep + dir,
+		},
+		{
+			name:     "reads a section header with a trailing comment",
+			wdCfg:    "[defaults] ; main\ncallback_plugins = ./cb\n",
+			expected: "{root}/repo/cb" + sep + dir,
+		},
+		{
+			name:     "joins a value continued on indented lines",
+			wdCfg:    "[defaults]\ncallback_plugins = ./cb:\n    /abs/cb ; comment\n\tsecond\nforks = 5\n",
+			expected: "{root}/repo/cb" + sep + "/abs/cb" + sep + "{root}/repo/second" + sep + dir,
+		},
+		{
+			name:     "looks in the HOME set for the task",
+			env:      []string{"HOME={root}/other"},
+			otherCfg: "[defaults]\ncallback_plugins = ~/cb\n",
+			expected: "{root}/other/cb" + sep + dir,
+		},
+		{
+			name:     "takes the cfg named by ANSIBLE_CONFIG of the task first",
+			env:      []string{"ANSIBLE_CONFIG={root}/other/my.cfg"},
+			wdCfg:    wdCfg,
+			otherCfg: "[defaults]\ncallback_plugins: ./other ; comment\n",
+			expected: "{root}/other/other" + sep + dir,
+		},
+		{
+			name:          "skips the cfg of a world-writable working directory",
+			wdCfg:         wdCfg,
+			homeCfg:       "# comment\n[defaults]\ncallback_plugins = ~/cb\n",
+			worldWritable: true,
+			expected:      "{root}/home/cb" + sep + dir,
+		},
+		{
+			name:     "loads one cfg only, even without callback_plugins",
+			wdCfg:    "[defaults]\nforks = 5\n[other]\ncallback_plugins = /not/defaults\n",
+			homeCfg:  "[defaults]\ncallback_plugins = ~/cb\n",
+			expected: "~/.ansible/plugins/callback" + sep + "/usr/share/ansible/plugins/callback" + sep + dir,
+		},
+		{
+			name:     "keeps the value set for the task over the cfg",
+			env:      []string{"ANSIBLE_CALLBACK_PLUGINS=/explicit"},
+			wdCfg:    wdCfg,
+			expected: "/explicit" + sep + dir,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prev := util.Config
+			t.Cleanup(func() { util.Config = prev })
+			util.Config = &util.ConfigType{HomeDirMode: util.HomeDirModeUserHome}
+			root := t.TempDir()
+			for _, d := range []string{"repo", "home", "other"} {
+				require.NoError(t, os.Mkdir(filepath.Join(root, d), 0o755))
+			}
+			homeCfg := tt.homeCfg
+			if homeCfg == "" {
+				homeCfg = "[defaults]\n"
+			}
+			files := map[string]string{
+				"repo/ansible.cfg":   tt.wdCfg,
+				"home/.ansible.cfg":  homeCfg,
+				"other/my.cfg":       tt.otherCfg,
+				"other/.ansible.cfg": tt.otherCfg,
+			}
+			for path, content := range files {
+				if content != "" {
+					require.NoError(t, os.WriteFile(filepath.Join(root, path), []byte(content), 0o644))
+				}
+			}
+			if tt.worldWritable {
+				require.NoError(t, os.Chmod(filepath.Join(root, "repo"), 0o777))
+			}
+			t.Setenv("HOME", filepath.Join(root, "home"))
+			placeholders := strings.NewReplacer("{root}", root)
+			var env []string
+			for _, e := range tt.env {
+				env = append(env, placeholders.Replace(e))
+			}
+
+			executor := &LocalExecutor{
+				Template:   db.Template{ID: 7, ProjectID: 3},
+				Repository: db.Repository{ProjectID: 3, GitURL: filepath.Join(root, "repo")},
+			}
+
+			assert.Equal(t, placeholders.Replace(tt.expected), executor.ansibleCallbackPlugins(env, dir))
 		})
 	}
 }

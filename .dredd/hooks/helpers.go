@@ -509,6 +509,12 @@ func customRolesEnabled() bool {
 	return proFeatures.GetFeatures(&db.User{}, "").CustomRolesManagement
 }
 
+// hostsEnabled reports whether the server under test offers the hosts registry: the PRO implementation enables it
+// only for an active PRO plan, which the Dredd stand does not have.
+func hostsEnabled() bool {
+	return proFeatures.GetFeatures(&db.User{}, "").Hosts
+}
+
 // HELPERS
 var randSetup = false
 

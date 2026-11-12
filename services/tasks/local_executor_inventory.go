@@ -57,7 +57,7 @@ func (t *LocalExecutor) tmpInventoryFullPath() string {
 	}
 
 	if t.Inventory.Repository.GetType() == db.RepositoryLocal {
-		return t.Inventory.Repository.GetGitURL(false)
+		return t.Inventory.Repository.GetLocalPath()
 	}
 
 	return util.Config.GetProjectTmpFile(t.Template.ProjectID, t.getGitClonedInventoryFilename())
