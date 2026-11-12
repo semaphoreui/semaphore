@@ -27,6 +27,8 @@ func CreateApp(template db.Template, repository db.Repository, inventory db.Inve
 			Name:       string(template.App),
 			Inventory:  inventory,
 		}
+	case db.AppCodex, db.AppClaude:
+		return newAgentApp(template, repository, inventory, logger)
 	default:
 		return &ShellApp{
 			Template:   template,

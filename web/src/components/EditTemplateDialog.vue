@@ -39,6 +39,7 @@
 <style lang="scss"></style>
 
 <script>
+import { APPS_WITH_OPTIONS_COLUMN } from '@/lib/constants';
 import TemplateForm from './TemplateForm.vue';
 import EditDialog from './EditDialog.vue';
 import AppsMixin from './AppsMixin';
@@ -78,8 +79,9 @@ export default {
   },
 
   computed: {
+    // Three columns (TemplateForm.needAppBlock) need the wide editor.
     dialogWidth() {
-      if (['ansible', 'terraform', 'tofu'].includes(this.itemApp)) {
+      if (APPS_WITH_OPTIONS_COLUMN.includes(this.itemApp)) {
         return 1200;
       }
 

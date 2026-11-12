@@ -12,6 +12,10 @@ const (
 	InventoryTerraformWorkspace  InventoryType = "terraform-workspace"
 	InventoryTofuWorkspace       InventoryType = "tofu-workspace"
 	InventoryTerragruntWorkspace InventoryType = "terragrunt-workspace"
+	// InventoryMcp is a list of MCP servers available to an AI agent. The
+	// servers are rows of project__inventory_mcp (McpServer); the inventory
+	// field itself stays empty.
+	InventoryMcp InventoryType = "mcp"
 )
 
 func (i InventoryType) IsStatic() bool {
@@ -48,6 +52,11 @@ type Inventory struct {
 
 	// RunnerTag is a tag which allow join inventory to the runner.
 	RunnerTag *string `db:"runner_tag" json:"runner_tag,omitempty"`
+
+	// McpServers are the servers of an InventoryMcp inventory, filled by the
+	// API when it returns one inventory. Not a column: servers are rows of
+	// project__inventory_mcp. Tokens are never included, only HasToken.
+	McpServers []McpServer `db:"-" json:"mcp_servers,omitempty" backup:"-"`
 }
 
 func (e Inventory) GetFilename() string {

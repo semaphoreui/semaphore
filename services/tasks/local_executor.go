@@ -12,6 +12,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/agentprompt"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
@@ -84,12 +85,13 @@ type LocalExecutor struct {
 	// can be invoked independently by callers that want phased execution (e.g. the
 	// upcoming KubernetesExecutor, which will call Prepare to compute args/env on the
 	// runner host and then dispatch them into a Pod).
-	preparedEnv       []string
-	preparedArgsMap   map[string][]string
-	preparedInputs    map[string]string
-	preparedParams    any
-	preparedTplParams any
-	prepared          bool
+	preparedEnv          []string
+	preparedArgsMap      map[string][]string
+	preparedInputs       map[string]string
+	preparedParams       any
+	preparedPromptValues agentprompt.Values
+	preparedTplParams    any
+	prepared             bool
 }
 
 func (t *LocalExecutor) IsKilled() bool {
@@ -710,6 +712,16 @@ func (t *LocalExecutor) resolveInventoryFile() (string, error) {
 	}
 }
 
+// getAgentArgs returns the extra CLI arguments of an agent run: the
+// template's, then the task's when the template allows them.
+func (t *LocalExecutor) getAgentArgs() ([]string, error) {
+	templateArgs, taskArgs, err := t.getCLIArgs()
+	if err != nil {
+		return nil, err
+	}
+	return append(templateArgs, taskArgs...), nil
+}
+
 func (t *LocalExecutor) getCLIArgs() (templateArgs []string, taskArgs []string, err error) {
 
 	if t.Template.Arguments != nil {
@@ -787,6 +799,8 @@ func (t *LocalExecutor) getTemplateParams() (any, error) {
 		params = &db.AnsibleTemplateParams{}
 	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		params = &db.TerraformTemplateParams{}
+	case db.AppCodex, db.AppClaude:
+		params = &db.AgentTemplateParams{}
 	default:
 		return nil, nil
 	}
@@ -801,6 +815,8 @@ func (t *LocalExecutor) getParams() (params any, err error) {
 		params = &db.AnsibleTaskParams{}
 	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		params = &db.TerraformTaskParams{}
+	case db.AppCodex, db.AppClaude:
+		params = &db.AgentTaskParams{}
 	default:
 		params = &db.DefaultTaskParams{}
 	}
@@ -840,12 +856,13 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 	}
 
 	err := t.App.Run(db_lib.LocalAppRunningArgs{
-		CliArgs:         t.preparedArgsMap,
-		EnvironmentVars: t.preparedEnv,
-		Inputs:          t.preparedInputs,
-		TaskParams:      t.preparedParams,
-		TemplateParams:  t.preparedTplParams,
-		StopCh:          t.stopCh,
+		CliArgs:           t.preparedArgsMap,
+		EnvironmentVars:   t.preparedEnv,
+		Inputs:            t.preparedInputs,
+		TaskParams:        t.preparedParams,
+		TemplateParams:    t.preparedTplParams,
+		AgentPromptValues: t.preparedPromptValues,
+		StopCh:            t.stopCh,
 	})
 	if err != nil {
 		return err
@@ -1077,6 +1094,20 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		argsMap = map[string][]string{"default": args}
 	case db.AppTerraform, db.AppTofu, db.AppTerragrunt:
 		// Already got args earlier for Terraform
+	case db.AppCodex, db.AppClaude:
+		// Only the template and task arguments: unlike a script, an agent gets
+		// no secrets or extra vars on its command line, where ps shows them.
+		args, err = t.getAgentArgs()
+		if err != nil {
+			t.Log(err.Error())
+			return
+		}
+		t.preparedPromptValues, err = db_lib.NewAgentPromptValues(t.Environment, t.Secret, t.Template.SurveyVars)
+		if err != nil {
+			t.Log("Failed to read the variables of the prompt: " + err.Error())
+			return
+		}
+		argsMap = map[string][]string{"default": args}
 	default:
 		args, err = t.getShellArgs(username, incomingVersion)
 		if err != nil {

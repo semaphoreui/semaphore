@@ -32,3 +32,22 @@ and two Semaphore HA nodes (`:3110`, `:3111`) in docker compose, kills and resto
 other, `wsprobe.go` prints the WebSocket events a node receives. Use it whenever the HA Redis
 connection, `ha.engine` / `ha.redis_sentinel` or the Pub/Sub broadcaster change — unit tests run
 on miniredis, which has no Sentinel.
+
+### `agent-stand/` — check the AI agent UI on a throwaway stand
+
+`stand.sh` builds this work copy and starts it on `127.0.0.1:3102` with its own SQLite, `seed.sh` adds an
+mcp inventory and Claude Code / Codex templates, `verify.cjs` saves through the UI and checks the
+API and task logs, `shoot.cjs` takes the screenshots, `shoot-log.cjs` runs a Claude and a Codex
+task and checks and shoots their logs (the agent's events as a transcript), `check-prompt.py` runs
+tasks whose prompt has `${{ … }}` expressions and checks the values and the masking, `shoot-docs.cjs`
+retakes the screenshots of the docs page about agent templates. Agents run a fake CLI unless started with
+`--real`. Use it after changing the mcp inventory form, the agent fields of the template form or
+the task prompt; unlike `agent-cli/`, it goes through the server and the browser.
+
+### `agent-cli/` — run the real Codex / Claude Code CLI like AgentApp
+
+`probe.sh codex|claude` writes the same per-task config as `db_lib/AgentApp.go`, sends the
+prompt on stdin, and starts a fake MCP server that shows whether the bearer token arrived. API keys
+come from the tool's git-ignored `.env`. Use it after changing how AgentApp builds the CLI
+config or flags, or to check that a test API key still works. Unit tests use a fake binary and
+cannot catch a CLI that rejects the config.

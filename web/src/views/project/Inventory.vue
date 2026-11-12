@@ -30,14 +30,25 @@
       v-model="editDialog"
       test-id="inventoryDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-      :icon="getAppIcon(itemApp)"
-      :icon-color="getAppColor(itemApp)"
-      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${APP_INVENTORY_TITLE[itemApp]}`"
-      :max-width="450"
+      :icon="kindIcon(itemApp)"
+      :icon-color="kindColor(itemApp)"
+      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${kindTitle(itemApp)}`"
+      :max-width="itemApp === MCP_INVENTORY.type ? 760 : 450"
       @save="loadItems"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <McpInventoryForm
+          v-if="itemApp === MCP_INVENTORY.type"
+          :project-id="projectId"
+          :item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+          :features="features"
+        />
         <InventoryForm
+          v-else
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -97,7 +108,7 @@
         </template>
         <v-list data-testid="inventory-newMenu">
           <v-list-item
-            v-for="item in apps"
+            v-for="item in kinds"
             :key="item"
             link
             @click="itemApp = item; editItem('new');"
@@ -105,11 +116,11 @@
           >
             <template v-slot:prepend>
               <v-icon
-                :color="getAppColor(item)"
-              >{{ getAppIcon(item) }}
+                :color="kindColor(item)"
+              >{{ kindIcon(item) }}
               </v-icon>
             </template>
-            <v-list-item-title>{{ APP_INVENTORY_TITLE[item] }}</v-list-item-title>
+            <v-list-item-title>{{ kindTitle(item) }}</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
@@ -128,7 +139,7 @@
     >
       <template v-slot:item.name="{ item }">
         <v-icon class="mr-3 InventoryTable__appIcon" size="small" data-testid="inventory-rowIcon">
-          {{ getAppIcon(getAppByType(item.type)) }}
+          {{ kindIcon(getAppByType(item.type)) }}
         </v-icon>
 
         {{ item.name }}
@@ -195,19 +206,30 @@
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import InventoryForm from '@/components/InventoryForm.vue';
-import { APP_INVENTORY_TITLE } from '@/lib/constants';
+import McpInventoryForm from '@/components/McpInventoryForm.vue';
+import { AGENT_APPS, APP_INVENTORY_TITLE, MCP_INVENTORY } from '@/lib/constants';
 import AppsMixin from '@/components/AppsMixin';
 import axios from 'axios';
 import TemplateSelectForm from '@/components/TemplateSelectForm.vue';
 
 export default {
   computed: {
-    APP_INVENTORY_TITLE() {
-      return APP_INVENTORY_TITLE;
+    MCP_INVENTORY() {
+      return MCP_INVENTORY;
+    },
+
+    // The kinds of inventory the menu creates: the Ansible inventory, and the MCP servers once an
+    // AI agent app is active (one kind for all of them).
+    kinds() {
+      const kinds = ['ansible'];
+      if (AGENT_APPS.some((app) => this.appsMixin.activeAppIds.includes(app))) {
+        kinds.push(MCP_INVENTORY.type);
+      }
+      return kinds;
     },
   },
   mixins: [ItemListPageBase, AppsMixin],
-  components: { TemplateSelectForm, InventoryForm },
+  components: { TemplateSelectForm, InventoryForm, McpInventoryForm },
 
   props: {
     features: Object,
@@ -215,7 +237,6 @@ export default {
 
   data() {
     return {
-      apps: ['ansible'],
       itemApp: '',
       attachInventoryDialog: null,
     };
@@ -230,8 +251,23 @@ export default {
       await this.loadItems();
     },
 
+    // A kind is an app, or `mcp` for the inventory every agent app shares.
+    kindIcon(kind) {
+      return kind === MCP_INVENTORY.type ? MCP_INVENTORY.icon : this.getAppIcon(kind);
+    },
+
+    kindColor(kind) {
+      return kind === MCP_INVENTORY.type ? undefined : this.getAppColor(kind);
+    },
+
+    kindTitle(kind) {
+      return kind === MCP_INVENTORY.type ? MCP_INVENTORY.title : APP_INVENTORY_TITLE[kind];
+    },
+
     getAppByType(type) {
       switch (type) {
+        case MCP_INVENTORY.type:
+          return MCP_INVENTORY.type;
         case 'tofu-workspace':
           return 'tofu';
         case 'terraform-workspace':

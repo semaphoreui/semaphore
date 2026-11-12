@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/semaphoreui/semaphore/pkg/agentprompt"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/galaxy"
 	"github.com/semaphoreui/semaphore/pkg/git"
@@ -33,6 +34,11 @@ const (
 	AppPowerShell TemplateApp = "powershell"
 	AppPython     TemplateApp = "python"
 	AppPulumi     TemplateApp = "pulumi"
+
+	// AI agent apps. They differ only in the CLI they run, so the code treats
+	// them as one family (see IsAgent).
+	AppCodex  TemplateApp = "codex"
+	AppClaude TemplateApp = "claude"
 )
 
 func (t TemplateApp) InventoryTypes() []InventoryType {
@@ -45,6 +51,8 @@ func (t TemplateApp) InventoryTypes() []InventoryType {
 		return []InventoryType{InventoryTofuWorkspace}
 	case AppTerragrunt:
 		return []InventoryType{InventoryTerragruntWorkspace}
+	case AppCodex, AppClaude:
+		return []InventoryType{InventoryMcp}
 	default:
 		return []InventoryType{}
 	}
@@ -71,7 +79,7 @@ type RepositoryFileFilter struct {
 // app.
 func (t TemplateApp) RepositoryFileFilter() RepositoryFileFilter {
 	switch t {
-	case AppTerraform, AppTofu, AppTerragrunt, AppPulumi:
+	case AppTerraform, AppTofu, AppTerragrunt, AppPulumi, AppCodex, AppClaude:
 		// These point at a subdirectory, not at a file.
 		return RepositoryFileFilter{OnlyDirectories: true}
 	case AppBash:
@@ -91,6 +99,11 @@ func (t TemplateApp) RepositoryFileFilter() RepositoryFileFilter {
 
 func (t TemplateApp) IsTerraform() bool {
 	return t == AppTerraform || t == AppTofu || t == AppTerragrunt
+}
+
+// IsAgent reports whether the app runs an AI agent CLI.
+func (t TemplateApp) IsAgent() bool {
+	return t == AppCodex || t == AppClaude
 }
 
 type SurveyVarType string
@@ -291,6 +304,14 @@ type TerraformTemplateParams struct {
 	BackendFilename  string `json:"backend_filename,omitempty"`
 }
 
+// AgentTemplateParams are the task_params of an AI agent template.
+type AgentTemplateParams struct {
+	// Prompt is the instruction the agent runs with.
+	Prompt string `json:"prompt,omitempty"`
+	// AllowOverridePrompt lets a task replace Prompt with its own.
+	AllowOverridePrompt bool `json:"allow_override_prompt,omitempty"`
+}
+
 type SurveyVarEnumValue struct {
 	Name  string `json:"name" backup:"name"`
 	Value string `json:"value" backup:"value"`
@@ -425,6 +446,76 @@ func (tpl *Template) NormalizedExecutorImage() *string {
 	return &img
 }
 
+// agentPrompt returns the prompt an agent task runs with, as it is written:
+// the task's own prompt when the template allows overriding it, otherwise the
+// template's prompt. A task prompt the template does not allow is an error,
+// not silently dropped, so the caller learns that the prompt they sent would
+// not be used. fromTask tells whose prompt it is.
+func (tpl *Template) agentPrompt(taskParams AgentTaskParams) (prompt string, fromTask bool, err error) {
+	var params AgentTemplateParams
+	if err = tpl.FillParams(&params); err != nil {
+		return "", false, common_errors.NewValidationError("invalid template task params: " + err.Error())
+	}
+
+	if strings.TrimSpace(taskParams.Prompt) != "" {
+		if !params.AllowOverridePrompt {
+			return "", false, common_errors.NewValidationError("the template does not allow overriding the prompt")
+		}
+		return taskParams.Prompt, true, nil
+	}
+
+	if strings.TrimSpace(params.Prompt) == "" {
+		return "", false, common_errors.NewValidationError("agent prompt can not be empty")
+	}
+
+	return params.Prompt, false, nil
+}
+
+// AgentPrompt returns the prompt an agent task would run with, its ${{ … }}
+// expressions checked but not replaced (see ExpandAgentPrompt). It is how a
+// new task is validated, before the values exist.
+func (tpl *Template) AgentPrompt(taskParams AgentTaskParams) (string, error) {
+	prompt, fromTask, err := tpl.agentPrompt(taskParams)
+	if err != nil {
+		return "", err
+	}
+
+	// A prompt given by a task is used as it is, see ExpandAgentPrompt.
+	if fromTask {
+		return prompt, nil
+	}
+
+	if err = agentprompt.Validate(prompt); err != nil {
+		return "", common_errors.NewValidationError(err.Error())
+	}
+
+	return prompt, nil
+}
+
+// ExpandAgentPrompt returns the prompt an agent task runs with and the secret
+// values put into it, to be masked in the task log. The ${{ … }} expressions
+// of the template's prompt are replaced by values.
+func (tpl *Template) ExpandAgentPrompt(taskParams AgentTaskParams, values agentprompt.Values) (string, []string, error) {
+	prompt, fromTask, err := tpl.agentPrompt(taskParams)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Only the prompt kept in the template has its expressions replaced. A
+	// prompt given by a task goes to the agent as it is written: whoever may
+	// only run a task must not read variables and secrets with it.
+	if fromTask {
+		return prompt, nil, nil
+	}
+
+	text, secrets, err := agentprompt.Expand(prompt, values)
+	if err != nil {
+		return "", nil, common_errors.NewValidationError(err.Error())
+	}
+
+	return text, secrets, nil
+}
+
 func (tpl *Template) CanOverrideInventory() (ok bool, err error) {
 	switch tpl.App {
 	case AppAnsible, "":
@@ -473,7 +564,21 @@ func (tpl *Template) Validate() error {
 		return common_errors.NewValidationError("template name can not be empty")
 	}
 
-	if !tpl.App.IsTerraform() && tpl.Playbook == "" {
+	if tpl.App.IsAgent() {
+		var params AgentTemplateParams
+		if err := tpl.FillParams(&params); err != nil {
+			return common_errors.NewValidationError("invalid task params: " + err.Error())
+		}
+		if strings.TrimSpace(params.Prompt) == "" && !params.AllowOverridePrompt {
+			return common_errors.NewValidationError("agent template prompt can not be empty")
+		}
+		if err := agentprompt.Validate(params.Prompt); err != nil {
+			return common_errors.NewValidationError(err.Error())
+		}
+	}
+
+	// Terraform and agent templates point at an optional subdirectory.
+	if !tpl.App.IsTerraform() && !tpl.App.IsAgent() && tpl.Playbook == "" {
 		return common_errors.NewValidationError("template playbook can not be empty")
 	}
 

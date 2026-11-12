@@ -31,7 +31,8 @@ case "${1:-status}" in
   restart) "$0" stop; sleep 1; "$0" start ;;
   build)
     ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
-    (cd "$ROOT/web" && npx vue-cli-service build > "$DIR/web-build.log" 2>&1) || { echo "web build failed, see $DIR/web-build.log" >&2; exit 1; }
+    (cd "$ROOT/web" && npm run build > "$DIR/web-build.log" 2>&1) || { echo "web build failed, see $DIR/web-build.log" >&2; exit 1; }
+    git -C "$ROOT" checkout -- api/public/.gitkeep   # the Vite build empties api/public
     (cd "$ROOT" && go build -tags netgo -o "$BIN" ./cli > "$DIR/go-build.log" 2>&1) || { echo "go build failed, see $DIR/go-build.log" >&2; exit 1; }
     echo "built $BIN" ;;
   log) tail -n "${2:-50}" "$LOG" ;;
