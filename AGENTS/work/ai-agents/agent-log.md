@@ -89,7 +89,8 @@ Every event may carry `agent`: the id of the tool call that started the subagent
 ## Open
 
 - `GET /tasks/{id}/output` returns the event lines as they are stored; an API consumer that wants
-  text uses `raw_output`. Not yet in `api-docs.yml` or the docs site (no agent page exists there).
+  text uses `raw_output`. Not yet in `api-docs.yml`; the docs site describes the log view in
+  `docs/docs/user-guide/apps/ai-agents.md`.
 - Subagent text of Claude is logged per whole message, not streamed, so two subagents do not mix
   lines. Codex text is not streamed at all: `--json` gives a message only when it is complete.
 - Codex gives no model name and no MCP server status in its events, so its log has no `init` row.

@@ -5,11 +5,17 @@
 # subagent working at the same time, two turns — so the task log can be checked in the browser.
 # Started as Codex is (exec --json) it reports a made-up run in the events of codex exec instead
 # (fake-codex-events.sh).
-echo "fake agent args: $*"
-echo "prompt: $(cat)"
-echo "mcp token variables: $(env | grep -c '^SEMAPHORE_MCP_TOKEN_')"
-echo "first token: ${SEMAPHORE_MCP_TOKEN_1:-<none>}"
-echo "anthropic key set: $([ -n "${ANTHROPIC_API_KEY:-}" ] && echo yes || echo no)"
+# FAKE_AGENT_QUIET (a variable of the template's Variable Group) leaves these lines out: a real
+# CLI does not print them, and a screenshot for the docs must not show them.
+if [ -n "${FAKE_AGENT_QUIET:-}" ]; then
+  cat > /dev/null
+else
+  echo "fake agent args: $*"
+  echo "prompt: $(cat)"
+  echo "mcp token variables: $(env | grep -c '^SEMAPHORE_MCP_TOKEN_')"
+  echo "first token: ${SEMAPHORE_MCP_TOKEN_1:-<none>}"
+  echo "anthropic key set: $([ -n "${ANTHROPIC_API_KEY:-}" ] && echo yes || echo no)"
+fi
 
 case " $* " in
   *" --output-format=stream-json "*) ;;

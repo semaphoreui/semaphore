@@ -38,6 +38,13 @@ $ node AGENTS/tools/agent-stand/verify.cjs
   `********`), then what is refused — a missing variable, a malformed expression — and that a
   prompt given by a task reaches the agent as it is written. It puts the prompts back; the values stay in the Variable Group.
   Prints `ok`.
+- `shoot-docs.cjs` takes the screenshots of the docs page about agent templates
+  (`docs/docs/user-guide/apps/ai-agents.md`) and writes them as webp into `docs/static/assets/`
+  (`agent-template-new`, `agent-template-editor`, `agent-mcp-inventory`, `agent-task-log`; needs
+  `cwebp`). It gives the Claude template a prompt with expressions for the shots and puts the old
+  one back; while it runs, `FAKE_AGENT_QUIET` in the Variable Group keeps the fake CLI's own
+  lines out of the log. Rerun it after the template form, the MCP inventory form or the log view
+  changed.
 - By default `claude` and `codex` run `fake-agent.sh`, which prints what it got and calls
   nothing. Started the way Claude Code is (`--output-format=stream-json`) it then reports a
   made-up run in the events of the real CLI — text in pieces, MCP and built-in tool calls, a
