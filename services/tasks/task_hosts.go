@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -94,16 +95,17 @@ func (c *hostsCapture) CallbackDir() (string, error) {
 
 // Read returns the document the plugin wrote, or nil if it never ran.
 func (c *hostsCapture) Read() (*string, error) {
-	info, err := os.Stat(c.file)
+	f, err := os.Open(c.file)
 	if err != nil {
 		return nil, err
 	}
-	if info.Size() > MaxHostsDocumentSize {
+	defer f.Close() //nolint:errcheck
+	data, err := io.ReadAll(io.LimitReader(f, MaxHostsDocumentSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > MaxHostsDocumentSize {
 		return nil, fmt.Errorf("hosts document is larger than %d bytes", MaxHostsDocumentSize)
-	}
-	data, err := os.ReadFile(c.file)
-	if err != nil {
-		return nil, err
 	}
 	if len(data) == 0 {
 		return nil, nil
