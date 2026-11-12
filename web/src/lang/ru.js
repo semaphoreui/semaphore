@@ -376,6 +376,8 @@ export default {
   // AI agents (Codex, Claude Code) and their MCP inventory
   agentPrompt: 'Промпт',
   agent_prompt_required: 'Промпт обязателен',
+  agentPromptHint: 'В промпт можно подставить значения из групп переменных и опросные переменные: {expressions}',
+  agentTaskPromptHint: 'Изменённый здесь промпт используется как есть: {expression} подставляется только в промпте шаблона.',
   agentApiKeyHint: 'API-ключ берётся из переменной {variable}: добавьте её в группу переменных этого шаблона как секретную переменную окружения.',
   mcpServersOptional: 'MCP-серверы (необязательно)',
   mcpServers: 'MCP-серверы',

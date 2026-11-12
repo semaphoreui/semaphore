@@ -86,7 +86,7 @@ func (t *AgentApp) Run(args LocalAppRunningArgs) error {
 		taskParams = &db.AgentTaskParams{}
 	}
 
-	prompt, err := t.Template.AgentPrompt(*taskParams)
+	prompt, promptSecrets, err := t.Template.ExpandAgentPrompt(*taskParams, args.AgentPromptValues)
 	if err != nil {
 		return err
 	}
@@ -107,6 +107,10 @@ func (t *AgentApp) Run(args LocalAppRunningArgs) error {
 	if err != nil {
 		return err
 	}
+
+	// A secret the prompt was given is masked like a token: the agent may
+	// repeat its prompt.
+	launch.Secrets = append(launch.Secrets, promptSecrets...)
 
 	if err = writeAgentHome(home, launch); err != nil {
 		return err

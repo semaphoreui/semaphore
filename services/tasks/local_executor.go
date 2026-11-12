@@ -12,6 +12,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db_lib"
+	"github.com/semaphoreui/semaphore/pkg/agentprompt"
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
@@ -84,12 +85,13 @@ type LocalExecutor struct {
 	// can be invoked independently by callers that want phased execution (e.g. the
 	// upcoming KubernetesExecutor, which will call Prepare to compute args/env on the
 	// runner host and then dispatch them into a Pod).
-	preparedEnv       []string
-	preparedArgsMap   map[string][]string
-	preparedInputs    map[string]string
-	preparedParams    any
-	preparedTplParams any
-	prepared          bool
+	preparedEnv          []string
+	preparedArgsMap      map[string][]string
+	preparedInputs       map[string]string
+	preparedParams       any
+	preparedPromptValues agentprompt.Values
+	preparedTplParams    any
+	prepared             bool
 }
 
 func (t *LocalExecutor) IsKilled() bool {
@@ -854,12 +856,13 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 	}
 
 	err := t.App.Run(db_lib.LocalAppRunningArgs{
-		CliArgs:         t.preparedArgsMap,
-		EnvironmentVars: t.preparedEnv,
-		Inputs:          t.preparedInputs,
-		TaskParams:      t.preparedParams,
-		TemplateParams:  t.preparedTplParams,
-		StopCh:          t.stopCh,
+		CliArgs:           t.preparedArgsMap,
+		EnvironmentVars:   t.preparedEnv,
+		Inputs:            t.preparedInputs,
+		TaskParams:        t.preparedParams,
+		TemplateParams:    t.preparedTplParams,
+		AgentPromptValues: t.preparedPromptValues,
+		StopCh:            t.stopCh,
 	})
 	if err != nil {
 		return err
@@ -1097,6 +1100,11 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 		args, err = t.getAgentArgs()
 		if err != nil {
 			t.Log(err.Error())
+			return
+		}
+		t.preparedPromptValues, err = db_lib.NewAgentPromptValues(t.Environment, t.Secret, t.Template.SurveyVars)
+		if err != nil {
+			t.Log("Failed to read the variables of the prompt: " + err.Error())
 			return
 		}
 		argsMap = map[string][]string{"default": args}
