@@ -1044,6 +1044,8 @@ export default {
   // AI agents (Codex, Claude Code) and their MCP inventory
   agentPrompt: 'Prompt',
   agent_prompt_required: 'Prompt is required',
+  agentPromptHint: 'Values of the Variable Groups and survey variables can be put into the prompt: {expressions}',
+  agentTaskPromptHint: 'A prompt changed here is used as it is: {expression} is replaced only in the prompt of the template.',
   agentApiKeyHint: 'The API key comes from the {variable} variable: add it to a Variable Group of this template as a secret environment variable.',
   mcpServersOptional: 'MCP servers (optional)',
   mcpServers: 'MCP servers',

@@ -5,6 +5,8 @@
     @update:model-value="setPrompt"
     :label="$t('agentPrompt') + (hasTemplatePrompt ? '' : ' *')"
     :rules="[(v) => !!(v && v.trim()) || hasTemplatePrompt || $t('agent_prompt_required')]"
+    :hint="$t('agentTaskPromptHint', { expression: AGENT_PROMPT_EXPRESSION })"
+    persistent-hint
     rows="4"
     auto-grow
     variant="outlined"
@@ -17,7 +19,10 @@
 // (`allow_override_prompt`); the server refuses a task prompt otherwise. The field starts with
 // the template's prompt. A prompt left equal to it, or emptied, is not sent: the task — or the
 // schedule, integration or workflow node keeping these params — then runs with the template's
-// prompt as it is at the time of the run.
+// prompt as it is at the time of the run. A prompt sent from here goes to the agent as it is
+// written: the ${{ … }} expressions are replaced only in the prompt kept in the template.
+import { AGENT_PROMPT_EXPRESSION } from '@/lib/constants';
+
 export default {
   props: {
     modelValue: Object,
@@ -35,6 +40,7 @@ export default {
       // What the field shows, apart from the params: an emptied field stays empty while the
       // params fall back to the template's prompt.
       prompt: this.modelValue?.prompt ?? this.templateParams?.prompt ?? '',
+      AGENT_PROMPT_EXPRESSION,
     };
   },
 

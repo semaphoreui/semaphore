@@ -3,6 +3,7 @@ import { expect } from 'chai';
 import { mount } from '@vue/test-utils';
 import TaskParamsAgentForm from '@/components/TaskParamsAgentForm.vue';
 import TaskForm from '@/components/TaskForm.vue';
+import { AGENT_PROMPT_EXPRESSION } from '@/lib/constants';
 
 function mountForm(props) {
   return mount(TaskParamsAgentForm, {
@@ -35,6 +36,16 @@ describe('TaskParamsAgentForm.vue', () => {
     const wrapper = mountForm({ modelValue: { prompt: 'fix the tests' }, templateParams: allowed });
 
     expect(wrapper.find('textarea').element.value).to.equal('fix the tests');
+  });
+
+  it('tells that the expressions are not replaced in a prompt given here', () => {
+    const wrapper = mount(TaskParamsAgentForm, {
+      props: { modelValue: {}, templateParams: allowed },
+      global: { mocks: { $t: (k, params) => `${k} ${params?.expression ?? ''}` } },
+    });
+
+    expect(wrapper.text()).to.contain(`agentTaskPromptHint ${AGENT_PROMPT_EXPRESSION}`);
+    expect(AGENT_PROMPT_EXPRESSION).to.contain('{ … }');
   });
 
   it('sends a prompt of its own and keeps the other params', async () => {

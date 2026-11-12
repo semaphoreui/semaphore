@@ -720,6 +720,9 @@
               variant="outlined"
               density="compact"
               :disabled="formSaving"
+              :hint="$t('agentPromptHint', { expressions: AGENT_PROMPT_EXPRESSIONS.join(', ') })"
+              persistent-hint
+              class="mb-3"
               data-testid="templateForm-agentPrompt"
             ></v-textarea>
 
@@ -1011,6 +1014,7 @@ import ArgsPicker from '@/components/ArgsPicker.vue';
 import TemplateVaults from '@/components/TemplateVaults.vue';
 import {
   AGENT_API_KEY_VARS,
+  AGENT_PROMPT_EXPRESSIONS,
   APPS_WITH_OPTIONS_COLUMN,
   TEMPLATE_TYPE_ICONS,
   TEMPLATE_TYPE_TITLES,
@@ -1075,6 +1079,7 @@ export default {
       TEMPLATE_TYPE_ICONS,
       TEMPLATE_TYPE_TITLES,
       AGENT_API_KEY_VARS,
+      AGENT_PROMPT_EXPRESSIONS,
       item: {
         task_params: {},
         jwt_params: { enabled: false, audience: [], ttl: '' },

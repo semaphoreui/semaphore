@@ -32,6 +32,12 @@ $ node AGENTS/tools/agent-stand/verify.cjs
   browser: the agent's events are rows of a transcript and not JSON, a result sits in the row of
   its call, a call opens, a token is masked, the raw log is plain text. Screenshots go to
   `shots-log/`; it prints the raw logs and `ok: tasks N M`.
+- `check-prompt.py` (`python3 AGENTS/tools/agent-stand/check-prompt.py`) checks the `${{ … }}`
+  expressions of the prompt through the API: it gives the seeded Variable Group a value of each
+  kind, runs both templates and reads the prompt the fake CLI printed (values in place, secrets
+  `********`), then what is refused — a missing variable, a malformed expression — and that a
+  prompt given by a task reaches the agent as it is written. It puts the prompts back; the values stay in the Variable Group.
+  Prints `ok`.
 - By default `claude` and `codex` run `fake-agent.sh`, which prints what it got and calls
   nothing. Started the way Claude Code is (`--output-format=stream-json`) it then reports a
   made-up run in the events of the real CLI — text in pieces, MCP and built-in tool calls, a

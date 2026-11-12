@@ -3,6 +3,7 @@ package db
 import (
 	"testing"
 
+	"github.com/semaphoreui/semaphore/pkg/agentprompt"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -116,6 +117,11 @@ func TestTemplate_AgentPrompt(t *testing.T) {
 		{"blank task prompt falls back", MapStringAnyField{"prompt": "tpl", "allow_override_prompt": true}, "  ", "tpl", ""},
 		{"task prompt not allowed", MapStringAnyField{"prompt": "tpl"}, "task", "", "does not allow overriding the prompt"},
 		{"nothing to run", MapStringAnyField{"allow_override_prompt": true}, "", "", "agent prompt can not be empty"},
+		{"expressions stay until the run", MapStringAnyField{"prompt": "${{ secrets.env.KEY }} ${{ vars.extra.a }}"}, "",
+			"${{ secrets.env.KEY }} ${{ vars.extra.a }}", ""},
+		{"malformed expression", MapStringAnyField{"prompt": "${{ vars.a }}"}, "", "", "invalid prompt expression"},
+		{"task prompt is not checked", MapStringAnyField{"prompt": "tpl", "allow_override_prompt": true},
+			"${{ secrets.env.KEY }} ${{ vars.a }}", "${{ secrets.env.KEY }} ${{ vars.a }}", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -144,4 +150,76 @@ func TestTask_ValidateNewTask_AgentPrompt(t *testing.T) {
 
 	tpl.TaskParams["allow_override_prompt"] = true
 	assert.NoError(t, overridden.ValidateNewTask(*tpl))
+}
+
+func TestTemplate_ExpandAgentPrompt(t *testing.T) {
+	values := agentprompt.Values{
+		ExtraVars:  map[string]string{"repo": "semaphore"},
+		EnvSecrets: map[string]string{"KEY": "key-123"},
+	}
+	tests := []struct {
+		name       string
+		tplParams  MapStringAnyField
+		taskPrompt string
+		expected   string
+		secrets    []string
+		errText    string
+	}{
+		{"template prompt", MapStringAnyField{"prompt": "${{ vars.extra.repo }}: ${{ secrets.env.KEY }}"}, "",
+			"semaphore: key-123", []string{"key-123"}, ""},
+		{"task prompt stays as it is", MapStringAnyField{"prompt": "${{ vars.extra.repo }}", "allow_override_prompt": true},
+			"about ${{ vars.extra.repo }}, ${{ secrets.env.KEY }}, ${{ vars.env.NOPE }} and ${{ vars.bad }}",
+			"about ${{ vars.extra.repo }}, ${{ secrets.env.KEY }}, ${{ vars.env.NOPE }} and ${{ vars.bad }}", nil, ""},
+		{"missing variable", MapStringAnyField{"prompt": "${{ vars.env.NOPE }}"}, "", "", nil,
+			`no environment variable "NOPE"`},
+		{"task prompt not allowed", MapStringAnyField{"prompt": "tpl"}, "task", "", nil,
+			"does not allow overriding the prompt"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tpl := agentTemplate(AppClaude, tt.tplParams)
+
+			prompt, secrets, err := tpl.ExpandAgentPrompt(AgentTaskParams{Prompt: tt.taskPrompt}, values)
+
+			if tt.errText == "" {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, prompt)
+				assert.Equal(t, tt.secrets, secrets)
+				return
+			}
+			var validationErr *common_errors.ValidationError
+			assert.ErrorAs(t, err, &validationErr)
+			assert.ErrorContains(t, err, tt.errText)
+		})
+	}
+}
+
+func TestTemplate_Validate_AgentPromptExpressions(t *testing.T) {
+	orig := util.Config
+	defer func() { util.Config = orig }()
+
+	util.Config = &util.ConfigType{Apps: map[string]util.App{"claude": {Active: true}}}
+
+	tests := []struct {
+		name    string
+		prompt  string
+		errText string
+	}{
+		{"variables and secrets", "${{ vars.extra.a }} ${{ secrets.extra.b }}", ""},
+		{"another context", "${{ github.sha }}", ""},
+		{"malformed", "${{ secrets.TOKEN }}", "invalid prompt expression ${{ secrets.TOKEN }}"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tpl := agentTemplate(AppClaude, MapStringAnyField{"prompt": tt.prompt})
+
+			err := tpl.Validate()
+
+			if tt.errText == "" {
+				assert.NoError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, tt.errText)
+		})
+	}
 }

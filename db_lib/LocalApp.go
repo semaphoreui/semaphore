@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/agentprompt"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
@@ -74,7 +75,10 @@ type LocalAppRunningArgs struct {
 	Inputs          map[string]string
 	TaskParams      any
 	TemplateParams  any
-	StopCh          <-chan struct{}
+	// AgentPromptValues are the variables and secrets the prompt of an AI
+	// agent can name in ${{ … }}; only an agent app reads them.
+	AgentPromptValues agentprompt.Values
+	StopCh            <-chan struct{}
 }
 
 type LocalAppInstallingArgs struct {

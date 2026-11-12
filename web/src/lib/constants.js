@@ -181,6 +181,20 @@ export const AGENT_API_KEY_VARS = {
   codex: 'OPENAI_API_KEY',
 };
 
+// What the prompt of an agent template can name in ${{ … }} (pkg/agentprompt): the variables
+// and the secrets of the template's Variable Groups. Only the prompt kept in the template has
+// them replaced; a prompt given by a task goes to the agent as it is written.
+const promptExpression = (name) => `\${{ ${name} }}`;
+
+export const AGENT_PROMPT_EXPRESSION = promptExpression('…');
+
+export const AGENT_PROMPT_EXPRESSIONS = [
+  promptExpression('vars.extra.NAME'),
+  promptExpression('vars.env.NAME'),
+  promptExpression('secrets.extra.NAME'),
+  promptExpression('secrets.env.NAME'),
+];
+
 // The inventory of the agents: a list of MCP servers, one kind for every agent app.
 export const MCP_INVENTORY = {
   type: 'mcp',
