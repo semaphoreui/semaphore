@@ -39,7 +39,8 @@ on miniredis, which has no Sentinel.
 mcp inventory and Claude Code / Codex templates, `verify.cjs` saves through the UI and checks the
 API and task logs, `shoot.cjs` takes the screenshots, `shoot-log.cjs` runs a Claude and a Codex
 task and checks and shoots their logs (the agent's events as a transcript), `check-prompt.py` runs
-tasks whose prompt has `${{ … }}` expressions and checks the values and the masking. Agents run a fake CLI unless started with
+tasks whose prompt has `${{ … }}` expressions and checks the values and the masking, `shoot-docs.cjs`
+retakes the screenshots of the docs page about agent templates. Agents run a fake CLI unless started with
 `--real`. Use it after changing the mcp inventory form, the agent fields of the template form or
 the task prompt; unlike `agent-cli/`, it goes through the server and the browser.
 

@@ -67,5 +67,6 @@ db_lib.NewAgentPromptValues    the values, from the Environment, the survey secr
 - The Pro executors read the secret survey variables from `Task.Secret`; nothing else in
   `containerexec` uses them, so whether the Docker/K8s path receives them was not checked in a
   real container.
-- Not in the docs site: it has no page about agent templates yet.
+- The user docs are `docs/docs/user-guide/apps/ai-agents.md` (and its ten translations): a change
+  of a rule here changes that page.
 - Check after a change: `AGENTS/tools/agent-stand/check-prompt.py`.
