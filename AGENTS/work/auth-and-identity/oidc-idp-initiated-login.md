@@ -5,7 +5,7 @@ launcher) and land in Semaphore signed in. Today only the SP-initiated flow exis
 `/api/auth/oidc/{provider}/login` sets a CSRF `state` cookie and redirects to the IdP; a journey
 that starts at the IdP has no such cookie and is rejected.
 
-Status (2026-09-27): not implemented on `develop`/`feat/refactor_workflows` — `HEAD` has no
+Status (2026-09-28): not implemented on `develop` — `HEAD` has no
 `AllowIdPInitiated`, no `/initiate` route and no `nonce` anywhere in `api/login.go`. Two side
 branches carry it: `origin/oidc_idp_init` (PR #3678, opened 2026-03-03, marked CONFLICTING against
 develop, last touched 2026-05-30) and `origin/oidc_idp_init2` (single commit `cf4a9fea3`,

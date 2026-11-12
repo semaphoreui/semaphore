@@ -18,9 +18,9 @@ The gate is `db.Task.ValidateSurveyVars` (returns early when the template opts i
 directly and are deliberately not validated — their variable names are manager-configured, and
 validating them would break existing integration extract values.
 
-⚠️ 2026-09-27: the gate exists only on branch `feat/survey_vars_validation` (commit 75ea78caf,
-2026-07-30) — not on `develop` nor `feat/refactor_workflows`, where `v2.20.2.sql` is the
-workflow-delay migration. Renumber the migration when merging.
+⚠️ 2026-09-28: the gate exists only on branch `feat/survey_vars_validation` (commit 75ea78caf,
+2026-07-30) — not on `develop`, where `v2.20.2.sql` is the workflow-delay migration. Renumber the
+migration when merging.
 
 ## Survey secrets on remote runners are task-bound access keys (2026-07-23)
 
