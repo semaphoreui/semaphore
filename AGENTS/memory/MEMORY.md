@@ -27,6 +27,9 @@ only when the task touches that topic. Keep this file under 150 lines.
 - Container executors (pro_impl `services/tasks/{docker,k8s}`): `docker.tls_verify` and `docker.poll_interval_seconds` are
   read but unused, Docker pulls send no registry auth, a K8s Pod stuck `Pending` keeps the task running forever, and
   neither executor sweeps leftovers on restart — documented in `docs/docs/admin-guide/executors/`; update it when fixed.
+- Container executors clone with `Repository.GetGitURL(false)` and install only SSH keys
+  (`pro_impl/services/tasks/{docker,k8s}/executor.go`), so an HTTPS repository key — login/password
+  or string (PAT) — is never sent there; only the local executor and runners authenticate over HTTP.
 - `default:` struct tags in `util/config.go` are applied at config load (when the section exists),
   so they — not in-package fallback constants — are the effective documented defaults.
 - Removing a config option that restricted something: refuse it at startup, do not just delete the
