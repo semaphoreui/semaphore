@@ -27,11 +27,10 @@
   `cd web && SEMAPHORE_DEV_API_URL=http://127.0.0.1:3100 npx vite --port 8090 --strictPort --host
   127.0.0.1` (`vite.config.mjs` defaults to host `0.0.0.0`). Playwright for the shoot scripts:
   `NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules`, `chromium.launch({ channel: 'chrome' })`.
-- Help-panel stand (2026-11-16, worktree `semaphore-embeded_docs`): `AGENTS/tmp/help-stand/` holds
-  the community binary, `config.json`, `database.sqlite` (project 1 "Help QA": inventories 1
-  `static hosts` / 2 `file hosts`, template 1 `ping`, task 1) and the Playwright scripts
-  `spike.cjs`, `layout.cjs` — inside the worktree, so macOS does not purge it. Start: `./semaphore
-  server --config config.json` there.
+- Help-panel stand: `AGENTS/tools/help-stand/` builds, starts and seeds it (`:3100`, a sub-path
+  instance on `:3102`) and holds the browser checks of the built-in help.
+- Copying the SQLite file of a running stand loses its last writes (they are in the `-wal` file
+  next to it): use `sqlite3 <db> ".backup '<copy>'"`.
 - Community build has no `project_runners` feature: the Runner tag field of the inventory form
   never shows on such a stand.
 - Stand workflow 1 shows the unsaved-changes dialog after merely selecting a node (pre-existing,
