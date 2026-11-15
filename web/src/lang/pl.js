@@ -363,4 +363,7 @@ export default {
   noProjectsText: 'Nie należysz do żadnego projektu. Poproś administratora Semaphore o dodanie Cię do projektu.',
   signedInAs: 'Zalogowano jako {username} ({email})',
   signedInAsNoEmail: 'Zalogowano jako {username}',
+  helpPanelOpen: 'Pomoc do tego okna dialogowego',
+  helpPanelClose: 'Zamknij pomoc',
+  helpPanelFieldHidden: 'To pole nie jest wyświetlane przy bieżących ustawieniach.',
 };

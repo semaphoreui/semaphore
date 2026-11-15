@@ -5,6 +5,7 @@ import path from 'node:path';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vuetify from 'vite-plugin-vuetify';
+import helpDocs from './vite/help/plugin.mjs';
 
 // The build type (`pro_selfhosted`, `pro_portal` or empty) comes from the environment of the build:
 // Taskfile and CI set VUE_APP_BUILD_TYPE (the Vue CLI name, kept so that every caller works
@@ -157,6 +158,8 @@ export default defineConfig(({ mode }) => ({
     }),
     vuetifyImportsFirst(),
     vuetifyLayersFirst(),
+    // The built-in help: src/help/dialogs/*.md compiled into the build (vite/help).
+    helpDocs(fileURLToPath(new URL('.', import.meta.url))),
   ],
 
   css: {

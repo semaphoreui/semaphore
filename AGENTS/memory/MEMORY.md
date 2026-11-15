@@ -37,18 +37,19 @@ only when the task touches that topic. Keep this file under 150 lines.
   restriction would disappear on upgrade. `util/config_removed.go` does this for `process`.
 - `config.schema.yaml` is not a source of truth; it drifts (gave wrong k8s executor image
   defaults). Generate reference docs from the Go struct with `task docs:gen`.
-- The docs submodule's `main` may be generated from code ahead of `develop` (2026-10-25: it had the
+- `docs/` is not a submodule: `8fd22965 chore: remove submodules` deleted `.gitmodules`, and `/docs/`
+  and `/pro_impl/` are gitignored separate clones (a fresh worktree has neither). No CI job gets
+  `docs/`, so nothing a build needs may live there, and drift in the generated reference is caught
+  only by a local `task docs:check`.
+- The docs clone's `main` may be generated from code ahead of `develop` (2026-10-25: it had the
   `ha.redis_sentinel.*` rows develop lacks) — after `task docs:gen`, diff `docs/reference/configuration.md`
   and keep only the rows your change produced, or you un-document another branch's feature.
-- The `docs/` submodule is checked out by no CI job except `docs-reference` in
-  `.github/workflows/dev.yml` — a build step that reads `docs/` must fail loudly when it is absent.
-- No CI job checks out the `docs/` submodule: the only one that did, `docs-reference` in
-  `.github/workflows/dev.yml`, is commented out since `09cf6b91 ci: disable docs check`
-  (2026-09-28), so drift in the generated reference is caught only by a local `task docs:check`.
-  A build step that reads `docs/` must fail loudly when it is absent.
 - Anything the Vue build emits to `api/public` is `go:embed`-ed into the binary and served by
   `serveFile()`; ship static content that way, not through a new Go handler. Use relative paths
   (`publicPath: './'`) — `serveFile()` rewrites `<base href>` from `util.WebHostURL`.
+- Frontend build code lives in `web/vite/` (`build/` is gitignored at any depth, `.gitignore:2`);
+  the Vite 8 config loader resolves a relative `.mjs` import only with its extension, and
+  `npm run build` run by hand deletes the tracked `api/public/.gitkeep` — `git checkout` it.
 - `go.mod` has `replace .../pro => ./pro`; `go.work` is gitignored. Since 2026-10-18 `pro_impl/` is a
   git submodule (`semaphorepro-module`, `update = none`, so `git submodule update` leaves it empty;
   branch `feat/wf_integrations_2`) — a worktree's `go.work` may still point at another checkout's
@@ -92,6 +93,9 @@ only when the task touches that topic. Keep this file under 150 lines.
 - `ItemListPageBase` calls `allowActions()` from `data()`, before computed properties exist — an
   override must read props (`this.user`, `this.isAdmin`) directly, or the actions column silently
   disappears (hit in `Users.vue`/`Roles.vue`, 2026-10-17).
+- Vuetify 4 `.v-overlay__content` has `contain: layout`, so a `position: fixed` child of a dialog is
+  laid out against the dialog, not the window — set `contain: none; isolation: isolate` on the
+  content element (through `content-class`) for anything that must reach the window edge.
 - Semaphore web: `/api/user` carries `global_permissions` (mask) — gate admin menus and pages with
   `hasGlobalPermission(user, GLOBAL_PERMISSIONS.x)` from `web/src/lib/role-permissions.js`, not `user.admin`.
 - A Pro feature with its own tables follows `feat/group-role-mappings`: community keeps the migration,

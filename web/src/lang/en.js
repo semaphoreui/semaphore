@@ -1041,4 +1041,7 @@ export default {
   noProjectsText: 'You are not a member of any project. Ask your Semaphore administrator to add you to one.',
   signedInAs: 'Signed in as {username} ({email})',
   signedInAsNoEmail: 'Signed in as {username}',
+  helpPanelOpen: 'Help for this dialog',
+  helpPanelClose: 'Close help',
+  helpPanelFieldHidden: 'This field is not shown with the current settings.',
 };

@@ -7,16 +7,13 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
   <v-dialog
     ref="dialog"
     v-model="dialog"
-    :max-width="width || maxWidth || 400"
+    :max-width="dialogMaxWidth"
     persistent
     :eager="booted"
     :close-on-back="false"
     :fullscreen="expandable && fullscreen"
     :transition="false"
-    :content-class="
-      `item-dialog ${ expandable ? 'item-dialog--expandable' : ''}
-      item-dialog--${position} ${contentClass || ''}`
-    "
+    :content-class="dialogContentClass"
   >
     <template v-if="resizable && !(expandable && fullscreen)">
       <div
@@ -46,6 +43,20 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         <v-spacer></v-spacer>
 
         <div class="item-dialog__title-actions">
+          <v-btn
+            icon
+            variant="text"
+            class="mr-3"
+            v-if="hasDocs"
+            :title="$t('helpPanelOpen')"
+            :aria-label="$t('helpPanelOpen')"
+            :aria-pressed="docsOpen ? 'true' : 'false'"
+            data-testid="editDialog-docs"
+            @click="toggleDocs()"
+          >
+            <v-icon>mdi-help-circle-outline</v-icon>
+          </v-btn>
+
           <v-btn
             icon
             variant="text"
@@ -119,6 +130,12 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         </v-btn>
       </v-card-actions>
     </v-card>
+
+    <HelpPanel
+      v-if="docsOpen && docsDoc"
+      :doc="docsDoc"
+      @close="closeDocs()"
+    />
   </v-dialog>
 </template>
 <style lang="scss">
@@ -141,6 +158,26 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     cursor: ew-resize;
     touch-action: none;
     z-index: 1;
+  }
+
+  // The help panel is fixed to the window, but `.v-overlay__content` of Vuetify has
+  // `contain: layout`, which makes it the containing block of its fixed descendants: the
+  // containment is lifted while the panel is open. `isolation` keeps the stacking context.
+  .item-dialog--docs {
+    contain: none;
+    isolation: isolate;
+  }
+
+  // The dialog is centred in what the panel leaves of the window: the 420 px of the panel and
+  // the 24 px margin of a dialog.
+  .item-dialog--docs-beside {
+    margin-right: 444px;
+  }
+
+  .v-dialog--fullscreen > .item-dialog--docs-beside {
+    left: 0;
+    width: calc(100% - 420px);
+    margin-right: 0;
   }
 
   .item-dialog__resizer--left {
@@ -177,11 +214,19 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
 <script>
 
 import EventBus from '@/event-bus';
+import HelpPanel from '@/components/HelpPanel.vue';
+import { hasHelpDoc, loadHelpDoc } from '@/help';
 
 // The narrowest a dialog can be dragged to: the default width of a dialog.
 const MIN_WIDTH = 400;
 
+// The help panel (HelpPanel.vue) and the margin Vuetify gives a dialog on each side.
+const DOCS_WIDTH = 420;
+const DIALOG_MARGIN = 24;
+
 export default {
+  components: { HelpPanel },
+
   props: {
     testId: String,
     contentClass: String,
@@ -206,6 +251,9 @@ export default {
       default: 'Unnamed',
     },
     helpButton: Boolean,
+    // Key of the help document of the dialog (src/help/dialogs/<key>.md). The dialog gets a
+    // button that opens the document in a panel at the right edge of the window.
+    helpDoc: String,
     noBodyPaddings: Boolean,
     noEscape: Boolean,
   },
@@ -222,9 +270,45 @@ export default {
       needReset: false,
       fullscreen: null,
       needHelp: false,
+      // The help panel: whether it is open, and the document it shows (loaded on first open).
+      docsOpen: false,
+      docsDoc: null,
       // The width the user dragged a resizable dialog to; null until then (`maxWidth` applies).
       width: null,
     };
+  },
+
+  computed: {
+    hasDocs() {
+      return hasHelpDoc(this.helpDoc);
+    },
+
+    // The narrowest dialog and the help panel fit side by side; in a narrower window the panel
+    // lies over the dialog.
+    docsBeside() {
+      return this.docsOpen && this.docsDoc != null
+        && this.$vuetify.display.width >= MIN_WIDTH + 2 * DIALOG_MARGIN + DOCS_WIDTH;
+    },
+
+    // A dialog wider than what the help panel leaves of the window is narrowed to it.
+    dialogMaxWidth() {
+      const own = this.width || this.maxWidth || MIN_WIDTH;
+      if (!this.docsBeside) {
+        return own;
+      }
+      return Math.min(own, this.$vuetify.display.width - 2 * DIALOG_MARGIN - DOCS_WIDTH);
+    },
+
+    dialogContentClass() {
+      return [
+        'item-dialog',
+        this.expandable ? 'item-dialog--expandable' : '',
+        `item-dialog--${this.position}`,
+        this.contentClass || '',
+        this.docsOpen && this.docsDoc != null ? 'item-dialog--docs' : '',
+        this.docsBeside ? 'item-dialog--docs-beside' : '',
+      ].filter((name) => name !== '').join(' ');
+    },
   },
 
   watch: {
@@ -243,6 +327,12 @@ export default {
 
     async modelValue(val) {
       this.dialog = val;
+    },
+
+    // Another document: the panel must not keep showing the previous one.
+    helpDoc() {
+      this.closeDocs();
+      this.docsDoc = null;
     },
 
     fullscreen(val) {
@@ -270,6 +360,34 @@ export default {
       this.needHelp = !this.needHelp;
     },
 
+    async toggleDocs() {
+      if (this.docsOpen) {
+        this.closeDocs();
+        return;
+      }
+
+      const key = this.helpDoc;
+      if (this.docsDoc == null || this.docsDoc.key !== key) {
+        let doc;
+        try {
+          doc = await loadHelpDoc(key);
+        } catch (err) {
+          EventBus.$emit('i-snackbar', { color: 'error', text: err.message });
+          return;
+        }
+        // The dialog was closed or given another document while this one was loading.
+        if (!this.dialog || this.helpDoc !== key) {
+          return;
+        }
+        this.docsDoc = doc;
+      }
+      this.docsOpen = true;
+    },
+
+    closeDocs() {
+      this.docsOpen = false;
+    },
+
     onSave(e) {
       if (this.dontCloseOnSave) {
         this.clearFlags();
@@ -285,6 +403,7 @@ export default {
 
     close(e) {
       this.dialog = false;
+      this.closeDocs();
 
       this.clearFlags();
       if (e) {
