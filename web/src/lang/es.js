@@ -364,6 +364,7 @@ export default {
   signedInAs: 'Sesión iniciada como {username} ({email})',
   signedInAsNoEmail: 'Sesión iniciada como {username}',
   helpPanelOpen: 'Ayuda de este diálogo',
+  helpPanelOpenPage: 'Ayuda de esta página',
   helpPanelClose: 'Cerrar la ayuda',
   helpPanelFieldHidden: 'Este campo no se muestra con la configuración actual.',
 };

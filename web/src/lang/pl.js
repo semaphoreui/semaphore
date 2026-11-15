@@ -364,6 +364,7 @@ export default {
   signedInAs: 'Zalogowano jako {username} ({email})',
   signedInAsNoEmail: 'Zalogowano jako {username}',
   helpPanelOpen: 'Pomoc do tego okna dialogowego',
+  helpPanelOpenPage: 'Pomoc do tej strony',
   helpPanelClose: 'Zamknij pomoc',
   helpPanelFieldHidden: 'To pole nie jest wyświetlane przy bieżących ustawieniach.',
 };

@@ -33,7 +33,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     <v-card
       ref="card"
       :data-testid="testId"
-      @focusin="onCardFocusIn($event)"
+      @focusin="onDocsHostFocusIn($event)"
       :data-state="needSave ? 'loading' : 'ready'"
     >
       <v-card-title data-testid="editDialog-title">
@@ -45,19 +45,13 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         <v-spacer></v-spacer>
 
         <div class="item-dialog__title-actions">
-          <v-btn
-            icon
-            variant="text"
-            class="mr-3"
+          <HelpButton
             v-if="hasDocs"
-            :title="$t('helpPanelOpen')"
-            :aria-label="$t('helpPanelOpen')"
-            :aria-pressed="docsOpen ? 'true' : 'false'"
+            class="mr-3"
+            :open="docsOpen"
             data-testid="editDialog-docs"
             @click="toggleDocs()"
-          >
-            <v-icon>mdi-help-circle-outline</v-icon>
-          </v-btn>
+          />
 
           <v-btn
             icon
@@ -134,11 +128,8 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     </v-card>
 
     <HelpPanel
-      v-if="docsOpen && docsDoc"
-      :doc="docsDoc"
-      :active-field="docsActiveField"
-      :follow-field="docsFollowField"
-      :missing-fields="docsMissingFields"
+      v-if="docsShown"
+      v-bind="docsPanelProps"
       @close="closeDocs()"
       @hover-field="docsHoverField = $event"
       @focus-field="onDocsFocusField($event)"
@@ -187,32 +178,6 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     margin-right: 0;
   }
 
-  // The field of the form the active section of the help panel describes: a halo around the
-  // frame of a Vuetify input, or around the element itself (the code editor).
-  .item-dialog__docs-field {
-    box-shadow: 0 0 0 4px rgba(var(--v-theme-primary), .24);
-    transition: box-shadow .15s;
-  }
-
-  // The frame of an input is drawn by its outline, which leaves a gap for the label: the
-  // outline takes the colour and the width of a focused field (a ring of `box-shadow` would
-  // cross the label). The outline of an invalid field stays red.
-  .item-dialog__docs-field.v-field--variant-outlined:not(.v-field--error) .v-field__outline {
-    --v-field-border-width: 2px !important;
-    color: rgb(var(--v-theme-primary));
-
-    > * {
-      color: rgb(var(--v-theme-primary));
-    }
-  }
-
-  .item-dialog__docs-field:not(.v-field) {
-    border-radius: 4px;
-    box-shadow:
-      0 0 0 2px rgb(var(--v-theme-primary)),
-      0 0 0 6px rgba(var(--v-theme-primary), .24);
-  }
-
   .item-dialog__resizer--left {
     left: -10px;
   }
@@ -247,21 +212,21 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
 <script>
 
 import EventBus from '@/event-bus';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpDocsHost, { DOCS_WIDTH } from '@/components/HelpDocsHost';
 import HelpPanel from '@/components/HelpPanel.vue';
-import { hasHelpDoc, loadHelpDoc } from '@/help';
 
 // The narrowest a dialog can be dragged to: the default width of a dialog.
 const MIN_WIDTH = 400;
 
-// The class of the field of the form the active section of the help panel describes.
-const DOCS_FIELD_CLASS = 'item-dialog__docs-field';
-
-// The help panel (HelpPanel.vue) and the margin Vuetify gives a dialog on each side.
-const DOCS_WIDTH = 420;
+// The margin Vuetify gives a dialog on each side.
 const DIALOG_MARGIN = 24;
 
 export default {
-  components: { HelpPanel },
+  components: { HelpButton, HelpPanel },
+
+  // The help panel of the dialog: its state and its tie to the fields of the form.
+  mixins: [HelpDocsHost],
 
   props: {
     testId: String,
@@ -306,31 +271,21 @@ export default {
       needReset: false,
       fullscreen: null,
       needHelp: false,
-      // The help panel: whether it is open, and the document it shows (loaded on first open).
-      docsOpen: false,
-      docsDoc: null,
-      // The field the help panel is about: the one in focus (a field of the form, or the section
-      // of the panel that describes it), unless the pointer is over a section of the panel.
-      // `docsFocusSource` is 'form' or 'panel': where the focus is.
-      docsFocusField: null,
-      docsFocusSource: null,
-      docsHoverField: null,
-      // Fields the document describes that the form does not show now.
-      docsMissingFields: [],
       // The width the user dragged a resizable dialog to; null until then (`maxWidth` applies).
       width: null,
     };
   },
 
   computed: {
-    hasDocs() {
-      return hasHelpDoc(this.helpDoc);
+    // The key of the help document, for HelpDocsHost.
+    docsKey() {
+      return this.helpDoc;
     },
 
     // The narrowest dialog and the help panel fit side by side; in a narrower window the panel
     // lies over the dialog.
     docsBeside() {
-      return this.docsOpen && this.docsDoc != null
+      return this.docsShown
         && this.$vuetify.display.width >= MIN_WIDTH + 2 * DIALOG_MARGIN + DOCS_WIDTH;
     },
 
@@ -343,27 +298,13 @@ export default {
       return Math.min(own, this.$vuetify.display.width - 2 * DIALOG_MARGIN - DOCS_WIDTH);
     },
 
-    docsShown() {
-      return this.docsOpen && this.docsDoc != null;
-    },
-
-    docsActiveField() {
-      return this.docsHoverField ?? this.docsFocusField;
-    },
-
-    // The field the panel scrolls to: only a field of the form in focus moves the panel, not
-    // a section of the panel itself.
-    docsFollowField() {
-      return this.docsFocusSource === 'form' ? this.docsFocusField : null;
-    },
-
     dialogContentClass() {
       return [
         'item-dialog',
         this.expandable ? 'item-dialog--expandable' : '',
         `item-dialog--${this.position}`,
         this.contentClass || '',
-        this.docsOpen && this.docsDoc != null ? 'item-dialog--docs' : '',
+        this.docsShown ? 'item-dialog--docs' : '',
         this.docsBeside ? 'item-dialog--docs-beside' : '',
       ].filter((name) => name !== '').join(' ');
     },
@@ -387,25 +328,6 @@ export default {
       this.dialog = val;
     },
 
-    docsShown(val) {
-      if (val) {
-        // The panel and the form are in the document after the next render.
-        this.$nextTick(() => this.watchDocsFields());
-      } else {
-        this.unwatchDocsFields();
-      }
-    },
-
-    docsActiveField() {
-      this.markDocsField();
-    },
-
-    // Another document: the panel must not keep showing the previous one.
-    helpDoc() {
-      this.closeDocs();
-      this.docsDoc = null;
-    },
-
     fullscreen(val) {
       if (val) {
         localStorage.setItem(`EditDialog_${this.name}__fullscreen`, '1');
@@ -424,15 +346,6 @@ export default {
       const width = parseInt(localStorage.getItem(`EditDialog_${this.name}__width`), 10);
       this.width = width >= MIN_WIDTH ? width : null;
     }
-
-    // The help panel: the element marked as the field of the active section, and the observer
-    // of the fields the form shows.
-    this.docsMarked = null;
-    this.docsObserver = null;
-  },
-
-  beforeUnmount() {
-    this.unwatchDocsFields();
   },
 
   methods: {
@@ -440,134 +353,14 @@ export default {
       this.needHelp = !this.needHelp;
     },
 
-    async toggleDocs() {
-      if (this.docsOpen) {
-        this.closeDocs();
-        return;
-      }
-
-      const key = this.helpDoc;
-      if (this.docsDoc == null || this.docsDoc.key !== key) {
-        let doc;
-        try {
-          doc = await loadHelpDoc(key);
-        } catch (err) {
-          EventBus.$emit('i-snackbar', { color: 'error', text: err.message });
-          return;
-        }
-        // The dialog was closed or given another document while this one was loading.
-        if (!this.dialog || this.helpDoc !== key) {
-          return;
-        }
-        this.docsDoc = doc;
-      }
-      this.docsOpen = true;
+    // The fields of the form are in the card, for HelpDocsHost.
+    docsRootElement() {
+      return this.$refs.card ? this.$refs.card.$el : null;
     },
 
-    closeDocs() {
-      this.docsOpen = false;
-      this.docsFocusField = null;
-      this.docsFocusSource = null;
-      this.docsHoverField = null;
-    },
-
-    // The field of the form an element belongs to: the nearest `data-testid`, on the element
-    // or above it, that a section of the document is anchored to. Vuetify puts the attribute
-    // on the root of an input, around the element that takes the focus.
-    docsFieldOf(el) {
-      const fields = new Set(this.docsDoc.sections.map((section) => section.field));
-      let node = el.closest('[data-testid]');
-      while (node) {
-        const id = node.getAttribute('data-testid');
-        if (fields.has(id)) {
-          return id;
-        }
-        node = node.parentElement ? node.parentElement.closest('[data-testid]') : null;
-      }
-      return null;
-    },
-
-    // The focus came to an element of the card. A menu of a select is outside the card: the
-    // focus in its items is not seen here, and the field stays the active one.
-    onCardFocusIn(ev) {
-      if (!this.docsShown) {
-        return;
-      }
-      const field = this.docsFieldOf(ev.target);
-      this.docsFocusField = field;
-      this.docsFocusSource = field ? 'form' : null;
-    },
-
-    // The focus came to a section of the panel (its field), or to another part of the panel
-    // (null).
-    onDocsFocusField(field) {
-      this.docsFocusField = field;
-      this.docsFocusSource = field ? 'panel' : null;
-      if (field) {
-        // After the watcher has marked the field.
-        this.$nextTick(() => this.revealDocsField());
-      }
-    },
-
-    docsFieldElement(field) {
-      const card = this.$refs.card && this.$refs.card.$el;
-      if (!card || !field) {
-        return null;
-      }
-      // An anchor is a name ([A-Za-z][\w-]*, checked at build time): safe in a selector.
-      return card.querySelector(`[data-testid="${field}"]`);
-    },
-
-    // Marks the field the active section describes, and unmarks the one marked before.
-    markDocsField() {
-      if (this.docsMarked) {
-        this.docsMarked.classList.remove(DOCS_FIELD_CLASS);
-        this.docsMarked = null;
-      }
-      const el = this.docsShown ? this.docsFieldElement(this.docsActiveField) : null;
-      if (el) {
-        this.docsMarked = el.querySelector('.v-field') || el;
-        this.docsMarked.classList.add(DOCS_FIELD_CLASS);
-      }
-    },
-
-    // Scrolls the dialog to the marked field when it is out of view.
-    revealDocsField() {
-      if (this.docsMarked && typeof this.docsMarked.scrollIntoView === 'function') {
-        this.docsMarked.scrollIntoView({ block: 'nearest' });
-      }
-    },
-
-    // Fields come and go with the values of the form (the path of an inventory with its type):
-    // the missing ones are listed for the panel, and the mark follows the field.
-    watchDocsFields() {
-      const card = this.$refs.card && this.$refs.card.$el;
-      if (!card || !this.docsShown || this.docsObserver) {
-        return;
-      }
-
-      const update = () => {
-        const missing = this.docsDoc.sections
-          .map((section) => section.field)
-          .filter((field) => this.docsFieldElement(field) == null);
-        if (missing.join() !== this.docsMissingFields.join()) {
-          this.docsMissingFields = missing;
-        }
-        this.markDocsField();
-      };
-
-      update();
-      this.docsObserver = new MutationObserver(update);
-      this.docsObserver.observe(card, { childList: true, subtree: true });
-    },
-
-    unwatchDocsFields() {
-      if (this.docsObserver) {
-        this.docsObserver.disconnect();
-        this.docsObserver = null;
-      }
-      this.docsMissingFields = [];
-      this.markDocsField();
+    // A document that has loaded after the dialog was closed must not open its panel.
+    docsCanOpen() {
+      return this.dialog;
     },
 
     onSave(e) {

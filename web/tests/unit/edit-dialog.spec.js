@@ -451,7 +451,7 @@ describe('EditDialog.vue', () => {
         <textarea data-testid="demoForm-type" class="demo-type"></textarea>
         <button type="button" class="demo-other">other</button>
       </div>`;
-    const MARK = 'item-dialog__docs-field';
+    const MARK = 'help-docs-field';
 
     const byTestId = (id) => document.querySelector(`[data-testid="${id}"]`);
     const section = (field) => byTestId(`editDialog-docsSection-${field}`);

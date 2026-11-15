@@ -471,6 +471,7 @@ export default {
   signedInAs: 'Přihlášen jako {username} ({email})',
   signedInAsNoEmail: 'Přihlášen jako {username}',
   helpPanelOpen: 'Nápověda k tomuto dialogu',
+  helpPanelOpenPage: 'Nápověda k této stránce',
   helpPanelClose: 'Zavřít nápovědu',
   helpPanelFieldHidden: 'Toto pole se při aktuálním nastavení nezobrazuje.',
 };

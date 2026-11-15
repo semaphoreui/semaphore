@@ -4,7 +4,8 @@ EditDialog renders it inside the content of its v-dialog, next to the card: ther
 the scrim, inside the focus trap of the dialog, and a click on it is not a click outside.
 
 A section describes a field of the form. The panel reports the section under the pointer and the
-section in focus; the dialog decides which field is the active one and marks it in the form.
+section in focus; the host (HelpDocsHost: a dialog or a page) decides which field is the
+active one and marks it.
 The section of a field the form does not show now is disabled: dimmed, never the active one.
 -->
 <template>
@@ -70,8 +71,9 @@ The section of a field the form does not show now is disabled: dimmed, never the
 </template>
 <style lang="scss">
   .HelpPanel {
-    // Fixed to the window, not to the dialog: EditDialog lifts the layout containment of the
-    // overlay content while the panel is open (`.item-dialog--docs`).
+    // Fixed to the window. In a dialog EditDialog lifts the layout containment of the overlay
+    // content while the panel is open (`.item-dialog--docs`), or the panel would be laid out
+    // against the dialog.
     position: fixed;
     top: 0;
     right: 0;
@@ -176,6 +178,33 @@ The section of a field the form does not show now is disabled: dimmed, never the
     font-size: 12px;
     line-height: 18px;
     opacity: .7;
+  }
+
+  // The element of the dialog or the page the active section describes (HelpDocsHost marks it):
+  // a halo around the frame of a Vuetify input, or around the element itself (a button, the
+  // code editor).
+  .help-docs-field {
+    box-shadow: 0 0 0 4px rgba(var(--v-theme-primary), .24);
+    transition: box-shadow .15s;
+  }
+
+  // The frame of an input is drawn by its outline, which leaves a gap for the label: the
+  // outline takes the colour and the width of a focused field (a ring of `box-shadow` would
+  // cross the label). The outline of an invalid field stays red.
+  .help-docs-field.v-field--variant-outlined:not(.v-field--error) .v-field__outline {
+    --v-field-border-width: 2px !important;
+    color: rgb(var(--v-theme-primary));
+
+    > * {
+      color: rgb(var(--v-theme-primary));
+    }
+  }
+
+  .help-docs-field:not(.v-field) {
+    border-radius: 4px;
+    box-shadow:
+      0 0 0 2px rgb(var(--v-theme-primary)),
+      0 0 0 6px rgba(var(--v-theme-primary), .24);
   }
 
   .HelpContent {

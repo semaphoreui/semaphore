@@ -1,11 +1,13 @@
-// Built-in help: the documents of dialogs, by key. A document is a file in ./dialogs, compiled at
-// build time into a tree (web/vite/help), and is loaded on first use: the documents are in
-// chunks of their own, served by the Semaphore server like the rest of the application.
+// Built-in help: the documents of dialogs and pages, by key. A document is a file in ./dialogs
+// or ./pages, compiled at build time into a tree (web/vite/help), and is loaded on first use:
+// the documents are in chunks of their own, served by the Semaphore server like the rest of the
+// application.
 //
 // To give a dialog its help: add ./dialogs/<key>.md and pass `help-doc="<key>"` to EditDialog.
+// To give a page its help: add ./pages/<key>.md and wrap the page in `<HelpPage help-doc="<key>">`.
 const loaders = Object.freeze(Object.fromEntries(
-  Object.entries(import.meta.glob('./dialogs/*.md', { import: 'default' }))
-    .map(([file, load]) => [file.replace(/^\.\/dialogs\/|\.md$/g, ''), load]),
+  Object.entries(import.meta.glob(['./dialogs/*.md', './pages/*.md'], { import: 'default' }))
+    .map(([file, load]) => [file.replace(/^\.\/(dialogs|pages)\/|\.md$/g, ''), load]),
 ));
 
 /**

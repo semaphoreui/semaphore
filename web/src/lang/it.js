@@ -364,6 +364,7 @@ export default {
   signedInAs: 'Accesso effettuato come {username} ({email})',
   signedInAsNoEmail: 'Accesso effettuato come {username}',
   helpPanelOpen: 'Guida per questa finestra di dialogo',
+  helpPanelOpenPage: 'Guida per questa pagina',
   helpPanelClose: 'Chiudi la guida',
   helpPanelFieldHidden: 'Questo campo non è visibile con le impostazioni attuali.',
 };

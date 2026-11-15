@@ -364,6 +364,7 @@ export default {
   signedInAs: 'Aangemeld als {username} ({email})',
   signedInAsNoEmail: 'Aangemeld als {username}',
   helpPanelOpen: 'Hulp bij dit dialoogvenster',
+  helpPanelOpenPage: 'Hulp bij deze pagina',
   helpPanelClose: 'Hulp sluiten',
   helpPanelFieldHidden: 'Dit veld wordt met de huidige instellingen niet getoond.',
 };

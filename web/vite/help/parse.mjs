@@ -18,7 +18,9 @@
 //   Text of the section: paragraphs, `-` lists, fenced code, `code`, **bold**,
 //   [links](https://example.com).
 //
-// The anchor of a section is the `data-testid` of the field it describes.
+// The anchor of a section is the `data-testid` of the element it describes: a field of a form,
+// a button of a page. `form` names the file the elements are in, or several files, separated
+// by commas, when a page takes its form from another component.
 
 export class HelpDocError extends Error {
   constructor(file, line, message) {
@@ -141,11 +143,17 @@ function parseFrontMatter(lines, fail) {
   if (meta.form == null) {
     fail(1, 'the front matter must name the form: `form: src/components/<Name>Form.vue`');
   }
-  if (!FORM_PATH.test(meta.form) || meta.form.includes('..')) {
-    fail(1, `"form" must be a path to a .vue file under src/, got "${meta.form}"`);
+  const forms = meta.form.split(',').map((form) => form.trim());
+  forms.forEach((form) => {
+    if (!FORM_PATH.test(form) || form.includes('..')) {
+      fail(1, `"form" must be a path to a .vue file under src/, got "${form}"`);
+    }
+  });
+  if (new Set(forms).size !== forms.length) {
+    fail(1, '"form" names a file twice');
   }
 
-  return { meta, next: i + 1 };
+  return { forms, next: i + 1 };
 }
 
 /**
@@ -153,7 +161,7 @@ function parseFrontMatter(lines, fail) {
  *
  * @param {string} source text of the document
  * @param {string} file name of the document, for error messages
- * @returns {{ form: string, title: string, intro: object[],
+ * @returns {{ forms: string[], title: string, intro: object[],
  *   sections: { field: string, title: string, line: number, blocks: object[] }[] }}
  * @throws {HelpDocError} on anything outside the subset
  */
@@ -163,9 +171,9 @@ export function parseHelpDoc(source, file) {
     throw new HelpDocError(file, line, message);
   };
 
-  const { meta, next } = parseFrontMatter(lines, fail);
+  const { forms, next } = parseFrontMatter(lines, fail);
   const doc = {
-    form: meta.form,
+    forms,
     title: null,
     intro: [],
     sections: [],

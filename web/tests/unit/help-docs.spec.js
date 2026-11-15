@@ -47,7 +47,7 @@ describe('help documents', () => {
       ].join('\n'), 'demo.md');
 
       expect(doc).to.deep.equal({
-        form: 'src/components/DemoForm.vue',
+        forms: ['src/components/DemoForm.vue'],
         title: 'Edit Demo',
         intro: [{ type: 'p', inline: [{ type: 'text', text: 'What the dialog is for.' }] }],
         sections: [{
@@ -84,6 +84,13 @@ describe('help documents', () => {
       });
     });
 
+    it('takes several forms, separated by commas', () => {
+      const source = docWith('## Name {#demoForm-name}\n\nText.')
+        .replace('form: src/components/DemoForm.vue', 'form: src/views/Demo.vue,  src/components/DemoForm.vue');
+      expect(parseHelpDoc(source, 'demo.md').forms)
+        .to.deep.equal(['src/views/Demo.vue', 'src/components/DemoForm.vue']);
+    });
+
     it('accepts Windows line endings', () => {
       const doc = parseHelpDoc(docWith('## Name {#demoForm-name}\n\nText.').replace(/\n/g, '\r\n'), 'demo.md');
       expect(doc.sections.map((section) => section.field)).to.deep.equal(['demoForm-name']);
@@ -102,6 +109,9 @@ describe('help documents', () => {
       { name: 'unknown front matter key', source: '---\ntitle: X\n---\n', error: /demo\.md:2: unknown front matter key "title"/ },
       { name: 'form outside src', source: '---\nform: ../secret/X.vue\n---\n', error: /"form" must be a path/ },
       { name: 'form with a parent segment', source: '---\nform: src/../X.vue\n---\n', error: /"form" must be a path/ },
+      { name: 'bad path among several forms', source: '---\nform: src/a/A.vue, /etc/passwd\n---\n', error: /"form" must be a path .* got "\/etc\/passwd"/ },
+      { name: 'empty path among several forms', source: '---\nform: src/a/A.vue,\n---\n', error: /"form" must be a path/ },
+      { name: 'form named twice', source: '---\nform: src/a/A.vue, src/a/A.vue\n---\n', error: /names a file twice/ },
       { name: 'text before the title', source: `${FRONT}\nText.\n\n# T\n`, error: /demo\.md:5: .*must start with its `# Title`/ },
       { name: 'no title', source: `${FRONT}\n`, error: /has no `# Title`/ },
       { name: 'no intro paragraph', source: `${FRONT}\n# T\n\n## Name {#a}\n\nText.\n`, error: /needs a paragraph/ },
@@ -167,14 +177,31 @@ describe('help documents', () => {
 
     it('passes when the form has every field', () => {
       const form = '<a data-testid="demoForm-name"></a><a data-testid="demoForm-gone"></a>';
-      expect(() => checkFields(doc, form, 'demo.md')).to.not.throw();
+      expect(() => checkFields(doc, [form], 'demo.md')).to.not.throw();
     });
 
     it('fails on a section of a field the form does not have', () => {
-      expect(() => checkFields(doc, '<a data-testid="demoForm-name"></a>', 'demo.md')).to.throw(
+      expect(() => checkFields(doc, ['<a data-testid="demoForm-name"></a>'], 'demo.md')).to.throw(
         HelpDocError,
         /^demo\.md:13: the section "Gone" is anchored to "demoForm-gone", but src\/components\/DemoForm\.vue has no data-testid="demoForm-gone"$/,
       );
+    });
+
+    describe('with several forms', () => {
+      const pageDoc = { ...doc, forms: ['src/views/Demo.vue', 'src/components/DemoForm.vue'] };
+
+      it('passes when every field is in one of the forms', () => {
+        const sources = ['<a data-testid="demoForm-gone"></a>', '<a data-testid="demoForm-name"></a>'];
+        expect(() => checkFields(pageDoc, sources, 'demo.md')).to.not.throw();
+      });
+
+      it('fails on a field none of the forms has, and names them all', () => {
+        const sources = ['<a data-testid="other"></a>', '<a data-testid="demoForm-name"></a>'];
+        expect(() => checkFields(pageDoc, sources, 'demo.md')).to.throw(
+          HelpDocError,
+          /but none of src\/views\/Demo\.vue, src\/components\/DemoForm\.vue has data-testid="demoForm-gone"$/,
+        );
+      });
     });
   });
 
@@ -271,7 +298,44 @@ describe('help documents', () => {
       const doc = JSON.parse(result.code.replace(/^export default /, '').replace(/;\n$/, ''));
       expect(doc.key).to.equal('demo');
       expect(doc.sections.map((section) => section.field)).to.deep.equal(['demoForm-name']);
-      expect(doc).to.not.have.property('form');
+      expect(doc).to.not.have.property('forms');
+    });
+
+    it('compiles the document of a page, anchored to the page and to its form', () => {
+      write('src/views/Demo.vue', '<template><button data-testid="demo-save"></button></template>');
+      const source = docWith('## Name {#demoForm-name}\n\nText.\n\n## Save {#demo-save}\n\nText.')
+        .replace('form: src/components/DemoForm.vue', 'form: src/views/Demo.vue, src/components/DemoForm.vue');
+      const file = write('src/help/pages/demo-page.md', source);
+
+      const { result, watched } = transform(file, source);
+
+      expect(watched).to.deep.equal([
+        path.join(root, 'src/views/Demo.vue'),
+        path.join(root, 'src/components/DemoForm.vue'),
+      ]);
+      const doc = JSON.parse(result.code.replace(/^export default /, '').replace(/;\n$/, ''));
+      expect(doc.key).to.equal('demo-page');
+      expect(doc.sections.map((section) => section.field)).to.deep.equal(['demoForm-name', 'demo-save']);
+    });
+
+    it('fails on two documents of one name', () => {
+      const source = docWith('## Name {#demoForm-name}\n\nText.');
+      write('src/help/dialogs/demo.md', source);
+      const file = write('src/help/pages/demo.md', source);
+
+      expect(() => transform(file, source)).to.throw(
+        HelpDocError,
+        /^src\/help\/pages\/demo\.md:1: another document has the same name: src\/help\/dialogs\/demo\.md$/,
+      );
+    });
+
+    it('fails when one of several forms does not exist', () => {
+      const source = docWith('## Name {#demoForm-name}\n\nText.')
+        .replace('form: src/components/DemoForm.vue', 'form: src/components/DemoForm.vue, src/views/No.vue');
+      const file = write('src/help/pages/demo-page.md', source);
+
+      expect(() => compileHelpDoc(root, file, source))
+        .to.throw(HelpDocError, /the form "src\/views\/No\.vue" does not exist/);
     });
 
     it('fails on a section of a field the form does not have', () => {
@@ -310,7 +374,7 @@ describe('help documents', () => {
 
       expect(() => transform(file, code)).to.throw(
         HelpDocError,
-        /^src\/views\/Demo\.vue:2: help document "missing-doc" does not exist \(src\/help\/dialogs\/missing-doc\.md\)$/,
+        /^src\/views\/Demo\.vue:2: help document "missing-doc" does not exist \(src\/help\/dialogs\/missing-doc\.md or src\/help\/pages\/missing-doc\.md\)$/,
       );
     });
 
@@ -321,6 +385,14 @@ describe('help documents', () => {
 
       expect(() => checkDocRefs(root, file, code)).to.not.throw();
       expect(transform(file, code).result).to.equal(null);
+    });
+
+    it('passes a component that names the document of a page', () => {
+      write('src/help/pages/demo-page.md', docWith('## Name {#demoForm-name}\n\nText.'));
+      const code = '<template><HelpPage help-doc="demo-page"></HelpPage></template>';
+      const file = write('src/views/Demo.vue', code);
+
+      expect(() => checkDocRefs(root, file, code)).to.not.throw();
     });
 
     it('does not check the blocks the Vue plugin splits a component into', () => {

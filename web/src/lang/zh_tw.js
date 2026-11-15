@@ -399,6 +399,7 @@ export default {
   signedInAs: '已登入為 {username} ({email})',
   signedInAsNoEmail: '已登入為 {username}',
   helpPanelOpen: '此對話方塊的說明',
+  helpPanelOpenPage: '此頁面的說明',
   helpPanelClose: '關閉說明',
   helpPanelFieldHidden: '目前的設定下不會顯示此欄位。',
 };

@@ -364,6 +364,7 @@ export default {
   signedInAs: '{username}({email})(으)로 로그인됨',
   signedInAsNoEmail: '{username}(으)로 로그인됨',
   helpPanelOpen: '이 대화 상자 도움말',
+  helpPanelOpenPage: '이 페이지 도움말',
   helpPanelClose: '도움말 닫기',
   helpPanelFieldHidden: '현재 설정에서는 이 필드가 표시되지 않습니다.',
 };

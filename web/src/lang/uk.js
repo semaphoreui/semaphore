@@ -394,6 +394,7 @@ export default {
   signedInAs: 'Ви увійшли як {username} ({email})',
   signedInAsNoEmail: 'Ви увійшли як {username}',
   helpPanelOpen: 'Довідка щодо цього діалогу',
+  helpPanelOpenPage: 'Довідка щодо цієї сторінки',
   helpPanelClose: 'Закрити довідку',
   helpPanelFieldHidden: 'Це поле не показується за поточних налаштувань.',
 };

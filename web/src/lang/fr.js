@@ -364,6 +364,7 @@ export default {
   signedInAs: 'Connecté en tant que {username} ({email})',
   signedInAsNoEmail: 'Connecté en tant que {username}',
   helpPanelOpen: 'Aide pour cette boîte de dialogue',
+  helpPanelOpenPage: 'Aide pour cette page',
   helpPanelClose: 'Fermer l\'aide',
   helpPanelFieldHidden: 'Ce champ n\'est pas affiché avec les paramètres actuels.',
 };

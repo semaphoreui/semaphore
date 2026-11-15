@@ -1,5 +1,6 @@
-// Checks that tie the help documents to the code, run at build time: a section must describe a
-// field the form has, and a dialog must name a document that exists.
+// Checks that tie the help documents to the code, run at build time: a section must describe an
+// element its form has (or one of its forms: a page and the form it shows), and a dialog or a
+// page must name a document that exists.
 import { HelpDocError } from './parse.mjs';
 
 const DOC_KEY = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -16,28 +17,31 @@ export function formFields(formSource) {
 }
 
 /**
- * Fails when a section of the document is anchored to a field the form does not have.
+ * Fails when a section of the document is anchored to an element none of its forms has.
  *
- * @param {{ sections: { field: string, title: string, line: number }[], form: string }} doc
- * @param {string} formSource text of the form the document names
+ * @param {{ sections: { field: string, title: string, line: number }[], forms: string[] }} doc
+ * @param {string[]} formSources texts of the files the document names, in the order of `forms`
  * @param {string} file name of the document, for the error message
  * @throws {HelpDocError}
  */
-export function checkFields(doc, formSource, file) {
-  const fields = formFields(formSource);
+export function checkFields(doc, formSources, file) {
+  const fields = new Set(formSources.flatMap((source) => [...formFields(source)]));
   const unknown = doc.sections.find((section) => !fields.has(section.field));
   if (unknown) {
+    const where = doc.forms.length === 1
+      ? `${doc.forms[0]} has no`
+      : `none of ${doc.forms.join(', ')} has`;
     throw new HelpDocError(
       file,
       unknown.line,
       `the section "${unknown.title}" is anchored to "${unknown.field}", `
-        + `but ${doc.form} has no data-testid="${unknown.field}"`,
+        + `but ${where} data-testid="${unknown.field}"`,
     );
   }
 }
 
 /**
- * The keys of help documents a single-file component passes to a dialog: the value of
+ * The keys of help documents a single-file component passes to a dialog or a page: the value of
  * `help-doc="key"` and every string literal inside `:help-doc="expression"`.
  *
  * @param {string} vueSource text of the single-file component

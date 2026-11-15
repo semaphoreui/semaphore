@@ -364,6 +364,7 @@ export default {
   signedInAs: '已登录为 {username} ({email})',
   signedInAsNoEmail: '已登录为 {username}',
   helpPanelOpen: '此对话框的帮助',
+  helpPanelOpenPage: '此页面的帮助',
   helpPanelClose: '关闭帮助',
   helpPanelFieldHidden: '当前设置下不显示此字段。',
 };
