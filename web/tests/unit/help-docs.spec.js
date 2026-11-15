@@ -4,7 +4,7 @@ import path from 'node:path';
 import { expect } from 'chai';
 import { HelpDocError, parseHelpDoc } from '../../vite/help/parse.mjs';
 import {
-  checkFields, findDocRefs, formFields, isDocKey, toModule,
+  checkFields, findDocRefs, formFields, isDocKey, splitDocName, toModule,
 } from '../../vite/help/validate.mjs';
 import helpDocs, { checkDocRefs, compileHelpDoc } from '../../vite/help/plugin.mjs';
 
@@ -89,6 +89,25 @@ describe('help documents', () => {
         .replace('form: src/components/DemoForm.vue', 'form: src/views/Demo.vue,  src/components/DemoForm.vue');
       expect(parseHelpDoc(source, 'demo.md').forms)
         .to.deep.equal(['src/views/Demo.vue', 'src/components/DemoForm.vue']);
+    });
+
+    describe('joins wrapped lines', () => {
+      const tests = [
+        { name: 'with a space in English', lines: ['one', 'two'], text: 'one two' },
+        { name: 'without a space between Chinese characters', lines: ['库存告诉', '主机'], text: '库存告诉主机' },
+        { name: 'without a space after full-width punctuation', lines: ['运行，', '该模板'], text: '运行，该模板' },
+        { name: 'without a space between Latin and Chinese', lines: ['使用 Semaphore', '的任务'], text: '使用 Semaphore的任务' },
+        { name: 'without a space in Japanese', lines: ['インベントリは', 'ホスト'], text: 'インベントリはホスト' },
+        { name: 'with a space in Korean', lines: ['인벤토리는', '호스트를'], text: '인벤토리는 호스트를' },
+      ];
+
+      tests.forEach(({ name, lines, text }) => {
+        it(name, () => {
+          const doc = parseHelpDoc(docWith(`## Name {#a}\n\n${lines.join('\n')}\n\n- ${lines.join('\n  ')}`), 'demo.md');
+          expect(doc.sections[0].blocks[0].inline).to.deep.equal([{ type: 'text', text }]);
+          expect(doc.sections[0].blocks[1].items[0]).to.deep.equal([{ type: 'text', text }]);
+        });
+      });
     });
 
     it('accepts Windows line endings', () => {
@@ -244,11 +263,29 @@ describe('help documents', () => {
     });
   });
 
+  describe('splitDocName', () => {
+    const tests = [
+      ['inventory-ansible', { key: 'inventory-ansible', locale: null }],
+      ['inventory-ansible.de', { key: 'inventory-ansible', locale: 'de' }],
+      ['inventory-ansible.pt_br', { key: 'inventory-ansible', locale: 'pt_br' }],
+      ['inventory-ansible.DE', null],
+      ['inventory-ansible.de.ru', null],
+      ['inventory-ansible.deu', null],
+      ['Inventory', null],
+    ];
+    tests.forEach(([name, parts]) => {
+      it(`${name} -> ${JSON.stringify(parts)}`, () => {
+        expect(splitDocName(name)).to.deep.equal(parts);
+      });
+    });
+  });
+
   describe('toModule', () => {
     it('drops what only the build needs', () => {
       const doc = parseHelpDoc(docWith('## Name {#demoForm-name}\n\nText.'), 'demo.md');
       expect(toModule(doc, 'demo')).to.deep.equal({
         key: 'demo',
+        locale: 'en',
         title: 'Edit Demo',
         intro: [{ type: 'p', inline: [{ type: 'text', text: 'What the dialog is for.' }] }],
         sections: [{
@@ -393,6 +430,140 @@ describe('help documents', () => {
       const file = write('src/views/Demo.vue', code);
 
       expect(() => checkDocRefs(root, file, code)).to.not.throw();
+    });
+
+    describe('translations', () => {
+      const SOURCE = docWith([
+        '## Name {#demoForm-name}',
+        '',
+        'See [the guide](https://example.com/guide).',
+        '',
+        '```ini',
+        '[web]',
+        '```',
+        '',
+        '## Type {#demoForm-type}',
+        '',
+        'Text.',
+      ].join('\n'));
+      const TRANSLATION = SOURCE
+        .replace('# Edit Demo', '# Demo bearbeiten')
+        .replace('What the dialog is for.', 'Wofür der Dialog da ist.')
+        .replace('## Name {#demoForm-name}', '## Name {#demoForm-name}')
+        .replace('See [the guide]', 'Siehe [die Anleitung]')
+        .replace('## Type {#demoForm-type}', '## Typ {#demoForm-type}')
+        .replace('Text.', 'Text auf Deutsch.');
+
+      beforeEach(() => {
+        const form = '<input data-testid="demoForm-name"><input data-testid="demoForm-type">';
+        write('src/components/DemoForm.vue', `<template>${form}</template>`);
+        write('src/lang/en.js', 'export default {};');
+        write('src/lang/de.js', 'export default {};');
+        write('src/lang/pt_br.js', 'export default {};');
+        write('src/lang/index.js', '');
+        write('src/help/dialogs/demo.md', SOURCE);
+      });
+
+      function translate(name, text = TRANSLATION) {
+        const file = write(`src/help/dialogs/${name}`, text);
+        return transform(file, text);
+      }
+
+      it('compiles a translation, with its language, and watches its source', () => {
+        const { result, watched } = translate('demo.de.md');
+
+        const doc = JSON.parse(result.code.replace(/^export default /, '').replace(/;\n$/, ''));
+        expect(doc.key).to.equal('demo');
+        expect(doc.locale).to.equal('de');
+        expect(doc.title).to.equal('Demo bearbeiten');
+        expect(doc.sections.map((s) => s.title)).to.deep.equal(['Name', 'Typ']);
+        expect(watched).to.deep.equal([
+          path.join(root, 'src/components/DemoForm.vue'),
+          path.join(root, 'src/help/dialogs/demo.md'),
+        ]);
+      });
+
+      it('takes a language with a region', () => {
+        const { result } = translate('demo.pt_br.md');
+        expect(result.code).to.include('"locale":"pt_br"');
+      });
+
+      it('gives the English source the locale en', () => {
+        const { result } = transform(path.join(root, 'src/help/dialogs/demo.md'), SOURCE);
+        expect(result.code).to.include('"locale":"en"');
+      });
+
+      const rejected = [
+        { name: 'a language the interface does not have', file: 'demo.xx.md', error: /"xx" is not a language of the interface \(src\/lang\): de, en, pt_br$/ },
+        { name: 'an English translation', file: 'demo.en.md', error: /the English document is demo\.md, without a locale/ },
+        { name: 'a translation without a source', file: 'gone.de.md', error: /a translation of a document that does not exist: src\/help\/dialogs\/gone\.md/ },
+        { name: 'a name with an upper-case language', file: 'demo.DE.md', error: /with "\.<locale>" for a translation, got "demo\.DE\.md"/ },
+        {
+          name: 'a section missing',
+          file: 'demo.de.md',
+          text: TRANSLATION.slice(0, TRANSLATION.indexOf('## Typ')),
+          error: /^src\/help\/dialogs\/demo\.de\.md:1: the section \{#demoForm-type\} of src\/help\/dialogs\/demo\.md is missing$/,
+        },
+        {
+          name: 'a section more',
+          file: 'demo.de.md',
+          text: `${TRANSLATION}\n## Extra {#demoForm-name2}\n\nText.\n`,
+          error: /the section \{#demoForm-name2\} is not in src\/help\/dialogs\/demo\.md/,
+        },
+        {
+          name: 'sections in another order',
+          file: 'demo.de.md',
+          text: TRANSLATION.replace('{#demoForm-name}', '{#tmp}').replace('{#demoForm-type}', '{#demoForm-name}').replace('{#tmp}', '{#demoForm-type}'),
+          error: /:9: the section \{#demoForm-type\} stands where .* has \{#demoForm-name\}/,
+        },
+        {
+          name: 'translated code',
+          file: 'demo.de.md',
+          text: TRANSLATION.replace('[web]', '[Web-Server]'),
+          error: /the code blocks must be the same as in src\/help\/dialogs\/demo\.md/,
+        },
+        {
+          name: 'another link',
+          file: 'demo.de.md',
+          text: TRANSLATION.replace('https://example.com/guide', 'https://example.com/de/guide'),
+          error: /the links must be the same as in .*: https:\/\/example\.com\/guide; found https:\/\/example\.com\/de\/guide$/,
+        },
+        {
+          name: 'another form',
+          file: 'demo.de.md',
+          text: TRANSLATION.replace('form: src/components/DemoForm.vue', 'form: src/components/DemoForm.vue, src/views/Demo.vue'),
+          error: /"form" must be the same as in src\/help\/dialogs\/demo\.md: src\/components\/DemoForm\.vue$/,
+        },
+        {
+          name: 'HTML in a translation',
+          file: 'demo.de.md',
+          text: TRANSLATION.replace('Text auf Deutsch.', 'Text <b>auf</b> Deutsch.'),
+          error: /raw HTML is not allowed/,
+        },
+      ];
+
+      rejected.forEach(({
+        name, file, text, error,
+      }) => {
+        it(`rejects ${name}`, () => {
+          expect(() => translate(file, text)).to.throw(HelpDocError, error);
+        });
+      });
+
+      it('fails a translation when its source is broken', () => {
+        write('src/help/dialogs/demo.md', SOURCE.replace('{#demoForm-type}', '{#demoForm-gone}'));
+        expect(() => translate('demo.de.md')).to.throw(HelpDocError, /^src\/help\/dialogs\/demo\.md:\d+: .*demoForm-gone/);
+      });
+
+      it('lets a component name the key, not a translation', () => {
+        translate('demo.de.md');
+        const ok = '<template><EditDialog help-doc="demo" /></template>';
+        const bad = '<template><EditDialog help-doc="demo.de" /></template>';
+        const file = write('src/views/Demo.vue', ok);
+
+        expect(() => checkDocRefs(root, file, ok)).to.not.throw();
+        expect(() => checkDocRefs(root, file, bad)).to.throw(HelpDocError, /help document "demo\.de" does not exist/);
+      });
     });
 
     it('does not check the blocks the Vue plugin splits a component into', () => {

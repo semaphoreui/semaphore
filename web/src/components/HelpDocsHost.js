@@ -16,7 +16,7 @@
 //   - `<HelpPanel v-if="docsShown" v-bind="docsPanelProps" @close="closeDocs()"
 //       @hover-field="docsHoverField = $event" @focus-field="onDocsFocusField($event)" />`.
 import EventBus from '@/event-bus';
-import { hasHelpDoc, loadHelpDoc } from '@/help';
+import { hasHelpDoc, helpDocLocale, loadHelpDoc } from '@/help';
 
 // The class of the element the active section of the panel describes (styled in HelpPanel.vue).
 const DOCS_FIELD_CLASS = 'help-docs-field';
@@ -44,6 +44,13 @@ export default {
   computed: {
     hasDocs() {
       return hasHelpDoc(this.docsKey);
+    },
+
+    // The language the document is shown in: the one of the interface, as far as the document
+    // is translated (src/help). Without vue-i18n (unit tests) the document is English.
+    docsLocale() {
+      const i18n = this.$i18n;
+      return helpDocLocale(this.docsKey, i18n ? i18n.locale : 'en');
     },
 
     docsShown() {
@@ -89,6 +96,16 @@ export default {
       this.closeDocs();
       this.docsDoc = null;
     },
+
+    // The language of the interface changed (it does so without a reload after login): an open
+    // panel shows the document in the new language, a closed one loads it on the next open.
+    docsLocale() {
+      if (this.docsOpen) {
+        this.loadDocs();
+      } else {
+        this.docsDoc = null;
+      }
+    },
   },
 
   created() {
@@ -118,23 +135,33 @@ export default {
         this.closeDocs();
         return;
       }
-
-      const key = this.docsKey;
-      if (this.docsDoc == null || this.docsDoc.key !== key) {
-        let doc;
-        try {
-          doc = await loadHelpDoc(key);
-        } catch (err) {
-          EventBus.$emit('i-snackbar', { color: 'error', text: err.message });
-          return;
-        }
-        // The host was closed or given another document while this one was loading.
-        if (!this.docsCanOpen() || this.docsKey !== key) {
-          return;
-        }
-        this.docsDoc = doc;
+      if (await this.loadDocs()) {
+        this.docsOpen = true;
       }
-      this.docsOpen = true;
+    },
+
+    // Loads the document in the language of the interface, unless it is loaded already.
+    // Returns whether the document is there.
+    async loadDocs() {
+      const key = this.docsKey;
+      const locale = this.docsLocale;
+      if (this.docsDoc != null && this.docsDoc.key === key && this.docsDoc.locale === locale) {
+        return true;
+      }
+
+      let doc;
+      try {
+        doc = await loadHelpDoc(key, locale);
+      } catch (err) {
+        EventBus.$emit('i-snackbar', { color: 'error', text: err.message });
+        return false;
+      }
+      // The host was closed, or given another document or language, while this one was loading.
+      if (!this.docsCanOpen() || this.docsKey !== key || this.docsLocale !== locale) {
+        return false;
+      }
+      this.docsDoc = doc;
+      return true;
     },
 
     closeDocs() {

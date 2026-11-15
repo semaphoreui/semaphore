@@ -9,8 +9,10 @@ import createTestVuetify from './setup';
 // the documents the application ships.
 vi.mock('@/help', () => ({
   hasHelpDoc: (key) => ['demo-page', 'other-page'].includes(key),
+  helpDocLocale: (key) => (['demo-page', 'other-page'].includes(key) ? 'en' : null),
   loadHelpDoc: (key) => Promise.resolve({
     key,
+    locale: 'en',
     title: `Help of ${key}`,
     intro: [{ type: 'p', inline: [{ type: 'text', text: 'What the page is for.' }] }],
     // The last element is one the page of the specs does not show.

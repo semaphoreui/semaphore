@@ -14,6 +14,7 @@ NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules node AGENTS/tools/help-stand
 NODE_PATH=… node AGENTS/tools/help-stand/check-dialog.cjs
 NODE_PATH=… node AGENTS/tools/help-stand/check-disabled.cjs
 NODE_PATH=… node AGENTS/tools/help-stand/check-settings.cjs
+NODE_PATH=… node AGENTS/tools/help-stand/check-locales.cjs [locale ...]   # default: ru ja
 ```
 
 Examples:
@@ -41,6 +42,7 @@ What each check covers:
 | `check-dialog.cjs` | the panel follows the focus in the inventory form; the active section marks its field |
 | `check-disabled.cjs` | sections are cards; sections of fields that are not shown are disabled; both themes |
 | `check-settings.cjs` | the Settings page: button, layout at four window widths, focus, pointer, saving |
+| `check-locales.cjs` | in each given language of the interface, the dialog and the page show their translated help, titled as on screen; marking and disabled sections work |
 
 A check exits with 0 when every line is `PASS` and the browser console is clean, with 2 otherwise.
 

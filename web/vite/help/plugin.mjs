@@ -1,17 +1,34 @@
 // Vite plugin of the built-in help. A document (src/help/dialogs/<key>.md for a dialog,
-// src/help/pages/<key>.md for a page) is compiled into a module that exports its tree, so the
-// help is part of the frontend build and of the binary the build is embedded in. The build fails
-// when a document leaves the supported subset, describes an element its forms do not have, or a
-// dialog or a page names a document that does not exist.
+// src/help/pages/<key>.md for a page, in English) and its translations (<key>.<locale>.md next to
+// it) are compiled into modules that export their trees, so the help is part of the frontend build
+// and of the binary the build is embedded in. The build fails when a document leaves the supported
+// subset, describes an element its forms do not have, a translation does not match its source, or
+// a dialog or a page names a document that does not exist.
 import fs from 'node:fs';
 import path from 'node:path';
 import { HelpDocError, parseHelpDoc } from './parse.mjs';
 import {
-  checkFields, findDocRefs, isDocKey, toModule,
+  checkFields, checkTranslation, findDocRefs, isDocKey, splitDocName, toModule,
 } from './validate.mjs';
 
 // A key names one document, whichever folder it is in.
 export const HELP_DOCS_DIRS = ['src/help/dialogs', 'src/help/pages'];
+
+// The languages of the interface: a translation is made for one of them.
+export const LOCALES_DIR = 'src/lang';
+
+/**
+ * The locales of the interface: the names of the files of src/lang.
+ *
+ * @param {string} root directory of the frontend (web/)
+ * @returns {string[]}
+ */
+export function interfaceLocales(root) {
+  return fs.readdirSync(path.join(root, LOCALES_DIR))
+    .filter((file) => file.endsWith('.js') && file !== 'index.js')
+    .map((file) => file.replace(/\.js$/, ''))
+    .sort();
+}
 
 // Module ids of Vite use forward slashes on every platform.
 function slashes(file) {
@@ -19,19 +36,32 @@ function slashes(file) {
 }
 
 /**
- * Compiles one document.
+ * Compiles one document: an English source, or a translation checked against its source.
  *
  * @param {string} root directory of the frontend (web/)
  * @param {string} file absolute path of the document
  * @param {string} source text of the document
- * @returns {{ formFiles: string[], doc: object }} the files the document depends on, and its tree
+ * @returns {{ formFiles: string[], dependencies: string[], doc: object }} the forms of the
+ *   document, every file it depends on (the forms, and the source of a translation), its tree
  * @throws {HelpDocError}
  */
 export function compileHelpDoc(root, file, source) {
   const name = slashes(path.relative(root, file));
-  const key = path.basename(file, '.md');
-  if (!isDocKey(key)) {
-    throw new HelpDocError(name, 1, `the name of a document is lower-case words joined by "-", got "${key}"`);
+  const parts = splitDocName(path.basename(file, '.md'));
+  if (!parts) {
+    throw new HelpDocError(
+      name,
+      1,
+      'the name of a document is lower-case words joined by "-", '
+        + `with ".<locale>" for a translation, got "${path.basename(file)}"`,
+    );
+  }
+  const { key, locale } = parts;
+
+  if (locale != null) {
+    // The two call each other: a translation compiles its source first.
+    // eslint-disable-next-line no-use-before-define
+    return compileTranslation(root, file, source, key, locale);
   }
 
   const twin = HELP_DOCS_DIRS
@@ -50,7 +80,41 @@ export function compileHelpDoc(root, file, source) {
   });
   checkFields(doc, formFiles.map((formFile) => fs.readFileSync(formFile, 'utf8')), name);
 
-  return { formFiles, doc: toModule(doc, key) };
+  return { formFiles, dependencies: formFiles, doc: toModule(doc, key) };
+}
+
+// A translation: of an existing source, in a language of the interface, matching the source.
+function compileTranslation(root, file, text, key, locale) {
+  const name = slashes(path.relative(root, file));
+  const locales = interfaceLocales(root);
+  if (locale === 'en') {
+    throw new HelpDocError(name, 1, `the English document is ${key}.md, without a locale`);
+  }
+  if (!locales.includes(locale)) {
+    throw new HelpDocError(
+      name,
+      1,
+      `"${locale}" is not a language of the interface (${LOCALES_DIR}): ${locales.join(', ')}`,
+    );
+  }
+
+  const sourceFile = path.join(path.dirname(file), `${key}.md`);
+  const sourceName = slashes(path.relative(root, sourceFile));
+  if (!fs.existsSync(sourceFile)) {
+    throw new HelpDocError(name, 1, `a translation of a document that does not exist: ${sourceName}`);
+  }
+
+  const source = compileHelpDoc(root, sourceFile, fs.readFileSync(sourceFile, 'utf8'));
+  const sourceDoc = parseHelpDoc(fs.readFileSync(sourceFile, 'utf8'), sourceName);
+  const doc = parseHelpDoc(text, name);
+  checkTranslation(sourceDoc, doc, name, sourceName);
+
+  return {
+    formFiles: source.formFiles,
+    // A change of the source must check the translation again in the dev server.
+    dependencies: [...source.formFiles, sourceFile],
+    doc: toModule(doc, key, locale),
+  };
 }
 
 /**
@@ -91,9 +155,10 @@ export default function helpDocs(root) {
       const [file, query] = id.split('?');
 
       if (file.endsWith('.md') && docsDirs.some((dir) => file.startsWith(dir))) {
-        const { formFiles, doc } = compileHelpDoc(root, file, code);
-        // A field renamed in a form must fail the document in the dev server as well.
-        formFiles.forEach((formFile) => this.addWatchFile(formFile));
+        const { dependencies, doc } = compileHelpDoc(root, file, code);
+        // A field renamed in a form, or a section moved in the source of a translation, must fail
+        // the document in the dev server as well.
+        dependencies.forEach((dependency) => this.addWatchFile(dependency));
         return { code: `export default ${JSON.stringify(doc)};\n`, map: null };
       }
 

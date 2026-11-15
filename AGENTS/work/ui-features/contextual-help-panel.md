@@ -1,14 +1,15 @@
 # Built-in help panel (in-app, offline)
 
 A `?` button in the title of a dialog, or in the toolbar of a page, opens a panel at the right
-edge of the window with the help document of that dialog or page. The documents ship inside the
-Semaphore binary and need no internet access.
+edge of the window with the help document of that dialog or page, in the language of the
+interface. The documents ship inside the Semaphore binary and need no internet access.
 
 Status (2026-11-16, branch `feat/embeded_docs`): implemented for two hosts — the dialog
 New / Edit Ansible Inventory (`inventory-ansible`) and the page project Settings
 (`project-settings`). Every other dialog and page has no document and therefore no button.
-Tasks: `TASK@A3B2A4AC7F` (the mechanism and the Inventory dialog), `TASK@A7C48C4ACE` (pages and
-the Settings page).
+Both documents are translated into the 15 other languages of `web/src/lang`. Tasks:
+`TASK@A3B2A4AC7F` (the mechanism and the Inventory dialog), `TASK@A7C48C4ACE` (pages and the
+Settings page), `TASK@6475BE0498` (translations).
 
 ## What the user gets
 
@@ -24,9 +25,10 @@ the Settings page).
 
 | Part | File | Role |
 | --- | --- | --- |
-| Documents | `web/src/help/dialogs/<key>.md`, `web/src/help/pages/<key>.md` | A strict subset of Markdown; the file name is the key |
+| Documents | `web/src/help/dialogs/<key>.md`, `web/src/help/pages/<key>.md` | A strict subset of Markdown, in English; the file name is the key |
+| Translations | `<key>.<locale>.md` next to the source | `<locale>` is a file name of `web/src/lang` (`de`, `pt_br`) |
 | Build | `web/vite/help/parse.mjs`, `validate.mjs`, `plugin.mjs` | Compiles a document into a JSON tree, fails the build on anything else |
-| Registry | `web/src/help/index.js` | `hasHelpDoc(key)`, `loadHelpDoc(key)`; one lazy chunk per document |
+| Registry | `web/src/help/index.js` | `hasHelpDoc(key)`, `helpDocLocale(key, locale)`, `loadHelpDoc(key, locale)`; one lazy chunk per document and language |
 | Host logic | `web/src/components/HelpDocsHost.js` | Mixin: panel state, the active element, marking, missing elements |
 | Hosts | `EditDialog.vue` (prop `helpDoc`), `HelpPage.vue` (prop `helpDoc`) | Where the panel is drawn and how the content makes room for it |
 | Panel | `HelpPanel.vue`, `HelpContent.js`, `HelpButton.vue` | Sections as cards; the tree drawn with `h()`; the `?` button |
@@ -56,6 +58,22 @@ A section is tied to its element by the `data-testid` the element already has
   focus in the form. Only the last one scrolls the panel; only the focus in a section scrolls the
   dialog or the page to the element.
 
+## Languages
+
+- The document follows `$i18n.locale`: the same language, else the language without its region
+  (`de` for `de_de`), else English. The language changes without a reload after login
+  (`App.vue` `applyLanguage`): an open panel reloads its document.
+- The build checks a translation against its source: the same `form`, the same anchors in the
+  same order, the same fenced code, the same links. A source changed in a way its translations
+  no longer match fails the build of every translation — change them in the same pass.
+- `tests/unit/help-translations.spec.js` fails when a document lacks a language of the
+  interface, and when a section title differs from the label the interface shows in that
+  language (`LABELS` in the spec maps every anchor to its `src/lang` key). A missing translation
+  does not fail the build: the panel falls back to English.
+- Strings the interface never translates stay English in every translation: the inventory types
+  `Static`, `Static YAML`, `File`, the button `Test Alerts`, `Ansible Inventory` in the title of
+  the dialog.
+
 ## Layout
 
 The panel is 420 px wide, the full height of the window.
@@ -82,6 +100,11 @@ The panel is 420 px wide, the full height of the window.
    elements of the form, so a field added later without a section fails a test.
 5. Write the text from the code of the server, not from the user guide: for the inventory path
    the two disagree (finding in `TASK@A3B2A4AC7F`, `JOURNAL@FD9D6B0C7B`).
+6. Translate it into every language of `web/src/lang`: map its anchors to their label keys in
+   `LABELS` of `tests/unit/help-translations.spec.js`, then write `<key>.<locale>.md` per
+   language with the section titles copied from `web/src/lang/<locale>.js`. The translations of
+   2026-11-16 were made with the brief `FILE@32E72141EA` of `TASK@6475BE0498`; check one
+   language with `npx vitest run tests/unit/help-translations.spec.js -t "locale=<locale> "`.
 
 ## Traps
 
@@ -103,8 +126,10 @@ The panel is 420 px wide, the full height of the window.
   (`showHelpDialog('build_version' | 'build' | 'cron')`) and their i18n keys are still the old
   mechanism.
 - Dialogs that are not an `EditDialog` have no host.
-- Documents are English only; the labels of the interface (`helpPanel*`) are in all 16 locales,
-  translated without review by native speakers.
+- The translations of the documents and the labels of the panel (`helpPanel*`) were written by
+  an AI model, not reviewed by native speakers.
+- The language switcher of `App.vue` (`LANGUAGES`) offers 13 languages; `ja`, `ko`, `uk` have
+  messages and help translations but are reached only through the language of the browser.
 - Not checked on a stand: the Runner tag field (absent in the community build), the mark of an
   invalid field, browsers other than Chrome, the dialog of a Terraform workspace in the template
   view.

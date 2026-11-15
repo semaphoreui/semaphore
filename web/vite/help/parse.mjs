@@ -38,6 +38,18 @@ const HTTPS_URL = /^https:\/\/[^\s"'<>`]+$/;
 // Characters that start formatting: text that must stay plain may not hold them.
 const FORMATTING = /[`*[<]/;
 
+// Chinese and Japanese write no space between words: a line break next to one of their
+// characters (ideographs, kana, full-width punctuation) joins the lines without a space. Korean
+// separates words with spaces, so Hangul is not in the set.
+const NO_SPACE_SCRIPT = /[\u3000-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/;
+
+// Joins a line of wrapped text to the text before it.
+function joinWrapped(text, line) {
+  const next = line.trim();
+  const tight = NO_SPACE_SCRIPT.test(text.slice(-1)) || NO_SPACE_SCRIPT.test(next[0]);
+  return `${text}${tight ? '' : ' '}${next}`;
+}
+
 // Text of a paragraph or a list item ->
 // [{ type: 'text' | 'code' | 'strong' | 'link', text, href? }].
 function parseInline(text, fail) {
@@ -286,7 +298,7 @@ export function parseHelpDoc(source, file) {
         fail(n, 'nested lists are not supported');
       }
       const item = list.items[list.items.length - 1];
-      item.text += ` ${line.trim()}`;
+      item.text = joinWrapped(item.text, line);
     } else if (/^([*+]|\d+[.)])\s/.test(line)) {
       fail(n, 'only `-` lists are supported');
     } else if (line.startsWith('>')) {
@@ -301,7 +313,7 @@ export function parseHelpDoc(source, file) {
       }
       target(n);
       if (paragraph) {
-        paragraph.text += ` ${line.trim()}`;
+        paragraph.text = joinWrapped(paragraph.text, line);
       } else {
         paragraph = { line: n, text: line.trim() };
       }

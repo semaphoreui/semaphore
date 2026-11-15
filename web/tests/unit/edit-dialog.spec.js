@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import { reactive } from 'vue';
 import { mount, flushPromises } from '@vue/test-utils';
 import EditDialog from '@/components/EditDialog.vue';
 import EventBus from '@/event-bus';
@@ -8,9 +9,10 @@ import createTestVuetify from './setup';
 // The help documents the dialog can open: the registry is replaced, so the specs do not depend
 // on the documents the application ships.
 const { helpDoc } = vi.hoisted(() => ({
-  helpDoc: (key) => ({
+  helpDoc: (key, locale = 'en') => ({
     key,
-    title: `Edit ${key}`,
+    locale,
+    title: locale === 'en' ? `Edit ${key}` : `[${locale}] Edit ${key}`,
     intro: [{ type: 'p', inline: [{ type: 'text', text: 'What the dialog is for.' }] }],
     // The last field is one the form of the specs does not show.
     sections: ['demoForm-name', 'demoForm-type', 'demoForm-gone'].map((field) => ({
@@ -21,12 +23,22 @@ const { helpDoc } = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock('@/help', () => ({
-  hasHelpDoc: (key) => ['demo', 'other', 'broken'].includes(key),
-  loadHelpDoc: (key) => (key === 'broken'
-    ? Promise.reject(new Error('chunk failed to load'))
-    : Promise.resolve(helpDoc(key))),
-}));
+// `demo` is translated into German; the others are English only.
+vi.mock('@/help', () => {
+  const hasHelpDoc = (key) => ['demo', 'other', 'broken'].includes(key);
+  const helpDocLocale = (key, locale) => {
+    if (!hasHelpDoc(key)) return null;
+    const base = String(locale || '').toLowerCase().split('_')[0];
+    return key === 'demo' && base === 'de' ? 'de' : 'en';
+  };
+  return {
+    hasHelpDoc,
+    helpDocLocale,
+    loadHelpDoc: (key, locale) => (key === 'broken'
+      ? Promise.reject(new Error('chunk failed to load'))
+      : Promise.resolve(helpDoc(key, helpDocLocale(key, locale)))),
+  };
+});
 
 function pressEscape() {
   window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true }));
@@ -37,7 +49,7 @@ function overlayStackSettled() {
   return new Promise((resolve) => { setTimeout(resolve, 0); });
 }
 
-function mountDialog(props = {}, plugins = [], slots = {}) {
+function mountDialog(props = {}, plugins = [], slots = {}, mocks = {}) {
   // Vuetify 3 teleports the dialog content to its overlay container in <body>. Mount into a
   // child node of a [data-app] element, removed after each test.
   const app = document.createElement('div');
@@ -49,7 +61,7 @@ function mountDialog(props = {}, plugins = [], slots = {}) {
   return mount(EditDialog, {
     attachTo: mountPoint,
     props: { title: 'Test', ...props },
-    global: { mocks: { $t: (k) => k }, plugins },
+    global: { mocks: { $t: (k) => k, ...mocks }, plugins },
     slots,
   });
 }
@@ -64,8 +76,8 @@ describe('EditDialog.vue', () => {
     document.querySelectorAll('[data-app]').forEach((el) => el.remove());
   });
 
-  async function open(props, plugins, slots) {
-    const wrapper = mountDialog(props, plugins, slots);
+  async function open(props, plugins, slots, mocks) {
+    const wrapper = mountDialog(props, plugins, slots, mocks);
     wrappers.push(wrapper);
     await wrapper.setProps({ modelValue: true });
     await wrapper.vm.$nextTick();
@@ -425,6 +437,70 @@ describe('EditDialog.vue', () => {
 
       expect(docsButton()).to.equal(null);
       expect(panel()).to.equal(null);
+    });
+
+    describe('language', () => {
+      // `$i18n` of vue-i18n: its locale is reactive and changes without a reload after login.
+      function i18n(locale) {
+        return reactive({ locale });
+      }
+
+      it('shows the document in English without vue-i18n', async () => {
+        const wrapper = await open({ helpDoc: 'demo' });
+        await click(wrapper, docsButton());
+
+        expect(byTestId('editDialog-docsTitle').textContent).to.equal('Edit demo');
+        expect(wrapper.vm.docsDoc.locale).to.equal('en');
+      });
+
+      it('shows the document in the language of the interface', async () => {
+        const wrapper = await open({ helpDoc: 'demo' }, [], {}, { $i18n: i18n('de') });
+        await click(wrapper, docsButton());
+
+        expect(byTestId('editDialog-docsTitle').textContent).to.equal('[de] Edit demo');
+      });
+
+      it('takes the language without its region', async () => {
+        const wrapper = await open({ helpDoc: 'demo' }, [], {}, { $i18n: i18n('de_de') });
+        await click(wrapper, docsButton());
+
+        expect(byTestId('editDialog-docsTitle').textContent).to.equal('[de] Edit demo');
+      });
+
+      it('falls back to English for a language the document is not translated into', async () => {
+        const wrapper = await open({ helpDoc: 'other' }, [], {}, { $i18n: i18n('de') });
+        await click(wrapper, docsButton());
+
+        expect(byTestId('editDialog-docsTitle').textContent).to.equal('Edit other');
+      });
+
+      it('changes the document of an open panel when the language changes', async () => {
+        const lang = i18n('en');
+        const wrapper = await open({ helpDoc: 'demo' }, [], {}, { $i18n: lang });
+        await click(wrapper, docsButton());
+        expect(byTestId('editDialog-docsTitle').textContent).to.equal('Edit demo');
+
+        lang.locale = 'de';
+        await flushPromises();
+        await wrapper.vm.$nextTick();
+
+        expect(panel(), 'the panel stays open').to.not.equal(null);
+        expect(byTestId('editDialog-docsTitle').textContent).to.equal('[de] Edit demo');
+      });
+
+      it('loads the new language on the next open when the panel is closed', async () => {
+        const lang = i18n('en');
+        const wrapper = await open({ helpDoc: 'demo' }, [], {}, { $i18n: lang });
+        await click(wrapper, docsButton());
+        await click(wrapper, docsButton());
+
+        lang.locale = 'de';
+        await flushPromises();
+        expect(panel()).to.equal(null);
+
+        await click(wrapper, docsButton());
+        expect(byTestId('editDialog-docsTitle').textContent).to.equal('[de] Edit demo');
+      });
     });
 
     it('reports a document that fails to load and stays closed', async () => {
