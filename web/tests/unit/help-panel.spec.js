@@ -70,6 +70,137 @@ describe('HelpPanel.vue', () => {
   });
 });
 
+describe('HelpPanel.vue sections', () => {
+  function mountWith(props = {}) {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    return mount(HelpPanel, {
+      attachTo: el,
+      props: { doc: DOC, ...props },
+      global: { mocks: { $t: (k) => k } },
+    });
+  }
+
+  const sectionOf = (wrapper, field) => wrapper
+    .find(`[data-testid="editDialog-docsSection-${field}"]`);
+
+  it('makes every section focusable', () => {
+    const wrapper = mountWith();
+
+    expect(wrapper.findAll('section').map((s) => s.attributes('tabindex'))).to.deep.equal(['0', '0']);
+    wrapper.unmount();
+  });
+
+  it('marks the section of the active field', async () => {
+    const wrapper = mountWith({ activeField: 'demoForm-type' });
+
+    expect(sectionOf(wrapper, 'demoForm-type').attributes('aria-current')).to.equal('true');
+    expect(sectionOf(wrapper, 'demoForm-type').classes()).to.include('HelpPanel__section--active');
+    expect(sectionOf(wrapper, 'demoForm-name').attributes('aria-current')).to.equal(undefined);
+
+    await wrapper.setProps({ activeField: 'no-such-field' });
+
+    expect(wrapper.findAll('.HelpPanel__section--active')).to.have.length(0);
+    wrapper.unmount();
+  });
+
+  it('reports the section under the pointer', async () => {
+    const wrapper = mountWith();
+
+    await sectionOf(wrapper, 'demoForm-name').trigger('mouseenter');
+    await sectionOf(wrapper, 'demoForm-name').trigger('mouseleave');
+
+    expect(wrapper.emitted('hover-field')).to.deep.equal([['demoForm-name'], [null]]);
+    wrapper.unmount();
+  });
+
+  it('reports the section in focus, also for a link inside it, and null elsewhere', async () => {
+    const wrapper = mountWith();
+
+    await sectionOf(wrapper, 'demoForm-type').trigger('focusin');
+    await sectionOf(wrapper, 'demoForm-name').find('a').trigger('focusin');
+    await wrapper.find('[data-testid="editDialog-docsClose"]').trigger('focusin');
+
+    expect(wrapper.emitted('focus-field')).to.deep.equal([['demoForm-type'], ['demoForm-name'], [null]]);
+    wrapper.unmount();
+  });
+
+  it('says which fields are not shown', () => {
+    const wrapper = mountWith({ missingFields: ['demoForm-type'] });
+
+    const note = wrapper.find('[data-testid="editDialog-docsSectionHidden-demoForm-type"]');
+    expect(note.text()).to.equal('helpPanelFieldHidden');
+    expect(wrapper.find('[data-testid="editDialog-docsSectionHidden-demoForm-name"]').exists())
+      .to.equal(false);
+    wrapper.unmount();
+  });
+
+  describe('followField', () => {
+    // jsdom lays nothing out: a view of 100 px, the sections 300 px each, one under another.
+    function layOut(wrapper, reducedMotion = false) {
+      const body = wrapper.find('[data-testid="editDialog-docsBody"]').element;
+      const calls = [];
+      body.getBoundingClientRect = () => ({ top: 20, bottom: 120 });
+      body.scrollTo = (to) => calls.push(to);
+      wrapper.findAll('section').forEach((s, i) => {
+        // eslint-disable-next-line no-param-reassign
+        s.element.getBoundingClientRect = () => ({ top: 20 + 300 * i, bottom: 320 + 300 * i });
+      });
+      window.matchMedia = () => ({ matches: reducedMotion });
+      return calls;
+    }
+
+    const matchMedia = window.matchMedia;
+
+    afterEach(() => {
+      window.matchMedia = matchMedia;
+    });
+
+    it('scrolls the body to the section of the field', async () => {
+      const wrapper = mountWith();
+      const calls = layOut(wrapper);
+
+      await wrapper.setProps({ followField: 'demoForm-type' });
+
+      expect(calls).to.deep.equal([{ top: 300, behavior: 'smooth' }]);
+      wrapper.unmount();
+    });
+
+    it('does not animate for a user who asked for reduced motion', async () => {
+      const wrapper = mountWith();
+      const calls = layOut(wrapper, true);
+
+      await wrapper.setProps({ followField: 'demoForm-type' });
+
+      expect(calls).to.deep.equal([{ top: 300, behavior: 'auto' }]);
+      wrapper.unmount();
+    });
+
+    it('does not scroll to a section that is in view, nor when the field is gone', async () => {
+      const wrapper = mountWith();
+      const calls = layOut(wrapper);
+      wrapper.find('[data-testid="editDialog-docsBody"]').element
+        .getBoundingClientRect = () => ({ top: 0, bottom: 5000 });
+
+      await wrapper.setProps({ followField: 'demoForm-type' });
+      await wrapper.setProps({ followField: null });
+
+      expect(calls).to.deep.equal([]);
+      wrapper.unmount();
+    });
+
+    it('ignores a field without a section', async () => {
+      const wrapper = mountWith();
+      const calls = layOut(wrapper);
+
+      await wrapper.setProps({ followField: 'no-such-field' });
+
+      expect(calls).to.deep.equal([]);
+      wrapper.unmount();
+    });
+  });
+});
+
 describe('HelpContent', () => {
   function mountContent(blocks) {
     return mount(HelpContent, { props: { blocks } });

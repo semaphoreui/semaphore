@@ -12,11 +12,12 @@ const { helpDoc } = vi.hoisted(() => ({
     key,
     title: `Edit ${key}`,
     intro: [{ type: 'p', inline: [{ type: 'text', text: 'What the dialog is for.' }] }],
-    sections: [{
-      field: 'demoForm-name',
-      title: 'Name',
-      blocks: [{ type: 'p', inline: [{ type: 'text', text: 'The name.' }] }],
-    }],
+    // The last field is one the form of the specs does not show.
+    sections: ['demoForm-name', 'demoForm-type', 'demoForm-gone'].map((field) => ({
+      field,
+      title: field,
+      blocks: [{ type: 'p', inline: [{ type: 'text', text: `About ${field}.` }] }],
+    })),
   }),
 }));
 
@@ -36,7 +37,7 @@ function overlayStackSettled() {
   return new Promise((resolve) => { setTimeout(resolve, 0); });
 }
 
-function mountDialog(props = {}, plugins = []) {
+function mountDialog(props = {}, plugins = [], slots = {}) {
   // Vuetify 3 teleports the dialog content to its overlay container in <body>. Mount into a
   // child node of a [data-app] element, removed after each test.
   const app = document.createElement('div');
@@ -49,6 +50,7 @@ function mountDialog(props = {}, plugins = []) {
     attachTo: mountPoint,
     props: { title: 'Test', ...props },
     global: { mocks: { $t: (k) => k }, plugins },
+    slots,
   });
 }
 
@@ -62,8 +64,8 @@ describe('EditDialog.vue', () => {
     document.querySelectorAll('[data-app]').forEach((el) => el.remove());
   });
 
-  async function open(props, plugins) {
-    const wrapper = mountDialog(props, plugins);
+  async function open(props, plugins, slots) {
+    const wrapper = mountDialog(props, plugins, slots);
     wrappers.push(wrapper);
     await wrapper.setProps({ modelValue: true });
     await wrapper.vm.$nextTick();
@@ -437,6 +439,285 @@ describe('EditDialog.vue', () => {
       expect(panel()).to.equal(null);
       expect(wrapper.vm.dialog).to.equal(true);
       expect(shown).to.deep.equal([{ color: 'error', text: 'chunk failed to load' }]);
+    });
+  });
+
+  describe('help panel and the fields of the form', () => {
+    // A form as Vuetify draws one: the `data-testid` of an input is on its root, around the
+    // frame (`.v-field`) and the element that takes the focus; a plain element carries its own.
+    const FORM = `
+      <div class="demo-form">
+        <div data-testid="demoForm-name"><div class="v-field"><input class="demo-name"></div></div>
+        <textarea data-testid="demoForm-type" class="demo-type"></textarea>
+        <button type="button" class="demo-other">other</button>
+      </div>`;
+    const MARK = 'item-dialog__docs-field';
+
+    const byTestId = (id) => document.querySelector(`[data-testid="${id}"]`);
+    const section = (field) => byTestId(`editDialog-docsSection-${field}`);
+    const marked = () => [...document.querySelectorAll(`.${MARK}`)];
+    const nameFrame = () => document.querySelector('[data-testid="demoForm-name"] .v-field');
+
+    async function settled(wrapper) {
+      await flushPromises();
+      await wrapper.vm.$nextTick();
+    }
+
+    async function openWithPanel(props = {}) {
+      const wrapper = await open({ helpDoc: 'demo', ...props }, [], { form: FORM });
+      byTestId('editDialog-docs').click();
+      await settled(wrapper);
+      return wrapper;
+    }
+
+    async function focusIn(wrapper, el) {
+      el.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      await settled(wrapper);
+    }
+
+    async function pointer(wrapper, el, type) {
+      el.dispatchEvent(new MouseEvent(type));
+      await settled(wrapper);
+    }
+
+    // jsdom lays nothing out and scrolls nothing: the panel is given a view of 100 px with the
+    // sections one under another, 300 px each, and a scrollTo that records its argument.
+    function layOutPanel() {
+      const body = byTestId('editDialog-docsBody');
+      const calls = [];
+      body.getBoundingClientRect = () => ({ top: 50, bottom: 150 });
+      body.scrollTo = (to) => calls.push(to);
+      [...body.querySelectorAll('section')].forEach((el, i) => {
+        // eslint-disable-next-line no-param-reassign
+        el.getBoundingClientRect = () => ({ top: 50 + 300 * i, bottom: 350 + 300 * i });
+      });
+      return calls;
+    }
+
+    describe('focus in a field of the form', () => {
+      it('makes the section of the field the active one and scrolls the panel to it', async () => {
+        const wrapper = await openWithPanel();
+        const scrolls = layOutPanel();
+
+        await focusIn(wrapper, document.querySelector('.demo-type'));
+
+        expect(wrapper.vm.docsActiveField).to.equal('demoForm-type');
+        expect(section('demoForm-type').getAttribute('aria-current')).to.equal('true');
+        expect(section('demoForm-name').getAttribute('aria-current')).to.equal(null);
+        expect(scrolls).to.deep.equal([{ top: 300, behavior: 'smooth' }]);
+      });
+
+      it('finds the field of an element inside the root of an input', async () => {
+        const wrapper = await openWithPanel();
+
+        await focusIn(wrapper, document.querySelector('.demo-name'));
+
+        expect(wrapper.vm.docsActiveField).to.equal('demoForm-name');
+      });
+
+      it('leaves the panel where it is when the section is in view', async () => {
+        const wrapper = await openWithPanel();
+        const scrolls = layOutPanel();
+        byTestId('editDialog-docsBody').getBoundingClientRect = () => ({ top: 0, bottom: 2000 });
+
+        await focusIn(wrapper, document.querySelector('.demo-type'));
+
+        expect(wrapper.vm.docsActiveField).to.equal('demoForm-type');
+        expect(scrolls).to.deep.equal([]);
+      });
+
+      it('scrolls again when the focus comes back to the field', async () => {
+        const wrapper = await openWithPanel();
+        const scrolls = layOutPanel();
+
+        await focusIn(wrapper, document.querySelector('.demo-type'));
+        await focusIn(wrapper, document.querySelector('.demo-other'));
+        await focusIn(wrapper, document.querySelector('.demo-type'));
+
+        expect(scrolls).to.have.length(2);
+      });
+
+      it('has no active section while the focus is on an element without one', async () => {
+        const wrapper = await openWithPanel();
+        const scrolls = layOutPanel();
+        await focusIn(wrapper, document.querySelector('.demo-name'));
+        scrolls.length = 0;
+
+        await focusIn(wrapper, document.querySelector('.demo-other'));
+
+        expect(wrapper.vm.docsActiveField).to.equal(null);
+        expect(section('demoForm-name').getAttribute('aria-current')).to.equal(null);
+        expect(marked()).to.deep.equal([]);
+        expect(scrolls).to.deep.equal([]);
+      });
+
+      it('does nothing while the panel is closed', async () => {
+        const wrapper = await open({ helpDoc: 'demo' }, [], { form: FORM });
+
+        await focusIn(wrapper, document.querySelector('.demo-name'));
+
+        expect(wrapper.vm.docsActiveField).to.equal(null);
+        expect(marked()).to.deep.equal([]);
+      });
+
+      it('opens the panel at its top, whatever field had the focus', async () => {
+        const wrapper = await open({ helpDoc: 'demo' }, [], { form: FORM });
+        await focusIn(wrapper, document.querySelector('.demo-name'));
+
+        byTestId('editDialog-docs').click();
+        await settled(wrapper);
+
+        expect(wrapper.vm.docsActiveField).to.equal(null);
+        expect(wrapper.vm.docsFollowField).to.equal(null);
+      });
+
+      it('marks the field in focus as the field of the active section', async () => {
+        const wrapper = await openWithPanel();
+
+        await focusIn(wrapper, document.querySelector('.demo-name'));
+
+        expect(marked()).to.deep.equal([nameFrame()]);
+      });
+    });
+
+    describe('active section of the panel', () => {
+      it('marks the field of the section under the pointer, and unmarks it after', async () => {
+        const wrapper = await openWithPanel();
+
+        await pointer(wrapper, section('demoForm-name'), 'mouseenter');
+
+        expect(wrapper.vm.docsActiveField).to.equal('demoForm-name');
+        expect(section('demoForm-name').classList.contains('HelpPanel__section--active')).to.equal(true);
+        expect(marked(), 'the frame of the input, not its root').to.deep.equal([nameFrame()]);
+
+        await pointer(wrapper, section('demoForm-name'), 'mouseleave');
+
+        expect(wrapper.vm.docsActiveField).to.equal(null);
+        expect(section('demoForm-name').classList.contains('HelpPanel__section--active')).to.equal(false);
+        expect(marked()).to.deep.equal([]);
+      });
+
+      it('marks an element without a frame itself', async () => {
+        const wrapper = await openWithPanel();
+
+        await pointer(wrapper, section('demoForm-type'), 'mouseenter');
+
+        expect(marked()).to.deep.equal([document.querySelector('.demo-type')]);
+      });
+
+      it('marks the field of the section in focus and brings it into view', async () => {
+        const wrapper = await openWithPanel();
+        const scrolls = layOutPanel();
+        const revealed = [];
+        document.querySelector('.demo-type').scrollIntoView = (options) => revealed.push(options);
+
+        await focusIn(wrapper, section('demoForm-type'));
+
+        expect(wrapper.vm.docsActiveField).to.equal('demoForm-type');
+        expect(marked()).to.deep.equal([document.querySelector('.demo-type')]);
+        expect(revealed).to.deep.equal([{ block: 'nearest' }]);
+        expect(scrolls, 'the panel does not scroll to a section activated in the panel').to.deep.equal([]);
+      });
+
+      it('does not scroll the dialog for a section under the pointer', async () => {
+        const wrapper = await openWithPanel();
+        const revealed = [];
+        document.querySelector('.demo-type').scrollIntoView = (options) => revealed.push(options);
+
+        await pointer(wrapper, section('demoForm-type'), 'mouseenter');
+
+        expect(revealed).to.deep.equal([]);
+      });
+
+      it('prefers the section under the pointer to the one in focus', async () => {
+        const wrapper = await openWithPanel();
+        await focusIn(wrapper, section('demoForm-type'));
+
+        await pointer(wrapper, section('demoForm-name'), 'mouseenter');
+        expect(marked()).to.deep.equal([nameFrame()]);
+
+        await pointer(wrapper, section('demoForm-name'), 'mouseleave');
+        expect(marked()).to.deep.equal([document.querySelector('.demo-type')]);
+      });
+
+      it('has no active section while the focus is elsewhere in the panel', async () => {
+        const wrapper = await openWithPanel();
+        await focusIn(wrapper, section('demoForm-name'));
+
+        await focusIn(wrapper, byTestId('editDialog-docsClose'));
+
+        expect(wrapper.vm.docsActiveField).to.equal(null);
+        expect(marked()).to.deep.equal([]);
+      });
+
+      it('says that a field is not shown, and marks nothing for its section', async () => {
+        const wrapper = await openWithPanel();
+
+        expect(byTestId('editDialog-docsSectionHidden-demoForm-gone')).to.not.equal(null);
+        expect(byTestId('editDialog-docsSectionHidden-demoForm-name')).to.equal(null);
+        expect(byTestId('editDialog-docsSectionHidden-demoForm-type')).to.equal(null);
+
+        await pointer(wrapper, section('demoForm-gone'), 'mouseenter');
+        await focusIn(wrapper, section('demoForm-gone'));
+
+        expect(wrapper.vm.docsActiveField).to.equal('demoForm-gone');
+        expect(section('demoForm-gone').classList.contains('HelpPanel__section--active')).to.equal(true);
+        expect(marked()).to.deep.equal([]);
+      });
+
+      it('marks a field that appears while its section is the active one', async () => {
+        const wrapper = await openWithPanel();
+        await pointer(wrapper, section('demoForm-gone'), 'mouseenter');
+
+        const field = document.createElement('input');
+        field.setAttribute('data-testid', 'demoForm-gone');
+        document.querySelector('.demo-form').appendChild(field);
+        await settled(wrapper);
+
+        expect(byTestId('editDialog-docsSectionHidden-demoForm-gone')).to.equal(null);
+        expect(marked()).to.deep.equal([field]);
+
+        field.remove();
+        await settled(wrapper);
+
+        expect(byTestId('editDialog-docsSectionHidden-demoForm-gone')).to.not.equal(null);
+        expect(marked()).to.deep.equal([]);
+      });
+
+      it('unmarks the field when the panel closes', async () => {
+        const wrapper = await openWithPanel();
+        await focusIn(wrapper, section('demoForm-name'));
+        expect(marked()).to.have.length(1);
+
+        byTestId('editDialog-docsClose').click();
+        await settled(wrapper);
+
+        expect(marked()).to.deep.equal([]);
+        expect(wrapper.vm.docsActiveField).to.equal(null);
+      });
+
+      it('unmarks the field when the dialog closes', async () => {
+        const wrapper = await openWithPanel();
+        await pointer(wrapper, section('demoForm-name'), 'mouseenter');
+        expect(marked()).to.have.length(1);
+
+        wrapper.vm.close();
+        await settled(wrapper);
+
+        expect(marked()).to.deep.equal([]);
+        expect(wrapper.vm.docsActiveField).to.equal(null);
+      });
+
+      it('looks for the field in its own dialog only', async () => {
+        const outer = await openWithPanel({ testId: 'outerDialog' });
+        // A second dialog with the same form and no panel.
+        await open({ testId: 'innerDialog' }, [], { form: FORM });
+
+        await pointer(outer, section('demoForm-name'), 'mouseenter');
+
+        expect(marked()).to.have.length(1);
+        expect(byTestId('outerDialog').contains(marked()[0])).to.equal(true);
+      });
     });
   });
 });
