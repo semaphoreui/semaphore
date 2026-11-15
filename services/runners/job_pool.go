@@ -616,8 +616,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 	log.Info("Registering a new runner...")
 
 	if util.Config.Runner.RegistrationToken == "" {
-		log.WithError(fmt.Errorf("registration token cannot be empty")).WithFields(log.Fields{"context": "registration"}).Error("registration token is not configured")
-		return
+		log.WithError(fmt.Errorf("registration token cannot be empty")).WithFields(log.Fields{"context": "registration"}).Fatal("registration token is not configured")
 	}
 
 	url := util.Config.WebHost + "/api/internal/runners"
@@ -633,7 +632,7 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 	})
 
 	if err != nil {
-		log.WithError(err).WithFields(log.Fields{"context": "registration"}).Error("failed to marshal registration request body")
+		log.WithError(err).WithFields(log.Fields{"context": "registration"}).Fatal("failed to marshal registration request body")
 		return
 	}
 
@@ -674,27 +673,34 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		return
 	}
 
+	// A 200 response without a token is not a registration: persisting it would
+	// leave the runner with an empty token and no way to authenticate.
+	if res.Token == "" {
+		log.WithError(fmt.Errorf("empty runner token")).WithFields(log.Fields{"context": "registration"}).Error("server accepted the registration but returned no runner token")
+		return
+	}
+
 	log.WithFields(log.Fields{"context": "registration", "runner_name": util.Config.Runner.Name}).Debug("Runner registered successfully")
 
 	if util.Config.Runner.TokenFile != "" {
 		log.WithFields(log.Fields{"context": "registration"}).Debug("Saving the token to file " + util.Config.Runner.TokenFile)
 		err = os.WriteFile(util.Config.Runner.TokenFile, []byte(res.Token), 0644)
 		if err != nil {
-			log.WithError(err).WithFields(log.Fields{"context": "registration"}).Error("Can't save runner token to file " + util.Config.Runner.TokenFile)
+			log.WithError(err).WithFields(log.Fields{"context": "registration"}).Fatal("Can't save runner token to file " + util.Config.Runner.TokenFile)
 			return
 		}
 
 		log.WithFields(log.Fields{"context": "registration", "runner_name": util.Config.Runner.Name}).Debug("Token saved successfully in file " + util.Config.Runner.TokenFile)
 	} else {
 		if configFilePath == nil {
-			log.WithError(fmt.Errorf("config file path required")).WithFields(log.Fields{"context": "registration"}).Error("config file path is required to store the runner token")
+			log.WithError(fmt.Errorf("config file path required")).WithFields(log.Fields{"context": "registration"}).Fatal("config file path is required to store the runner token")
 			return
 		}
 
 		var configFileBuffer []byte
 		configFileBuffer, err = os.ReadFile(*configFilePath)
 		if err != nil {
-			log.WithError(err).WithFields(log.Fields{"context": "registration"}).Error("failed to read config file")
+			log.WithError(err).WithFields(log.Fields{"context": "registration"}).Fatal("failed to read config file")
 			return
 		}
 
@@ -703,25 +709,29 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 		}
 		err = json.Unmarshal(configFileBuffer, &config)
 		if err != nil {
-			log.WithError(err).WithFields(log.Fields{"context": "registration"}).Error("failed to parse config file")
+			log.WithError(err).WithFields(log.Fields{"context": "registration"}).Fatal("failed to parse config file")
 			return
 		}
 
 		config.Runner.Token = res.Token
 		configFileBuffer, err = json.MarshalIndent(&config, " ", "\t")
 		if err != nil {
-			log.WithError(err).WithFields(log.Fields{"context": "registration"}).Error("failed to marshal updated config file")
+			log.WithError(err).WithFields(log.Fields{"context": "registration"}).Fatal("failed to marshal updated config file")
 			return
 		}
 
 		err = os.WriteFile(*configFilePath, configFileBuffer, 0644)
 		if err != nil {
-			log.WithError(err).WithFields(log.Fields{"context": "registration"}).Error("failed to write config file with the runner token")
+			log.WithError(err).WithFields(log.Fields{"context": "registration"}).Fatal("failed to write config file with the runner token")
 			return
 		}
 
 		log.WithFields(log.Fields{"context": "registration", "runner_name": util.Config.Runner.Name}).Debug("Token added to the runner config file " + *configFilePath)
 	}
+
+	// Keep the token in the running config as well, so the caller can start
+	// polling right away instead of depending on re-reading what was just saved.
+	util.Config.Runner.Token = res.Token
 
 	ok = true
 	return

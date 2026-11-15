@@ -9,12 +9,12 @@ import (
 )
 
 var runnerStartArgs struct {
-	register bool
+	autoRegister bool
 }
 
 func init() {
-	runnerStartCmd.PersistentFlags().BoolVar(&runnerStartArgs.register, "auto-register", false, "Register new runner if not registered")
-	runnerStartCmd.PersistentFlags().BoolVar(&runnerStartArgs.register, "register", false, "Alias of --auto-register")
+	runnerStartCmd.PersistentFlags().BoolVar(&runnerStartArgs.autoRegister, "auto-register", false, "Register new runner if not registered")
+	runnerStartCmd.PersistentFlags().BoolVar(&runnerStartArgs.autoRegister, "register", false, "Alias of --auto-register")
 	runnerCmd.AddCommand(runnerStartCmd)
 }
 
@@ -25,7 +25,7 @@ func runRunner() {
 	taskPool := createRunnerJobPool()
 
 	// If --register is passed, try to register the runner if not already registered
-	if runnerStartArgs.register {
+	if runnerStartArgs.autoRegister {
 
 		initRunnerRegistrationToken()
 
