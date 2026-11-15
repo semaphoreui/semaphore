@@ -350,7 +350,7 @@ func (p *JobPool) Run() {
 	launched := false
 
 	if util.Config.Runner.Token == "" {
-		log.WithFields(log.Fields{"context": "job_running"}).Panic("runner token is empty, cannot start the runner")
+		log.WithFields(log.Fields{"context": "job_running"}).Fatal("runner token is empty, cannot start the runner")
 	}
 
 	checkInterval := util.Config.RunnerCheckInterval()
@@ -677,9 +677,10 @@ func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 	log.WithFields(log.Fields{"context": "registration", "runner_name": util.Config.Runner.Name}).Debug("Runner registered successfully")
 
 	if util.Config.Runner.TokenFile != "" {
+		log.WithFields(log.Fields{"context": "registration"}).Debug("Saving the token to file " + util.Config.Runner.TokenFile)
 		err = os.WriteFile(util.Config.Runner.TokenFile, []byte(res.Token), 0644)
 		if err != nil {
-			log.WithError(err).WithFields(log.Fields{"context": "registration"}).Error("Can't save runner token")
+			log.WithError(err).WithFields(log.Fields{"context": "registration"}).Error("Can't save runner token to file " + util.Config.Runner.TokenFile)
 			return
 		}
 
