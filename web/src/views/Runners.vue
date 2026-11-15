@@ -18,6 +18,7 @@
     <EditDialog
       v-model="editDialog"
       test-id="runnerDialog"
+      help-doc="runner"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="itemId === 'new' ? $t('newRunner') : $t('editRunner')"
       @save="loadItemsAndShowRunnerDetails($event)"

@@ -16,7 +16,7 @@ function check(name, ok, detail = '') {
 const state = (page) => page.evaluate(() => {
   const body = document.querySelector('[data-testid="editDialog-docsBody"]');
   const active = document.querySelector('.HelpPanel__section--active');
-  const mark = document.querySelector('.help-docs-field');
+  const mark = document.querySelector('[data-help-docs-field]');
   const view = body.getBoundingClientRect();
   const box = active ? active.getBoundingClientRect() : null;
   const field = mark && mark.closest('[data-testid]');
@@ -181,7 +181,7 @@ const section = (id) => `[data-testid="editDialog-docsSection-${id}"]`;
   await page.locator('[data-testid="editDialog-docsClose"]').click();
   await page.waitForTimeout(300);
   check('panel closed: no mark left in the form',
-    (await page.locator('.help-docs-field').count()) === 0);
+    (await page.locator('[data-help-docs-field]').count()) === 0);
   await page.keyboard.press('Escape');
 
   // Dark theme, the editor.

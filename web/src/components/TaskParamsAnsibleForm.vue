@@ -4,6 +4,7 @@
     <ArgsPicker
       v-if="templateParams.allow_override_limit"
       test-id="taskParams-limit"
+      data-testid="taskParams-limit"
       :vars="params.limit"
       @change="setLimit"
       :title="$t('limit')"
@@ -14,6 +15,7 @@
     <ArgsPicker
       v-if="templateParams.allow_override_tags"
       test-id="taskParams-tags"
+      data-testid="taskParams-tags"
       :vars="params.tags"
       @change="setTags"
       :title="$t('tags')"
@@ -24,6 +26,7 @@
     <ArgsPicker
       v-if="templateParams.allow_override_skip_tags"
       test-id="taskParams-skipTags"
+      data-testid="taskParams-skipTags"
       :vars="params.skip_tags"
       @change="setSkipTags"
       :title="$t('skipTags')"

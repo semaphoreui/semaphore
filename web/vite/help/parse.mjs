@@ -20,7 +20,9 @@
 //
 // The anchor of a section is the `data-testid` of the element it describes: a field of a form,
 // a button of a page. `form` names the file the elements are in, or several files, separated
-// by commas, when a page takes its form from another component.
+// by commas, when a page takes its form from another component. The optional `skip` lists, by
+// `data-testid` and separated by commas, the fields of those files the document leaves without
+// a section on purpose (a field another document describes, a switch for demos).
 
 export class HelpDocError extends Error {
   constructor(file, line, message) {
@@ -139,7 +141,7 @@ function parseFrontMatter(lines, fail) {
       fail(i + 1, 'a front matter line is `key: value`');
     }
     const [, key, value] = pair;
-    if (key !== 'form') {
+    if (key !== 'form' && key !== 'skip') {
       fail(i + 1, `unknown front matter key "${key}"`);
     }
     if (meta[key] != null) {
@@ -165,7 +167,17 @@ function parseFrontMatter(lines, fail) {
     fail(1, '"form" names a file twice');
   }
 
-  return { forms, next: i + 1 };
+  const skip = meta.skip == null ? [] : meta.skip.split(',').map((field) => field.trim());
+  skip.forEach((field) => {
+    if (!/^[A-Za-z][\w-]*$/.test(field)) {
+      fail(1, `"skip" lists the data-testid of fields, got "${field}"`);
+    }
+  });
+  if (new Set(skip).size !== skip.length) {
+    fail(1, '"skip" names a field twice');
+  }
+
+  return { forms, skip, next: i + 1 };
 }
 
 /**
@@ -173,7 +185,7 @@ function parseFrontMatter(lines, fail) {
  *
  * @param {string} source text of the document
  * @param {string} file name of the document, for error messages
- * @returns {{ forms: string[], title: string, intro: object[],
+ * @returns {{ forms: string[], skip: string[], title: string, intro: object[],
  *   sections: { field: string, title: string, line: number, blocks: object[] }[] }}
  * @throws {HelpDocError} on anything outside the subset
  */
@@ -183,9 +195,10 @@ export function parseHelpDoc(source, file) {
     throw new HelpDocError(file, line, message);
   };
 
-  const { forms, next } = parseFrontMatter(lines, fail);
+  const { forms, skip, next } = parseFrontMatter(lines, fail);
   const doc = {
     forms,
+    skip,
     title: null,
     intro: [],
     sections: [],
@@ -328,6 +341,9 @@ export function parseHelpDoc(source, file) {
     fail(next, 'the document needs a paragraph on what the dialog is for, under its title');
   }
   doc.sections.forEach((section) => {
+    if (doc.skip.includes(section.field)) {
+      fail(section.line, `the field "${section.field}" has a section and is in "skip" as well`);
+    }
     if (section.blocks.length === 0) {
       fail(section.line, `the section "${section.title}" is empty`);
     }

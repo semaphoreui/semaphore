@@ -1,6 +1,6 @@
 // Built-in help on the built binary: the panel asks the Semaphore server for its document and
 // nothing else, works with every other host blocked and under a sub-path; dialogs without a
-// document have no button; the neighbours of the help (inline hints, Save, Escape) still work.
+// document have no button (since 2026-11-16 every dialog with input has one); the neighbours of the help (inline hints, Save, Escape) still work.
 // usage: NODE_PATH=<playwright> node AGENTS/tools/help-stand/check-binary.cjs
 const path = require('node:path');
 const { chromium } = require('playwright');
@@ -158,7 +158,7 @@ async function openInventory(page, base, rowText) {
     title: (await page.locator('[data-testid="inventoryAttachDialog"] [data-testid="editDialog-title"]').innerText()).trim(),
     button: await page.locator(`[data-testid="inventoryAttachDialog"] ${DOCS}`).count(),
   };
-  check('the dialog of a Terraform workspace has no help button', attach.button === 0, `"${attach.title}"`);
+  check('the attach dialog of a Terraform workspace has its own help button', attach.button === 1, `"${attach.title}"`);
   await page.screenshot({ path: path.join(OUT, 'accept-terraform-no-button.png') });
   await page.keyboard.press('Escape');
 
@@ -177,8 +177,8 @@ async function openInventory(page, base, rowText) {
       await page.keyboard.press('Escape');
     }
   }
-  check('Key, Repository and Variable Group dialogs have no help button',
-    without.every((w) => w.endsWith(': 0')), without.join(', '));
+  check('Key, Repository and Variable Group dialogs have a help button',
+    without.every((w) => w.endsWith(': 1')), without.join(', '));
 
   // The Variable Group dialog is still open: its own button of inline hints works as before.
   const hints = page.locator('.v-overlay--active [data-testid="editDialog-help"]');

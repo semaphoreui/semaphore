@@ -57,6 +57,7 @@
       :vars="item.args"
       @change="setArgs"
       test-id="appForm-args"
+      data-testid="appForm-args"
     />
 
     <v-checkbox

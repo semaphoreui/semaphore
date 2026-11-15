@@ -16,7 +16,7 @@ const section = (id) => `[data-testid="editDialog-docsSection-${id}"]`;
 const state = (page) => page.evaluate(() => {
   const body = document.querySelector('[data-testid="editDialog-docsBody"]');
   const active = document.querySelector('.HelpPanel__section--active');
-  const mark = document.querySelector('.help-docs-field');
+  const mark = document.querySelector('[data-help-docs-field]');
   const view = body.getBoundingClientRect();
   const box = active ? active.getBoundingClientRect() : null;
   const field = mark && mark.closest('[data-testid]');
@@ -165,7 +165,7 @@ async function openPanel(page) {
   const padding = await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="settings-page"]')).paddingRight);
   check('the panel closes with its button: no mark, the page takes its width back',
     (await page.locator('[data-testid="editDialog-docsPanel"]').count()) === 0
-    && (await page.locator('.help-docs-field').count()) === 0 && padding === '0px', padding);
+    && (await page.locator('[data-help-docs-field]').count()) === 0 && padding === '0px', padding);
 
   // Dark theme.
   await page.evaluate(() => localStorage.setItem('darkMode', '1'));

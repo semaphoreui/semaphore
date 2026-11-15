@@ -48,7 +48,7 @@ const Page = {
     </HelpPage>`,
 };
 
-const MARK = 'help-docs-field';
+const MARK = 'data-help-docs-field';
 
 describe('HelpPage.vue', () => {
   const wrappers = [];
@@ -56,7 +56,7 @@ describe('HelpPage.vue', () => {
   const byTestId = (id) => document.querySelector(`[data-testid="${id}"]`);
   const panel = () => byTestId('editDialog-docsPanel');
   const section = (field) => byTestId(`editDialog-docsSection-${field}`);
-  const marked = () => [...document.querySelectorAll(`.${MARK}`)];
+  const marked = () => [...document.querySelectorAll(`[${MARK}]`)];
 
   function mountPage(helpDoc = 'demo-page', plugins = []) {
     const el = document.createElement('div');
@@ -267,10 +267,10 @@ describe('HelpPage.vue', () => {
       await openPanel(wrapper);
       await pointer(wrapper, section('demo-delete'), 'mouseenter');
       const button = byTestId('demo-delete');
-      expect(button.classList.contains(MARK)).to.equal(true);
+      expect(button.hasAttribute(MARK)).to.equal(true);
 
       wrappers.pop().unmount();
-      expect(button.classList.contains(MARK)).to.equal(false);
+      expect(button.hasAttribute(MARK)).to.equal(false);
     });
 
     it('closes the panel when the page gets another document', async () => {

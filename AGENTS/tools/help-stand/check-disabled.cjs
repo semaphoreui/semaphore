@@ -70,20 +70,20 @@ async function hover(page, id) {
     all = await sections(page);
     check(`${theme}, File: the pointer over the disabled Inventory section changes nothing`,
       !all.inventoryCode.active && all.inventoryCode.background === idle
-      && (await page.locator('.help-docs-field').count()) === 0, all.inventoryCode.background);
+      && (await page.locator('[data-help-docs-field]').count()) === 0, all.inventoryCode.background);
     await page.screenshot({ path: path.join(OUT, `stage9-file-${theme}.png`) });
 
     await page.locator(`${section('inventoryCode')} h3`).click();
     await page.waitForTimeout(300);
     all = await sections(page);
     check(`${theme}, File: a click on the disabled section does not activate it`,
-      !all.inventoryCode.active && (await page.locator('.help-docs-field').count()) === 0);
+      !all.inventoryCode.active && (await page.locator('[data-help-docs-field]').count()) === 0);
 
     await hover(page, 'inventoryPath');
     all = await sections(page);
     check(`${theme}, File: an enabled section still highlights`, all.inventoryPath.active
       && all.inventoryPath.background !== all.name.background
-      && (await page.locator('.help-docs-field').count()) === 1,
+      && (await page.locator('[data-help-docs-field]').count()) === 1,
       `active ${all.inventoryPath.background}, idle ${all.name.background}`);
     const gaps = await page.evaluate(() => {
       const cards = [...document.querySelectorAll('.HelpPanel__section')];
@@ -108,12 +108,12 @@ async function hover(page, id) {
     await hover(page, 'inventoryCode');
     all = await sections(page);
     check(`${theme}, Static: the Inventory section highlights the editor`, all.inventoryCode.active
-      && (await page.locator('.help-docs-field').count()) === 1);
+      && (await page.locator('[data-help-docs-field]').count()) === 1);
     await hover(page, 'inventoryPath');
     all = await sections(page);
     // The focus is in the Type field (its menu has just closed), so Type stays the active field.
     const markedField = await page.evaluate(() => {
-      const mark = document.querySelector('.help-docs-field');
+      const mark = document.querySelector('[data-help-docs-field]');
       return mark ? mark.closest('[data-testid]').getAttribute('data-testid') : null;
     });
     check(`${theme}, Static: the pointer over the disabled Path section activates nothing of its own`,

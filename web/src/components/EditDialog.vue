@@ -158,26 +158,6 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     z-index: 1;
   }
 
-  // The help panel is fixed to the window, but `.v-overlay__content` of Vuetify has
-  // `contain: layout`, which makes it the containing block of its fixed descendants: the
-  // containment is lifted while the panel is open. `isolation` keeps the stacking context.
-  .item-dialog--docs {
-    contain: none;
-    isolation: isolate;
-  }
-
-  // The dialog is centred in what the panel leaves of the window: the 420 px of the panel and
-  // the 24 px margin of a dialog.
-  .item-dialog--docs-beside {
-    margin-right: 444px;
-  }
-
-  .v-dialog--fullscreen > .item-dialog--docs-beside {
-    left: 0;
-    width: calc(100% - 420px);
-    margin-right: 0;
-  }
-
   .item-dialog__resizer--left {
     left: -10px;
   }
@@ -213,14 +193,11 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
 
 import EventBus from '@/event-bus';
 import HelpButton from '@/components/HelpButton.vue';
-import HelpDocsHost, { DOCS_WIDTH } from '@/components/HelpDocsHost';
+import HelpDocsHost, { DIALOG_MIN_WIDTH } from '@/components/HelpDocsHost';
 import HelpPanel from '@/components/HelpPanel.vue';
 
 // The narrowest a dialog can be dragged to: the default width of a dialog.
-const MIN_WIDTH = 400;
-
-// The margin Vuetify gives a dialog on each side.
-const DIALOG_MARGIN = 24;
+const MIN_WIDTH = DIALOG_MIN_WIDTH;
 
 export default {
   components: { HelpButton, HelpPanel },
@@ -282,20 +259,9 @@ export default {
       return this.helpDoc;
     },
 
-    // The narrowest dialog and the help panel fit side by side; in a narrower window the panel
-    // lies over the dialog.
-    docsBeside() {
-      return this.docsShown
-        && this.$vuetify.display.width >= MIN_WIDTH + 2 * DIALOG_MARGIN + DOCS_WIDTH;
-    },
-
     // A dialog wider than what the help panel leaves of the window is narrowed to it.
     dialogMaxWidth() {
-      const own = this.width || this.maxWidth || MIN_WIDTH;
-      if (!this.docsBeside) {
-        return own;
-      }
-      return Math.min(own, this.$vuetify.display.width - 2 * DIALOG_MARGIN - DOCS_WIDTH);
+      return this.docsDialogMaxWidth(this.width || this.maxWidth || MIN_WIDTH);
     },
 
     dialogContentClass() {
@@ -304,8 +270,7 @@ export default {
         this.expandable ? 'item-dialog--expandable' : '',
         `item-dialog--${this.position}`,
         this.contentClass || '',
-        this.docsShown ? 'item-dialog--docs' : '',
-        this.docsBeside ? 'item-dialog--docs-beside' : '',
+        ...this.docsDialogClasses,
       ].filter((name) => name !== '').join(' ');
     },
   },

@@ -13,17 +13,25 @@
   >
     <!-- eager after the first opening: Vuetify 3 unmounts the content of a closed dialog, Vuetify 2
          kept it, so the form loads the views once and keeps its state between openings -->
-    <v-dialog
+    <HelpDialog
       v-model="editViewsDialog"
+      help-doc="template-views"
       :max-width="400"
       persistent
       :transition="false"
       :eager="editViewsDialog != null"
+      v-slot="{ docs }"
     >
       <v-card data-testid="templatesViewsDialog">
         <v-card-title class="d-flex align-center" data-testid="templatesViewsDialog-title">
           {{ $t('editViews') }}
           <v-spacer></v-spacer>
+          <HelpButton
+            v-if="docs.available"
+            :open="docs.open"
+            data-testid="templatesViewsDialog-docs"
+            @click="docs.toggle()"
+          />
           <v-btn
             icon
             variant="text"
@@ -37,7 +45,7 @@
           <EditViewsForm :project-id="projectId"/>
         </v-card-text>
       </v-card>
-    </v-dialog>
+    </HelpDialog>
 
     <EditTemplateDialog
       v-model="editDialog"
@@ -365,10 +373,14 @@ import NewTaskDialog from '@/components/NewTaskDialog.vue';
 import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
 import AppsMixin from '@/components/AppsMixin';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpDialog from '@/components/HelpDialog.vue';
 
 export default {
   components: {
     EditTemplateDialog,
+    HelpButton,
+    HelpDialog,
     TableSettingsSheet,
     TaskStatus,
     TaskLink,

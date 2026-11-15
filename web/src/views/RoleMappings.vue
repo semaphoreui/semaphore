@@ -7,6 +7,7 @@
     <EditDialog
       v-model="editDialog"
       test-id="roleMappingDialog"
+      help-doc="role-mapping"
       save-button-text="Save"
       :title="$t('newRoleMapping')"
       @save="loadItems()"

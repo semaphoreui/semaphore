@@ -55,6 +55,9 @@ export function checkTranslation(source, translation, file, sourceName) {
   if (translation.forms.join() !== source.forms.join()) {
     throw new HelpDocError(file, 1, `"form" must be the same as in ${sourceName}: ${source.forms.join(', ')}`);
   }
+  if (translation.skip.join() !== source.skip.join()) {
+    throw new HelpDocError(file, 1, `"skip" must be the same as in ${sourceName}: ${source.skip.join(', ') || 'none'}`);
+  }
 
   const count = Math.max(source.sections.length, translation.sections.length);
   for (let i = 0; i < count; i += 1) {
@@ -113,11 +116,15 @@ export function formFields(formSource) {
  */
 export function checkFields(doc, formSources, file) {
   const fields = new Set(formSources.flatMap((source) => [...formFields(source)]));
+  const where = doc.forms.length === 1
+    ? `${doc.forms[0]} has no`
+    : `none of ${doc.forms.join(', ')} has`;
+  const skipped = (doc.skip || []).find((field) => !fields.has(field));
+  if (skipped) {
+    throw new HelpDocError(file, 1, `"skip" names "${skipped}", but ${where} data-testid="${skipped}"`);
+  }
   const unknown = doc.sections.find((section) => !fields.has(section.field));
   if (unknown) {
-    const where = doc.forms.length === 1
-      ? `${doc.forms[0]} has no`
-      : `none of ${doc.forms.join(', ')} has`;
     throw new HelpDocError(
       file,
       unknown.line,

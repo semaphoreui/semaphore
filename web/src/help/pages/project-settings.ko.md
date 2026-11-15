@@ -1,5 +1,6 @@
 ---
 form: src/views/project/Settings.vue, src/components/ProjectForm.vue
+skip: newProject-demo
 ---
 
 # 프로젝트 설정

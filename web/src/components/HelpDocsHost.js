@@ -18,11 +18,18 @@
 import EventBus from '@/event-bus';
 import { hasHelpDoc, helpDocLocale, loadHelpDoc } from '@/help';
 
-// The class of the element the active section of the panel describes (styled in HelpPanel.vue).
-const DOCS_FIELD_CLASS = 'help-docs-field';
+// The attribute of the element the active section of the panel describes (styled in
+// HelpPanel.vue). An attribute, not a class: Vue rewrites the class of a Vuetify field on every
+// change of its state (focused, dirty), which would drop a class added from outside, while it
+// leaves alone an attribute it does not render.
+const DOCS_FIELD_ATTR = 'data-help-docs-field';
 
 // The width of the help panel (HelpPanel.vue).
 export const DOCS_WIDTH = 420;
+
+// The narrowest dialog, and the margin Vuetify gives a dialog on each side.
+export const DIALOG_MIN_WIDTH = 400;
+const DIALOG_MARGIN = 24;
 
 export default {
   data() {
@@ -65,6 +72,21 @@ export default {
     // not a section of the panel itself.
     docsFollowField() {
       return this.docsFocusSource === 'form' ? this.docsFocusField : null;
+    },
+
+    // A dialog host: the narrowest dialog and the panel fit side by side; in a narrower window
+    // the panel lies over the dialog.
+    docsDialogBeside() {
+      return this.docsShown
+        && this.$vuetify.display.width >= DIALOG_MIN_WIDTH + 2 * DIALOG_MARGIN + DOCS_WIDTH;
+    },
+
+    // A dialog host: the classes of the content element of its v-dialog (HelpPanel.vue styles).
+    docsDialogClasses() {
+      return [
+        this.docsShown ? 'item-dialog--docs' : '',
+        this.docsDialogBeside ? 'item-dialog--docs-beside' : '',
+      ].filter((name) => name !== '');
     },
 
     docsPanelProps() {
@@ -187,10 +209,22 @@ export default {
       return null;
     },
 
+    // A dialog host: the width a dialog of its own `own` width may take next to the panel.
+    docsDialogMaxWidth(own) {
+      if (!this.docsDialogBeside) {
+        return own;
+      }
+      const available = this.$vuetify.display.width - 2 * DIALOG_MARGIN - DOCS_WIDTH;
+      const width = Number.parseFloat(own);
+      return Number.isNaN(width) ? available : Math.min(width, available);
+    },
+
     // The focus came to an element of the host. A menu of a select is outside the host: the
-    // focus in its items is not seen here, and the field stays the active one.
+    // focus in its items is not seen here, and the field stays the active one. The focus in the
+    // panel is the panel's own business (HelpPanel reports it), also when the host listens on an
+    // element that holds the panel too.
     onDocsHostFocusIn(ev) {
-      if (!this.docsShown) {
+      if (!this.docsShown || ev.target.closest('.HelpPanel')) {
         return;
       }
       const field = this.docsFieldOf(ev.target);
@@ -224,13 +258,13 @@ export default {
     // else, as a button or the code editor, is marked itself.
     markDocsField() {
       if (this.docsMarked) {
-        this.docsMarked.classList.remove(DOCS_FIELD_CLASS);
+        this.docsMarked.removeAttribute(DOCS_FIELD_ATTR);
         this.docsMarked = null;
       }
       const el = this.docsShown ? this.docsFieldElement(this.docsActiveField) : null;
       if (el) {
         this.docsMarked = el.querySelector('.v-field') || el.querySelector('.v-input__control') || el;
-        this.docsMarked.classList.add(DOCS_FIELD_CLASS);
+        this.docsMarked.setAttribute(DOCS_FIELD_ATTR, '');
       }
     },
 

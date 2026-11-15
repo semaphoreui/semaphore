@@ -7,6 +7,7 @@
     <EditDialog
       v-model="editDialog"
       test-id="repositoriesDialog"
+      help-doc="repository"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Repository`"
       @save="loadItems()"

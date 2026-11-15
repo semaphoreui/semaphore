@@ -89,6 +89,27 @@ The section of a field the form does not show now is disabled: dimmed, never the
     z-index: 2;
   }
 
+  // A dialog with its panel open (HelpDocsHost: EditDialog, HelpDialog). The panel is fixed to
+  // the window, but `.v-overlay__content` of Vuetify has
+  // `contain: layout`, which makes it the containing block of its fixed descendants: the
+  // containment is lifted while the panel is open. `isolation` keeps the stacking context.
+  .item-dialog--docs {
+    contain: none;
+    isolation: isolate;
+  }
+
+  // The dialog is centred in what the panel leaves of the window: the 420 px of the panel and
+  // the 24 px margin of a dialog.
+  .item-dialog--docs-beside {
+    margin-right: 444px;
+  }
+
+  .v-dialog--fullscreen > .item-dialog--docs-beside {
+    left: 0;
+    width: calc(100% - 420px);
+    margin-right: 0;
+  }
+
   .HelpPanel__head {
     display: flex;
     align-items: center;
@@ -183,7 +204,7 @@ The section of a field the form does not show now is disabled: dimmed, never the
   // The element of the dialog or the page the active section describes (HelpDocsHost marks it):
   // a halo around the frame of a Vuetify input, or around the element itself (a button, the
   // code editor).
-  .help-docs-field {
+  [data-help-docs-field] {
     box-shadow: 0 0 0 4px rgba(var(--v-theme-primary), .24);
     transition: box-shadow .15s;
   }
@@ -191,7 +212,7 @@ The section of a field the form does not show now is disabled: dimmed, never the
   // The frame of an input is drawn by its outline, which leaves a gap for the label: the
   // outline takes the colour and the width of a focused field (a ring of `box-shadow` would
   // cross the label). The outline of an invalid field stays red.
-  .help-docs-field.v-field--variant-outlined:not(.v-field--error) .v-field__outline {
+  [data-help-docs-field].v-field--variant-outlined:not(.v-field--error) .v-field__outline {
     --v-field-border-width: 2px !important;
     color: rgb(var(--v-theme-primary));
 
@@ -200,7 +221,7 @@ The section of a field the form does not show now is disabled: dimmed, never the
     }
   }
 
-  .help-docs-field:not(.v-field) {
+  [data-help-docs-field]:not(.v-field) {
     border-radius: 4px;
     box-shadow:
       0 0 0 2px rgb(var(--v-theme-primary)),

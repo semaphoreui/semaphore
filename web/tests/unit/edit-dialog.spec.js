@@ -527,11 +527,11 @@ describe('EditDialog.vue', () => {
         <textarea data-testid="demoForm-type" class="demo-type"></textarea>
         <button type="button" class="demo-other">other</button>
       </div>`;
-    const MARK = 'help-docs-field';
+    const MARK = 'data-help-docs-field';
 
     const byTestId = (id) => document.querySelector(`[data-testid="${id}"]`);
     const section = (field) => byTestId(`editDialog-docsSection-${field}`);
-    const marked = () => [...document.querySelectorAll(`.${MARK}`)];
+    const marked = () => [...document.querySelectorAll(`[${MARK}]`)];
     const nameFrame = () => document.querySelector('[data-testid="demoForm-name"] .v-field');
 
     async function settled(wrapper) {

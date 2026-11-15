@@ -27,6 +27,8 @@ function mountVars(vars = []) {
       mocks: { $t: (k) => k },
       stubs: {
         'v-dialog': { template: '<div><slot /></div>' },
+        // The dialog of a variable is a HelpDialog: its slot gets the state of the help button.
+        HelpDialog: { template: '<div><slot :docs="{ available: false }" /></div>' },
         'v-text-field': fieldStub('VTextField', 'v-text-field-stub'),
         'v-textarea': fieldStub('VTextarea', 'v-textarea-stub'),
         'v-select': fieldStub('VSelect', 'v-select-stub'),

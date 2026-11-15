@@ -48,6 +48,7 @@ describe('help documents', () => {
 
       expect(doc).to.deep.equal({
         forms: ['src/components/DemoForm.vue'],
+        skip: [],
         title: 'Edit Demo',
         intro: [{ type: 'p', inline: [{ type: 'text', text: 'What the dialog is for.' }] }],
         sections: [{
@@ -82,6 +83,12 @@ describe('help documents', () => {
           blocks: [{ type: 'p', inline: [{ type: 'text', text: 'Shown when the type is File.' }] }],
         }],
       });
+    });
+
+    it('takes the fields it skips, separated by commas', () => {
+      const source = docWith('## Name {#demoForm-name}\n\nText.')
+        .replace('form: src/components/DemoForm.vue', 'form: src/components/DemoForm.vue\nskip: demoForm-demo, demoForm-x');
+      expect(parseHelpDoc(source, 'demo.md').skip).to.deep.equal(['demoForm-demo', 'demoForm-x']);
     });
 
     it('takes several forms, separated by commas', () => {
@@ -131,6 +138,9 @@ describe('help documents', () => {
       { name: 'bad path among several forms', source: '---\nform: src/a/A.vue, /etc/passwd\n---\n', error: /"form" must be a path .* got "\/etc\/passwd"/ },
       { name: 'empty path among several forms', source: '---\nform: src/a/A.vue,\n---\n', error: /"form" must be a path/ },
       { name: 'form named twice', source: '---\nform: src/a/A.vue, src/a/A.vue\n---\n', error: /names a file twice/ },
+      { name: 'skip of something that is not a test id', source: '---\nform: src/a/A.vue\nskip: a b\n---\n', error: /"skip" lists the data-testid of fields, got "a b"/ },
+      { name: 'skip naming a field twice', source: '---\nform: src/a/A.vue\nskip: a, a\n---\n', error: /"skip" names a field twice/ },
+      { name: 'a field skipped and described', source: docWith('## Name {#a}\n\nText.').replace('---\n\n#', 'skip: a\n---\n\n#'), error: /the field "a" has a section and is in "skip" as well/ },
       { name: 'text before the title', source: `${FRONT}\nText.\n\n# T\n`, error: /demo\.md:5: .*must start with its `# Title`/ },
       { name: 'no title', source: `${FRONT}\n`, error: /has no `# Title`/ },
       { name: 'no intro paragraph', source: `${FRONT}\n# T\n\n## Name {#a}\n\nText.\n`, error: /needs a paragraph/ },
@@ -203,6 +213,15 @@ describe('help documents', () => {
       expect(() => checkFields(doc, ['<a data-testid="demoForm-name"></a>'], 'demo.md')).to.throw(
         HelpDocError,
         /^demo\.md:13: the section "Gone" is anchored to "demoForm-gone", but src\/components\/DemoForm\.vue has no data-testid="demoForm-gone"$/,
+      );
+    });
+
+    it('fails on a skipped field the form does not have', () => {
+      const skipping = { ...doc, skip: ['demoForm-nope'] };
+      const form = '<a data-testid="demoForm-name"></a><a data-testid="demoForm-gone"></a>';
+      expect(() => checkFields(skipping, [form], 'demo.md')).to.throw(
+        HelpDocError,
+        /^demo\.md:1: "skip" names "demoForm-nope", but src\/components\/DemoForm\.vue has no data-testid="demoForm-nope"$/,
       );
     });
 
@@ -533,6 +552,12 @@ describe('help documents', () => {
           file: 'demo.de.md',
           text: TRANSLATION.replace('form: src/components/DemoForm.vue', 'form: src/components/DemoForm.vue, src/views/Demo.vue'),
           error: /"form" must be the same as in src\/help\/dialogs\/demo\.md: src\/components\/DemoForm\.vue$/,
+        },
+        {
+          name: 'another skip',
+          file: 'demo.de.md',
+          text: TRANSLATION.replace('form: src/components/DemoForm.vue', 'form: src/components/DemoForm.vue\nskip: demoForm-type2'),
+          error: /"skip" must be the same as in src\/help\/dialogs\/demo\.md: none$/,
         },
         {
           name: 'HTML in a translation',

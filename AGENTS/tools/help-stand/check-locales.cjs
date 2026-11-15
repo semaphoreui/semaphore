@@ -34,7 +34,7 @@ const panelText = (page) => page.evaluate(() => ({
 }));
 
 const marked = (page) => page.evaluate(() => {
-  const mark = document.querySelector('.help-docs-field');
+  const mark = document.querySelector('[data-help-docs-field]');
   return mark ? mark.closest('[data-testid]').getAttribute('data-testid') : null;
 });
 

@@ -5,6 +5,7 @@
     :max-width="dialogWidth"
     v-model="dialog"
     :test-id="testId"
+    help-doc="template"
     :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
     :icon="getAppIcon(itemApp)"
     :icon-color="getAppColor(itemApp)"

@@ -31,7 +31,8 @@ against a real run.
 sub-path on `:3102` and seeds inventories of every kind; four Playwright checks drive the help of
 the Ansible inventory dialog and of the project Settings page: requests to the server only and
 work with other hosts blocked, the panel following the focus, the field marked by the active
-section, disabled sections, the layout of a page next to the panel. Use it after any change to
+section, disabled sections, the layout of a page next to the panel, and ten dialogs of every kind
+in any language. Use it after any change to
 `EditDialog.vue`, `HelpPage.vue`, `HelpPanel.vue`, `HelpDocsHost.js` or `web/vite/help` — unit
 tests run in jsdom, which lays nothing out and has no focus trap.
 

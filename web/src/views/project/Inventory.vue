@@ -8,6 +8,7 @@
     <EditDialog
       v-model="attachInventoryDialog"
       test-id="inventoryAttachDialog"
+      help-doc="workspace-attach-template"
       :save-button-text="$t('Attach')"
       :icon="getAppIcon(itemApp)"
       :icon-color="getAppColor(itemApp)"

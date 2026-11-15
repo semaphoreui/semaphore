@@ -5,6 +5,7 @@
     :title="title"
     @save="onSave"
     test-id="templatePermDialog"
+    :help-doc="helpDoc"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <EditTemplatePermissionForm
@@ -48,6 +49,13 @@ export default {
   },
 
   computed: {
+    // The help document of the scope: the checkboxes differ for a template and a workflow. A
+    // computed property, because the build takes every string literal of a bound `help-doc`
+    // expression for the key of a document (vite/help).
+    helpDoc() {
+      return this.scope === 'workflow' ? 'workflow-permission' : 'template-permission';
+    },
+
     title() {
       const key = this.scope === 'workflow' ? 'workflowPermission' : 'templatePermission';
       return this.$t(key, { expr: this.itemId === 'new' ? this.$t('nnew') : this.$t('edit') });
