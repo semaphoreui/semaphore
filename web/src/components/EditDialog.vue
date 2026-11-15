@@ -7,7 +7,7 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
   <v-dialog
     ref="dialog"
     v-model="dialog"
-    :max-width="maxWidth || 400"
+    :max-width="width || maxWidth || 400"
     persistent
     :eager="booted"
     :close-on-back="false"
@@ -18,6 +18,21 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
       item-dialog--${position} ${contentClass || ''}`
     "
   >
+    <template v-if="resizable && !(expandable && fullscreen)">
+      <div
+        v-for="side in ['left', 'right']"
+        :key="side"
+        class="item-dialog__resizer"
+        :class="`item-dialog__resizer--${side}`"
+        :data-testid="`editDialog-resize-${side}`"
+        @pointerdown.prevent="startResize($event, side)"
+        @pointermove="resize($event)"
+        @pointerup="endResize()"
+        @pointercancel="endResize()"
+        @dblclick="resetWidth()"
+      ></div>
+    </template>
+
     <v-card
       :data-testid="testId"
       :data-state="needSave ? 'loading' : 'ready'"
@@ -116,6 +131,26 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     right: 12px;
   }
 
+  // The edges a resizable dialog is dragged by. They lie outside the card but for 2 px, so that
+  // a scrollbar at its right edge stays clickable.
+  .item-dialog__resizer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 12px;
+    cursor: ew-resize;
+    touch-action: none;
+    z-index: 1;
+  }
+
+  .item-dialog__resizer--left {
+    left: -10px;
+  }
+
+  .item-dialog__resizer--right {
+    right: -10px;
+  }
+
   .item-dialog {
     .v-card-title {
       display: flex;
@@ -143,6 +178,9 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
 
 import EventBus from '@/event-bus';
 
+// The narrowest a dialog can be dragged to: the default width of a dialog.
+const MIN_WIDTH = 400;
+
 export default {
   props: {
     testId: String,
@@ -160,6 +198,9 @@ export default {
     cancelButtonText: String,
     saveButtonText: String,
     expandable: Boolean,
+    // The left and the right edge can be dragged to change the width. The dialog stays centred:
+    // both edges move, whichever is dragged.
+    resizable: Boolean,
     name: {
       type: String,
       default: 'Unnamed',
@@ -181,6 +222,8 @@ export default {
       needReset: false,
       fullscreen: null,
       needHelp: false,
+      // The width the user dragged a resizable dialog to; null until then (`maxWidth` applies).
+      width: null,
     };
   },
 
@@ -213,6 +256,13 @@ export default {
 
   created() {
     this.fullscreen = localStorage.getItem(`EditDialog_${this.name}__fullscreen`) === '1';
+
+    // The drag in progress: where the pointer went down and what the dialog measured then.
+    this.resizeOrigin = null;
+    if (this.resizable) {
+      const width = parseInt(localStorage.getItem(`EditDialog_${this.name}__width`), 10);
+      this.width = width >= MIN_WIDTH ? width : null;
+    }
   },
 
   methods: {
@@ -249,6 +299,56 @@ export default {
     clearFlags() {
       this.needSave = false;
       this.needReset = false;
+    },
+
+    startResize(ev, side) {
+      // The handles are children of the content element of the overlay, which the overlay
+      // centres and whose margins the stylesheet of the dialog keeps free.
+      const content = ev.currentTarget.parentElement;
+      const style = window.getComputedStyle(content);
+      const margins = (parseFloat(style.marginLeft) || 0) + (parseFloat(style.marginRight) || 0);
+
+      this.resizeOrigin = {
+        x: ev.clientX,
+        width: content.getBoundingClientRect().width,
+        direction: side === 'left' ? -1 : 1,
+        maxWidth: content.parentElement.clientWidth - margins,
+      };
+
+      // The edge moves away from under the pointer when the dialog cannot follow it (the
+      // limits below); the capture keeps the events coming to the handle.
+      ev.currentTarget.setPointerCapture(ev.pointerId);
+    },
+
+    resize(ev) {
+      if (!this.resizeOrigin) {
+        return;
+      }
+
+      const {
+        x, width, direction, maxWidth,
+      } = this.resizeOrigin;
+
+      // The opposite edge mirrors the dragged one, so the width changes by twice the distance
+      // the pointer went.
+      const dragged = width + 2 * direction * (ev.clientX - x);
+      this.width = Math.round(Math.max(Math.min(dragged, maxWidth), MIN_WIDTH));
+    },
+
+    endResize() {
+      if (!this.resizeOrigin) {
+        return;
+      }
+
+      this.resizeOrigin = null;
+      if (this.width != null) {
+        localStorage.setItem(`EditDialog_${this.name}__width`, String(this.width));
+      }
+    },
+
+    resetWidth() {
+      this.width = null;
+      localStorage.removeItem(`EditDialog_${this.name}__width`);
     },
 
     /**
