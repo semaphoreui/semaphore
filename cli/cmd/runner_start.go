@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/semaphoreui/semaphore/util"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +38,7 @@ func runRunner() {
 					break
 				}
 
+				log.WithFields(log.Fields{}).WithError(err).Info("Failed to register runner with token, will try again in 5 seconds")
 				time.Sleep(5 * time.Second)
 			}
 
