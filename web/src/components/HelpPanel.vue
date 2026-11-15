@@ -30,7 +30,11 @@ The section of a field the form does not show now is disabled: dimmed, never the
     </div>
 
     <div ref="body" class="HelpPanel__body" data-testid="editDialog-docsBody">
-      <HelpContent :blocks="doc.intro" data-testid="editDialog-docsIntro" />
+      <HelpContent
+        class="HelpPanel__intro"
+        :blocks="doc.intro"
+        data-testid="editDialog-docsIntro"
+      />
 
       <!-- A section takes the focus (a click or Tab) to become the active one; the focus
            handlers are on the panel (`focusin` also covers a link inside a section). A disabled
@@ -105,20 +109,33 @@ The section of a field the form does not show now is disabled: dimmed, never the
     position: relative;
     flex: 1 1 auto;
     overflow-y: auto;
-    padding: 0 24px 24px;
+    padding: 0 12px 12px;
     font-size: 14px;
     line-height: 22px;
     overflow-wrap: anywhere;
   }
 
-  .HelpPanel__section {
-    margin: 0 -12px 4px;
-    padding: 8px 12px;
-    border-radius: 4px;
-    outline: none;
-    transition: background-color .15s;
+  // The intro is no card: its text stands under the title of the panel, in line with the text
+  // of the cards (12 px of the body and 12 px of a card).
+  .HelpPanel__intro {
+    padding: 0 12px;
+  }
 
-    // The background of the active section ends with the padding, not with the last line.
+  // A section is a card: a background of its own over the surface of the panel, apart from
+  // its neighbours.
+  .HelpPanel__section {
+    margin: 0 0 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(var(--v-theme-on-surface), .05);
+    outline: none;
+    transition: background-color .15s, box-shadow .15s;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    // The card ends with its padding, not with the margin of its last line.
     .HelpContent > :last-child {
       margin-bottom: 0;
     }
@@ -127,12 +144,15 @@ The section of a field the form does not show now is disabled: dimmed, never the
   // The active section: the one in focus or under the pointer, or the one of the field of the
   // form in focus.
   .HelpPanel__section--active {
-    background: rgba(var(--v-theme-primary), .12);
+    background: rgba(var(--v-theme-primary), .14);
+    box-shadow: inset 0 0 0 1px rgba(var(--v-theme-primary), .5);
   }
 
-  // The section of a field the form does not show now: its title and text are dimmed, the note
-  // that says why stays as it is.
+  // The section of a field the form does not show now: a paler card with its title and text
+  // dimmed; the note that says why stays as it is.
   .HelpPanel__section--disabled {
+    background: rgba(var(--v-theme-on-surface), .02);
+
     .HelpPanel__sectionTitle,
     .HelpContent {
       opacity: .45;
