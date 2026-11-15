@@ -257,13 +257,11 @@ func TestJobPool_ConcurrentAccess(t *testing.T) {
 	start := make(chan struct{})
 
 	// Running-jobs map mutators/readers.
-	for w := 0; w < workers; w++ {
+	for w := range workers {
 		base := w
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
-			for i := 0; i < iterations; i++ {
+			for i := range iterations {
 				id := base*iterations + i
 				p.addRunningJob(id, &runningJob{
 					job:    &tasks.LocalExecutor{Task: db.Task{ID: id}},
@@ -275,24 +273,22 @@ func TestJobPool_ConcurrentAccess(t *testing.T) {
 				p.hasRunningJobs()
 				p.deleteRunningJob(id)
 			}
-		}()
+		})
 	}
 
 	// Queue mutators/readers.
-	for w := 0; w < workers; w++ {
+	for w := range workers {
 		base := w
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
-			for i := 0; i < iterations; i++ {
+			for i := range iterations {
 				id := base*iterations + i
 				p.enqueue(newTestJob(id))
 				p.existsInQueue(id)
 				p.queueLen()
 				p.dequeue()
 			}
-		}()
+		})
 	}
 
 	close(start)
@@ -330,7 +326,7 @@ func TestJobPool_ReusesConnections(t *testing.T) {
 
 	p := NewJobPool(nil)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		require.True(t, p.sendProgress())
 		p.checkNewJobs()
 	}
