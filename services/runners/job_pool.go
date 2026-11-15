@@ -710,7 +710,7 @@ func (p *JobPool) getResponseErrorMessage(resp *http.Response) (res string) {
 
 func (p *JobPool) tryRegisterRunner(configFilePath *string) (ok bool) {
 
-	log.Info("Registering a new runner")
+	log.Info("Registering a new runner...")
 
 	if util.Config.Runner.RegistrationToken == "" {
 		log.WithError(fmt.Errorf("registration token cannot be empty")).WithFields(log.Fields{
