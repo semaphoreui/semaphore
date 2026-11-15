@@ -135,6 +135,50 @@ describe('HelpPanel.vue sections', () => {
     wrapper.unmount();
   });
 
+  describe('section of a field that is not shown', () => {
+    it('is disabled and out of the Tab order', () => {
+      const wrapper = mountWith({ missingFields: ['demoForm-type'] });
+      const disabled = sectionOf(wrapper, 'demoForm-type');
+      const enabled = sectionOf(wrapper, 'demoForm-name');
+
+      expect(disabled.classes()).to.include('HelpPanel__section--disabled');
+      expect(disabled.attributes('aria-disabled')).to.equal('true');
+      expect(disabled.attributes('tabindex')).to.equal(undefined);
+      expect(enabled.classes()).to.not.include('HelpPanel__section--disabled');
+      expect(enabled.attributes('aria-disabled')).to.equal(undefined);
+      expect(enabled.attributes('tabindex')).to.equal('0');
+      wrapper.unmount();
+    });
+
+    it('is not the active one, even for the active field', async () => {
+      const wrapper = mountWith({ activeField: 'demoForm-type' });
+      expect(sectionOf(wrapper, 'demoForm-type').classes()).to.include('HelpPanel__section--active');
+
+      await wrapper.setProps({ missingFields: ['demoForm-type'] });
+
+      expect(sectionOf(wrapper, 'demoForm-type').classes())
+        .to.not.include('HelpPanel__section--active');
+      expect(sectionOf(wrapper, 'demoForm-type').attributes('aria-current')).to.equal(undefined);
+
+      await wrapper.setProps({ missingFields: [] });
+
+      expect(sectionOf(wrapper, 'demoForm-type').classes()).to.include('HelpPanel__section--active');
+      wrapper.unmount();
+    });
+
+    it('reports neither the pointer over it nor the focus inside it', async () => {
+      const wrapper = mountWith({ missingFields: ['demoForm-name'] });
+
+      await sectionOf(wrapper, 'demoForm-name').trigger('mouseenter');
+      await sectionOf(wrapper, 'demoForm-name').trigger('focusin');
+      await sectionOf(wrapper, 'demoForm-name').find('a').trigger('focusin');
+
+      expect(wrapper.emitted('hover-field')).to.deep.equal([[null]]);
+      expect(wrapper.emitted('focus-field')).to.deep.equal([[null], [null]]);
+      wrapper.unmount();
+    });
+  });
+
   describe('followField', () => {
     // jsdom lays nothing out: a view of 100 px, the sections 300 px each, one under another.
     function layOut(wrapper, reducedMotion = false) {

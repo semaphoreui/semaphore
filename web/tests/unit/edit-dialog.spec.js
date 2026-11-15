@@ -650,24 +650,29 @@ describe('EditDialog.vue', () => {
         expect(marked()).to.deep.equal([]);
       });
 
-      it('says that a field is not shown, and marks nothing for its section', async () => {
+      it('disables the section of a field the form does not show', async () => {
         const wrapper = await openWithPanel();
+        const gone = section('demoForm-gone');
 
         expect(byTestId('editDialog-docsSectionHidden-demoForm-gone')).to.not.equal(null);
         expect(byTestId('editDialog-docsSectionHidden-demoForm-name')).to.equal(null);
         expect(byTestId('editDialog-docsSectionHidden-demoForm-type')).to.equal(null);
+        expect(gone.classList.contains('HelpPanel__section--disabled')).to.equal(true);
+        expect(gone.hasAttribute('tabindex'), 'out of the Tab order').to.equal(false);
+        expect(section('demoForm-name').classList.contains('HelpPanel__section--disabled'))
+          .to.equal(false);
 
-        await pointer(wrapper, section('demoForm-gone'), 'mouseenter');
-        await focusIn(wrapper, section('demoForm-gone'));
+        await pointer(wrapper, gone, 'mouseenter');
+        await focusIn(wrapper, gone);
 
-        expect(wrapper.vm.docsActiveField).to.equal('demoForm-gone');
-        expect(section('demoForm-gone').classList.contains('HelpPanel__section--active')).to.equal(true);
+        expect(wrapper.vm.docsActiveField).to.equal(null);
+        expect(gone.classList.contains('HelpPanel__section--active')).to.equal(false);
         expect(marked()).to.deep.equal([]);
       });
 
-      it('marks a field that appears while its section is the active one', async () => {
+      it('enables the section when its field appears and disables it when the field goes', async () => {
         const wrapper = await openWithPanel();
-        await pointer(wrapper, section('demoForm-gone'), 'mouseenter');
+        const gone = section('demoForm-gone');
 
         const field = document.createElement('input');
         field.setAttribute('data-testid', 'demoForm-gone');
@@ -675,12 +680,21 @@ describe('EditDialog.vue', () => {
         await settled(wrapper);
 
         expect(byTestId('editDialog-docsSectionHidden-demoForm-gone')).to.equal(null);
+        expect(gone.classList.contains('HelpPanel__section--disabled')).to.equal(false);
+        expect(gone.getAttribute('tabindex')).to.equal('0');
+
+        await pointer(wrapper, gone, 'mouseenter');
+
+        expect(gone.classList.contains('HelpPanel__section--active')).to.equal(true);
         expect(marked()).to.deep.equal([field]);
 
+        // The field goes while the pointer is still over its section.
         field.remove();
         await settled(wrapper);
 
         expect(byTestId('editDialog-docsSectionHidden-demoForm-gone')).to.not.equal(null);
+        expect(gone.classList.contains('HelpPanel__section--disabled')).to.equal(true);
+        expect(gone.classList.contains('HelpPanel__section--active')).to.equal(false);
         expect(marked()).to.deep.equal([]);
       });
 

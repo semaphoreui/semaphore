@@ -5,6 +5,7 @@ the scrim, inside the focus trap of the dialog, and a click on it is not a click
 
 A section describes a field of the form. The panel reports the section under the pointer and the
 section in focus; the dialog decides which field is the active one and marks it in the form.
+The section of a field the form does not show now is disabled: dimmed, never the active one.
 -->
 <template>
   <aside
@@ -32,24 +33,29 @@ section in focus; the dialog decides which field is the active one and marks it 
       <HelpContent :blocks="doc.intro" data-testid="editDialog-docsIntro" />
 
       <!-- A section takes the focus (a click or Tab) to become the active one; the focus
-           handlers are on the panel (`focusin` also covers a link inside a section). -->
+           handlers are on the panel (`focusin` also covers a link inside a section). A disabled
+           section takes no focus. -->
       <!-- eslint-disable-next-line vuejs-accessibility/mouse-events-have-key-events -->
       <section
         v-for="section in doc.sections"
         :key="section.field"
         ref="sections"
         class="HelpPanel__section"
-        :class="{ 'HelpPanel__section--active': section.field === activeField }"
-        tabindex="0"
-        :aria-current="section.field === activeField ? 'true' : null"
+        :class="{
+          'HelpPanel__section--active': isActive(section.field),
+          'HelpPanel__section--disabled': isMissing(section.field),
+        }"
+        :tabindex="isMissing(section.field) ? null : 0"
+        :aria-current="isActive(section.field) ? 'true' : null"
+        :aria-disabled="isMissing(section.field) ? 'true' : null"
         :data-field="section.field"
         :data-testid="`editDialog-docsSection-${section.field}`"
-        @mouseenter="$emit('hover-field', section.field)"
+        @mouseenter="$emit('hover-field', isMissing(section.field) ? null : section.field)"
         @mouseleave="$emit('hover-field', null)"
       >
         <h3 class="HelpPanel__sectionTitle">{{ section.title }}</h3>
         <p
-          v-if="missingFields.includes(section.field)"
+          v-if="isMissing(section.field)"
           class="HelpPanel__sectionHidden"
           :data-testid="`editDialog-docsSectionHidden-${section.field}`"
         >{{ $t('helpPanelFieldHidden') }}</p>
@@ -122,6 +128,15 @@ section in focus; the dialog decides which field is the active one and marks it 
   // form in focus.
   .HelpPanel__section--active {
     background: rgba(var(--v-theme-primary), .12);
+  }
+
+  // The section of a field the form does not show now: its title and text are dimmed, the note
+  // that says why stays as it is.
+  .HelpPanel__section--disabled {
+    .HelpPanel__sectionTitle,
+    .HelpContent {
+      opacity: .45;
+    }
   }
 
   .HelpPanel__section:focus-visible {
@@ -201,7 +216,7 @@ export default {
       type: String,
       default: null,
     },
-    // Fields the form does not show now: their sections say so.
+    // Fields the form does not show now: their sections are disabled and say so.
     missingFields: {
       type: Array,
       default: () => [],
@@ -219,10 +234,21 @@ export default {
   },
 
   methods: {
-    // The focus came to a section (its field) or to another part of the panel (null).
+    isMissing(field) {
+      return this.missingFields.includes(field);
+    },
+
+    // The section of a field that is gone is not the active one, whatever the field in hand.
+    isActive(field) {
+      return field === this.activeField && !this.isMissing(field);
+    },
+
+    // The focus came to a section (its field), or to another part of the panel or into a
+    // disabled section, as a link of its text (null).
     onFocusIn(ev) {
       const section = ev.target.closest('.HelpPanel__section');
-      this.$emit('focus-field', section ? section.getAttribute('data-field') : null);
+      const field = section ? section.getAttribute('data-field') : null;
+      this.$emit('focus-field', field != null && !this.isMissing(field) ? field : null);
     },
 
     // Brings the section of a field to the top of the panel, unless all of it is in view. The
