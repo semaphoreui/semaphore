@@ -16,7 +16,7 @@
     >
       <template v-slot:item.id="{ item: run }">
         <router-link
-          :to="`/project/${projectId}/workflows/${workflow.id}/runs/${run.id}`"
+          :to="workflowRunLocation($route, workflow.id, run.id)"
           data-testid="workflowRuns-rowId"
         >#{{ run.id }}</router-link>
       </template>
@@ -57,6 +57,7 @@
 import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
+import { workflowRunLocation } from '@/lib/workflowRunQuery';
 
 export default {
   props: {
@@ -90,10 +91,25 @@ export default {
   },
 
   async created() {
+    EventBus.$on('i-workflow-run', this.onWorkflowRunChanged);
     await this.loadData();
   },
 
+  beforeUnmount() {
+    EventBus.$off('i-workflow-run', this.onWorkflowRunChanged);
+  },
+
   methods: {
+    workflowRunLocation,
+
+    // A run of this workflow started or changed its status in the run panel, which lies over
+    // this list.
+    async onWorkflowRunChanged(e) {
+      if (e && e.workflowId === this.workflow.id) {
+        await this.loadData();
+      }
+    },
+
     statusColor(status) {
       switch (status) {
         case 'success':

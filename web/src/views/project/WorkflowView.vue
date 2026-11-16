@@ -111,6 +111,7 @@
 import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
+import { workflowRunLocation } from '@/lib/workflowRunQuery';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import WorkflowRunDialog from '@/components/WorkflowRunDialog.vue';
 import PermissionsCheck from '@/components/PermissionsCheck';
@@ -199,9 +200,12 @@ export default {
           text: this.$t('workflowRunStarted'),
         });
 
-        await this.$router.push(
-          `/project/${this.projectId}/workflows/${this.itemId}/runs/${run.id}`,
-        );
+        // The run opens in the run panel, over the page; the list of runs under it reads the
+        // new run.
+        await this.$router.push(workflowRunLocation(this.$route, this.itemId, run.id));
+        EventBus.$emit('i-workflow-run', {
+          runId: run.id, workflowId: this.itemId, status: run.status,
+        });
       } catch (err) {
         EventBus.$emit('i-snackbar', {
           color: 'error',
