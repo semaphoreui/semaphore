@@ -8,7 +8,8 @@
 - Released version: `gh release download vX.Y.Z -R semaphoreui/semaphore -p
   'semaphore_X.Y.Z_darwin_arm64.tar.gz'` (`-R` needed outside the repo). The Pro build enables
   Workflows without a license; secret storages and executors stay paywalled.
-- Unreleased branch: `cd web && npx vue-cli-service build`, then `go build -tags netgo -o
+- Unreleased branch: `cd web && npm run build` (Vite since the Vue 3 move; `npm ci` first in a
+  fresh worktree), then `go build -tags netgo -o
   /tmp/semaphore-stand-bin ./cli` (the embed picks up `api/public`), then `migrate --config`,
   `user add --admin ... --config`, `server --config`.
 - `use_remote_runner: true` removes the "Global runners disabled" banner; a tagged runner is
@@ -17,6 +18,8 @@
   `POST /api/projects` → 201. Workflow nodes may be sent with arbitrary IDs (`nodeIDMap` remaps),
   but every PUT reinserts nodes, so old runs lose node statuses. Seed/shoot scripts live in
   `/tmp/semaphore-stand/` (`seed-hc.sh`, `shoot-hc.cjs`, `wheel-wf*.cjs`).
+- ⚠️ 2026-11-17: the recipe below is from the vue-cli era; the app builds with Vite now
+  (`npm run serve`), the proxy override was not re-checked.
 - Test current sources without a rebuild: run a second hot-reloading dev server proxying to :3100 —
   `VUE_CLI_SERVICE_CONFIG_PATH=$PWD/node_modules/.cache/vue.config.stand.js npx vue-cli-service
   serve --port 8090`, where the config `require`s `web/vue.config.js` and overrides

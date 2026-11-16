@@ -18,7 +18,8 @@ How to add, document and retire a tool — [`CREATE.md`](CREATE.md).
 workflows, `run.sh` starts a run and follows every node (task, approval, delay) to a terminal
 status with optional auto-approve/stop, `runner.sh` registers and runs a remote runner for the
 stand and routes a project's templates to it, `inputs.sh` prints producer outputs and consumer
-`INPUT` lines of a run, `shoot-run.cjs` screenshots the run view, `seed-docs.sh` +
+`INPUT` lines of a run, `shoot-run.cjs` screenshots the run view, `check-run-panel.cjs` walks the run panel (`?w=<workflow>/<run>`)
+in a browser and prints PASS/FAIL per check, `seed-docs.sh` +
 `shoot-docs.cjs` seed the "Demo Stand" project and shoot the screenshots of the user guide's
 Outputs and inputs section. Use it instead of
 hand-written curl polling whenever a change to the workflow engine or run view must be checked

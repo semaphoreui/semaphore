@@ -102,6 +102,43 @@ Denis rejected a custom canvas, a library swap and a second Vue 3 runtime (2026-
   (`manageProjectResources` edit, `runProjectTasks` approve/stop). Accepted Drawflow limits:
   no multi-select/marquee, no minimap, no note resize.
 
+## Run panel (`?w=<workflow>/<run>`, TASK@244A5E2CA1, 2026-11-17)
+
+A link to a run no longer leaves the page: it adds `w=<workflow id>/<run id>` (`?w=4/10`) to the
+query of the current page, and `App.vue` shows the run in `WorkflowRunPanel.vue`, a panel fixed to
+the right edge. The run view itself is `WorkflowRunView.vue`, shared by the panel and by the run
+page.
+
+- **`w` names the workflow and the run**, because every run route of the API is under its
+  workflow (`/workflows/{workflow_id}/runs/{run_id}`). ⚠️ The first cut carried the run id alone
+  and added a route `GET /project/{p}/workflow_runs/{run}` to find the workflow; the owner called
+  the new endpoint a mistake and it was reverted the same day. The panel adds no API.
+- **`w` mirrors `t`** (the task dialog): `App.vue` opens the panel from the query at load and on
+  every route change, closing drops `w` only. A node click adds `t` next to `w`, so both are open;
+  the dialog is a Vuetify overlay (z-index 2000+), the panel sits at 1900, hence under it.
+- **Query edits are serialized** (`App.vue editQuery`): closing the dialog and the panel in a row
+  (Escape twice) started two `router.replace` from the same query, and the second brought `t`
+  back, reopening the dialog.
+- **Links push, closing replaces**: a link is a plain `router-link` to
+  `workflowRunLocation($route, workflowId, runId)` (`lib/workflowRunQuery.js`), so Back closes the
+  panel and "open in a new tab" gives the page with the panel open. vue-router leaves the `/` of
+  the value unencoded.
+- **No scrim.** The page under the panel stays in use: a click on another run in the list swaps
+  the run of the panel (the view is keyed by project, workflow and run — graph, polling and
+  state start anew). Escape closes the panel unless a dialog or a menu is open above it.
+- **Another project closes the panel**: `App.vue selectProject` (project menu, new and restored
+  project) drops `w` from the query — a run belongs to the project it was opened in.
+- **Width**: half of the window, the left edge is dragged (400 px … window width), stored in
+  `localStorage` `WorkflowRunPanel__width`, a double click on the edge restores the half; full
+  width and no handle on `smAndDown`.
+- **The run page stays** at `/project/{p}/workflows/{w}/runs/{r}`: it is the value of
+  `SEMAPHORE_WORKFLOW_URL` (`db/Task.go GetWorkflowUrl`) and of old bookmarks. No link of the
+  interface leads to it any more.
+- **Lists under the panel** (`Workflows.vue`, `WorkflowRuns.vue`) reload on the bus event
+  `i-workflow-run`, emitted when a run is started, on the view's first successful load (the run
+  may have finished since the list was read, and a finished run is never polled) and when a poll
+  sees its status change — before, coming back from the run page reloaded them.
+
 ## Open, deferred, divergent
 
 - ⚠️ 2026-09-27: the approved mock says "Tab also opens this menu" and the empty state says
@@ -125,7 +162,8 @@ Denis rejected a custom canvas, a library swap and a second Vue 3 runtime (2026-
 - Canvas: `web/src/components/WorkflowGraph.vue`, `web/src/components/workflow/*`,
   `web/src/lib/workflowViewport.js`, `workflowHistory.js`, `workflowLayout.js`,
   `workflowGraph.js`, `workflowEditorPrefs.js`; pages `web/src/views/project/WorkflowEditor.vue`,
-  `WorkflowRun.vue`, `Workflows.vue`; global CSS hooks in `web/src/App.vue`
+  `WorkflowRun.vue`, `Workflows.vue`; run view `web/src/components/WorkflowRunView.vue`, run panel
+  `WorkflowRunPanel.vue`, `web/src/lib/workflowRunQuery.js`; global CSS hooks in `web/src/App.vue`
   (`html.WorkflowEditor-html`).
 - Backend: `db/Workflow.go`, `db/WorkflowStore_pro.go`, `pro_impl/db/sql/workflow.go`,
   `db/sql/migrations/v2.18.15.sql`, `v2.20.8.sql` + `db/sql/migration_2_20_8.go` (revisions),
