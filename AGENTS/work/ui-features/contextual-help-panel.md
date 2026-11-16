@@ -76,6 +76,19 @@ A section is tied to its element by the `data-testid` the element already has
   a halo around it. A plain `box-shadow` ring crossed the floating label, which stands on the
   line of the frame. A checkbox is marked by its control, a button and the code editor by a ring
   around themselves.
+- **"Not shown" means not on screen, not only not in the page.** A tab of `v-window` the user
+  has left stays in the page, hidden by `display: none` (the Variables and Secrets tabs of a
+  variable group, the tabs of a user). An element is looked up among those
+  `checkVisibility()` passes (an ancestor walk where the browser lacks it), and the observer of
+  the form watches `style`, `class` and `hidden` as well as added and removed elements (PR
+  #4442 review, 2026-11-17).
+- **The rows of a table share one section.** Their fields repeat the same `data-testid`
+  (`varGroup-varName`, `varGroup-varValue` in every row): the focus marks the element in focus,
+  the `data-testid` only picks the section; a section under the pointer or in focus marks the
+  first row on screen (PR #4442 review, 2026-11-17).
+- **The missing elements are listed before the panel is drawn.** `checkVisibility()` forces a
+  style pass: listed after the first render, the disabled sections faded in from the enabled
+  background (`check-disabled.cjs` catches it).
 - **One active element, three sources:** the pointer over a section, the focus in a section, the
   focus in the form. Only the last one scrolls the panel; only the focus in a section scrolls the
   dialog or the page to the element.
@@ -167,6 +180,10 @@ The panel is 420 px wide, the full height of the window.
 - Not checked on a stand: the Runner tag field (absent in the community build), the mark of an
   invalid field, browsers other than Chrome, the dialog of a Terraform workspace in the template
   view.
+- ⚠️ 2026-11-17: the dialog of an existing user does not open — on `develop` too: `UserForm`
+  evaluates `canChangePassword` (`this.item.external`) in the `v-if` of its Security tab before
+  the user is loaded, and the render throws. Its help, tabs included, can be checked on a stand
+  only after that is fixed.
 - The broken link in `Runners.vue` (`administration-guide/runners`, the docs path is
   `admin-guide/runners`) is untouched.
 
@@ -177,6 +194,6 @@ The panel is 420 px wide, the full height of the window.
 - `web/vite/help/`, `web/src/help/`, `web/vite.config.mjs`, `Taskfile.yml` (`build:fe.sources`)
 - Tests: `web/tests/unit/help-docs.spec.js`, `help-panel.spec.js`, `help-page.spec.js`,
   `edit-dialog.spec.js`, `inventory-help.spec.js`, `project-settings-help.spec.js`
-- Stand and browser checks: `AGENTS/tools/help-stand/` (unit tests can not see layout or the
-  focus trap)
+- Stand and browser checks: `AGENTS/tools/help-stand/` (unit tests can not see layout, the
+  focus trap or what `display: none` hides)
 - Research behind the first design: `RESEARCH@702f04c19a`

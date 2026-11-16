@@ -16,6 +16,7 @@ NODE_PATH=… node AGENTS/tools/help-stand/check-disabled.cjs
 NODE_PATH=… node AGENTS/tools/help-stand/check-settings.cjs
 NODE_PATH=… node AGENTS/tools/help-stand/check-locales.cjs [locale ...]   # default: ru ja
 NODE_PATH=… node AGENTS/tools/help-stand/check-all-dialogs.cjs [locale]     # default: en
+NODE_PATH=… node AGENTS/tools/help-stand/check-hidden-rows.cjs
 ```
 
 Examples:
@@ -44,17 +45,24 @@ What each check covers:
 | `check-disabled.cjs` | sections are cards; sections of fields that are not shown are disabled; both themes |
 | `check-settings.cjs` | the Settings page: button, layout at four window widths, focus, pointer, saving |
 | `check-all-dialogs.cjs` | ten dialogs of every kind (EditDialog, HelpDialog, a HelpDialog nested over the template dialog, admin pages): button, panel at the window edge, focus in a field → its section and mark; a screenshot each |
+| `check-hidden-rows.cjs` | the variable group dialog: the sections of the tab the user has left (kept in the page, hidden) are disabled and mark nothing; focus in a field of the second or third row of variables marks that row |
 | `check-locales.cjs` | in each given language of the interface, the dialog and the page show their translated help, titled as on screen; marking and disabled sections work |
 
 A check exits with 0 when every line is `PASS` and the browser console is clean, with 2 otherwise.
 
-Environment: `STAND_DIR` (default `/tmp/semaphore-help-stand`) for `stand.sh`; `BASE`, `SUB` and
+Environment: `STAND_DIR` (default `/tmp/semaphore-help-stand`), `STAND_PORT` and
+`STAND_SUB_PORT` (default 3100 and 3102) for `stand.sh`; `BASE`, `SUB` and
 `SHOTS` for the checks (default `http://127.0.0.1:3100`, `http://127.0.0.1:3102/sem`,
 `/tmp/semaphore-help-stand/shots`). To check the sources without a rebuild, start the dev server
 (`cd web && SEMAPHORE_DEV_API_URL=http://127.0.0.1:3100 npx vite --port 8090 --strictPort --host
 127.0.0.1`) and pass `BASE=http://127.0.0.1:8090`; `check-binary.cjs` is for the binary only.
 
 Traps:
+
+- ⚠️ 2026-11-17: `status` only asks whether something answers on the port. Another stand of
+  another checkout may hold 3100 (`lsof -nP -iTCP:3100`); its data is not what the checks
+  expect. Give this one other ports: `STAND_DIR=… STAND_PORT=3110 STAND_SUB_PORT=3112`, and the
+  checks `BASE`/`SUB` to match.
 
 - `init` deletes the stand folder with its database; `stop` first if you want to keep nothing
   running. macOS empties `/tmp` after about three days: run `init` … `seed` again.

@@ -24,6 +24,23 @@ import { hasHelpDoc, helpDocLocale, loadHelpDoc } from '@/help';
 // leaves alone an attribute it does not render.
 const DOCS_FIELD_ATTR = 'data-help-docs-field';
 
+// Whether an element of the host is on screen: not inside an element hidden with
+// `display: none`, as a tab of `v-window` the user has left, which stays in the page. The
+// browser answers with `checkVisibility`; where it lacks it (Safari before 17.4, jsdom) the
+// ancestors are walked up to the root of the host.
+function isShown(el, root) {
+  if (typeof el.checkVisibility === 'function') {
+    return el.checkVisibility();
+  }
+  const view = el.ownerDocument.defaultView;
+  for (let node = el; node && node !== root.parentElement; node = node.parentElement) {
+    if (view.getComputedStyle(node).display === 'none') {
+      return false;
+    }
+  }
+  return true;
+}
+
 // The width of the help panel (HelpPanel.vue).
 export const DOCS_WIDTH = 420;
 
@@ -131,9 +148,11 @@ export default {
   },
 
   created() {
-    // The element marked as the one the active section describes, and the observer of the
-    // elements the host shows.
+    // The element marked as the one the active section describes, the element in focus with
+    // the `data-testid` of `docsFocusField` (one of the rows of a table, which share their
+    // `data-testid`s), and the observer of the elements the host shows. Not reactive: elements.
     this.docsMarked = null;
+    this.docsFocusElement = null;
     this.docsObserver = null;
   },
 
@@ -158,6 +177,9 @@ export default {
         return;
       }
       if (await this.loadDocs()) {
+        // Listed before the panel is drawn: it opens with its sections disabled already,
+        // rather than drawn enabled and then fading out.
+        this.docsMissingFields = this.listDocsMissingFields();
         this.docsOpen = true;
       }
     },
@@ -190,19 +212,20 @@ export default {
       this.docsOpen = false;
       this.docsFocusField = null;
       this.docsFocusSource = null;
+      this.docsFocusElement = null;
       this.docsHoverField = null;
     },
 
-    // The described element another element belongs to: the nearest `data-testid`, on the
-    // element or above it, that a section of the document is anchored to. Vuetify puts the
-    // attribute on the root of an input, around the element that takes the focus.
-    docsFieldOf(el) {
+    // The described element another element belongs to: the nearest element, the element
+    // itself or one above it, with a `data-testid` a section of the document is anchored to.
+    // Vuetify puts the attribute on the root of an input, around the element that takes the
+    // focus.
+    docsFieldElementOf(el) {
       const fields = new Set(this.docsDoc.sections.map((section) => section.field));
       let node = el.closest('[data-testid]');
       while (node) {
-        const id = node.getAttribute('data-testid');
-        if (fields.has(id)) {
-          return id;
+        if (fields.has(node.getAttribute('data-testid'))) {
+          return node;
         }
         node = node.parentElement ? node.parentElement.closest('[data-testid]') : null;
       }
@@ -227,9 +250,13 @@ export default {
       if (!this.docsShown || ev.target.closest('.HelpPanel')) {
         return;
       }
-      const field = this.docsFieldOf(ev.target);
-      this.docsFocusField = field;
-      this.docsFocusSource = field ? 'form' : null;
+      const el = this.docsFieldElementOf(ev.target);
+      this.docsFocusElement = el;
+      this.docsFocusField = el ? el.getAttribute('data-testid') : null;
+      this.docsFocusSource = el ? 'form' : null;
+      // The focus may go to another row of the same field: the active field stays, the mark
+      // moves.
+      this.markDocsField();
     },
 
     // The focus came to a section of the panel (its field), or to another part of the panel
@@ -237,19 +264,37 @@ export default {
     onDocsFocusField(field) {
       this.docsFocusField = field;
       this.docsFocusSource = field ? 'panel' : null;
+      this.docsFocusElement = null;
+      this.markDocsField();
       if (field) {
-        // After the watcher has marked the element.
         this.$nextTick(() => this.revealDocsField());
       }
     },
 
+    // The element of the host a section is anchored to: the first one on screen. The rows of
+    // a table share the `data-testid`s of their fields; a tab the user has left stays in the
+    // page, hidden.
     docsFieldElement(field) {
       const root = this.docsRootElement();
       if (!root || !field) {
         return null;
       }
       // An anchor is a name ([A-Za-z][\w-]*, checked at build time): safe in a selector.
-      return root.querySelector(`[data-testid="${field}"]`);
+      return [...root.querySelectorAll(`[data-testid="${field}"]`)]
+        .find((el) => isShown(el, root)) || null;
+    },
+
+    // The element the active section describes: the element in focus when the section is the
+    // one of the field in focus, so that of the rows of a table the one in focus is marked;
+    // else the first element of the section on screen.
+    docsActiveElement() {
+      const field = this.docsActiveField;
+      const el = this.docsFocusElement;
+      const root = this.docsRootElement();
+      if (el && root && field === this.docsFocusField && root.contains(el) && isShown(el, root)) {
+        return el;
+      }
+      return this.docsFieldElement(field);
     },
 
     // Marks the element the active section describes, and unmarks the one marked before. Of
@@ -261,7 +306,7 @@ export default {
         this.docsMarked.removeAttribute(DOCS_FIELD_ATTR);
         this.docsMarked = null;
       }
-      const el = this.docsShown ? this.docsFieldElement(this.docsActiveField) : null;
+      const el = this.docsShown ? this.docsActiveElement() : null;
       if (el) {
         this.docsMarked = el.querySelector('.v-field') || el.querySelector('.v-input__control') || el;
         this.docsMarked.setAttribute(DOCS_FIELD_ATTR, '');
@@ -276,7 +321,10 @@ export default {
     },
 
     // Elements come and go with the state of the host (the path of an inventory with its
-    // type): the missing ones are listed for the panel, and the mark follows the element.
+    // type), and are hidden and shown without leaving the page (`v-show`: the tabs of
+    // `v-window`, whose transition ends with a `style` and a `class` on the item): the missing
+    // ones are listed for the panel, and the mark follows the element. The mark itself is an
+    // attribute the observer does not watch.
     watchDocsFields() {
       const root = this.docsRootElement();
       if (!root || !this.docsShown || this.docsObserver) {
@@ -284,9 +332,7 @@ export default {
       }
 
       const update = () => {
-        const missing = this.docsDoc.sections
-          .map((section) => section.field)
-          .filter((field) => this.docsFieldElement(field) == null);
+        const missing = this.listDocsMissingFields();
         if (missing.join() !== this.docsMissingFields.join()) {
           this.docsMissingFields = missing;
         }
@@ -295,7 +341,19 @@ export default {
 
       update();
       this.docsObserver = new MutationObserver(update);
-      this.docsObserver.observe(root, { childList: true, subtree: true });
+      this.docsObserver.observe(root, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class', 'hidden'],
+      });
+    },
+
+    // The fields of the sections of the document that the host does not show now.
+    listDocsMissingFields() {
+      return this.docsDoc.sections
+        .map((section) => section.field)
+        .filter((field) => this.docsFieldElement(field) == null);
     },
 
     unwatchDocsFields() {

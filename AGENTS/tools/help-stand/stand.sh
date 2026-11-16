@@ -1,13 +1,16 @@
 #!/bin/bash
 # Throwaway stand for the built-in help panel: the community binary of this checkout on
 # 127.0.0.1:3100, a second instance under a sub-path on :3102, and the data the checks expect.
+# STAND_PORT and STAND_SUB_PORT move them when another stand holds those ports.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 DIR=${STAND_DIR:-/tmp/semaphore-help-stand}
 BIN=$DIR/semaphore
-BASE=http://127.0.0.1:3100
-SUB=http://127.0.0.1:3102/sem
+PORT=${STAND_PORT:-3100}
+SUB_PORT=${STAND_SUB_PORT:-3102}
+BASE=http://127.0.0.1:$PORT
+SUB=http://127.0.0.1:$SUB_PORT/sem
 
 secret() { head -c 32 /dev/urandom | base64; }
 
@@ -56,8 +59,8 @@ case "${1:-status}" in
     stop
     rm -rf "$DIR"
     mkdir -p "$DIR/shots"
-    config "$DIR/config.json" 3100 "$DIR/database.sqlite"
-    config "$DIR/config-sub.json" 3102 "$DIR/database-sub.sqlite" "$SUB/"
+    config "$DIR/config.json" "$PORT" "$DIR/database.sqlite"
+    config "$DIR/config-sub.json" "$SUB_PORT" "$DIR/database-sub.sqlite" "$SUB/"
     echo "stand folder: $DIR" ;;
 
   build)

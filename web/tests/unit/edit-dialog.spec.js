@@ -746,6 +746,17 @@ describe('EditDialog.vue', () => {
         expect(marked()).to.deep.equal([]);
       });
 
+      it('opens with the sections of missing fields disabled in its first render', async () => {
+        const wrapper = await open({ helpDoc: 'demo' }, [], { form: FORM });
+
+        // Resolves when the panel is to open, ahead of its render and of the watcher of the
+        // fields: a section drawn enabled first would fade to disabled in the browser.
+        await wrapper.vm.toggleDocs();
+
+        expect(wrapper.vm.docsOpen).to.equal(true);
+        expect(wrapper.vm.docsMissingFields).to.deep.equal(['demoForm-gone']);
+      });
+
       it('enables the section when its field appears and disables it when the field goes', async () => {
         const wrapper = await openWithPanel();
         const gone = section('demoForm-gone');
@@ -807,6 +818,126 @@ describe('EditDialog.vue', () => {
 
         expect(marked()).to.have.length(1);
         expect(byTestId('outerDialog').contains(marked()[0])).to.equal(true);
+      });
+    });
+
+    // A tab of `v-window` the user has left stays in the page, hidden by `display: none` on its
+    // item (`v-show`), as does any other part of a form behind `v-show`.
+    describe('a field hidden in the page', () => {
+      async function hiddenField(wrapper) {
+        const tab = document.createElement('div');
+        tab.style.display = 'none';
+        const field = document.createElement('input');
+        field.setAttribute('data-testid', 'demoForm-gone');
+        tab.appendChild(field);
+        document.querySelector('.demo-form').appendChild(tab);
+        await settled(wrapper);
+        return { tab, field };
+      }
+
+      it('disables the section of a field inside a hidden element', async () => {
+        const wrapper = await openWithPanel();
+
+        await hiddenField(wrapper);
+
+        expect(byTestId('editDialog-docsSectionHidden-demoForm-gone')).to.not.equal(null);
+        expect(section('demoForm-gone').classList.contains('HelpPanel__section--disabled'))
+          .to.equal(true);
+      });
+
+      it('enables the section when the hidden element is shown, and disables it again', async () => {
+        const wrapper = await openWithPanel();
+        const { tab, field } = await hiddenField(wrapper);
+
+        tab.style.display = '';
+        await settled(wrapper);
+
+        expect(byTestId('editDialog-docsSectionHidden-demoForm-gone')).to.equal(null);
+        await pointer(wrapper, section('demoForm-gone'), 'mouseenter');
+        expect(marked()).to.deep.equal([field]);
+
+        // The user goes to another tab while the pointer is over the section.
+        tab.style.display = 'none';
+        await settled(wrapper);
+
+        expect(byTestId('editDialog-docsSectionHidden-demoForm-gone')).to.not.equal(null);
+        expect(marked()).to.deep.equal([]);
+      });
+
+      it('marks the shown one of the fields of a section', async () => {
+        const wrapper = await openWithPanel();
+        const { tab } = await hiddenField(wrapper);
+        const shown = document.createElement('input');
+        shown.setAttribute('data-testid', 'demoForm-gone');
+        document.querySelector('.demo-form').appendChild(shown);
+        await settled(wrapper);
+        // The hidden one comes first in the page.
+        expect(document.querySelector('[data-testid="demoForm-gone"]').parentElement).to.equal(tab);
+
+        await pointer(wrapper, section('demoForm-gone'), 'mouseenter');
+
+        expect(marked()).to.deep.equal([shown]);
+      });
+    });
+
+    // The rows of a table (the variables of a variable group) repeat the `data-testid`s of
+    // their fields: one section describes the field of every row.
+    describe('a field repeated in rows', () => {
+      async function secondRow(wrapper) {
+        const row = document.createElement('div');
+        row.innerHTML = '<div data-testid="demoForm-name"><div class="v-field"><input class="demo-name2"></div></div>';
+        document.querySelector('.demo-form').appendChild(row);
+        await settled(wrapper);
+        return row.querySelector('.v-field');
+      }
+
+      it('marks the row in focus, not the first one', async () => {
+        const wrapper = await openWithPanel();
+        const frame = await secondRow(wrapper);
+
+        await focusIn(wrapper, document.querySelector('.demo-name2'));
+
+        expect(wrapper.vm.docsActiveField).to.equal('demoForm-name');
+        expect(marked()).to.deep.equal([frame]);
+      });
+
+      it('moves the mark with the focus from row to row', async () => {
+        const wrapper = await openWithPanel();
+        const frame = await secondRow(wrapper);
+
+        await focusIn(wrapper, document.querySelector('.demo-name'));
+        expect(marked()).to.deep.equal([nameFrame()]);
+
+        await focusIn(wrapper, document.querySelector('.demo-name2'));
+        expect(marked()).to.deep.equal([frame]);
+
+        await focusIn(wrapper, document.querySelector('.demo-name'));
+        expect(marked()).to.deep.equal([nameFrame()]);
+      });
+
+      it('keeps the row in focus marked under the pointer over its section', async () => {
+        const wrapper = await openWithPanel();
+        const frame = await secondRow(wrapper);
+        await focusIn(wrapper, document.querySelector('.demo-name2'));
+
+        await pointer(wrapper, section('demoForm-name'), 'mouseenter');
+        expect(marked()).to.deep.equal([frame]);
+
+        await pointer(wrapper, section('demoForm-type'), 'mouseenter');
+        expect(marked()).to.deep.equal([document.querySelector('.demo-type')]);
+
+        await pointer(wrapper, section('demoForm-type'), 'mouseleave');
+        expect(marked()).to.deep.equal([frame]);
+      });
+
+      it('marks the first row for a section in focus', async () => {
+        const wrapper = await openWithPanel();
+        await secondRow(wrapper);
+        await focusIn(wrapper, document.querySelector('.demo-name2'));
+
+        await focusIn(wrapper, section('demoForm-name'));
+
+        expect(marked()).to.deep.equal([nameFrame()]);
       });
     });
   });
