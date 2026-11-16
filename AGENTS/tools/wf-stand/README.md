@@ -168,8 +168,13 @@ default 1.2.3) and the first enum option, starts the run and shoots `run-dialog-
 `check-run-panel.cjs` (2026-11-17, TASK@244A5E2CA1) drives Chrome through the run panel: run links
 in both lists, the width (default half, drag, limits, storage, double click), the task dialog over
 the panel (`?w=&t=`), Escape / Back / Forward / close, an unknown run, a run under the wrong workflow, Run + approve + Stop from the
-panel with the list under it following, the old run page, the narrow screen. It needs a project
-seeded by `seed.sh` (`WF` = "Exec happy", the second workflow of the list = "Exec branches") with
-one finished run `RUN` of `WF` (`run.sh 1 --approve --expect success`); it starts two runs itself.
-Screenshots land in `/tmp/semaphore-stand/shots-panel`; the one console 404 it reports is the
-unknown-run check. Example tail: `38/38 passed`.
+panel with the list under it following, the old run page, the narrow screen, and (9) another
+project — the same `?w=` under `OTHER_PID` must not show the old graph, creating a project through
+the sidebar must drop `w` (the project it creates is deleted again) — and (10) a run that ends while
+the list is on screen (approved through the API) must reach the list when its panel opens. It needs
+a project seeded by `seed.sh` (`WF` = "Exec happy", the second workflow of the list = "Exec branches")
+with one finished run `RUN` of `WF` (`run.sh 1 --approve --expect success`) and a second project
+`OTHER_PID` (default 2) without `WF`; it starts three runs itself. Screenshots land in
+`/tmp/semaphore-stand/shots-panel`; the console 404 it reports comes from the unknown-run and the
+other-project checks. Example tail: `43/43 passed` (2026-11-17; the build before the review fixes of
+PR #4441 fails the four checks of 9 and 10).

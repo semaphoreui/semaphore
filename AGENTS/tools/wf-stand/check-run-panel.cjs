@@ -8,6 +8,7 @@ const PID = process.env.PID || 1; // the project seeded by seed.sh
 const WF = process.env.WF || 1; // "Exec happy": task -> approval -> delay -> task
 const RUN = process.env.RUN || 1; // a finished run of WF
 const OTHER_WF = process.env.OTHER_WF || 2; // any other workflow of the project
+const OTHER_PID = process.env.OTHER_PID || 2; // another project, without the workflow WF
 const OUT = '/tmp/semaphore-stand/shots-panel';
 const results = [];
 function check(name, ok, detail = '') {
@@ -204,6 +205,52 @@ function check(name, ok, detail = '') {
   check('8 old URL opens the run as a page', (await panel.count()) === 0 && await page.locator('[data-testid="workflowRun-backToList"]').isVisible() && (await page.locator('[data-testid="workflowRun-close"]').count()) === 0);
   check('8 page run view shows the nodes', (await page.locator('.WorkflowNodeCard').count()) === 4, `${await page.locator('.WorkflowNodeCard').count()} nodes`);
   await page.screenshot({ path: `${OUT}/07-old-run-page.png` });
+
+  // 9. another project: the run of the panel belongs to the project it was opened in
+  const router = () => page.evaluate((to) => document.querySelector('#app').__vue_app__.config.globalProperties.$router.push(to), `/project/${OTHER_PID}/workflows?w=${WF}/${RUN}`);
+  await page.goto(`${BASE}/project/${PID}/workflows?w=${WF}/${RUN}`);
+  await page.waitForSelector('[data-testid="workflowRunPanel"] .WorkflowNodeCard');
+  await router();
+  await settle(1500);
+  check('9 same ?w= in another project: the view starts anew (no graph of the old project)',
+    (await page.locator('[data-testid="workflowRunPanel"] .WorkflowNodeCard').count()) === 0
+    && (await page.locator('[data-testid="workflowRunPanel"] [data-testid="workflowRun-error"]').count()) === 1,
+    `${await page.locator('[data-testid="workflowRunPanel"] .WorkflowNodeCard').count()} nodes`);
+  await page.goto(`${BASE}/project/${PID}/workflows?w=${WF}/${RUN}&foo=bar`);
+  await page.waitForSelector('[data-testid="workflowRunPanel"] .WorkflowNodeCard');
+  await page.locator('[data-testid="sidebar-currentProject"]').click();
+  await page.locator('[data-testid="sidebar-newProject"]').click();
+  await page.locator('[data-testid="newProject-name"] input').fill(`panel check ${Date.now()}`);
+  await page.locator('[data-testid="appNewProjectDialog"] [data-testid="editDialog-save"]').click();
+  await page.waitForURL((u) => !u.pathname.startsWith(`/project/${PID}/`) && /^\/project\/\d+/.test(u.pathname), { timeout: 10000 });
+  await settle(1500);
+  const newPid = url().pathname.split('/')[2];
+  check('9 creating a project closes the panel and drops w, keeps the rest', (await panel.count()) === 0 && !url().searchParams.has('w') && url().searchParams.get('foo') === 'bar', page.url());
+  await page.screenshot({ path: `${OUT}/09-new-project-no-panel.png` });
+  await ctx.request.delete(`${BASE}/api/project/${newPid}`);
+
+  // 10. a run that ended while the list was on screen: opening it brings the list up to date
+  const api = (p) => `${BASE}/api/project/${PID}/workflows/${WF}${p}`;
+  const runOf = async (id) => (await (await ctx.request.get(api(`/runs/${id}`))).json());
+  const waitRun = async (id, ok) => { for (let i = 0; i < 120; i += 1) { const r = await runOf(id); if (ok(r)) return r; await settle(500); } throw new Error(`run ${id}: timeout`); };
+  const stale = (await (await ctx.request.post(api('/runs'), { data: {} })).json()).id;
+  const atApproval = await waitRun(stale, (r) => r.run.status === 'approval');
+  await page.goto(`${BASE}/project/${PID}/workflows`);
+  const row = page.locator('[data-testid="workflows-rowLastRun"]', { hasText: `#${stale}` }).locator('xpath=ancestor::tr');
+  await row.locator('[data-testid="workflows-rowStatus-approval"]').waitFor();
+  const pending = atApproval.nodes.find((n) => n.approval && n.approval.status === 'pending');
+  await ctx.request.post(api(`/runs/${stale}/approvals/${pending.node.id}`), { data: { status: 'approved' } });
+  await waitRun(stale, (r) => r.run.status === 'success');
+  await settle(1000);
+  check('10 precondition: the list still shows the ended run as approval', (await row.locator('[data-testid="workflows-rowStatus-approval"]').count()) === 1);
+  await page.locator('[data-testid="workflows-rowLastRun"]', { hasText: `#${stale}` }).click();
+  await page.waitForSelector('[data-testid="workflowRunPanel"] [data-testid="workflowRun-status-success"]');
+  await settle(1500);
+  check('10 opening the ended run updates the list under the panel', (await row.locator('[data-testid="workflows-rowStatus-success"]').count()) === 1);
+  await page.locator('[data-testid="workflowRun-close"]').click();
+  await panel.waitFor({ state: 'hidden' });
+  check('10 the list keeps the status after the panel closes', (await row.locator('[data-testid="workflows-rowStatus-success"]').count()) === 1);
+  await page.screenshot({ path: `${OUT}/10-list-after-ended-run.png` });
 
   // dark theme, narrow screen
   await page.evaluate(() => localStorage.setItem('darkMode', '1'));
