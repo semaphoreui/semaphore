@@ -165,12 +165,22 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				ENV:       &env,
 			})
 			printError(err)
-			_, err = store.CreateAccessKey(db.AccessKey{
+			key, err := store.CreateAccessKey(db.AccessKey{
+				Name:          secret.Name,
 				String:        secret.Secret,
 				EnvironmentID: &res.ID,
 				ProjectID:     &userProject.ID,
 				Type:          db.AccessKeyString,
 				Owner:         secret.Type.GetAccessKeyOwner(),
+			})
+			printError(err)
+			// The key alone is invisible: a group reads its secrets through the links.
+			_, err = store.CreateEnvironmentSecret(db.EnvironmentSecret{
+				ProjectID:     userProject.ID,
+				EnvironmentID: res.ID,
+				Type:          secret.Type,
+				Name:          secret.Name,
+				KeyID:         key.ID,
 			})
 			printError(err)
 			environmentID = res.ID
@@ -329,6 +339,8 @@ func alterRequestBody(t *trans.Transaction) {
 	var request map[string]any
 	json.Unmarshal([]byte(t.Request.Body), &request)
 
+	normalizeEnvironmentSecrets(&request)
+
 	if userProject != nil {
 		bodyFieldProcessor("project_id", userProject.ID, &request)
 	}
@@ -396,6 +408,28 @@ func alterRequestBody(t *trans.Transaction) {
 
 	out, _ := json.Marshal(request)
 	t.Request.Body = string(out)
+}
+
+func normalizeEnvironmentSecrets(request *map[string]any) {
+	secrets, ok := (*request)["secrets"].([]any)
+	if !ok {
+		return
+	}
+
+	for _, value := range secrets {
+		secret, ok := value.(map[string]any)
+		if !ok || secret["operation"] != string(db.EnvironmentSecretCreate) {
+			continue
+		}
+
+		keyID, ok := secret["key_id"].(float64)
+		if !ok || keyID >= 0 {
+			continue
+		}
+
+		delete(secret, "key_id")
+		secret["secret"] = "DREDD-SECRET"
+	}
 }
 
 func bodyFieldProcessor(id string, sub any, request *map[string]any) {

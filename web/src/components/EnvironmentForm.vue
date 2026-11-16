@@ -396,11 +396,14 @@
           </v-card>
         </v-dialog>
 
-        <div>
-          <div class="EnvSubheader d-flex align-center text-medium-emphasis">
-            {{ $t('extraVariables') }}
+        <div v-for="section in secretSections" :key="section.type">
+          <div
+            class="EnvSubheader d-flex align-center text-medium-emphasis"
+            :class="{ 'mt-4': section.type === 'env' }"
+          >
+            {{ $t(section.title) }}
             <v-tooltip
-              v-if="needHelp"
+              v-if="section.type === 'var' && needHelp"
               location="bottom"
               content-class="bg-black"
               open-delay="300"
@@ -420,8 +423,8 @@
             <v-btn
               icon
               variant="text"
-              @click="addSecret('var')"
-              data-testid="varGroup-addSecretVar"
+              @click="addSecret(section.type)"
+              :data-testid="`varGroup-addSecret${section.testId}`"
             >
               <v-icon> mdi-plus </v-icon>
             </v-btn>
@@ -430,14 +433,14 @@
           <v-alert
             color="warning"
             variant="tonal"
-            v-if="secrets.filter((s) => !s.remove && s.type === 'var').length > 0"
+            v-if="section.type === 'var' && secretsOfType('var').length > 0"
             data-testid="varGroup-secretVarsWarning"
           >
             Secrets passed this way may appear in plain text in Ansible logs.
           </v-alert>
 
           <v-data-table
-            :items="secrets.filter((s) => !s.remove && s.type === 'var')"
+            :items="secretsOfType(section.type)"
             :items-per-page="-1"
             class="elevation-1 FieldTable EnvTable"
             hide-default-footer
@@ -445,36 +448,104 @@
             style="background: #8585850f"
             :headers="secretTableHeaders"
             hide-default-header
-            data-testid="varGroup-secretVarTable"
-            :data-state="secrets.filter((s) => !s.remove && s.type === 'var').length === 0
-              ? 'empty' : 'ready'"
+            :data-testid="`varGroup-secret${section.testId}Table`"
+            :data-state="secretsOfType(section.type).length === 0 ? 'empty' : 'ready'"
           >
             <template v-slot:item="props">
-              <tr data-testid="varGroup-secretVarRow">
+              <tr :data-testid="`varGroup-secret${section.testId}Row`">
                 <td class="pa-1">
-                  <v-text-field
-                    variant="solo-inverted"
-                    flat
-                    density="comfortable"
-                    hide-details
-                    v-model="props.item.name"
-                    class="v-text-field--solo--no-min-height EnvField"
-                    :placeholder="$t('name')"
-                    data-testid="varGroup-secretVarName"
-                  ></v-text-field>
+                  <div class="d-flex align-center">
+                    <v-tooltip
+                      v-if="props.item.source === 'key' && !props.item.new"
+                      location="bottom"
+                    >
+                      <template v-slot:activator="{ props: tooltip }">
+                        <v-icon
+                          size="small"
+                          class="ml-1 mr-1"
+                          v-bind="tooltip"
+                          :data-testid="`varGroup-secret${section.testId}Linked`"
+                        >
+                          mdi-link-variant
+                        </v-icon>
+                      </template>
+                      {{ $t('secretLinkedToKey', { key: props.item.keyName }) }}
+                    </v-tooltip>
+                    <v-text-field
+                      variant="solo-inverted"
+                      flat
+                      density="comfortable"
+                      hide-details
+                      v-model="props.item.name"
+                      class="v-text-field--solo--no-min-height EnvField"
+                      :placeholder="$t('name')"
+                      :disabled="formSaving"
+                      :data-testid="`varGroup-secret${section.testId}Name`"
+                    ></v-text-field>
+                  </div>
                 </td>
 
                 <td class="pa-1">
-                  <v-text-field
-                    variant="solo-inverted"
-                    flat
-                    density="comfortable"
-                    hide-details
-                    v-model="props.item.value"
-                    placeholder="*******"
-                    class="v-text-field--solo--no-min-height EnvField"
-                    data-testid="varGroup-secretVarValue"
-                  ></v-text-field>
+                  <div class="d-flex align-center">
+                    <v-text-field
+                      v-if="props.item.source === 'value'"
+                      variant="solo-inverted"
+                      flat
+                      density="comfortable"
+                      hide-details
+                      v-model="props.item.value"
+                      placeholder="*******"
+                      class="v-text-field--solo--no-min-height EnvField"
+                      :disabled="formSaving"
+                      :data-testid="`varGroup-secret${section.testId}Value`"
+                    ></v-text-field>
+                    <v-select
+                      v-else
+                      variant="solo-inverted"
+                      flat
+                      density="comfortable"
+                      hide-details
+                      v-model="props.item.keyId"
+                      :items="keyItemsFor(props.item)"
+                      item-title="name"
+                      item-value="id"
+                      :placeholder="$t('secretSelectKey')"
+                      :no-data-text="$t('secretNoStringKeys')"
+                      class="v-text-field--solo--no-min-height EnvField"
+                      :disabled="formSaving"
+                      :data-testid="`varGroup-secret${section.testId}Key`"
+                    ></v-select>
+
+                    <v-tooltip location="bottom" v-if="canToggleSource(props.item)">
+                      <template v-slot:activator="{ props: tooltip }">
+                        <v-btn
+                          icon
+                          variant="text"
+                          size="x-small"
+                          class="ml-1"
+                          v-bind="tooltip"
+                          :disabled="formSaving"
+                          @click="toggleSecretSource(props.item)"
+                          :data-testid="`varGroup-secretSource-${props.item.type}`"
+                        >
+                          <v-icon size="small">{{ secretSourceIcon(props.item) }}</v-icon>
+                        </v-btn>
+                      </template>
+                      {{
+                        props.item.source === 'value'
+                          ? $t('secretUseKeyStoreKey')
+                          : $t('secretEnterValue')
+                      }}
+                    </v-tooltip>
+                    <v-tooltip location="bottom" v-else>
+                      <template v-slot:activator="{ props: tooltip }">
+                        <v-icon size="small" class="ml-2 mr-1" v-bind="tooltip">
+                          mdi-information-outline
+                        </v-icon>
+                      </template>
+                      {{ $t('secretLinkedReadOnlyHint') }}
+                    </v-tooltip>
+                  </div>
                 </td>
 
                 <td style="width: 38px">
@@ -482,77 +553,7 @@
                     size="small"
                     class="pa-1 EnvRemove"
                     @click="removeSecret(props.item)"
-                    data-testid="varGroup-secretVarRemove"
-                  > mdi-delete </v-icon>
-                </td>
-              </tr>
-            </template>
-          </v-data-table>
-        </div>
-
-        <div>
-          <div class="EnvSubheader d-flex align-center text-medium-emphasis mt-4">
-            {{ $t('environmentVariables') }}
-
-            <v-spacer />
-
-            <v-btn
-              icon
-              variant="text"
-              @click="addSecret('env')"
-              data-testid="varGroup-addSecretEnv"
-            >
-              <v-icon> mdi-plus </v-icon>
-            </v-btn>
-          </div>
-
-          <v-data-table
-            :items="secrets.filter((s) => !s.remove && s.type === 'env')"
-            :items-per-page="-1"
-            class="elevation-1 FieldTable EnvTable"
-            hide-default-footer
-            :no-data-text="$t('noValues')"
-            style="background: #8585850f"
-            :headers="secretTableHeaders"
-            hide-default-header
-            data-testid="varGroup-secretEnvTable"
-            :data-state="secrets.filter((s) => !s.remove && s.type === 'env').length === 0
-              ? 'empty' : 'ready'"
-          >
-            <template v-slot:item="props">
-              <tr data-testid="varGroup-secretEnvRow">
-                <td class="pa-1">
-                  <v-text-field
-                    variant="solo-inverted"
-                    flat
-                    density="comfortable"
-                    hide-details
-                    v-model="props.item.name"
-                    class="v-text-field--solo--no-min-height EnvField"
-                    :placeholder="$t('name')"
-                    data-testid="varGroup-secretEnvName"
-                  ></v-text-field>
-                </td>
-
-                <td class="pa-1">
-                  <v-text-field
-                    variant="solo-inverted"
-                    flat
-                    density="comfortable"
-                    hide-details
-                    v-model="props.item.value"
-                    placeholder="*******"
-                    class="v-text-field--solo--no-min-height EnvField"
-                    data-testid="varGroup-secretEnvValue"
-                  ></v-text-field>
-                </td>
-
-                <td style="width: 38px">
-                  <v-icon
-                    size="small"
-                    class="pa-1 EnvRemove"
-                    @click="removeSecret(props.item)"
-                    data-testid="varGroup-secretEnvRemove"
+                    :data-testid="`varGroup-secret${section.testId}Remove`"
                   > mdi-delete </v-icon>
                 </td>
               </tr>
@@ -756,6 +757,13 @@ export default {
   },
 
   computed: {
+    secretSections() {
+      return [
+        { type: 'var', title: 'extraVariables', testId: 'Var' },
+        { type: 'env', title: 'environmentVariables', testId: 'Env' },
+      ];
+    },
+
     secretStorage() {
       if (this.item && this.item.secret_storage_id && this.secretStorages) {
         return this.secretStorages.find((s) => s.id === this.item.secret_storage_id);
@@ -951,6 +959,8 @@ export default {
       ],
 
       secretStorages: null,
+      // Shared string keys of the Key Store a secret may link to.
+      keys: null,
 
       syncSettingsDialog: false,
       syncing: false,
@@ -1059,17 +1069,50 @@ export default {
       }
     },
 
+    secretsOfType(type) {
+      return this.secrets.filter((s) => !s.remove && s.type === type);
+    },
+
+    // A new row may hold a value or point at a key; an owned row may be switched to a key
+    // (the backend drops the owned key once nothing links to it); a row linked to a Key Store
+    // key can not take a value, the key is changed in the Key Store or by its owner group.
+    canToggleSource(secret) {
+      return secret.new || secret.owned;
+    },
+
+    toggleSecretSource(secret) {
+      Object.assign(secret, { source: secret.source === 'value' ? 'key' : 'value' });
+    },
+
+    secretSourceIcon(secret) {
+      return secret.source === 'value' ? 'mdi-key-variant' : 'mdi-form-textbox';
+    },
+
+    // Only shared string keys are offered. A link to a key outside that list (deleted since, or
+    // the owned key of another group made through the API) is kept visible by its name, so the
+    // form never silently rewrites it.
+    keyItemsFor(secret) {
+      const keys = this.keys || [];
+      if (secret.keyId && !keys.some((k) => k.id === secret.keyId)) {
+        return [{ id: secret.keyId, name: secret.keyName || `#${secret.keyId}` }, ...keys];
+      }
+      return keys;
+    },
+
     addSecret(type) {
       this.secrets.push({
         type,
         name: '',
+        source: 'value',
         value: '',
+        keyId: null,
         new: true,
       });
     },
 
     removeSecret(val) {
-      const i = this.secrets.findIndex((v) => v.name === val.name);
+      // By identity, not by name: two freshly added rows share the empty name.
+      const i = this.secrets.indexOf(val);
       if (i > -1) {
         const s = this.secrets[i];
         this.secrets.splice(i, 1);
@@ -1141,13 +1184,24 @@ export default {
           } else {
             operation = 'update';
           }
-          return {
+          const secret = {
             id: s.id,
             name: s.name,
-            secret: s.value,
             type: s.type,
             operation,
           };
+          if (operation === 'delete') {
+            return secret;
+          }
+          if (s.source === 'key') {
+            if (!s.keyId) {
+              throw new Error(this.$t('secretKeyRequired', { name: s.name || '?' }));
+            }
+            // No secret field: the value lives in the key.
+            return { ...secret, key_id: s.keyId };
+          }
+          // An empty value on update keeps the stored one.
+          return { ...secret, secret: s.value };
         })
         .filter((s) => s.operation != null);
 
@@ -1156,6 +1210,9 @@ export default {
     },
 
     async afterLoadData() {
+      const allKeys = await this.loadProjectResources('keys');
+      this.keys = allKeys.filter((k) => k.type === 'string');
+
       if (this.itemId === 'new') {
         [this.secretStorages] = await Promise.all([this.loadProjectResources('secret_storages')]);
       } else {
@@ -1202,8 +1259,13 @@ export default {
       this.secrets = secrets.map((x) => ({
         id: x.id,
         name: x.name,
-        value: '',
         type: x.type,
+        // Owned: the group holds the value in its own key. Linked: points at another key.
+        source: x.owned ? 'value' : 'key',
+        value: '',
+        keyId: x.key_id,
+        keyName: x.key_name,
+        owned: x.owned,
       }));
 
       // Object.keys(env).forEach((x) => {

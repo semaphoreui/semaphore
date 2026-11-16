@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -161,42 +160,41 @@ func (s *accessKeyEncryptionServiceImpl) DeserializeSecret(key *db.AccessKey) er
 	return err
 }
 
+// FillEnvironmentSecrets loads the secrets of a Variable Group from its links. Without
+// deserializeSecret the value stays empty — the API and the form only see which key a secret points
+// at. With it the key is decrypted; a key that is no longer a string key fails loudly, because it may
+// have been overwritten in the Key Store after it was linked.
 func (s *accessKeyEncryptionServiceImpl) FillEnvironmentSecrets(env *db.Environment, deserializeSecret bool) error {
-	keys, err := s.environmentRepo.GetEnvironmentSecrets(env.ProjectID, env.ID)
-
+	links, err := s.environmentRepo.GetEnvironmentSecretKeys(env.ProjectID, env.ID)
 	if err != nil {
 		return err
 	}
 
-	for _, k := range keys {
-		var secretName string
-		var secretType db.EnvironmentSecretType
+	// Several secrets of one group may point at the same key; decrypt it once.
+	values := make(map[int]string)
 
-		switch k.Owner {
-		case db.AccessKeyVariable:
-			secretType = db.EnvironmentSecretVar
-			secretName = strings.TrimPrefix(k.Name, string(db.EnvironmentSecretVar)+".")
-		case db.AccessKeyEnvironment:
-			secretType = db.EnvironmentSecretEnv
-			secretName = strings.TrimPrefix(k.Name, string(db.EnvironmentSecretEnv)+".")
-		default:
-			secretType = db.EnvironmentSecretVar
-			secretName = k.Name
-		}
+	for _, link := range links {
+		secret := link.EnvironmentSecret
+		secret.Secret = ""
 
 		if deserializeSecret {
-			err = s.DeserializeSecret(&k)
-			if err != nil {
-				return err
+			if link.Key.Type != db.AccessKeyString {
+				return fmt.Errorf("secret %q of variable group %q: key %q is %s, only string keys can be used",
+					secret.Name, env.Name, link.Key.Name, link.Key.Type)
 			}
+			value, ok := values[link.KeyID]
+			if !ok {
+				key := link.Key
+				if err = s.DeserializeSecret(&key); err != nil {
+					return fmt.Errorf("secret %q of variable group %q: %w", secret.Name, env.Name, err)
+				}
+				value = key.String
+				values[link.KeyID] = value
+			}
+			secret.Secret = value
 		}
 
-		env.Secrets = append(env.Secrets, db.EnvironmentSecret{
-			ID:     k.ID,
-			Name:   secretName,
-			Type:   secretType,
-			Secret: k.String,
-		})
+		env.Secrets = append(env.Secrets, secret)
 	}
 
 	return nil

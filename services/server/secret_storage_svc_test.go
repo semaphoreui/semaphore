@@ -21,7 +21,7 @@ func TestSecretStorageDelete_RemovesOwnedKeysWithoutCascade(t *testing.T) {
 	require.NoError(t, err)
 	_, err = store.CreateAccessKey(db.AccessKey{Name: "token", Type: db.AccessKeyString, ProjectID: &project.ID, Owner: db.AccessKeySecretStorage, StorageID: &storage.ID})
 	require.NoError(t, err)
-	keyService := NewAccessKeyService(store, NewAccessKeyEncryptionService(store, nil, nil, nil), store, store)
+	keyService := NewAccessKeyService(store, NewAccessKeyEncryptionService(store, nil, nil, nil), store, store, store)
 	service := &SecretStorageServiceImpl{secretStorageRepo: store, accessKeyRepo: store, accessKeyService: keyService}
 
 	require.NoError(t, service.Delete(project.ID, storage.ID))

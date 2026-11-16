@@ -79,7 +79,7 @@ func newKeyFixture(t *testing.T) (resourceFixture, *KeyController) {
 	t.Helper()
 	f := newResourceFixture(t)
 	encryption := server.NewAccessKeyEncryptionService(f.store, f.store, f.store, f.store)
-	return f, NewKeyController(server.NewAccessKeyService(f.store, encryption, f.store, f.store))
+	return f, NewKeyController(server.NewAccessKeyService(f.store, encryption, f.store, f.store, f.store))
 }
 
 // storedSecret reads the ciphertext column of a key as the database holds it.

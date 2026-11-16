@@ -53,6 +53,7 @@ func truncateAll() {
 		"project",
 		"task__output",
 		"task",
+		"project__environment_secret",
 		"session",
 		"project__environment",
 		"project__inventory",

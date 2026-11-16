@@ -40,6 +40,11 @@ func (t AccessKeyType) IsValid() bool {
 	}
 }
 
+// AccessKeyDeleteClaimTTL is how long a deletion claim on a key stays valid (see AccessKey.DeleteClaim).
+// It must outlast the removal of the secret from an external storage; a claim left behind by a crashed
+// node stops blocking new links after it.
+const AccessKeyDeleteClaimTTL = 15 * time.Minute
+
 const (
 	AccessKeySourceStorageVault AccessKeySourceStorageType = "vault"
 	AccessKeySourceStorageEnv   AccessKeySourceStorageType = "env"
@@ -97,6 +102,18 @@ type AccessKey struct {
 	SourceStorageType *AccessKeySourceStorageType `db:"source_storage_type" json:"source_storage_type,omitempty"`
 
 	Synchronized bool `db:"synchronized" json:"synchronized,omitempty"`
+
+	// DeleteClaim marks a key whose deletion is in progress: the Unix time in milliseconds until which
+	// the claim holds, nil when nobody deletes the key. The secret of a key is removed from its storage
+	// before the row, so a variable group must not link the key in between; the store refuses a link to
+	// a claimed key. Set and cleared only by AccessKeyDeletionManager.ClaimAccessKeyDeletion and
+	// ReleaseAccessKeyDeletion.
+	DeleteClaim *int64 `db:"delete_claim" json:"-" backup:"-"`
+}
+
+// DeletionClaimed tells whether somebody is deleting the key at the moment now.
+func (key *AccessKey) DeletionClaimed(now time.Time) bool {
+	return key.DeleteClaim != nil && *key.DeleteClaim > now.UnixMilli()
 }
 
 func (key *AccessKey) IsNativelyReadOnly() bool {

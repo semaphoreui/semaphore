@@ -21,12 +21,14 @@ type SecretStorageService interface {
 func NewSecretStorageService(
 	secretStorageRepo db.SecretStorageRepository,
 	accessKeyRepo db.AccessKeyManager,
+	environmentRepo db.EnvironmentManager,
 	accessKeyService AccessKeyService,
 	encryptionService AccessKeyEncryptionService,
 ) SecretStorageService {
 	return &SecretStorageServiceImpl{
 		secretStorageRepo: secretStorageRepo,
 		accessKeyRepo:     accessKeyRepo,
+		environmentRepo:   environmentRepo,
 		accessKeyService:  accessKeyService,
 		encryptionService: encryptionService,
 	}
@@ -35,12 +37,13 @@ func NewSecretStorageService(
 type SecretStorageServiceImpl struct {
 	secretStorageRepo db.SecretStorageRepository
 	accessKeyRepo     db.AccessKeyManager
+	environmentRepo   db.EnvironmentManager
 	accessKeyService  AccessKeyService
 	encryptionService AccessKeyEncryptionService
 }
 
 func (s *SecretStorageServiceImpl) SyncSecrets(sync db.SecretSync) error {
-	return pro.SyncSecrets(sync, s.secretStorageRepo, s.accessKeyRepo, s.encryptionService)
+	return pro.SyncSecrets(sync, s.secretStorageRepo, s.accessKeyRepo, s.environmentRepo, s.encryptionService)
 }
 
 func (s *SecretStorageServiceImpl) Delete(projectID int, storageID int) (err error) {

@@ -7,143 +7,26 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
-	"github.com/semaphoreui/semaphore/pkg/random"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/server"
 )
 
 type EnvironmentController struct {
-	accessKeyRepo        db.AccessKeyManager
-	accessKeyService     server.AccessKeyService
 	encryptionService    server.AccessKeyEncryptionService
 	environmentService   server.EnvironmentService
 	secretStorageService server.SecretStorageService
 }
 
 func NewEnvironmentController(
-	accessKeyRepo db.AccessKeyManager,
 	encryptionService server.AccessKeyEncryptionService,
-	accessKeyService server.AccessKeyService,
 	environmentService server.EnvironmentService,
 	secretStorageService server.SecretStorageService,
 ) *EnvironmentController {
 	return &EnvironmentController{
-		accessKeyRepo:        accessKeyRepo,
-		accessKeyService:     accessKeyService,
 		encryptionService:    encryptionService,
 		environmentService:   environmentService,
 		secretStorageService: secretStorageService,
 	}
-}
-
-func (c *EnvironmentController) updateEnvironmentSecrets(env db.Environment) (audit.EnvironmentMetadata, error) {
-	var applied audit.EnvironmentMetadata
-	errors := make([]error, 0)
-
-	for _, secret := range env.Secrets {
-		err := secret.Validate()
-		if err != nil {
-			errors = append(errors, err)
-			continue
-		}
-
-		var key db.AccessKey
-
-		switch secret.Operation {
-		case db.EnvironmentSecretCreate:
-			var sourceStorageKey *string
-			var storageType *db.AccessKeySourceStorageType
-
-			if env.SecretStorageID != nil {
-				keyPrefix := ""
-				if env.SecretStorageKeyPrefix != nil {
-					keyPrefix = *env.SecretStorageKeyPrefix
-				}
-				keyPath := keyPrefix + random.String(10)
-				sourceStorageKey = &keyPath
-
-				keyType := db.AccessKeySourceStorageVault
-				storageType = &keyType
-			}
-
-			key, err = c.accessKeyService.Create(db.AccessKey{
-				Name:              secret.Name,
-				String:            secret.Secret,
-				EnvironmentID:     &env.ID,
-				ProjectID:         &env.ProjectID,
-				Type:              db.AccessKeyString,
-				Owner:             secret.Type.GetAccessKeyOwner(),
-				SourceStorageID:   env.SecretStorageID,
-				SourceStorageKey:  sourceStorageKey,
-				SourceStorageType: storageType,
-			})
-
-			if err != nil {
-				errors = append(errors, err)
-				continue
-			}
-			applied.SecretsCreated++
-		case db.EnvironmentSecretDelete:
-			key, err = c.accessKeyRepo.GetAccessKey(env.ProjectID, secret.ID)
-
-			if err != nil {
-				errors = append(errors, err)
-				continue
-			}
-
-			if key.EnvironmentID == nil || *key.EnvironmentID != env.ID {
-				errors = append(errors, fmt.Errorf("secret does not belong to this environment"))
-				continue
-			}
-
-			err = c.accessKeyService.Delete(env.ProjectID, secret.ID)
-			if err != nil {
-				errors = append(errors, err)
-				continue
-			}
-			applied.SecretsDeleted++
-		case db.EnvironmentSecretUpdate:
-			key, err = c.accessKeyRepo.GetAccessKey(env.ProjectID, secret.ID)
-
-			if err != nil {
-				errors = append(errors, err)
-				continue
-			}
-
-			if key.EnvironmentID == nil || *key.EnvironmentID != env.ID {
-				errors = append(errors, fmt.Errorf("secret does not belong to this environment"))
-				continue
-			}
-
-			updateKey := db.AccessKey{
-				ID:                key.ID,
-				ProjectID:         key.ProjectID,
-				Name:              secret.Name,
-				Type:              db.AccessKeyString,
-				Owner:             key.Owner,
-				SourceStorageID:   env.SecretStorageID,
-				SourceStorageType: key.SourceStorageType,
-				SourceStorageKey:  key.SourceStorageKey,
-			}
-			if secret.Secret != "" {
-				updateKey.String = secret.Secret
-				updateKey.OverrideSecret = true
-			}
-
-			err = c.accessKeyService.Update(updateKey)
-			if err != nil {
-				errors = append(errors, err)
-				continue
-			}
-			applied.SecretsUpdated++
-		}
-	}
-
-	if len(errors) > 0 {
-		return applied, errors[0]
-	}
-
-	return applied, nil
 }
 
 // EnvironmentMiddleware ensures an environment exists and loads it to the context
@@ -239,7 +122,7 @@ func (c *EnvironmentController) UpdateEnvironment(w http.ResponseWriter, r *http
 		Description: fmt.Sprintf("Environment %s updated", env.Name),
 	})
 
-	secrets, err := c.updateEnvironmentSecrets(env)
+	secrets, err := c.environmentService.ApplySecrets(env)
 	recordEnvironmentSave(r, audit.ResourceEnvironmentUpdate, env, secrets, err)
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -279,7 +162,7 @@ func (c *EnvironmentController) AddEnvironment(w http.ResponseWriter, r *http.Re
 		Description: fmt.Sprintf("Environment %s created", newEnv.Name),
 	})
 
-	secrets, err := c.updateEnvironmentSecrets(newEnv)
+	secrets, err := c.environmentService.ApplySecrets(newEnv)
 	recordEnvironmentSave(r, audit.ResourceEnvironmentCreate, newEnv, secrets, err)
 	if err != nil {
 		helpers.WriteError(w, err)
