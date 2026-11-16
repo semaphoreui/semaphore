@@ -510,9 +510,11 @@ export default {
             permissions: workflow.data.permissions,
           };
         }
-        // The lists of runs under the panel show the status too.
+        // The lists of runs under the panel show the status too. The first load tells them as
+        // well: the run may have changed since the list was read, and a finished run is not
+        // polled again.
         const { status } = this.details.run;
-        if (previousStatus != null && previousStatus !== status) {
+        if (previousStatus !== status) {
           EventBus.$emit('i-workflow-run', {
             runId: this.runId, workflowId: this.workflowId, status,
           });

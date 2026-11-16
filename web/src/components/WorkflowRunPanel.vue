@@ -20,9 +20,10 @@
         @dblclick="resetWidth()"
       ></div>
 
-      <!-- Another run is another view: its graph, its polling and its state start anew. -->
+      <!-- Another run (or the same ids in another project) is another view: its graph, its
+           polling and its state start anew. -->
       <WorkflowRunView
-        :key="`${workflowId}/${runId}`"
+        :key="`${projectId}/${workflowId}/${runId}`"
         panel
         :project-id="projectId"
         :workflow-id="workflowId"

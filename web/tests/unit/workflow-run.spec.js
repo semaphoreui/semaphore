@@ -56,6 +56,7 @@ describe('WorkflowRunView.vue', () => {
     const run = view();
 
     await WorkflowRunView.methods.loadData.call(run);
+    seen.length = 0;
     await WorkflowRunView.methods.loadData.call(run);
     expect(seen).to.deep.equal([]);
 
@@ -63,6 +64,41 @@ describe('WorkflowRunView.vue', () => {
     await WorkflowRunView.methods.loadData.call(run);
 
     expect(seen).to.deep.equal([{ runId: 9, workflowId: 3, status: 'success' }]);
+  });
+
+  // The list was read before the panel opened: the run may have finished since, and a finished
+  // run is not polled, so the first load is the only chance to tell the list.
+  it('tells the lists of runs the status of the first load', async () => {
+    http.respond((config) => ({
+      [RUN_URL]: {
+        run: { id: 9, status: 'success' }, workflow_name: 'release', nodes: [], edges: [],
+      },
+      '/api/project/7/templates': [],
+      '/api/project/7/workflows/3': { id: 3, name: 'release', permissions: 80 },
+    })[config.url]);
+    const seen = [];
+    EventBus.$on('i-workflow-run', (e) => seen.push(e));
+    const run = view();
+
+    await WorkflowRunView.methods.loadData.call(run);
+
+    expect(seen).to.deep.equal([{ runId: 9, workflowId: 3, status: 'success' }]);
+  });
+
+  it('tells the lists nothing when the first load fails', async () => {
+    http.respond((config) => {
+      if (config.url === RUN_URL) {
+        throw httpError(404, '');
+      }
+      return [];
+    });
+    const seen = [];
+    EventBus.$on('i-workflow-run', (e) => seen.push(e));
+    const run = view({ $t: (k) => k });
+
+    await WorkflowRunView.methods.loadData.call(run);
+
+    expect(seen).to.deep.equal([]);
   });
 
   describe('mounted in the panel', () => {

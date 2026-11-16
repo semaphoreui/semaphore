@@ -1999,7 +1999,8 @@ export default {
         return;
       }
 
-      let query = {};
+      // A run of the panel belongs to the project it was opened in: another project closes it.
+      let query = queryWithoutWorkflowRun({});
 
       switch (this.$route.path) {
         case '/project/new':

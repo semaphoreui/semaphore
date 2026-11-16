@@ -94,6 +94,17 @@ describe('WorkflowRunPanel.vue', () => {
     expect(wrapper.find('[data-testid="view"]').attributes('data-run')).to.equal('4/10');
   });
 
+  it('starts the view anew in another project, even for the same ids', async () => {
+    const wrapper = mountPanel();
+    const before = wrapper.find('[data-testid="view"]').element;
+
+    await wrapper.setProps({ projectId: 8 });
+
+    const after = wrapper.find('[data-testid="view"]').element;
+    expect(after.getAttribute('data-run')).to.equal('3/9');
+    expect(after).to.not.equal(before);
+  });
+
   it('takes half of the window by default', () => {
     const wrapper = mountPanel();
 

@@ -124,8 +124,10 @@ page.
   panel and "open in a new tab" gives the page with the panel open. vue-router leaves the `/` of
   the value unencoded.
 - **No scrim.** The page under the panel stays in use: a click on another run in the list swaps
-  the run of the panel (the view is keyed by workflow and run — graph, polling and state start
-  anew). Escape closes the panel unless a dialog or a menu is open above it.
+  the run of the panel (the view is keyed by project, workflow and run — graph, polling and
+  state start anew). Escape closes the panel unless a dialog or a menu is open above it.
+- **Another project closes the panel**: `App.vue selectProject` (project menu, new and restored
+  project) drops `w` from the query — a run belongs to the project it was opened in.
 - **Width**: half of the window, the left edge is dragged (400 px … window width), stored in
   `localStorage` `WorkflowRunPanel__width`, a double click on the edge restores the half; full
   width and no handle on `smAndDown`.
@@ -133,8 +135,9 @@ page.
   `SEMAPHORE_WORKFLOW_URL` (`db/Task.go GetWorkflowUrl`) and of old bookmarks. No link of the
   interface leads to it any more.
 - **Lists under the panel** (`Workflows.vue`, `WorkflowRuns.vue`) reload on the bus event
-  `i-workflow-run`, emitted when a run is started and when the view sees its status change —
-  before, coming back from the run page reloaded them.
+  `i-workflow-run`, emitted when a run is started, on the view's first successful load (the run
+  may have finished since the list was read, and a finished run is never polled) and when a poll
+  sees its status change — before, coming back from the run page reloaded them.
 
 ## Open, deferred, divergent
 
