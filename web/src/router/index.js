@@ -31,6 +31,7 @@ import Runners from '../views/Runners.vue';
 import Cluster from '../views/Cluster.vue';
 import Stats from '../views/project/Stats.vue';
 import Tokens from '../views/Tokens.vue';
+import McpServer from '../views/McpServer.vue';
 import AcceptInvite from '../views/AcceptInvite.vue';
 import SecretStorage from '../views/project/SecretStorages.vue';
 import Workflows from '../views/project/Workflows.vue';
@@ -238,6 +239,27 @@ const routes = [
   {
     path: '/apps',
     component: Apps,
+  },
+  {
+    path: '/mcp',
+    component: McpServer,
+  },
+  {
+    // The old address of the project tab.
+    path: '/mcp/connect',
+    redirect: '/mcp/project',
+  },
+  {
+    path: '/mcp/project',
+    component: McpServer,
+  },
+  {
+    path: '/mcp/admin',
+    component: McpServer,
+  },
+  {
+    path: '/mcp/settings',
+    component: McpServer,
   },
   {
     path: '/tokens',

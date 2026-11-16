@@ -31,6 +31,7 @@ export function actorLabel(actor, i18n) {
   const name = actor.name || actor.id || '';
   switch (actor.type) {
     case 'user':
+      if (actor.auth === 'mcp_token') return i18n.t('audit_actor_mcp_token', { name });
       return actor.auth === 'api_token' ? i18n.t('audit_actor_api_token', { name }) : name;
     case 'runner':
       return i18n.t('audit_actor_runner', { name });
@@ -45,6 +46,7 @@ export function actorLabel(actor, i18n) {
 
 export function actorIcon(actor) {
   if (actor.type === 'user') {
+    if (actor.auth === 'mcp_token') return 'mdi-robot';
     return actor.auth === 'api_token' ? 'mdi-api' : 'mdi-account';
   }
   return {

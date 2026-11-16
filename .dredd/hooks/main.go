@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/snikch/goodman/hooks"
 	trans "github.com/snikch/goodman/transaction"
 )
@@ -11,6 +12,8 @@ import (
 const (
 	adminToken   = "h4a_i4qslpnxyyref71rk5nqbwxccrs7enwvggx0vfs="
 	expiredToken = "kwofd61g93-yuqvex8efmhjkgnbxlo8mp1tin6spyhu="
+	// mcpToken is the x-example of the MCP token revoke route.
+	mcpToken = "dreddmcptoken0123456789abcdefghijklmnopqrst="
 )
 
 var skipTests = []string{
@@ -287,6 +290,17 @@ func main() {
 			h.Before(v, skipTest)
 		}
 	}
+
+	// MCP tokens are listed and revoked in every build; the route revokes a token the test user holds.
+	h.Before("user > /api/user/mcp-tokens/{mcp_token_id} > Revokes MCP tokens by prefix > 204 > application/json", func(transaction *trans.Transaction) {
+		dbConnect()
+		defer store.Close()
+		addTokenOfType(mcpToken, testRunnerUser.ID, db.APITokenTypeMCP)
+	})
+	// The Dredd server has no license, and an OSS build no MCP: issuing an MCP token answers 403.
+	h.Before("user > /api/user/mcp-tokens > Create an MCP token > 201 > application/json", skipTest)
+	// The Dredd server runs with mcp.enabled off: the tools of a connection answer 501.
+	h.Before("/api/mcp/tools > List the MCP tools of a connection > 200 > application/json", skipTest)
 
 	h.Before("task > /api/project/{project_id}/tasks > Starts a job > 201 > application/json", capabilityWrapper("template"))
 	h.Before("task > /api/project/{project_id}/tasks/last > Get last 200 Tasks related to current project > 200 > application/json", capabilityWrapper("template"))

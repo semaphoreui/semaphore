@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="items != null"
+    v-if="shown"
     data-testid="tokens-page"
     :data-state="items.length === 0 ? 'empty' : 'ready'"
   >
@@ -63,7 +63,7 @@
       </v-card>
     </v-dialog>
 
-    <v-toolbar flat>
+    <v-toolbar v-if="!embedded" flat>
       <v-btn icon variant="text" class="mr-4" @click="returnToProjects()" data-testid="tokens-back">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
@@ -90,7 +90,9 @@
       >{{ $t('New Token') }}</v-btn>
     </v-toolbar>
 
-    <v-divider />
+    <v-divider v-if="!embedded" />
+
+    <slot />
 
     <v-data-table
       :headers="headers"
@@ -240,9 +242,26 @@ export default {
 
   props: {
     systemInfo: Object,
+    // The kind of user token the page manages: REST API tokens or MCP tokens.
+    // Each kind has its own routes and never sees the tokens of the other.
+    kind: {
+      type: String,
+      default: 'api',
+      validator: (value) => ['api', 'mcp'].includes(value),
+    },
+    // A page that shows the list inside its own layout draws the toolbar
+    // itself and opens the new token dialog with newToken().
+    embedded: Boolean,
+    // Draw nothing while the user has no tokens: a page that lets them only
+    // revoke the tokens they still hold has no list to show without any.
+    hideEmpty: Boolean,
   },
 
   computed: {
+    shown() {
+      return this.items != null && !(this.hideEmpty && this.items.length === 0);
+    },
+
     expiryOptions() {
       return [
         { text: this.$t('Never'), value: 0 },
@@ -265,6 +284,13 @@ export default {
   },
 
   methods: {
+    // Tokens belong to the signed-in user, not to a project: the user may
+    // always revoke their own, whatever their role in the current project.
+    // ItemListPageBase calls this from data(), before computed properties exist.
+    allowActions() {
+      return true;
+    },
+
     isExpiredByTime(item) {
       if (!item.expires_at) return false;
       return new Date(item.expires_at).getTime() <= Date.now();
@@ -307,7 +333,7 @@ export default {
         const res = (
           await axios({
             method: 'post',
-            url: '/api/user/tokens',
+            url: this.getItemsUrl(),
             responseType: 'json',
             data: {
               expires_at: expiresAt,
@@ -366,15 +392,15 @@ export default {
     },
 
     getItemsUrl() {
-      return '/api/user/tokens';
+      return this.kind === 'mcp' ? '/api/user/mcp-tokens' : '/api/user/tokens';
     },
 
     getSingleItemUrl() {
-      return `/api/user/tokens/${this.itemId}`;
+      return `${this.getItemsUrl()}/${this.itemId}`;
     },
 
     getEventName() {
-      return 'i-token';
+      return this.kind === 'mcp' ? 'i-mcp-token' : 'i-token';
     },
   },
 };

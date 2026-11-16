@@ -289,18 +289,26 @@ func authenticationHandler(w http.ResponseWriter, r *http.Request) (ok bool, req
 		}
 
 		if token.IsExpiredAt(tz.Now()) {
+			target := audit.TargetAPIToken
+			if token.Type == db.APITokenTypeMCP {
+				target = audit.TargetMCPToken
+			}
 			helpers.Audit(r).Record(r.Context(), audit.Event{
 				Kind:    audit.AuthAPITokenReject,
 				Outcome: audit.OutcomeFailure,
 				Reason:  audit.ReasonTokenExpired,
-				Target:  &audit.Target{Type: audit.TargetAPIToken, ID: tokenFingerprint},
+				Target:  &audit.Target{Type: target, ID: tokenFingerprint},
 			})
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		userID = token.UserID
+		// MCP tokens are accepted too: MCP tools call REST with the token of the MCP request.
 		authMethod = audit.AuthAPIToken
+		if token.Type == db.APITokenTypeMCP {
+			authMethod = audit.AuthMCPToken
+		}
 	} else {
 		session, found := getSession(r)
 
