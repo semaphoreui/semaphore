@@ -207,6 +207,10 @@ func (t *LocalExecutor) getEnvironmentExtraVars(username string, incomingVersion
 	for _, v := range t.Template.SurveyVars {
 		if v.Target == db.SurveyVarTargetEnv {
 			delete(extraVars, v.Name)
+			continue
+		}
+		if v.Type == db.SurveyVarBool {
+			coerceSurveyBool(extraVars, v.Name)
 		}
 	}
 
@@ -243,6 +247,20 @@ func (t *LocalExecutor) getEnvironmentENV() (res []string, err error) {
 	}
 
 	return
+}
+
+// coerceSurveyBool turns the answer of a bool survey var into a boolean when
+// it arrived as the string "true" or "false" (an API call, an integration
+// extractor, a workflow binding), so Ansible gets the same boolean the task
+// form sends. Any other value is left as it is.
+func coerceSurveyBool(vars map[string]any, name string) {
+	s, ok := vars[name].(string)
+	if !ok {
+		return
+	}
+	if b, ok := db.ParseSurveyBool(s); ok {
+		vars[name] = b
+	}
 }
 
 // formatVarValue renders a survey/extra var value for single-string contexts

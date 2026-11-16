@@ -80,6 +80,20 @@
         </template>
       </v-select>
 
+      <!-- A bool is always answered (false when unchecked), so it is never required
+           and is not bound to a workflow variable, which holds a string -->
+      <v-checkbox
+        v-else-if="v.type === 'bool'"
+        :label="v.title"
+        :hint="v.description"
+        :persistent-hint="!!v.description"
+        :hide-details="!v.description"
+        v-model="env[v.name]"
+        density="compact"
+        class="mt-0 mb-4"
+        :data-testid="`surveyFields-var-${v.name}`"
+      />
+
       <v-textarea
         v-else-if="v.type === 'text'"
         :label="v.title + (v.required ? ' *' : '')"
@@ -170,7 +184,7 @@ export default {
 
   methods: {
     canBind(v) {
-      return this.workflowVars != null && v.type !== 'secret';
+      return this.workflowVars != null && v.type !== 'secret' && v.type !== 'bool';
     },
 
     binding(varName) {

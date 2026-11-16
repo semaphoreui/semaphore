@@ -30,3 +30,41 @@ describe('TaskParamsForm.vue', () => {
     expect(last.params.diff).to.equal(true);
   });
 });
+
+describe('TaskParamsForm.vue bool survey variables', () => {
+  const surveyVars = [
+    {
+      name: 'on', title: 'On', type: 'bool', default_value: 'true',
+    },
+    { name: 'off', title: 'Off', type: 'bool' },
+    {
+      name: 'saved', title: 'Saved', type: 'bool', default_value: 'true',
+    },
+    {
+      name: 'legacy', title: 'Legacy', type: 'bool', required: true,
+    },
+    {
+      name: 'host', title: 'Host', type: '', default_value: 'localhost',
+    },
+  ];
+
+  async function seeded(environment) {
+    const wrapper = shallowMount(TaskParamsForm, {
+      props: {
+        modelValue: { environment: JSON.stringify(environment) },
+        template: { app: 'bash', survey_vars: surveyVars },
+      },
+      global: { mocks: { $t: (k) => k } },
+    });
+    await new Promise((resolve) => { setTimeout(resolve, 10); });
+    return wrapper.vm.editedEnvironment;
+  }
+
+  it('seeds every bool as a boolean: its default, false without one, a saved answer wins', async () => {
+    // a schedule saved through the API may hold the string form
+    const env = await seeded({ saved: false, legacy: 'true' });
+    expect(env).to.deep.equal({
+      on: true, off: false, saved: false, legacy: true, host: 'localhost',
+    });
+  });
+});

@@ -1517,7 +1517,10 @@ definitions:
         type: string
       type:
         type: string
-        enum: ["", int, enum, select, secret, text] # String => "", Integer => "int", Text (multiline) => "text"
+        enum: ["", int, enum, select, secret, text, bool] # String => "", Integer => "int", Text (multiline) => "text", Checkbox => "bool"
+        description: >-
+          A bool variable is answered with a JSON boolean in the task environment; its
+          default_value is the string "true" or "false", and it has no values.
         example: int
       target:
         type: string
@@ -1530,7 +1533,7 @@ definitions:
         items:
           $ref: "#/definitions/TemplateSurveyVarValue"
       default_value:
-        description: A string, or an array of strings for a select variable.
+        description: A string, or an array of strings for a select variable ("true" or "false" for a bool variable).
         x-nullable: true
 
   TemplateSurveyVarValue:
@@ -1919,8 +1922,8 @@ definitions:
       survey_vars:
         type: array
         description: >-
-          Survey asked when a run is started (the same shape as a template's survey; a secret
-          type is rejected). Stored with the graph revision, so every run knows the survey it
+          Survey asked when a run is started (the same shape as a template's survey; the secret
+          and bool types are rejected). Stored with the graph revision, so every run knows the survey it
           answered.
         items:
           $ref: "#/definitions/TemplateSurveyVar"

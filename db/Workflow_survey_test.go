@@ -36,6 +36,7 @@ func TestValidateWorkflowSurveyVars(t *testing.T) {
 			{Name: "env", Title: "Env again"},
 		}, "declared more than once"},
 		{"secret rejected", []SurveyVar{{Name: "token", Title: "Token", Type: SurveyVarSecret}}, "can not be a secret"},
+		{"bool rejected", []SurveyVar{{Name: "dry", Title: "Dry run", Type: SurveyVarBool, DefaultValue: surveyDefault("true")}}, "can not be a bool"},
 		{"unknown target", []SurveyVar{{Name: "x", Title: "X", Target: SurveyVarTarget("file")}}, "invalid target"},
 		{"enum default outside values", []SurveyVar{{
 			Name: "env", Title: "Env", Type: SurveyVarEnum,

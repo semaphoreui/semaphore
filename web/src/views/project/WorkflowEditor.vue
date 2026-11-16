@@ -218,6 +218,7 @@
                 :key="`survey-${graphKey}`"
                 :vars="item.survey_vars"
                 :allow-secret="false"
+                :allow-bool="false"
                 @change="setSurveyVars"
               />
             </div>
