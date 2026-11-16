@@ -136,7 +136,7 @@ if [ "${SEMAPHORE_DB_DIALECT}" != 'sqlite' ]; then
 
 
     while ! $(nc -z "$SEMAPHORE_DB_HOST" "$SEMAPHORE_DB_PORT") >/dev/null 2>&1; do
-        TIMEOUT=$(expr $TIMEOUT - 1)
+        TIMEOUT=$((TIMEOUT - 1))
 
         if [ $TIMEOUT -eq 0 ]; then
             echoerr "Could not connect to database server. Exiting."
