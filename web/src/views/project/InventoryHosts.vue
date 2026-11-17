@@ -3,6 +3,7 @@
     <EditDialog
       v-model="editDialog"
       test-id="inventoryHostDialog"
+      help-doc="inventory-host"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="itemId === 'new' ? $t('inventory_hosts_add') : $t('inventory_hosts_edit')"
       :max-width="450"

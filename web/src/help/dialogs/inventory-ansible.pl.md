@@ -50,6 +50,8 @@ Skąd pochodzi inwentarz:
 - **Static YAML**: inwentarz jest wpisywany w tym oknie dialogowym w formacie YAML. Użyj go także
   do konfiguracji wtyczki inwentarza.
 - **File**: inwentarz jest plikiem w repozytorium Git.
+- **Managed**: hosty i ich zmienne są przechowywane jako rekordy. Otwórz inwentarz z listy, aby je
+  edytować.
 
 Pola poniżej typu zmieniają się w zależności od niego.
 

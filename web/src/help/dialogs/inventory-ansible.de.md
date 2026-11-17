@@ -52,6 +52,8 @@ Woher das Inventory stammt:
 - **Static YAML**: Das Inventory wird in diesem Dialog im YAML-Format eingegeben. Verwenden Sie
   diesen Typ auch für die Konfiguration eines Inventory-Plugins.
 - **File**: Das Inventory ist eine Datei in einem Git-Repository.
+- **Managed**: Die Hosts und ihre Variablen werden als Datensätze gespeichert. Öffnen Sie das
+  Inventory in der Liste, um sie zu bearbeiten.
 
 Die Felder unterhalb des Typs ändern sich mit ihm.
 
