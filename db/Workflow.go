@@ -286,6 +286,63 @@ type WorkflowRun struct {
 	End   *time.Time `db:"end" json:"end,omitempty" backup:"end"`
 
 	RootTaskID *int `db:"root_task_id" json:"root_task_id,omitempty" backup:"root_task_id"`
+
+	// RerunOfRunID is the run this one repeats, RerunMode how: nil for a run
+	// started the usual way. A re-run pins the revision and inherits the
+	// Environment of the run it repeats.
+	RerunOfRunID *int               `db:"rerun_of_run_id" json:"rerun_of_run_id,omitempty" backup:"-"`
+	RerunMode    *WorkflowRerunMode `db:"rerun_mode" json:"rerun_mode,omitempty" backup:"-"`
+}
+
+// IsFailedRerun reports whether the run repeats only the failed part of
+// another run, carrying the rest over (WorkflowRunCarry).
+func (run WorkflowRun) IsFailedRerun() bool {
+	return run.RerunMode != nil && *run.RerunMode == WorkflowRerunFailed
+}
+
+// WorkflowRerunMode says how much of a finished run a re-run executes again.
+type WorkflowRerunMode string
+
+const (
+	// WorkflowRerunAll executes every node again.
+	WorkflowRerunAll WorkflowRerunMode = "all"
+	// WorkflowRerunFailed executes the failed nodes and everything after them
+	// again; nodes that succeeded are carried over from the repeated run.
+	WorkflowRerunFailed WorkflowRerunMode = "failed"
+)
+
+func (mode WorkflowRerunMode) Validate() error {
+	switch mode {
+	case WorkflowRerunAll, WorkflowRerunFailed:
+		return nil
+	default:
+		return common_errors.NewValidationError("workflow re-run mode is invalid")
+	}
+}
+
+// WorkflowRerunParams is the body of POST .../runs/{run_id}/rerun.
+type WorkflowRerunParams struct {
+	Mode WorkflowRerunMode `json:"mode"`
+}
+
+// WorkflowRunCarry marks a node that a failed-only re-run does not execute
+// again: in WorkflowRunID the node counts as succeeded, and its result is the
+// one it produced in OriginRunID. The origin is always the run that really
+// executed the node, also when a re-run is itself re-run.
+//
+// The row, not the task it points at, is the node's state: a task deleted
+// later (TaskID becomes nil) leaves the node carried over, only without
+// outputs for the nodes after it.
+type WorkflowRunCarry struct {
+	ID int `db:"id" json:"-"`
+
+	ProjectID      int `db:"project_id" json:"-"`
+	WorkflowRunID  int `db:"workflow_run_id" json:"-"`
+	WorkflowNodeID int `db:"workflow_node_id" json:"workflow_node_id"`
+	OriginRunID    int `db:"origin_run_id" json:"origin_run_id"`
+	// TaskID is the task that executed the node in OriginRunID; nil for an
+	// approval or delay node.
+	TaskID *int `db:"task_id" json:"task_id,omitempty"`
 }
 
 type WorkflowApprovalStatus string

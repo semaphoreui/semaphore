@@ -19,6 +19,15 @@
           :to="workflowRunLocation($route, workflow.id, run.id)"
           data-testid="workflowRuns-rowId"
         >#{{ run.id }}</router-link>
+        <span
+          v-if="run.rerun_of_run_id"
+          class="text-medium-emphasis ml-2"
+          :title="$t(run.rerun_mode === 'failed' ? 'workflowRerunFailed' : 'workflowRerunAll')"
+          data-testid="workflowRuns-rowRerunOf"
+        >
+          <v-icon size="x-small">mdi-replay</v-icon>
+          {{ $t('workflowRerunOf', { id: run.rerun_of_run_id }) }}
+        </span>
       </template>
       <template v-slot:item.status="{ item: run }">
         <v-chip

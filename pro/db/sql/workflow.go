@@ -63,6 +63,14 @@ func (d *WorkflowStoreImpl) CreateWorkflowRun(run db.WorkflowRun) (res db.Workfl
 	return
 }
 
+func (d *WorkflowStoreImpl) CreateWorkflowRerun(run db.WorkflowRun, carries []db.WorkflowRunCarry) (res db.WorkflowRun, err error) {
+	return
+}
+
+func (d *WorkflowStoreImpl) GetWorkflowRunCarries(projectID int, runID int) (res []db.WorkflowRunCarry, err error) {
+	return
+}
+
 func (d *WorkflowStoreImpl) UpdateWorkflowRun(run db.WorkflowRun) (err error) {
 	return
 }

@@ -49,6 +49,18 @@
           >
             · {{ $t('workflowRevisionLabel', { number: details.revision }) }}
           </span>
+          <span
+            v-if="details && details.run.rerun_of_run_id"
+            class="text-medium-emphasis"
+            :title="$t('workflowRerunOfHint', { id: details.run.rerun_of_run_id })"
+            data-testid="workflowRun-rerunOf"
+          >
+            ·
+            <router-link
+              :to="runLocation(details.run.rerun_of_run_id)"
+              data-testid="workflowRun-rerunOfLink"
+            >{{ $t('workflowRerunOf', { id: details.run.rerun_of_run_id }) }}</router-link>
+          </span>
         </span>
       </v-toolbar-title>
 
@@ -75,6 +87,48 @@
         <v-icon start size="small">mdi-stop</v-icon>
         {{ $t('stop') }}
       </v-btn>
+
+      <v-menu v-if="canRerun" location="bottom end">
+        <template v-slot:activator="{ props }">
+          <v-btn
+            v-bind="props"
+            size="small"
+            variant="outlined"
+            class="mr-3 pr-1"
+            :loading="rerunning"
+            data-testid="workflowRun-rerun"
+          >
+            <v-icon start size="small">mdi-replay</v-icon>
+            {{ $t('workflowRerun') }}
+            <v-icon size="small">mdi-chevron-down</v-icon>
+          </v-btn>
+        </template>
+        <v-list density="compact" data-testid="workflowRun-rerunMenu">
+          <v-list-item
+            @click="rerun('all')"
+            data-testid="workflowRun-rerun-all"
+          >
+            <template v-slot:prepend>
+              <v-icon>mdi-replay</v-icon>
+            </template>
+            <v-list-item-title>{{ $t('workflowRerunAll') }}</v-list-item-title>
+            <v-list-item-subtitle>{{ $t('workflowRerunAllHint') }}</v-list-item-subtitle>
+          </v-list-item>
+          <v-list-item
+            :disabled="!hasFailedNodes"
+            @click="rerun('failed')"
+            data-testid="workflowRun-rerun-failed"
+          >
+            <template v-slot:prepend>
+              <v-icon>mdi-skip-next-circle-outline</v-icon>
+            </template>
+            <v-list-item-title>{{ $t('workflowRerunFailed') }}</v-list-item-title>
+            <v-list-item-subtitle>
+              {{ hasFailedNodes ? $t('workflowRerunFailedHint') : $t('workflowRerunNoFailed') }}
+            </v-list-item-subtitle>
+          </v-list-item>
+        </v-list>
+      </v-menu>
 
       <v-btn
         icon
@@ -293,6 +347,7 @@ import { getErrorMessage } from '@/lib/error';
 import PermissionsCheck from '@/components/PermissionsCheck';
 import WorkflowGraph from '@/components/WorkflowGraph.vue';
 import { USER_PERMISSIONS } from '@/lib/constants';
+import { workflowRunLocation } from '@/lib/workflowRunQuery';
 
 // Number of output values a task stored (task.artifacts is the
 // {values, skipped} document, as a JSON string or already parsed).
@@ -308,8 +363,8 @@ function countOutputs(raw) {
 }
 
 // The view of one workflow run: the graph of the revision the run executes with the state of
-// every node, the variables of the run, Stop and the approvals. It is the body of the run page
-// and of the run panel (`panel`); either names the run by its workflow and its own id.
+// every node, the variables of the run, Stop, Re-run and the approvals. It is the body of the run
+// page and of the run panel (`panel`); either names the run by its workflow and its own id.
 export default {
   components: { WorkflowGraph },
   mixins: [PermissionsCheck],
@@ -329,6 +384,7 @@ export default {
       templates: [],
       pollHandle: null,
       stopping: false,
+      rerunning: false,
       USER_PERMISSIONS,
     };
   },
@@ -365,12 +421,28 @@ export default {
       return (status === 'running' || status === 'approval')
         && this.can(USER_PERMISSIONS.runWorkflows);
     },
+    // A finished run can be repeated by whoever may run the workflow.
+    canRerun() {
+      if (!this.details) return false;
+      const { status } = this.details.run;
+      return (status === 'success' || status === 'failed' || status === 'stopped')
+        && this.can(USER_PERMISSIONS.runWorkflows);
+    },
+    // A run that failed or was stopped has nodes to run again; the server
+    // decides which exactly, this only keeps a pointless menu item disabled.
+    hasFailedNodes() {
+      const status = this.details && this.details.run.status;
+      return status === 'failed' || status === 'stopped';
+    },
     // node.id -> run info for the card: status, timing, live delay countdown,
-    // the task to open on click and the approval message.
+    // the task to open on click and the approval message. A node carried over
+    // by a failed-only re-run shows what it came to in the run that executed
+    // it, and says which run that was.
     nodeRuns() {
       const map = {};
       (this.details?.nodes || []).forEach((n) => {
         const id = n.node.id;
+        const carriedFromRunId = n.carried_from_run_id || null;
         if (n.task) {
           map[id] = {
             status: n.task.status,
@@ -378,6 +450,7 @@ export default {
             end: n.task.end,
             taskId: n.task.id,
             outputs: countOutputs(n.task.artifacts),
+            carriedFromRunId,
           };
         } else if (n.approval) {
           map[id] = {
@@ -385,6 +458,7 @@ export default {
             start: n.approval.created,
             end: n.approval.resolved,
             message: n.node.approval_message,
+            carriedFromRunId,
           };
         } else if (n.delay) {
           map[id] = {
@@ -392,7 +466,12 @@ export default {
             start: n.delay.created,
             end: n.delay.resolved,
             resumeAt: n.delay.status === 'waiting' ? n.delay.resume_at : null,
+            carriedFromRunId,
           };
+        } else if (carriedFromRunId) {
+          // The task of the carried node has been deleted since; the node
+          // still counts as succeeded.
+          map[id] = { status: 'success', carriedFromRunId };
         }
       });
       return map;
@@ -419,6 +498,15 @@ export default {
     if (this.pollHandle) clearInterval(this.pollHandle);
   },
   methods: {
+    // Where another run of this workflow opens from here: the panel swaps its run and stays over
+    // its page, the page moves to the address of that run. Either way the host shows that run in
+    // a view of its own.
+    runLocation(runId) {
+      if (this.panel) {
+        return workflowRunLocation(this.$route, this.workflowId, runId);
+      }
+      return `/project/${this.projectId}/workflows/${this.workflowId}/runs/${runId}`;
+    },
     showDrawer() {
       EventBus.$emit('i-show-drawer');
     },
@@ -466,6 +554,30 @@ export default {
         });
       } finally {
         this.stopping = false;
+      }
+    },
+    // Repeats this run as a new one — the whole workflow ('all') or only its
+    // failed nodes ('failed') — and opens the new run.
+    async rerun(mode) {
+      if (this.rerunning) return;
+      this.rerunning = true;
+      try {
+        const run = (await axios.post(
+          `/api/project/${this.projectId}/workflows/${this.workflowId}/runs/${this.runId}/rerun`,
+          { mode },
+        )).data;
+        EventBus.$emit('i-snackbar', {
+          color: 'success',
+          text: this.$t('workflowRerunStarted', { id: run.id }),
+        });
+        await this.$router.push(this.runLocation(run.id));
+      } catch (err) {
+        EventBus.$emit('i-snackbar', {
+          color: 'error',
+          text: getErrorMessage(err),
+        });
+      } finally {
+        this.rerunning = false;
       }
     },
     async resolveApproval(nodeId, status) {

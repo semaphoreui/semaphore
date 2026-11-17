@@ -50,10 +50,11 @@ only when the task touches that topic. Keep this file under 150 lines.
 - Frontend build code lives in `web/vite/` (`build/` is gitignored at any depth, `.gitignore:2`);
   the Vite 8 config loader resolves a relative `.mjs` import only with its extension, and
   `npm run build` run by hand deletes the tracked `api/public/.gitkeep` — `git checkout` it.
-- `go.mod` has `replace .../pro => ./pro`; `go.work` is gitignored. Since 2026-10-18 `pro_impl/` is a
-  git submodule (`semaphorepro-module`, `update = none`, so `git submodule update` leaves it empty;
-  branch `feat/wf_integrations_2`) — a worktree's `go.work` may still point at another checkout's
-  `pro_impl`; check both are on the same commit before trusting a build. Any Dockerfile layer
+- `go.mod` has `replace .../pro => ./pro`; `go.work`, `/pro_impl/` and `/docs/` are gitignored.
+  Submodules were removed again (`8fd229657 chore: remove submodules`), so a fresh worktree has
+  none of the three: clone `semaphorepro-module` and `semaphore-docs` into it (a local clone of
+  the main checkout's copy, then `remote set-url origin` + fetch, is fastest), branch both, and
+  copy `go.work` — check `pro_impl` is on the commit you expect before trusting a build. Any Dockerfile layer
   running `go mod download` must also COPY `pro/go.mod` + `pro/go.sum`; build images from a
   shallow `git clone file://<repo>` so they never see `go.work`.
 - A fresh worktree of `develop` (seen 2026-11-17 at `526f6eb5`) has no `.gitmodules`, no `pro_impl/`
@@ -106,8 +107,13 @@ only when the task touches that topic. Keep this file under 150 lines.
 - An `api/` test that builds the real `api.Route` must pass under `go.work` too: the Pro controllers
   dereference nil stores and the subscription service — pass fakes (`noLicense{}`, `fakeRoleMappingStore`
   in `api/global_routes_test.go`) and expect a plan 403 without an audit deny event on roles/audit routes.
-- This worktree has its own `pro_impl/` clone (not a git worktree of the main one): branch it, test
+- A worktree has its own `pro_impl/` clone (not a git worktree of the main one): branch it, test
   it with `cd pro_impl && go test ./...`, and remember its commits live in that clone.
+- A test fake that embeds a nil `db.WorkflowManager` / `pro_interfaces.WorkflowService` hangs the
+  package (10 min timeout) instead of failing when a handler starts calling a method the fake
+  lacks — after adding a store or service call, run `go test ./api/projects/ -timeout 90s -v`.
+- `web/` builds with Vite: `VUE_APP_BUILD_TYPE=pro_selfhosted npm run build` (not
+  `vue-cli-service`); it deletes the tracked `api/public/.gitkeep` — `git checkout` it back.
 - `docs.cyberark.com` returns 404 to WebFetch/curl for every page; use the Ansible collection
   `cyberark/ansible-security-automation-collection` and the Go client `infamousjoeg/cybr-cli`
   as the PVWA API reference.
