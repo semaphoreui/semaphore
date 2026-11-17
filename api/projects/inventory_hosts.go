@@ -1,12 +1,59 @@
 package projects
 
 import (
+	"fmt"
+	"maps"
 	"net/http"
+	"reflect"
+	"slices"
 	"strconv"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 )
+
+// diffVariables names the top-level keys added, removed and changed, never the values.
+func diffVariables(oldText, newText string) audit.InventoryVariablesMetadata {
+	oldVars, _ := db.ParseInventoryVariables(oldText)
+	newVars, _ := db.ParseInventoryVariables(newText)
+
+	var diff audit.InventoryVariablesMetadata
+	for _, key := range slices.Sorted(maps.Keys(newVars)) {
+		oldValue, ok := oldVars[key]
+		if !ok {
+			diff.AddedVariables = append(diff.AddedVariables, key)
+		} else if !reflect.DeepEqual(oldValue, newVars[key]) {
+			diff.ChangedVariables = append(diff.ChangedVariables, key)
+		}
+	}
+	for _, key := range slices.Sorted(maps.Keys(oldVars)) {
+		if _, ok := newVars[key]; !ok {
+			diff.RemovedVariables = append(diff.RemovedVariables, key)
+		}
+	}
+	return diff
+}
+
+// recordInventoryHost writes the event log entry and the audit record of a host change.
+func recordInventoryHost(r *http.Request, action helpers.EventLogType, verb string, kind audit.Kind, inventory db.Inventory, host db.InventoryHost, metadata audit.InventoryHostMetadata) {
+	helpers.EventLog(r, action, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   inventory.ProjectID,
+		ObjectType:  db.EventInventoryHost,
+		ObjectID:    host.ID,
+		Description: fmt.Sprintf("Host %s %s in inventory %s", host.Name, verb, inventory.Name),
+	})
+
+	metadata.InventoryID = inventory.ID
+	metadata.InventoryName = inventory.Name
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      kind,
+		Target:    audit.ResourceTarget(audit.TargetInventoryHost, host.ID, host.Name),
+		ProjectID: inventory.ProjectID,
+		Metadata:  metadata,
+	})
+}
 
 // managedInventory takes the inventory from the context and answers 400 when it is not managed.
 func managedInventory(w http.ResponseWriter, r *http.Request) (db.Inventory, bool) {
@@ -73,16 +120,14 @@ func AddInventoryHost(w http.ResponseWriter, r *http.Request) {
 	host.InventoryID = inventory.ID
 	host.ProjectID = inventory.ProjectID
 
-	if err := host.Validate(); err != nil {
-		helpers.WriteError(w, err)
-		return
-	}
-
 	newHost, err := helpers.Store(r).CreateInventoryHost(host)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
+
+	recordInventoryHost(r, helpers.EventLogCreate, "created", audit.ResourceInventoryHostCreate, inventory, newHost,
+		audit.InventoryHostMetadata{AddedVariables: diffVariables("", newHost.Variables).AddedVariables})
 
 	helpers.WriteJSON(w, http.StatusCreated, newHost)
 }
@@ -120,8 +165,9 @@ func UpdateInventoryHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The store ignores a missing host, so it is loaded first.
-	if _, err := helpers.Store(r).GetInventoryHost(inventory.ProjectID, inventory.ID, hostID); err != nil {
+	// The old host is the base of the audit record
+	oldHost, err := helpers.Store(r).GetInventoryHost(inventory.ProjectID, inventory.ID, hostID)
+	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
@@ -135,14 +181,37 @@ func UpdateInventoryHost(w http.ResponseWriter, r *http.Request) {
 	host.InventoryID = inventory.ID
 	host.ProjectID = inventory.ProjectID
 
-	if err := host.Validate(); err != nil {
+	if err := helpers.Store(r).UpdateInventoryHost(host); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	if err := helpers.Store(r).UpdateInventoryHost(host); err != nil {
-		helpers.WriteError(w, err)
-		return
+	var metadata audit.InventoryHostMetadata
+	if host.Name != oldHost.Name {
+		metadata.ChangedFields = append(metadata.ChangedFields, "name")
+		metadata.OldName = oldHost.Name
+	}
+	if host.Description != oldHost.Description {
+		metadata.ChangedFields = append(metadata.ChangedFields, "description")
+	}
+	diff := diffVariables(oldHost.Variables, host.Variables)
+	if len(diff.AddedVariables)+len(diff.RemovedVariables)+len(diff.ChangedVariables) > 0 {
+		metadata.ChangedFields = append(metadata.ChangedFields, "variables")
+	}
+	metadata.AddedVariables = diff.AddedVariables
+	metadata.RemovedVariables = diff.RemovedVariables
+	metadata.ChangedVariables = diff.ChangedVariables
+
+	if len(metadata.ChangedFields) > 0 {
+		recordInventoryHost(r, helpers.EventLogUpdate, "updated", audit.ResourceInventoryHostUpdate, inventory, host, metadata)
+	}
+
+	if host.Enabled != oldHost.Enabled {
+		verb, kind := "disabled", audit.ResourceInventoryHostDisable
+		if host.Enabled {
+			verb, kind = "enabled", audit.ResourceInventoryHostEnable
+		}
+		recordInventoryHost(r, helpers.EventLogUpdate, verb, kind, inventory, host, audit.InventoryHostMetadata{})
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -160,7 +229,8 @@ func RemoveInventoryHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := helpers.Store(r).GetInventoryHost(inventory.ProjectID, inventory.ID, hostID); err != nil {
+	host, err := helpers.Store(r).GetInventoryHost(inventory.ProjectID, inventory.ID, hostID)
+	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
@@ -169,6 +239,8 @@ func RemoveInventoryHost(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteError(w, err)
 		return
 	}
+
+	recordInventoryHost(r, helpers.EventLogDelete, "deleted", audit.ResourceInventoryHostDelete, inventory, host, audit.InventoryHostMetadata{})
 
 	w.WriteHeader(http.StatusNoContent)
 }

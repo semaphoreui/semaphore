@@ -142,6 +142,7 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.ResourceInventoryCreate,
 		Target:    audit.ResourceTarget(audit.TargetInventory, newInventory.ID, newInventory.Name),
 		ProjectID: project.ID,
+		Metadata:  diffVariables("", newInventory.VariablesText()),
 	})
 
 	helpers.WriteJSON(w, http.StatusCreated, newInventory)
@@ -247,6 +248,7 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.ResourceInventoryUpdate,
 		Target:    audit.ResourceTarget(audit.TargetInventory, oldInventory.ID, inventory.Name),
 		ProjectID: oldInventory.ProjectID,
+		Metadata:  diffVariables(oldInventory.VariablesText(), inventory.VariablesText()),
 	})
 
 	w.WriteHeader(http.StatusNoContent)
