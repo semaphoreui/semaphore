@@ -703,3 +703,137 @@ type fakeEnvironmentService struct {
 }
 
 func (f fakeEnvironmentService) Delete(int, int) error { return f.deleteErr }
+
+func TestInventoryHostEvents(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+
+	w, rec := hostCall(f, inventory, http.MethodPost, `{"name":"web1","enabled":true,"variables":"ansible_host: 10.0.0.5\nx: 1"}`, 0, AddInventoryHost)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	created := only(t, rec, audit.ResourceInventoryHostCreate)
+	hostID := mustAtoi(t, created.Event.Target.ID)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetInventoryHost, hostID, "web1"), created.Event.Target)
+	assert.Equal(t, f.project.ID, created.Event.ProjectID)
+	assert.Equal(t, audit.InventoryHostMetadata{InventoryID: inventory.ID, InventoryName: "prod", AddedVariables: []string{"ansible_host", "x"}}, created.Event.Metadata)
+
+	body := `{"name":"web1","enabled":true,"variables":"ansible_host: 10.0.0.9\nansible_port: 22"}`
+	w, rec = hostCall(f, inventory, http.MethodPut, body, hostID, UpdateInventoryHost)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	updated := only(t, rec, audit.ResourceInventoryHostUpdate)
+	assert.Equal(t, audit.InventoryHostMetadata{
+		InventoryID: inventory.ID, InventoryName: "prod", ChangedFields: []string{"variables"},
+		AddedVariables: []string{"ansible_port"}, RemovedVariables: []string{"x"}, ChangedVariables: []string{"ansible_host"},
+	}, updated.Event.Metadata)
+
+	body = `{"name":"web2","enabled":true,"variables":"ansible_host: 10.0.0.9\nansible_port: 22"}`
+	w, rec = hostCall(f, inventory, http.MethodPut, body, hostID, UpdateInventoryHost)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	renamed := only(t, rec, audit.ResourceInventoryHostUpdate)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetInventoryHost, hostID, "web2"), renamed.Event.Target)
+	assert.Equal(t, audit.InventoryHostMetadata{InventoryID: inventory.ID, InventoryName: "prod", ChangedFields: []string{"name"}, OldName: "web1"}, renamed.Event.Metadata)
+
+	w, rec = hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, hostID, SetInventoryHostEnabled)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	disabled := only(t, rec, audit.ResourceInventoryHostDisable)
+	assert.Equal(t, audit.InventoryHostMetadata{InventoryID: inventory.ID, InventoryName: "prod"}, disabled.Event.Metadata)
+
+	w, rec = hostCall(f, inventory, http.MethodPut, `{"enabled":true}`, hostID, SetInventoryHostEnabled)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	only(t, rec, audit.ResourceInventoryHostEnable)
+
+	w, rec = hostCall(f, inventory, http.MethodDelete, "", hostID, RemoveInventoryHost)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	deleted := only(t, rec, audit.ResourceInventoryHostDelete)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetInventoryHost, hostID, "web2"), deleted.Event.Target)
+
+	events, err := f.store.GetEvents(f.project.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	descriptions := []string{}
+	for _, event := range events {
+		assert.Equal(t, db.EventInventoryHost, *event.ObjectType)
+		descriptions = append(descriptions, *event.Description)
+	}
+	assert.ElementsMatch(t, []string{
+		"Host web1 created in inventory prod",
+		"Host web1 updated in inventory prod",
+		"Host web2 updated in inventory prod",
+		"Host web2 disabled in inventory prod",
+		"Host web2 enabled in inventory prod",
+		"Host web2 deleted in inventory prod",
+	}, descriptions)
+}
+
+func TestInventoryHostEvents_NeverCarryVariableValues(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	all := ""
+
+	w, rec := hostCall(f, inventory, http.MethodPost, `{"name":"web1","enabled":true,"description":"note-text","variables":"ansible_host: 10.0.0.5\nansible_password: s3cret"}`, 0, AddInventoryHost)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	hostID := mustAtoi(t, only(t, rec, audit.ResourceInventoryHostCreate).Event.Target.ID)
+	raw, err := json.Marshal(rec.All())
+	require.NoError(t, err)
+	all += string(raw)
+
+	w, rec = hostCall(f, inventory, http.MethodPut, `{"name":"web1","enabled":true,"description":"other-text","variables":"ansible_host: 10.0.0.6\nansible_password: s3cret2"}`, hostID, UpdateInventoryHost)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	raw, err = json.Marshal(rec.All())
+	require.NoError(t, err)
+	all += string(raw)
+
+	events, err := f.store.GetEvents(f.project.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	for _, event := range events {
+		all += *event.Description
+	}
+
+	for _, secret := range []string{"10.0.0.5", "10.0.0.6", "s3cret", "note-text", "other-text"} {
+		assert.NotContains(t, all, secret)
+	}
+	assert.Contains(t, all, "ansible_password")
+}
+
+func TestInventoryHostEvents_EnabledIsRecordedOnce(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	host, err := f.store.CreateInventoryHost(db.InventoryHost{InventoryID: inventory.ID, ProjectID: f.project.ID, Name: "web1", Enabled: true, Variables: "a: 1"})
+	require.NoError(t, err)
+
+	w, rec := hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, host.ID, SetInventoryHostEnabled)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	only(t, rec, audit.ResourceInventoryHostDisable)
+
+	w, rec = hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, host.ID, SetInventoryHostEnabled)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	assert.Empty(t, rec.All())
+}
+
+func TestInventoryEvents_ManagedVariables(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory, err := f.store.CreateInventory(db.Inventory{ProjectID: f.project.ID, Name: "prod", Type: db.InventoryManaged, Variables: new("a: 1\nb: 2")})
+	require.NoError(t, err)
+
+	r, rec := f.request(http.MethodPut, `{"variables":"a: 5\nc: 3"}`, map[string]any{"inventory": inventory}, nil)
+	w := httptest.NewRecorder()
+	SetInventoryVariables(w, r)
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	stored, err := f.store.GetInventory(f.project.ID, inventory.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "a: 5\nc: 3", stored.VariablesText())
+
+	updated := only(t, rec, audit.ResourceInventoryUpdate)
+	assert.Equal(t, audit.InventoryVariablesMetadata{AddedVariables: []string{"c"}, RemovedVariables: []string{"b"}, ChangedVariables: []string{"a"}}, updated.Event.Metadata)
+}
+
+func TestInventoryEvents_ManagedVariablesOnCreate(t *testing.T) {
+	f := newResourceFixture(t)
+	body := `{"name":"prod","project_id":` + strconv.Itoa(f.project.ID) + `,"type":"managed","variables":"b: 2\na: 1"}`
+	r, rec := f.request(http.MethodPost, body, nil, nil)
+	w := httptest.NewRecorder()
+
+	AddInventory(w, r)
+
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	created := only(t, rec, audit.ResourceInventoryCreate)
+	assert.Equal(t, audit.InventoryVariablesMetadata{AddedVariables: []string{"a", "b"}}, created.Event.Metadata)
+}

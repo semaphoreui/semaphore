@@ -225,6 +225,26 @@ func (e BackupInventory) Verify(backup *BackupFormat) error {
 	if e.BecomeKey != nil && getEntryByName[BackupAccessKey](e.BecomeKey, backup.Keys) == nil {
 		return fmt.Errorf("BecomeKey does not exist in keys[].Name")
 	}
+	if len(e.Hosts) > 0 && e.Type != db.InventoryManaged {
+		return fmt.Errorf("inventory %q is not managed but has hosts", e.Name)
+	}
+	if e.VariablesText() != "" && e.Type != db.InventoryManaged {
+		return fmt.Errorf("inventory %q is not managed but has variables", e.Name)
+	}
+	if _, err := db.ParseInventoryVariables(e.VariablesText()); err != nil {
+		return fmt.Errorf("variables of inventory %q: %w", e.Name, err)
+	}
+	names := make(map[string]bool)
+	for i, h := range e.Hosts {
+		if names[h.Name] {
+			return fmt.Errorf("host %q of inventory %q is duplicated", h.Name, e.Name)
+		}
+		names[h.Name] = true
+		host := db.InventoryHost{Name: h.Name, Variables: h.Variables}
+		if err := host.Validate(); err != nil {
+			return fmt.Errorf("host %q of inventory %q at hosts[%d]: %w", h.Name, e.Name, i, err)
+		}
+	}
 	return nil
 }
 
@@ -256,6 +276,20 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 		return err
 	}
 	b.inventories = append(b.inventories, newInventory)
+
+	for _, h := range e.Hosts {
+		_, err = b.store.CreateInventoryHost(db.InventoryHost{
+			ProjectID:   b.meta.ID,
+			InventoryID: newInventory.ID,
+			Name:        h.Name,
+			Description: h.Description,
+			Enabled:     h.Enabled,
+			Variables:   h.Variables,
+		})
+		if err != nil {
+			return fmt.Errorf("host %q of inventory %q: %w", h.Name, e.Name, err)
+		}
+	}
 	return nil
 }
 

@@ -18,6 +18,7 @@ const (
 	TemplateRole            = "TemplateRole"
 	SecretStorage           = "SecretStorage"
 	Inventory               = "Inventory"
+	InventoryHost           = "InventoryHost"
 	Repository              = "Repository"
 	HostConfig              = "HostConfig"
 	View                    = "View"
@@ -422,6 +423,7 @@ func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUs
 		HostConfig:              &HostConfigExporter{},
 		SecretStorage:           &SecretStorageExporter{},
 		Inventory:               &InventoryExporter{},
+		InventoryHost:           &InventoryHostExporter{},
 		View:                    &ViewExporter{},
 		Role:                    &RoleExporter{},
 		RoleMapping:             &RoleMappingExporter{},

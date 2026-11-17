@@ -57,16 +57,22 @@ func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 	return err
 }
 
+func (d *SqlDb) SetInventoryVariables(projectID, inventoryID int, variables string) error {
+	_, err := d.exec("update project__inventory set variables=? where id=? and project_id=?",
+		variables, inventoryID, projectID)
+	return err
+}
+
 func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Inventory, err error) {
 	insertID, err := d.insert(
 		"id",
 		"insert into project__inventory ("+
 			"project_id, name, type, "+
 			"ssh_key_id, inventory, become_key_id, "+
-			"template_id, repository_id, runner_tag) values "+
+			"template_id, repository_id, runner_tag, variables) values "+
 			"(?, ?, ?, "+
 			"?, ?, ?, "+
-			"?, ?, ?)",
+			"?, ?, ?, ?)",
 		inventory.ProjectID,
 		inventory.Name,
 		inventory.Type,
@@ -76,6 +82,7 @@ func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Invento
 		inventory.TemplateID,
 		inventory.RepositoryID,
 		inventory.RunnerTag,
+		inventory.Variables,
 	)
 
 	if err != nil {

@@ -297,9 +297,31 @@ type InventoryManager interface {
 	GetInventory(projectID int, inventoryID int) (Inventory, error)
 	GetInventoryRefs(projectID int, inventoryID int) (ObjectReferrers, error)
 	GetInventories(projectID int, params RetrieveQueryParams, types []InventoryType) ([]Inventory, error)
+	// UpdateInventory leaves the variables as they are
 	UpdateInventory(inventory Inventory) error
+	SetInventoryVariables(projectID, inventoryID int, variables string) error
 	CreateInventory(inventory Inventory) (Inventory, error)
 	DeleteInventory(projectID int, inventoryID int) error
+}
+
+// InventoryHostListParams selects a page of the hosts of a managed inventory
+type InventoryHostListParams struct {
+	Search string
+	Offset int
+	Count  int // 0 means no limit
+}
+
+// InventoryHostManager handles hosts of managed inventories
+type InventoryHostManager interface {
+	GetInventoryHosts(projectID, inventoryID int, params InventoryHostListParams) (hosts []InventoryHost, total int, err error)
+	GetInventoryHost(projectID, inventoryID, hostID int) (InventoryHost, error)
+	GetEnabledInventoryHosts(projectID, inventoryID int) ([]InventoryHost, error)
+	CreateInventoryHost(host InventoryHost) (InventoryHost, error)
+	// UpdateInventoryHost leaves the enabled flag as it is
+	UpdateInventoryHost(host InventoryHost) error
+	// SetInventoryHostEnabled reports whether the flag was different before
+	SetInventoryHostEnabled(projectID, inventoryID, hostID int, enabled bool) (changed bool, err error)
+	DeleteInventoryHost(projectID, inventoryID, hostID int) error
 }
 
 // RepositoryManager handles repository-related operations
@@ -641,6 +663,7 @@ type Store interface {
 	TemplateManager
 	WorkflowRoleManager
 	InventoryManager
+	InventoryHostManager
 	RepositoryManager
 	HostConfigManager
 	EnvironmentManager

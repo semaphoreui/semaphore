@@ -20,6 +20,9 @@ import Templates from '../views/project/Templates.vue';
 import TemplateView from '../views/project/TemplateView.vue';
 import Environment from '../views/project/Environment.vue';
 import Inventory from '../views/project/Inventory.vue';
+import InventoryView from '../views/project/InventoryView.vue';
+import InventoryHosts from '../views/project/InventoryHosts.vue';
+import InventoryVariables from '../views/project/InventoryVariables.vue';
 import Keys from '../views/project/Keys.vue';
 import Repositories from '../views/project/Repositories.vue';
 import HostConfig from '../views/project/HostConfig.vue';
@@ -198,6 +201,18 @@ const routes = [
   {
     path: '/project/:projectId/inventory',
     component: Inventory,
+  },
+  {
+    path: '/project/:projectId/inventory/:inventoryId',
+    redirect: redirectTo((p) => `/project/${p.projectId}/inventory/${p.inventoryId}/hosts`),
+    component: InventoryView,
+    children: [{
+      path: 'hosts',
+      component: InventoryHosts,
+    }, {
+      path: 'variables',
+      component: InventoryVariables,
+    }],
   },
   {
     path: '/project/:projectId/integrations',

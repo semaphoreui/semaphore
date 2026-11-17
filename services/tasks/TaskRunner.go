@@ -656,6 +656,22 @@ func (t *TaskRunner) populateDetails() error {
 		}
 	}
 
+	if t.Inventory.Type == db.InventoryManaged {
+		var hosts []db.InventoryHost
+		hosts, err = t.pool.store.GetEnabledInventoryHosts(t.Inventory.ProjectID, t.Inventory.ID)
+		if err != nil {
+			return err
+		}
+
+		t.Inventory.Inventory, err = buildManagedInventory(t.Inventory.VariablesText(), hosts)
+		if err != nil {
+			t.Log("Managed inventory is invalid: " + err.Error())
+			return err
+		}
+		t.Inventory.Type = db.InventoryStaticYaml
+		t.Inventory.Variables = nil
+	}
+
 	// get repository
 	t.Repository, err = t.pool.store.GetRepository(t.Template.ProjectID, t.Template.RepositoryID)
 

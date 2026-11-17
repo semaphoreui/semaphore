@@ -337,6 +337,30 @@ func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
 	assert.True(t, found, "restored schedule should be persisted")
 }
 
+func TestRestore_InventoryFromBackupBeforeHosts(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "u", Name: "U", Email: "u@example.com", Admin: true}})
+	require.NoError(t, err)
+	backup := &BackupFormat{}
+	require.NoError(t, backup.Unmarshal(`{
+  "meta": {"name": "Old Project"},
+  "inventories": [{"name": "old", "type": "static", "inventory": "[all]\nlocalhost"}]
+}`))
+
+	require.NoError(t, backup.Verify())
+	restored, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+	require.NoError(t, err)
+	invs, err := store.GetInventories(restored.ID, db.RetrieveQueryParams{}, []db.InventoryType{})
+	require.NoError(t, err)
+	require.Len(t, invs, 1)
+	assert.Nil(t, invs[0].Variables)
+	hosts, total, err := store.GetInventoryHosts(restored.ID, invs[0].ID, db.InventoryHostListParams{})
+	require.NoError(t, err)
+	assert.Empty(t, hosts)
+	assert.Equal(t, 0, total)
+}
+
 // TestBackup_Workflow moved to pro_impl/db/sql/backup_workflow_test.go because
 // workflow persistence is a Pro feature requiring the real workflow store
 // (the open-source build only has the no-op stub).
@@ -1302,6 +1326,51 @@ func TestRestore_ReadBitByFileVersion(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, perms, 1)
 			assert.Equal(t, tt.wantGrant, perms[0].Permissions)
+		})
+	}
+}
+
+func TestBackupInventory_VerifyRejectsBadHosts(t *testing.T) {
+	tests := []struct {
+		name  string
+		typ   db.InventoryType
+		hosts []BackupInventoryHost
+	}{
+		{"host with an invalid name", db.InventoryManaged, []BackupInventoryHost{{Name: "web[1:3]", Variables: "secret: s3cr3t"}}},
+		{"host with variables that are not a mapping", db.InventoryManaged, []BackupInventoryHost{{Name: "web1", Variables: "- s3cr3t"}}},
+		{"hosts on a static inventory", db.InventoryStatic, []BackupInventoryHost{{Name: "web1", Variables: "secret: s3cr3t"}}},
+		{"two hosts with the same name", db.InventoryManaged, []BackupInventoryHost{{Name: "web1", Variables: "secret: s3cr3t"}, {Name: "web1"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inv := BackupInventory{Inventory: db.Inventory{Name: "inv", Type: tt.typ}, Hosts: tt.hosts}
+
+			err := inv.Verify(&BackupFormat{Inventories: []BackupInventory{inv}})
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), `"inv"`)
+			assert.NotContains(t, err.Error(), "s3cr3t")
+		})
+	}
+}
+
+func TestBackupInventory_VerifyRejectsBadVariables(t *testing.T) {
+	tests := []struct {
+		name string
+		typ  db.InventoryType
+	}{
+		{"managed inventory with variables that are not a mapping", db.InventoryManaged},
+		{"variables on a static inventory", db.InventoryStatic},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inv := BackupInventory{Inventory: db.Inventory{Name: "inv", Type: tt.typ, Variables: new("- s3cr3t")}}
+
+			err := inv.Verify(&BackupFormat{Inventories: []BackupInventory{inv}})
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), `"inv"`)
+			assert.NotContains(t, err.Error(), "s3cr3t")
 		})
 	}
 }

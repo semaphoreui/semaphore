@@ -285,3 +285,21 @@ type WorkflowApprovalMetadata struct {
 type RunnerRegisterMetadata struct {
 	Token string `json:"token"`
 }
+
+// InventoryVariablesMetadata names the top-level variable keys that changed, never their values.
+type InventoryVariablesMetadata struct {
+	AddedVariables   []string `json:"added_variables,omitempty"`
+	RemovedVariables []string `json:"removed_variables,omitempty"`
+	ChangedVariables []string `json:"changed_variables,omitempty"`
+}
+
+type InventoryHostMetadata struct {
+	InventoryID   int    `json:"inventory_id"`
+	InventoryName string `json:"inventory_name"`
+	// Field names only: name, description, variables.
+	ChangedFields    []string `json:"changed_fields,omitempty"`
+	OldName          string   `json:"old_name,omitempty"`
+	AddedVariables   []string `json:"added_variables,omitempty"`
+	RemovedVariables []string `json:"removed_variables,omitempty"`
+	ChangedVariables []string `json:"changed_variables,omitempty"`
+}

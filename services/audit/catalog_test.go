@@ -221,3 +221,11 @@ func TestTaskAndRunnerEntries(t *testing.T) {
 		})
 	}
 }
+
+func TestCatalogInventoryHostKinds(t *testing.T) {
+	for _, kind := range []Kind{ResourceInventoryHostCreate, ResourceInventoryHostUpdate, ResourceInventoryHostEnable, ResourceInventoryHostDisable, ResourceInventoryHostDelete} {
+		entry, ok := Lookup(kind)
+		require.True(t, ok, kind)
+		assert.Equal(t, InventoryHostMetadata{}, entry.Metadata, kind)
+	}
+}
