@@ -302,6 +302,23 @@ type InventoryManager interface {
 	DeleteInventory(projectID int, inventoryID int) error
 }
 
+// InventoryHostListParams selects a page of the hosts of a managed inventory
+type InventoryHostListParams struct {
+	Search string
+	Offset int
+	Count  int // 0 means no limit
+}
+
+// InventoryHostManager handles hosts of managed inventories
+type InventoryHostManager interface {
+	GetInventoryHosts(projectID, inventoryID int, params InventoryHostListParams) (hosts []InventoryHost, total int, err error)
+	GetInventoryHost(projectID, inventoryID, hostID int) (InventoryHost, error)
+	GetEnabledInventoryHosts(projectID, inventoryID int) ([]InventoryHost, error)
+	CreateInventoryHost(host InventoryHost) (InventoryHost, error)
+	UpdateInventoryHost(host InventoryHost) error
+	DeleteInventoryHost(projectID, inventoryID, hostID int) error
+}
+
 // RepositoryManager handles repository-related operations
 type RepositoryManager interface {
 	GetRepository(projectID int, repositoryID int) (Repository, error)
@@ -641,6 +658,7 @@ type Store interface {
 	TemplateManager
 	WorkflowRoleManager
 	InventoryManager
+	InventoryHostManager
 	RepositoryManager
 	HostConfigManager
 	EnvironmentManager
