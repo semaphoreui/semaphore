@@ -55,7 +55,9 @@ platným názvem větve Git, je odmítnut.
 ## Inventář {#newTask-inventoryId}
 
 Zobrazí se, když šablona dovoluje v úloze vybrat inventář a vy smíte vidět projekt. U šablony
-Terraform, OpenTofu nebo Terragrunt má pole popisek **Workspace**.
+Terraform, OpenTofu nebo Terragrunt má pole popisek **Workspace**, ale server volbu použije pouze u
+šablon Ansible: úloha Terraform, OpenTofu nebo Terragrunt běží ve workspace šablony, ať zde vyberete
+cokoli.
 
 Inventář, proti kterému úloha běží. Pole začíná inventářem šablony a nabízí inventáře projektu
 určené pro aplikaci šablony. Když vybraný inventář v okamžiku spuštění úlohy už neexistuje, úloha

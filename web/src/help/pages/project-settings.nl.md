@@ -59,9 +59,12 @@ repositories, variabele groepen, sleutels, schema's, integraties en de andere za
 zijn ingesteld. Het bestand kan weer in een project worden omgezet met **Project Herstellen** in
 het projectmenu bovenaan de zijbalk.
 
-Het bestand bevat geen geheime waarden: de geheimen van de sleutels en van de variabele groepen
-moeten na een herstel opnieuw worden ingevoerd. De geschiedenis van taken maakt geen deel uit van
-de back-up.
+Het bestand laat de geheimen van de sleutels en de geheimen op het tabblad **Secrets** van de
+variabele groepen weg: die moeten na een herstel opnieuw worden ingevoerd. Al het andere wordt
+gekopieerd zoals het is, ook een wachtwoord dat rechtstreeks in een ander veld is getypt: het adres
+van een repository met een wachtwoord erin, de tekst van een statische inventaris, de waarden van
+gewone variabelen en omgevingsvariabelen. Controleer het bestand op zulke waarden voordat u het
+deelt. De geschiedenis van taken maakt geen deel uit van de back-up.
 
 ## Cache wissen {#settings-clearCache}
 

@@ -38,7 +38,7 @@ form: src/components/TaskForm.vue, src/components/TaskParamsAnsibleForm.vue, src
 
 ## インベントリ {#newTask-inventoryId}
 
-テンプレートがタスクでのインベントリの選択を許可していて、プロジェクトを表示する権限がある場合に表示されます。Terraform、OpenTofu、Terragrunt のテンプレートでは、このフィールドのラベルは **Workspace** です。
+テンプレートがタスクでのインベントリの選択を許可していて、プロジェクトを表示する権限がある場合に表示されます。Terraform、OpenTofu、Terragrunt のテンプレートでは、このフィールドのラベルは **Workspace** ですが、サーバーはこの選択を Ansible のテンプレートにのみ使います。Terraform、OpenTofu、Terragrunt のタスクは、ここで何を選んでも、テンプレートのワークスペースで実行されます。
 
 タスクが対象とするインベントリです。このフィールドの初期値はテンプレートのインベントリで、テンプレートのアプリ用に作られたプロジェクトのインベントリが一覧表示されます。タスクの開始時に選択したインベントリがなくなっている場合、タスクはテンプレートのインベントリを対象に実行されます。
 

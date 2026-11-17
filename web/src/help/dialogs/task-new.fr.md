@@ -58,9 +58,10 @@ modèle n'en a pas. Un nom qui n'est pas un nom de branche Git valide est refus�
 
 ## Inventaire {#newTask-inventoryId}
 
-Affiché lorsque le modèle permet de choisir l'inventaire dans une tâche et que vous avez le droit
-de voir le projet. Pour un modèle Terraform, OpenTofu ou Terragrunt, le champ s'intitule
-**Workspace**.
+Affiché lorsque le modèle permet de choisir l'inventaire dans une tâche et que vous avez le droit de
+voir le projet. Pour un modèle Terraform, OpenTofu ou Terragrunt, le champ s'intitule **Workspace**,
+mais le serveur n'utilise le choix que pour les modèles Ansible : une tâche Terraform, OpenTofu ou
+Terragrunt s'exécute dans l'espace de travail du modèle, quoi que vous choisissiez ici.
 
 L'inventaire sur lequel la tâche s'exécute. Le champ contient au départ l'inventaire du modèle et
 liste les inventaires du projet créés pour l'application du modèle. Si l'inventaire choisi a

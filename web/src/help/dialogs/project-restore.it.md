@@ -22,8 +22,9 @@ ripristinare un progetto con un nome già in uso.
 
 Il file JSON del backup. Scegli il file prima di premere **Restore**.
 
-Un backup non contiene valori segreti: dopo il ripristino, Semaphore ti dice quante chiavi sono
-vuote e richiedono di inserire di nuovo i loro segreti. Anche i segreti dei gruppi di variabili
-devono essere inseriti di nuovo. I membri del
-progetto e la cronologia dei suoi compiti non fanno parte del backup. Un backup scritto da una
-versione più recente di Semaphore viene rifiutato.
+Un backup esclude i segreti delle chiavi e i segreti nella scheda **Secrets** dei gruppi di
+variabili: dopo il ripristino, Semaphore ti dice quante chiavi sono vuote e richiedono di inserire
+di nuovo i loro segreti, e anche i segreti dei gruppi di variabili devono essere inseriti di nuovo.
+Una password digitata direttamente in un altro campo, come l'indirizzo di un repository, torna così
+com'è nel file. I membri del progetto e la cronologia dei suoi compiti non fanno parte del backup.
+Un backup scritto da una versione più recente di Semaphore viene rifiutato.

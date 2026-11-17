@@ -21,8 +21,9 @@ projektu pod nazwą, która jest już zajęta.
 
 Plik JSON kopii zapasowej. Wybierz plik, zanim naciśniesz **Restore**.
 
-Kopia zapasowa nie zawiera wartości tajnych: po przywróceniu Semaphore informuje, ile kluczy jest
-pustych i wymaga ponownego wprowadzenia sekretów. Sekrety grup zmiennych również trzeba wprowadzić
-ponownie. Członkowie
-projektu i historia jego zadań nie są częścią kopii zapasowej. Kopia zapasowa zapisana przez
-nowszą wersję Semaphore jest odrzucana.
+Kopia zapasowa pomija sekrety kluczy oraz sekrety z karty **Secrets** grup zmiennych: po
+przywróceniu Semaphore informuje, ile kluczy jest pustych i wymaga ponownego wprowadzenia sekretów,
+a sekrety grup zmiennych również trzeba wprowadzić ponownie. Hasło wpisane bezpośrednio w inne pole,
+na przykład w adres repozytorium, wraca takie, jakie jest w pliku. Członkowie projektu i historia
+jego zadań nie są częścią kopii zapasowej. Kopia zapasowa zapisana przez nowszą wersję Semaphore
+jest odrzucana.

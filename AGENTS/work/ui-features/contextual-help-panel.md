@@ -158,6 +158,16 @@ The panel is 420 px wide, the full height of the window.
   can not leave it for the panel. Pre-existing; test Tab on an inventory of type File.
 - A `data-testid` renamed in a form fails the build of its document: rename the anchor in the
   same change.
+- ⚠️ 2026-11-17: in `web/vite/help/plugin.mjs` never compare paths with `===`: Vite names a module
+  with forward slashes, `path.join` with the separator of the platform, so on Windows every
+  document was its own "another document has the same name" (PR #4442 review). Compare with
+  `path.relative(a, b) === ''`; `tests/unit/help-docs-windows.spec.js` runs the plugin with
+  `path.win32`.
+- The help states what the server does, not what a feature is meant to do: the backup keeps every
+  value that is not a dedicated secret field (a password inside a repository URL, an inventory,
+  plain variables), and the workspace of a Terraform task is always the one of its template
+  (`Template.CanOverrideInventory()` is Ansible only). Both were over-promised once (PR #4442
+  review, 2026-11-17).
 
 ## Open
 

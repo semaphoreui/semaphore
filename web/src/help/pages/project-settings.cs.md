@@ -56,8 +56,11 @@ proměnných, klíči, harmonogramy, integracemi a dalšími věcmi, které jsou
 lze znovu převést na projekt pomocí **Obnovit projekt** v nabídce projektů v horní části
 postranního panelu.
 
-Soubor neobsahuje žádné tajné hodnoty: tajné údaje klíčů a skupin proměnných je po obnovení nutné
-zadat znovu. Historie úloh není součástí zálohy.
+Soubor vynechává tajné údaje klíčů a tajné údaje na kartě **Secrets** skupin proměnných: po obnovení
+je nutné je zadat znovu. Vše ostatní se zkopíruje tak, jak je, i heslo zapsané přímo do jiného pole:
+adresa repozitáře, ve které je heslo, text statického inventáře, hodnoty běžných proměnných a
+proměnných prostředí. Než soubor sdílíte, zkontrolujte, zda takové hodnoty neobsahuje. Historie úloh
+není součástí zálohy.
 
 ## Vymazat mezipaměť {#settings-clearCache}
 

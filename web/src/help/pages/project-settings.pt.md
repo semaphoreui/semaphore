@@ -59,8 +59,12 @@ repositórios, grupos de variáveis, chaves, agendas, integrações e tudo o res
 configurado. O ficheiro pode voltar a ser transformado num projeto com **Restaurar Projeto** no
 menu de projetos, no topo da barra lateral.
 
-O ficheiro não contém valores secretos: os segredos das chaves e dos grupos de variáveis têm de
-ser introduzidos novamente após um restauro. O histórico de tarefas não faz parte do backup.
+O ficheiro deixa de fora os segredos das chaves e os segredos do separador **Secrets** dos grupos de
+variáveis: têm de ser introduzidos novamente após um restauro. Tudo o resto é copiado tal como está,
+também uma palavra-passe escrita diretamente noutro campo: o endereço de um repositório que contenha
+uma palavra-passe, o texto de um inventário estático, os valores das variáveis comuns e das
+variáveis de ambiente. Verifique se o ficheiro contém tais valores antes de o partilhar. O histórico
+de tarefas não faz parte do backup.
 
 ## Limpar cache {#settings-clearCache}
 

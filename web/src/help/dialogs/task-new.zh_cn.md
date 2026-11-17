@@ -45,7 +45,7 @@ Semaphore 将答案作为变量传递给任务：对于 Ansible 是额外变量�
 ## 库存 {#newTask-inventoryId}
 
 当模板允许在任务中选择库存、并且您有权查看项目时显示。对于 Terraform、OpenTofu 或 Terragrunt 模板，此字段的标签为
-**Workspace**。
+**Workspace**，但服务器只对 Ansible 模板使用此选择：Terraform、OpenTofu 或 Terragrunt 任务会在模板的工作区中运行，无论您在此处选择什么。
 
 任务运行所针对的库存。此字段初始为模板的库存，并列出项目中为模板的应用创建的库存。如果所选库存在任务启动时已不存在，
 任务会针对模板的库存运行。

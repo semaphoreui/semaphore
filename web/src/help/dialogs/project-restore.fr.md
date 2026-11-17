@@ -22,8 +22,10 @@ un projet sous un nom déjà pris.
 
 Le fichier JSON de la sauvegarde. Choisissez le fichier avant d'appuyer sur **Restore**.
 
-Une sauvegarde ne contient aucune valeur secrète : après la restauration, Semaphore vous indique
-combien de clés sont vides et nécessitent que leurs secrets soient saisis à nouveau. Les secrets des
-groupes de variables doivent également être saisis à nouveau. Les membres du projet et l'historique
-de ses tâches ne font pas partie de la sauvegarde. Une sauvegarde créée par une version plus récente
-de Semaphore est refusée.
+Une sauvegarde omet les secrets des clés et les secrets de l'onglet **Secrets** des groupes de
+variables : après la restauration, Semaphore vous indique combien de clés sont vides et nécessitent
+que leurs secrets soient saisis à nouveau, et les secrets des groupes de variables doivent également
+être saisis à nouveau. Un mot de passe saisi directement dans un autre champ, comme l'adresse d'un
+dépôt, revient tel qu'il est dans le fichier. Les membres du projet et l'historique de ses tâches ne
+font pas partie de la sauvegarde. Une sauvegarde créée par une version plus récente de Semaphore est
+refusée.

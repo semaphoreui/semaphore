@@ -22,8 +22,10 @@ a project under a name that is taken already.
 
 The JSON file of the backup. Pick the file before you press **Restore**.
 
-A backup holds no secret values: after the restore, Semaphore tells you how many keys are empty
-and need their secrets entered again. The secrets of the variable groups have to be entered
-again as well. The members of the
-project and the history of its tasks are not a part of the backup. A backup written by a newer
+A backup leaves out the secrets of the keys and the secrets on the **Secrets** tab of the
+variable groups: after the restore, Semaphore tells you how many keys are empty and need their
+secrets entered again, and the secrets of the variable groups have to be entered again as well.
+A password typed straight into another field, such as the address of a repository, comes back as
+it is in the file. The members of the project and the history of its tasks are not a part of the
+backup. A backup written by a newer
 version of Semaphore is refused.

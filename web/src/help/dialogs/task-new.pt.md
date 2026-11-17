@@ -59,7 +59,9 @@ não tem nenhum. Um nome que não seja um nome de ramo Git válido é recusado.
 ## Inventário {#newTask-inventoryId}
 
 Apresentado quando o modelo permite escolher o inventário numa tarefa e pode ver o projeto. Num
-modelo Terraform, OpenTofu ou Terragrunt, o campo chama-se **Workspace**.
+modelo Terraform, OpenTofu ou Terragrunt, o campo chama-se **Workspace**, mas o servidor só usa a
+escolha para modelos Ansible: uma tarefa Terraform, OpenTofu ou Terragrunt é executada no workspace
+do modelo, seja o que for que escolha aqui.
 
 O inventário sobre o qual a tarefa é executada. O campo começa com o inventário do modelo e lista
 os inventários do projeto criados para a aplicação do modelo. Quando o inventário escolhido já não

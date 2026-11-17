@@ -59,7 +59,9 @@ form: src/components/TaskForm.vue, src/components/TaskParamsAnsibleForm.vue, src
 ## Инвентарь {#newTask-inventoryId}
 
 Показывается, когда шаблон разрешает выбирать инвентарь в задаче и вам разрешено видеть проект.
-Для шаблона Terraform, OpenTofu или Terragrunt поле называется **Workspace**.
+Для шаблона Terraform, OpenTofu или Terragrunt поле называется **Workspace**, но сервер использует
+выбор только для шаблонов Ansible: задача Terraform, OpenTofu или Terragrunt выполняется в
+workspace шаблона, что бы вы здесь ни выбрали.
 
 Инвентарь, с которым выполняется задача. Изначально в поле указан инвентарь шаблона, а в списке —
 инвентари проекта, созданные для приложения шаблона. Если к моменту запуска задачи выбранного

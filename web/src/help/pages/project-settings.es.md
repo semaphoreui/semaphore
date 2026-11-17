@@ -59,9 +59,12 @@ repositorios, grupos de variables, claves, programaciones, integraciones y el re
 configurados en él. El archivo puede volver a convertirse en un proyecto con **Restaurar Proyecto**
 en el menú de proyectos en la parte superior de la barra lateral.
 
-El archivo no contiene valores secretos: los secretos de las claves y de los grupos de variables
-deben introducirse de nuevo después de una restauración. El historial de tareas no forma parte del
-respaldo.
+El archivo omite los secretos de las claves y los secretos de la pestaña **Secrets** de los grupos
+de variables: deben introducirse de nuevo después de una restauración. Todo lo demás se copia tal
+cual, también una contraseña escrita directamente en otro campo: la dirección de un repositorio que
+contiene una contraseña, el texto de un inventario estático, los valores de las variables normales y
+de las variables de entorno. Revise si el archivo contiene tales valores antes de compartirlo. El
+historial de tareas no forma parte del respaldo.
 
 ## Limpiar caché {#settings-clearCache}
 

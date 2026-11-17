@@ -58,9 +58,12 @@ dépôts, groupes de variables, clés, calendriers, intégrations et les autres 
 configurés. Le fichier peut être retransformé en projet avec **Restaurer le projet** dans le menu
 des projets en haut de la barre latérale.
 
-Le fichier ne contient aucune valeur secrète : les secrets des clés et des groupes de variables
-doivent être saisis à nouveau après une restauration. L'historique des tâches ne fait pas partie de
-la sauvegarde.
+Le fichier omet les secrets des clés et les secrets de l'onglet **Secrets** des groupes de
+variables : ils doivent être saisis à nouveau après une restauration. Tout le reste est copié tel
+quel, y compris un mot de passe saisi directement dans un autre champ : l'adresse d'un dépôt
+contenant un mot de passe, le texte d'un inventaire statique, les valeurs des variables ordinaires
+et des variables d'environnement. Vérifiez que le fichier ne contient pas de telles valeurs avant de
+le partager. L'historique des tâches ne fait pas partie de la sauvegarde.
 
 ## Effacer le cache {#settings-clearCache}
 

@@ -61,7 +61,9 @@ rechaza.
 ## Inventario {#newTask-inventoryId}
 
 Se muestra cuando la plantilla permite elegir el inventario en una tarea y usted puede ver el
-proyecto. Para una plantilla de Terraform, OpenTofu o Terragrunt el campo se llama **Workspace**.
+proyecto. Para una plantilla de Terraform, OpenTofu o Terragrunt el campo se llama **Workspace**,
+pero el servidor usa la elección solo para las plantillas de Ansible: una tarea de Terraform,
+OpenTofu o Terragrunt se ejecuta en el workspace de la plantilla, elija lo que elija aquí.
 
 El inventario sobre el que se ejecuta la tarea. El campo empieza con el inventario de la plantilla
 y lista los inventarios del proyecto creados para la aplicación de la plantilla. Cuando el

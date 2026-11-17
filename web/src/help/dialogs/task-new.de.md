@@ -61,9 +61,10 @@ den Branch des Repositorys. Ein Name, der kein gültiger Git-Branchname ist, wir
 
 ## Inventory {#newTask-inventoryId}
 
-Wird angezeigt, wenn die Vorlage erlaubt, das Inventory in einem Task zu wählen, und Sie das
-Projekt sehen dürfen. Bei einer Terraform-, OpenTofu- oder Terragrunt-Vorlage heißt das Feld
-**Workspace**.
+Wird angezeigt, wenn die Vorlage erlaubt, das Inventory in einem Task zu wählen, und Sie das Projekt
+sehen dürfen. Bei einer Terraform-, OpenTofu- oder Terragrunt-Vorlage heißt das Feld **Workspace**,
+aber der Server verwendet die Auswahl nur für Ansible-Vorlagen: Ein Terraform-, OpenTofu- oder
+Terragrunt-Task läuft im Workspace der Vorlage, ganz gleich, was Sie hier wählen.
 
 Das Inventory, gegen das der Task läuft. Das Feld beginnt mit dem Inventory der Vorlage und
 listet die Inventorys des Projekts auf, die für die App der Vorlage gemacht sind. Ist das gewählte

@@ -59,8 +59,12 @@ gruppi di variabili, chiavi, programmazioni, integrazioni e le altre cose config
 interno. Il file può essere riconvertito in un progetto con **Ripristina progetto** nel menu dei
 progetti in cima alla barra laterale.
 
-Il file non contiene valori segreti: i segreti delle chiavi e dei gruppi di variabili devono essere
-inseriti di nuovo dopo un ripristino. La cronologia dei compiti non fa parte del backup.
+Il file esclude i segreti delle chiavi e i segreti nella scheda **Secrets** dei gruppi di variabili:
+devono essere inseriti di nuovo dopo un ripristino. Tutto il resto viene copiato così com'è, anche
+una password digitata direttamente in un altro campo: l'indirizzo di un repository che contiene una
+password, il testo di un inventario statico, i valori delle variabili ordinarie e delle variabili di
+ambiente. Controlla che il file non contenga valori del genere prima di condividerlo. La cronologia
+dei compiti non fa parte del backup.
 
 ## Pulisci cache {#settings-clearCache}
 

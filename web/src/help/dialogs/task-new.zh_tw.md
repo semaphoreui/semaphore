@@ -45,7 +45,7 @@ Playbook 可以透過 `semaphore_vars.task_details.message` 讀取它，腳本�
 ## 清單 {#newTask-inventoryId}
 
 在範本允許於任務中選擇清單，且您可以檢視專案時顯示。對於 Terraform、OpenTofu 或 Terragrunt 範本，此欄位的標籤為
-**Workspace**。
+**Workspace**，但伺服器只會將此選擇用於 Ansible 範本：Terraform、OpenTofu 或 Terragrunt 任務會在範本的工作區中執行，無論您在此處選擇什麼。
 
 任務執行時所針對的清單。此欄位的初始值為範本的清單，並列出專案中為該範本之應用程式建立的清單。若所選的清單在任務開始時已不存在，
 任務會針對範本的清單執行。

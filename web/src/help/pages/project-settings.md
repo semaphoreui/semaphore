@@ -56,8 +56,12 @@ repositories, variable groups, keys, schedules, integrations and the other thing
 The file can be turned back into a project with **Restore Project** in the project menu at the
 top of the side bar.
 
-The file holds no secret values: the secrets of the keys and of the variable groups have to be
-entered again after a restore. The history of tasks is not a part of the backup.
+The file leaves out the secrets of the keys and the secrets on the **Secrets** tab of the
+variable groups: they have to be entered again after a restore. Everything else is copied as it
+is, also a password typed straight into another field: the address of a repository with a
+password in it, the text of a static inventory, the values of ordinary variables and environment
+variables. Check the file for such values before you share it. The history of tasks is not a part
+of the backup.
 
 ## Clear cache {#settings-clearCache}
 

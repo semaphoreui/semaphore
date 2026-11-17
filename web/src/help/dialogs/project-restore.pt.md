@@ -22,8 +22,9 @@ restaurar um projeto com um nome que já esteja ocupado.
 
 O ficheiro JSON do backup. Escolha o ficheiro antes de premir **Restore**.
 
-Um backup não contém valores secretos: depois do restauro, o Semaphore indica quantas chaves estão
-vazias e precisam que os seus segredos sejam introduzidos novamente. Os segredos dos grupos de
-variáveis também têm de ser introduzidos novamente. Os membros do
-projeto e o histórico das suas tarefas não fazem parte do backup. Um backup escrito por uma versão
-mais recente do Semaphore é recusado.
+Um backup deixa de fora os segredos das chaves e os segredos do separador **Secrets** dos grupos de
+variáveis: depois do restauro, o Semaphore indica quantas chaves estão vazias e precisam que os seus
+segredos sejam introduzidos novamente, e os segredos dos grupos de variáveis também têm de ser
+introduzidos novamente. Uma palavra-passe escrita diretamente noutro campo, como o endereço de um
+repositório, volta tal como está no ficheiro. Os membros do projeto e o histórico das suas tarefas
+não fazem parte do backup. Um backup escrito por uma versão mais recente do Semaphore é recusado.

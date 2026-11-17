@@ -23,8 +23,10 @@ ab, ein Projekt unter einem bereits vergebenen Namen wiederherzustellen.
 
 Die JSON-Datei des Backups. Wählen Sie die Datei aus, bevor Sie auf **Restore** klicken.
 
-Ein Backup enthält keine geheimen Werte: Nach der Wiederherstellung teilt Semaphore Ihnen mit, wie
-viele Schlüssel leer sind und ihre Secrets erneut eingegeben werden müssen. Die Secrets der
-Variablengruppen müssen ebenfalls erneut eingegeben werden. Die Mitglieder des Projekts und der
-Verlauf seiner Tasks sind nicht Teil des Backups. Ein Backup, das von einer neueren Version von
-Semaphore geschrieben wurde, wird abgelehnt.
+Ein Backup lässt die Secrets der Schlüssel und die Secrets auf dem Tab **Secrets** der
+Variablengruppen weg: Nach der Wiederherstellung teilt Semaphore Ihnen mit, wie viele Schlüssel leer
+sind und ihre Secrets erneut eingegeben werden müssen, und die Secrets der Variablengruppen müssen
+ebenfalls erneut eingegeben werden. Ein Passwort, das direkt in ein anderes Feld eingegeben wurde,
+etwa in die Adresse eines Repositorys, kommt so zurück, wie es in der Datei steht. Die Mitglieder
+des Projekts und der Verlauf seiner Tasks sind nicht Teil des Backups. Ein Backup, das von einer
+neueren Version von Semaphore geschrieben wurde, wird abgelehnt.

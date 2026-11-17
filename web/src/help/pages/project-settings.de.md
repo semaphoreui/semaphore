@@ -60,9 +60,12 @@ Repositories, Variablengruppen, Schlüssel, Zeitpläne, Integrationen und alles 
 eingerichtet ist. Die Datei kann mit **Projekt wiederherstellen** im Projektmenü oben in der
 Seitenleiste wieder in ein Projekt umgewandelt werden.
 
-Die Datei enthält keine geheimen Werte: Die Secrets der Schlüssel und der Variablengruppen müssen
-nach einer Wiederherstellung erneut eingegeben werden. Der Verlauf der Tasks ist nicht Teil des
-Backups.
+Die Datei lässt die Secrets der Schlüssel und die Secrets auf dem Tab **Secrets** der
+Variablengruppen weg: Diese müssen nach einer Wiederherstellung erneut eingegeben werden. Alles
+andere wird so kopiert, wie es ist, auch ein Passwort, das direkt in ein anderes Feld eingegeben
+wurde: die Adresse eines Repositorys mit einem Passwort darin, der Text eines statischen Inventorys,
+die Werte gewöhnlicher Variablen und von Umgebungsvariablen. Prüfen Sie die Datei auf solche Werte,
+bevor Sie sie weitergeben. Der Verlauf der Tasks ist nicht Teil des Backups.
 
 ## Cache leeren {#settings-clearCache}
 

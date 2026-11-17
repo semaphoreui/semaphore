@@ -57,7 +57,9 @@ nie jest prawidłową nazwą gałęzi Git, jest odrzucana.
 ## Inwentarz {#newTask-inventoryId}
 
 Wyświetlane, gdy szablon zezwala na wybór inwentarza w zadaniu i możesz widzieć projekt. Dla
-szablonu Terraform, OpenTofu lub Terragrunt pole nosi nazwę **Workspace**.
+szablonu Terraform, OpenTofu lub Terragrunt pole nosi nazwę **Workspace**, ale serwer używa wyboru
+tylko dla szablonów Ansible: zadanie Terraform, OpenTofu lub Terragrunt działa w workspace szablonu,
+niezależnie od tego, co tu wybierzesz.
 
 Inwentarz, na którym jest wykonywane zadanie. Pole początkowo zawiera inwentarz szablonu i
 wyświetla inwentarze projektu utworzone dla aplikacji szablonu. Gdy wybrany inwentarz zniknie przed

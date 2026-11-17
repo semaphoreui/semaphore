@@ -59,8 +59,11 @@ zmiennych, kluczami, harmonogramami, integracjami i pozostałymi elementami w ni
 Plik można z powrotem zamienić w projekt za pomocą **Przywróć projekt** w menu projektów u góry
 paska bocznego.
 
-Plik nie zawiera wartości tajnych: sekrety kluczy i grup zmiennych trzeba wprowadzić ponownie po
-przywróceniu. Historia zadań nie jest częścią kopii zapasowej.
+Plik pomija sekrety kluczy oraz sekrety z karty **Secrets** grup zmiennych: trzeba je wprowadzić
+ponownie po przywróceniu. Wszystko inne jest kopiowane bez zmian, także hasło wpisane bezpośrednio w
+inne pole: adres repozytorium zawierający hasło, tekst statycznego inwentarza, wartości zwykłych
+zmiennych i zmiennych środowiskowych. Przed udostępnieniem pliku sprawdź, czy nie zawiera takich
+wartości. Historia zadań nie jest częścią kopii zapasowej.
 
 ## Wyczyść pamięć podręczną {#settings-clearCache}
 

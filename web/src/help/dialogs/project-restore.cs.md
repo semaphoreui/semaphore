@@ -21,7 +21,8 @@ názvem, který je už obsazený.
 
 Soubor JSON se zálohou. Vyberte soubor dříve, než stisknete **Restore**.
 
-Záloha neobsahuje žádné tajné hodnoty: po obnovení vám Semaphore sdělí, kolik klíčů je prázdných
-a vyžaduje znovu zadat tajné údaje. Tajné údaje skupin proměnných je také nutné zadat znovu. Členové
-projektu a historie jeho úloh nejsou součástí zálohy. Záloha zapsaná novější verzí Semaphore je
-odmítnuta.
+Záloha vynechává tajné údaje klíčů a tajné údaje na kartě **Secrets** skupin proměnných: po obnovení
+vám Semaphore sdělí, kolik klíčů je prázdných a vyžaduje znovu zadat tajné údaje, a tajné údaje
+skupin proměnných je také nutné zadat znovu. Heslo zapsané přímo do jiného pole, například do adresy
+repozitáře, se vrátí tak, jak je v souboru. Členové projektu a historie jeho úloh nejsou součástí
+zálohy. Záloha zapsaná novější verzí Semaphore je odmítnuta.

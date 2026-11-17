@@ -23,8 +23,10 @@ niega a restaurar un proyecto con un nombre que ya está en uso.
 
 El archivo JSON del respaldo. Elija el archivo antes de pulsar **Restore**.
 
-Un respaldo no contiene valores secretos: después de la restauración, Semaphore le indica cuántas
-claves están vacías y necesitan que se vuelvan a introducir sus secretos. Los secretos de los grupos
-de variables también deben introducirse de nuevo. Los miembros del
-proyecto y el historial de sus tareas no forman parte del respaldo. Un respaldo escrito por una
-versión más reciente de Semaphore se rechaza.
+Un respaldo omite los secretos de las claves y los secretos de la pestaña **Secrets** de los grupos
+de variables: después de la restauración, Semaphore le indica cuántas claves están vacías y
+necesitan que se vuelvan a introducir sus secretos, y los secretos de los grupos de variables
+también deben introducirse de nuevo. Una contraseña escrita directamente en otro campo, como la
+dirección de un repositorio, vuelve tal como está en el archivo. Los miembros del proyecto y el
+historial de sus tareas no forman parte del respaldo. Un respaldo escrito por una versión más
+reciente de Semaphore se rechaza.

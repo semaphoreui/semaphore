@@ -52,8 +52,10 @@ Ansible에는 추가 변수, Terraform에는 `-var`, 스크립트에는 `name=va
 
 ## 인벤토리 {#newTask-inventoryId}
 
-템플릿이 작업에서 인벤토리 선택을 허용하고 프로젝트를 볼 수 있을 때 표시됩니다. Terraform, OpenTofu 또는
-Terragrunt 템플릿에서는 이 필드의 레이블이 **Workspace**입니다.
+템플릿이 작업에서 인벤토리 선택을 허용하고 프로젝트를 볼 수 있을 때 표시됩니다. Terraform, OpenTofu
+또는 Terragrunt 템플릿에서는 이 필드의 레이블이 **Workspace**이지만, 서버는 이 선택을 Ansible
+템플릿에만 사용합니다. Terraform, OpenTofu 또는 Terragrunt 작업은 여기서 무엇을 선택하든 템플릿의
+워크스페이스에서 실행됩니다.
 
 작업이 대상으로 삼는 인벤토리입니다. 이 필드는 템플릿의 인벤토리로 시작하며, 템플릿의 앱용으로 만든 프로젝트의
 인벤토리를 나열합니다. 작업이 시작될 때 선택한 인벤토리가 없어졌으면 작업은 템플릿의 인벤토리를 대상으로

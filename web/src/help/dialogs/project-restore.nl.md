@@ -22,8 +22,10 @@ project te herstellen onder een naam die al in gebruik is.
 
 Het JSON-bestand van de back-up. Kies het bestand voordat u op **Restore** drukt.
 
-Een back-up bevat geen geheime waarden: na het herstel vertelt Semaphore u hoeveel sleutels leeg
-zijn en hun geheimen opnieuw moeten krijgen. De geheimen van de variabele groepen moeten ook
-opnieuw worden ingevoerd. De leden van het project en de geschiedenis van zijn taken maken geen
-deel uit van de back-up. Een back-up die door een nieuwere versie van Semaphore is geschreven,
-wordt geweigerd.
+Een back-up laat de geheimen van de sleutels en de geheimen op het tabblad **Secrets** van de
+variabele groepen weg: na het herstel vertelt Semaphore u hoeveel sleutels leeg zijn en hun geheimen
+opnieuw moeten krijgen, en de geheimen van de variabele groepen moeten ook opnieuw worden ingevoerd.
+Een wachtwoord dat rechtstreeks in een ander veld is getypt, zoals het adres van een repository,
+komt terug zoals het in het bestand staat. De leden van het project en de geschiedenis van zijn
+taken maken geen deel uit van de back-up. Een back-up die door een nieuwere versie van Semaphore is
+geschreven, wordt geweigerd.

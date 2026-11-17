@@ -59,8 +59,10 @@ geweigerd.
 
 ## Inventaris {#newTask-inventoryId}
 
-Wordt getoond wanneer het sjabloon toestaat de inventaris in een taak te kiezen en u het project
-mag zien. Voor een Terraform-, OpenTofu- of Terragrunt-sjabloon heet het veld **Workspace**.
+Wordt getoond wanneer het sjabloon toestaat de inventaris in een taak te kiezen en u het project mag
+zien. Voor een Terraform-, OpenTofu- of Terragrunt-sjabloon heet het veld **Workspace**, maar de
+server gebruikt de keuze alleen voor Ansible-sjablonen: een Terraform-, OpenTofu- of Terragrunt-taak
+draait in de workspace van het sjabloon, wat u hier ook kiest.
 
 De inventaris waarop de taak wordt uitgevoerd. Het veld begint met de inventaris van het sjabloon
 en vermeldt de inventarissen van het project die voor de app van het sjabloon zijn gemaakt.

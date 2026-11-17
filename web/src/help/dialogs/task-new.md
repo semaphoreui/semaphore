@@ -55,7 +55,9 @@ repository when the template has none. A name that is not a valid Git branch nam
 ## Inventory {#newTask-inventoryId}
 
 Shown when the template allows choosing the inventory in a task and you may see the project. For
-a Terraform, OpenTofu or Terragrunt template the field is labelled **Workspace**.
+a Terraform, OpenTofu or Terragrunt template the field is labelled **Workspace**, but the server
+uses the choice for Ansible templates only: a Terraform, OpenTofu or Terragrunt task runs in the
+workspace of the template, whatever you pick here.
 
 The inventory the task runs against. The field starts with the inventory of the template and
 lists the inventories of the project made for the app of the template. When the chosen inventory

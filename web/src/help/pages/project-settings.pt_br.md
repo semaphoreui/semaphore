@@ -59,8 +59,12 @@ repositórios, grupos de variáveis, chaves, agendas, integrações e tudo o mai
 configurado nele. O arquivo pode ser transformado de volta em um projeto com **Restaurar Projeto**
 no menu de projetos, no topo da barra lateral.
 
-O arquivo não contém valores secretos: os segredos das chaves e dos grupos de variáveis precisam
-ser informados novamente após uma restauração. O histórico de tarefas não faz parte do backup.
+O arquivo deixa de fora os segredos das chaves e os segredos da aba **Secrets** dos grupos de
+variáveis: eles precisam ser informados novamente após uma restauração. Todo o resto é copiado como
+está, inclusive uma senha digitada diretamente em outro campo: o endereço de um repositório com uma
+senha nele, o texto de um inventário estático, os valores das variáveis comuns e das variáveis de
+ambiente. Procure esses valores no arquivo antes de compartilhá-lo. O histórico de tarefas não faz
+parte do backup.
 
 ## Limpar cache {#settings-clearCache}
 
