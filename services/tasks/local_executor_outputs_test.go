@@ -279,6 +279,12 @@ func TestLocalExecutor_ansibleCallbackPluginsFromCfg(t *testing.T) {
 			expected: "{root}/other/cb" + sep + dir,
 		},
 		{
+			name:     "expands variables of the task before the path is made absolute",
+			env:      []string{"CB={root}/other"},
+			wdCfg:    "[defaults]\ncallback_plugins = $CB/cb:${CB}/cb2:$HOME/cb:$UNSET/cb\n",
+			expected: "{root}/other/cb" + sep + "{root}/other/cb2" + sep + "{root}/home/cb" + sep + "{root}/repo/$UNSET/cb" + sep + dir,
+		},
+		{
 			name:     "takes the cfg named by ANSIBLE_CONFIG of the task first",
 			env:      []string{"ANSIBLE_CONFIG={root}/other/my.cfg"},
 			wdCfg:    wdCfg,

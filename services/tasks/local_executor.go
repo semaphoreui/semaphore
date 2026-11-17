@@ -990,7 +990,24 @@ func (t *LocalExecutor) ansibleCfgCallbackPlugins(env []string) string {
 			home = v
 		}
 	}
+	// Ansible expands variables first, so $HOME/cb is absolute. An unknown variable stays as written.
+	variable := func(name string) string {
+		value := db_lib.BaseEnvironmentVar(name)
+		if name == "HOME" {
+			value = home
+		}
+		for _, e := range env {
+			if v, ok := strings.CutPrefix(e, name+"="); ok {
+				value = v
+			}
+		}
+		if value == "" {
+			return "$" + name
+		}
+		return value
+	}
 	resolve := func(path, base string) string {
+		path = os.Expand(path, variable)
 		if path == "~" || strings.HasPrefix(path, "~/") {
 			return home + path[1:]
 		}
