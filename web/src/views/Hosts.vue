@@ -427,8 +427,11 @@ export default {
     },
 
     async loadTemplates() {
+      const { projectId } = this;
       try {
-        this.templates = await this.loadProjectResources('templates');
+        const templates = await this.loadProjectResources('templates');
+        // An answer for a project the user has already left is dropped
+        if (projectId === this.projectId) this.templates = templates;
       } catch (err) {
         EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
       }
