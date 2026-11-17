@@ -50,6 +50,8 @@ Da dove proviene l'inventario:
 - **Static YAML**: l'inventario viene scritto in questa finestra di dialogo in formato YAML. Usalo
   anche per la configurazione di un plugin di inventario.
 - **File**: l'inventario è un file in un repository Git.
+- **Managed**: gli host e le loro variabili sono conservati come record. Apri l'inventario
+  dall'elenco per modificarli.
 
 I campi sotto il tipo cambiano in base a esso.
 
