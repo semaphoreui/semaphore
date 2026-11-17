@@ -20,23 +20,8 @@ func variableNode(text string) (*yaml.Node, error) {
 		return nil, err
 	}
 
-	// Hosts may repeat an anchor name, which Ansible rejects in one text, so aliases are expanded
-	var expand func(node *yaml.Node) *yaml.Node
-	expand = func(node *yaml.Node) *yaml.Node {
-		if node.Kind == yaml.AliasNode {
-			return expand(node.Alias)
-		}
-		copied := *node
-		copied.Anchor = ""
-		copied.Content = nil
-		for _, child := range node.Content {
-			copied.Content = append(copied.Content, expand(child))
-		}
-		return &copied
-	}
-
 	if len(doc.Content) == 1 && doc.Content[0].Kind == yaml.MappingNode {
-		return expand(doc.Content[0]), nil
+		return doc.Content[0], nil
 	}
 
 	return &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}, nil

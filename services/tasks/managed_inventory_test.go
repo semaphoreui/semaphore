@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -87,42 +86,10 @@ func TestBuildManagedInventory_HostErrorNamesHostOnly(t *testing.T) {
 	assert.NotContains(t, err.Error(), "secret")
 }
 
-func TestBuildManagedInventory_KeepsKeyOrder(t *testing.T) {
-	hosts := []db.InventoryHost{{Name: "web1", Variables: "zz: &x 1\naa: *x"}}
-
-	text, err := buildManagedInventory("", hosts)
-
-	require.NoError(t, err)
-	assert.Less(t, strings.Index(text, "zz:"), strings.Index(text, "aa:"))
-	var parsed map[string]map[string]map[string]map[string]any
-	require.NoError(t, yaml.Unmarshal([]byte(text), &parsed))
-	assert.Equal(t, 1, parsed["all"]["hosts"]["web1"]["aa"])
-}
-
-func TestBuildManagedInventory_ExpandsAnchors(t *testing.T) {
-	shared := "base: &x {u: 1}\ncopy: *x"
-	hosts := []db.InventoryHost{
-		{Name: "web1", Variables: shared},
-		{Name: "web2", Variables: shared},
-		{Name: "web3", Variables: "defaults: &d {a: 1}\nmerged: {<<: *d, b: 2}"},
-	}
-
-	text, err := buildManagedInventory(shared, hosts)
-
-	require.NoError(t, err)
-	assert.NotContains(t, text, "&")
-	assert.NotContains(t, text, "*")
-	var parsed map[string]map[string]map[string]map[string]any
-	require.NoError(t, yaml.Unmarshal([]byte(text), &parsed))
-	assert.Equal(t, map[string]any{"u": 1}, parsed["all"]["hosts"]["web1"]["copy"])
-	assert.Equal(t, map[string]any{"u": 1}, parsed["all"]["hosts"]["web2"]["copy"])
-	assert.Equal(t, map[string]any{"a": 1, "b": 2}, parsed["all"]["hosts"]["web3"]["merged"])
-}
-
-func TestBuildManagedInventory_RejectsCyclicAlias(t *testing.T) {
-	hosts := []db.InventoryHost{{Name: "web1", Variables: "&loop {null: *loop}"}}
+func TestBuildManagedInventory_RejectsAnchors(t *testing.T) {
+	hosts := []db.InventoryHost{{Name: "web1", Variables: "base: &x {u: 1}\ncopy: *x"}}
 
 	_, err := buildManagedInventory("", hosts)
 
-	assert.Error(t, err)
+	assert.ErrorContains(t, err, "host web1")
 }

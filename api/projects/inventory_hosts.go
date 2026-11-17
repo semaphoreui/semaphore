@@ -17,29 +17,10 @@ import (
 // writtenValue keeps the tag and the quoting of a scalar, since Ansible reads no and "no" differently
 func writtenValue(node *yaml.Node) any {
 	switch node.Kind {
-	case yaml.AliasNode:
-		return writtenValue(node.Alias)
 	case yaml.MappingNode:
 		values := map[string]any{}
-		var merged []any
 		for i := 0; i+1 < len(node.Content); i += 2 {
-			value := writtenValue(node.Content[i+1])
-			if node.Content[i].ShortTag() != "!!merge" {
-				values[node.Content[i].Value] = value
-			} else if list, ok := value.([]any); ok {
-				merged = append(merged, list...)
-			} else {
-				merged = append(merged, value)
-			}
-		}
-		// A merged key never replaces a key of the mapping or of an earlier merge
-		for _, source := range merged {
-			sourceValues, _ := source.(map[string]any)
-			for key, value := range sourceValues {
-				if _, ok := values[key]; !ok {
-					values[key] = value
-				}
-			}
+			values[node.Content[i].Value] = writtenValue(node.Content[i+1])
 		}
 		return values
 	case yaml.SequenceNode:

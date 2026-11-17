@@ -3,6 +3,7 @@ package db
 import (
 	"errors"
 	"io"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -13,9 +14,6 @@ import (
 )
 
 const inventoryHostNameMaxLength = 250
-
-// The variables with every alias expanded, as they are written for a task
-const inventoryVariablesMaxNodes = 100000
 
 // InventoryHost is a host of a managed inventory
 type InventoryHost struct {
@@ -49,10 +47,9 @@ func ParseInventoryVariables(text string) (map[string]any, error) {
 		return nil, invalid
 	}
 
-	// Decoding skips a null key and an overridden merged value, so the whole graph is checked here
-	_, err = expandedNodes(&doc, map[*yaml.Node]int{})
-	if err != nil {
-		return nil, err
+	// Hosts are written into one text, where anchors of different hosts would meet
+	if usesAnchors(&doc) {
+		return nil, common_errors.NewValidationError("variables must not use YAML anchors, aliases or merge keys")
 	}
 
 	err = doc.Decode(&vars)
@@ -67,35 +64,11 @@ func ParseInventoryVariables(text string) (map[string]any, error) {
 	return vars, nil
 }
 
-// expandedNodes counts the nodes with aliases expanded and rejects an alias to its own parent
-func expandedNodes(node *yaml.Node, counts map[*yaml.Node]int) (int, error) {
-	if node.Kind == yaml.AliasNode {
-		node = node.Alias
+func usesAnchors(node *yaml.Node) bool {
+	if node.Kind == yaml.AliasNode || node.Anchor != "" || node.ShortTag() == "!!merge" {
+		return true
 	}
-
-	count, seen := counts[node]
-	if seen && count == 0 {
-		return 0, common_errors.NewValidationError("variables must not refer to themselves")
-	}
-	if seen {
-		return count, nil
-	}
-
-	counts[node] = 0
-	count = 1
-	for _, child := range node.Content {
-		n, err := expandedNodes(child, counts)
-		if err != nil {
-			return 0, err
-		}
-		count += n
-		if count > inventoryVariablesMaxNodes {
-			return 0, common_errors.NewValidationError("variables are too large")
-		}
-	}
-	counts[node] = count
-
-	return count, nil
+	return slices.ContainsFunc(node.Content, usesAnchors)
 }
 
 func (h InventoryHost) Validate() error {
