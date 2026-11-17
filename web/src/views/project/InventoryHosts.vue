@@ -266,7 +266,9 @@ export default {
     async setEnabled(host, enabled) {
       this.busyIds.push(host.id);
       try {
-        await axios.put(`${this.hostsUrl()}/${host.id}`, { ...host, enabled });
+        // The row may be older than the host, so only the switch is changed in a fresh copy
+        const fresh = (await axios.get(`${this.hostsUrl()}/${host.id}`)).data;
+        await axios.put(`${this.hostsUrl()}/${host.id}`, { ...fresh, enabled });
       } catch (err) {
         EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
       }

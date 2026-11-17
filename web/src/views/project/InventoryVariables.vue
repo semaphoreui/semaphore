@@ -100,9 +100,11 @@ export default {
       this.error = null;
       this.state = 'saving';
       try {
+        // Other settings may be newer than this page, so only the variables change in a fresh copy
+        const fresh = await this.loadProjectResource('inventory', this.inventoryId);
         await axios.put(
           `/api/project/${this.projectId}/inventory/${this.inventoryId}`,
-          this.inventory,
+          { ...fresh, variables: this.inventory.variables },
         );
         EventBus.$emit('i-snackbar', { color: 'success', text: this.$t('inventory_variables_saved') });
       } catch (err) {
