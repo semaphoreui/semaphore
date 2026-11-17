@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -75,7 +76,9 @@ const ansibleConfigTimeout = 30 * time.Second
 // CallbackPluginPaths asks Ansible where it would look for callback plugins
 // with this environment, so ansible.cfg and its defaults are read by Ansible itself.
 func (p AnsiblePlaybook) CallbackPluginPaths(environmentVars []string) ([]string, error) {
-	cmd, err := p.makeCmd("ansible-config", []string{"dump", "--format", "json"}, environmentVars)
+	// Verbose and debug output of the task would go to stdout and break the JSON
+	quiet := append(slices.Clone(environmentVars), "ANSIBLE_VERBOSITY=0", "ANSIBLE_DEBUG=0")
+	cmd, err := p.makeCmd("ansible-config", []string{"dump", "--format", "json"}, quiet)
 	if err != nil {
 		return nil, err
 	}

@@ -256,17 +256,19 @@ func TestLocalExecutor_ansibleCallbackPluginsFromAnsible(t *testing.T) {
 	t.Cleanup(func() { util.Config = prev })
 	util.Config = &util.ConfigType{}
 	bin := t.TempDir()
-	script := "#!/bin/sh\necho '[{\"name\":\"DEFAULT_CALLBACK_PLUGIN_PATH\",\"value\":[\"/opt/ansible/plugins/callback\",\"/repo/cb\"]}]'\n"
+	script := "#!/bin/sh\n[ \"$ANSIBLE_VERBOSITY$ANSIBLE_DEBUG\" = 00 ] || echo verbose\necho '[{\"name\":\"DEFAULT_CALLBACK_PLUGIN_PATH\",\"value\":[\"/opt/ansible/plugins/callback\",\"/repo/cb\"]}]'\n"
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "ansible-config"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	repository := db.Repository{ProjectID: 3, GitURL: t.TempDir()}
 	executor := &LocalExecutor{
 		Template:   db.Template{ID: 7, ProjectID: 3},
 		Repository: repository,
-		App:        &db_lib.AnsibleApp{Playbook: &db_lib.AnsiblePlaybook{TemplateID: 7, Repository: repository}},
+		App: &db_lib.AnsibleApp{Playbook: &db_lib.AnsiblePlaybook{
+			TemplateID: 7, Repository: repository, Logger: task_logger.NopLogger{},
+		}},
 	}
 
-	plugins := executor.ansibleCallbackPlugins(nil, "/tmp/callback_plugins")
+	plugins := executor.ansibleCallbackPlugins([]string{"ANSIBLE_VERBOSITY=4", "ANSIBLE_DEBUG=1"}, "/tmp/callback_plugins")
 
 	sep := string(os.PathListSeparator)
 	assert.Equal(t, "/opt/ansible/plugins/callback"+sep+"/repo/cb"+sep+"/tmp/callback_plugins", plugins)
