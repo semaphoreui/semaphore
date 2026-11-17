@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -961,7 +960,7 @@ func (t *LocalExecutor) ansibleCallbackPlugins(env []string, dir string) string 
 		current = db_lib.BaseEnvironmentVar(ansibleCallbackPluginsEnv)
 	}
 	if current == "" {
-		current = t.ansibleCfgCallbackPlugins(env)
+		current = t.ansibleConfigCallbackPlugins(env)
 	}
 	if current == "" {
 		// ANSIBLE_HOME as the process gets it: the base value, the one of makeCmd, then the task's own
@@ -984,126 +983,24 @@ func (t *LocalExecutor) ansibleCallbackPlugins(env []string, dir string) string 
 	return current + string(os.PathListSeparator) + dir
 }
 
-// ansibleCfgCallbackPlugins returns callback_plugins of the ansible.cfg that
-// Ansible would load for the task, with its entries made absolute the way
-// Ansible does it. It returns "" when there is no such value.
-func (t *LocalExecutor) ansibleCfgCallbackPlugins(env []string) string {
-	wd := t.Repository.GetFullPath(t.Template.ID)
-	if t.Template.WorkingDirectory != nil {
-		wd = filepath.Join(wd, *t.Template.WorkingDirectory)
-	}
-	// The HOME the process gets: the one makeCmd sets, unless the task's own environment sets one.
-	home := db_lib.GetHomeDir(t.Repository, t.Template.ID)
-	for _, e := range env {
-		if v, ok := strings.CutPrefix(e, "HOME="); ok {
-			home = v
-		}
-	}
-	// Ansible expands variables first, so $HOME/cb is absolute. An unknown variable stays as written.
-	variable := func(name string) string {
-		value := db_lib.BaseEnvironmentVar(name)
-		if name == "HOME" {
-			value = home
-		}
-		for _, e := range env {
-			if v, ok := strings.CutPrefix(e, name+"="); ok {
-				value = v
-			}
-		}
-		if value == "" {
-			return "$" + name
-		}
-		return value
-	}
-	resolve := func(path, base string) string {
-		path = os.Expand(path, variable)
-		if path == "~" || strings.HasPrefix(path, "~/") {
-			return home + path[1:]
-		}
-		if filepath.IsAbs(path) {
-			return path
-		}
-		return filepath.Join(base, path)
-	}
-
-	var candidates []string
-	ansibleConfig := db_lib.BaseEnvironmentVar("ANSIBLE_CONFIG")
-	for _, e := range env {
-		if v, ok := strings.CutPrefix(e, "ANSIBLE_CONFIG="); ok {
-			ansibleConfig = v
-		}
-	}
-	if ansibleConfig != "" {
-		ansibleConfig = resolve(ansibleConfig, wd)
-		if info, err := os.Stat(ansibleConfig); err == nil && info.IsDir() {
-			ansibleConfig = filepath.Join(ansibleConfig, "ansible.cfg")
-		}
-		candidates = append(candidates, ansibleConfig)
-	}
-	// Ansible ignores ansible.cfg in a world-writable working directory.
-	if info, err := os.Stat(wd); err == nil && info.Mode().Perm()&0o002 == 0 {
-		candidates = append(candidates, filepath.Join(wd, "ansible.cfg"))
-	}
-	candidates = append(candidates, resolve("~/.ansible.cfg", ""))
-	candidates = append(candidates, "/etc/ansible/ansible.cfg")
-
-	var file *os.File
-	for _, path := range candidates {
-		var err error
-		if file, err = os.Open(path); err == nil {
-			break
-		}
-	}
-	if file == nil {
-		return ""
-	}
-	defer file.Close() //nolint:errcheck
-
-	section, value, continued := "", "", false
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		raw := scanner.Text()
-		line := strings.TrimSpace(raw)
-		if line == "" || line[0] == '#' || line[0] == ';' {
-			continue
-		}
-		// An indented line continues the value above it, as in Python's configparser.
-		if continued && (raw[0] == ' ' || raw[0] == '\t') {
-			entry, _, _ := strings.Cut(line, " ;")
-			value += string(os.PathListSeparator) + strings.TrimSpace(entry)
-			continue
-		}
-		continued = false
-		if line[0] == '[' {
-			section = line[:strings.LastIndex(line, "]")+1]
-			continue
-		}
-		i := strings.IndexAny(line, "=:")
-		if section != "[defaults]" || i < 0 || !strings.EqualFold(strings.TrimSpace(line[:i]), "callback_plugins") {
-			continue
-		}
-		value, _, _ = strings.Cut(line[i+1:], " ;")
-		value = strings.TrimSpace(value)
-		continued = true
-	}
-	if scanner.Err() != nil || value == "" {
+// ansibleConfigCallbackPlugins returns the callback plugin path Ansible itself
+// reports for the task. It returns "" when Ansible can not be asked, as with
+// a version whose ansible-config has no JSON output.
+func (t *LocalExecutor) ansibleConfigCallbackPlugins(env []string) string {
+	app, ok := t.App.(*db_lib.AnsibleApp)
+	if !ok || app.Playbook == nil {
 		return ""
 	}
 
-	var entries []string
-	for _, entry := range filepath.SplitList(value) {
-		if entry != "" {
-			entries = append(entries, resolve(entry, filepath.Dir(file.Name())))
-		}
+	paths, err := app.Playbook.CallbackPluginPaths(env)
+	if err != nil {
+		log.WithError(err).WithField("task_id", t.Task.ID).Debug("ansible-config did not report the callback plugin path")
+		return ""
 	}
-	return strings.Join(entries, string(os.PathListSeparator))
+
+	return strings.Join(paths, string(os.PathListSeparator))
 }
 
-// collectOutputs reads the outputs of a workflow task after its app has
-// finished. Only a successful task has outputs. For Terraform apps the outputs
-// of the state are captured as well. An outputs file that breaks the contract
-// fails the task: the error must show at the task that wrote the file, not at
-// a downstream node.
 func (t *LocalExecutor) collectOutputs() error {
 	if t.outputsCapture == nil || t.IsKilled() {
 		return nil

@@ -1,6 +1,8 @@
 package db_lib
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -66,6 +68,46 @@ func (p AnsiblePlaybook) resolveWorkingDirectory() (string, error) {
 	}
 
 	return wd, nil
+}
+
+const ansibleConfigTimeout = 30 * time.Second
+
+// CallbackPluginPaths asks Ansible where it would look for callback plugins
+// with this environment, so ansible.cfg and its defaults are read by Ansible itself.
+func (p AnsiblePlaybook) CallbackPluginPaths(environmentVars []string) ([]string, error) {
+	cmd, err := p.makeCmd("ansible-config", []string{"dump", "--format", "json"}, environmentVars)
+	if err != nil {
+		return nil, err
+	}
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	timer := time.AfterFunc(ansibleConfigTimeout, func() { _ = cmd.Process.Kill() })
+	defer timer.Stop()
+	if err := cmd.Wait(); err != nil {
+		return nil, err
+	}
+
+	var settings []struct {
+		Name  string          `json:"name"`
+		Value json.RawMessage `json:"value"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &settings); err != nil {
+		return nil, err
+	}
+
+	for _, setting := range settings {
+		if setting.Name == "DEFAULT_CALLBACK_PLUGIN_PATH" {
+			var paths []string
+			err := json.Unmarshal(setting.Value, &paths)
+			return paths, err
+		}
+	}
+
+	return nil, errors.New("ansible-config does not report the callback plugin path")
 }
 
 func (p AnsiblePlaybook) runCmd(command string, args []string, environmentVars []string) error {
