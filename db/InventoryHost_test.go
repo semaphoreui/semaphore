@@ -39,6 +39,10 @@ func TestInventoryHostValidate_Name(t *testing.T) {
 	}
 }
 
+const aliasBomb = "&a [1,1,1,1,1,1,1,1,1,1], &b [*a,*a,*a,*a,*a,*a,*a,*a,*a,*a], " +
+	"&c [*b,*b,*b,*b,*b,*b,*b,*b,*b,*b], &d [*c,*c,*c,*c,*c,*c,*c,*c,*c,*c], " +
+	"&e [*d,*d,*d,*d,*d,*d,*d,*d,*d,*d], &f [*e,*e,*e,*e,*e,*e,*e,*e,*e,*e]"
+
 func TestParseInventoryVariables(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -57,10 +61,13 @@ func TestParseInventoryVariables(t *testing.T) {
 		{"bad syntax", "a: [1", 0, false, true},
 		{"leading document marker", "---\na: 1", 1, true, false},
 		{"two documents", "a: 1\n---\nb: 2", 0, false, true},
-		{"null key", "&loop {null: *loop}", 0, false, true},
-		{"nested null key", "a:\n  ~: 1", 0, false, true},
+		{"cycle under a null key", "&loop {null: *loop}", 0, false, true},
 		{"alias to itself", "a: &x\n  b: *x", 0, false, true},
 		{"null value", "a: ~", 1, true, false},
+		{"cycle in an overridden merge", "a: 1\n<<: {a: &loop [*loop]}", 0, false, true},
+		{"alias bomb in an overridden merge", "a: 1\n<<: {a: [" + aliasBomb + "]}", 0, false, true},
+		{"repeated alias", "a: &x [1, 2]\nb: *x\nc: *x", 3, true, false},
+		{"merge", "<<: {a: 1}\nb: 2", 2, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

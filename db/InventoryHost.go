@@ -14,6 +14,9 @@ import (
 
 const inventoryHostNameMaxLength = 250
 
+// The variables with every alias expanded, as they are written for a task
+const inventoryVariablesMaxNodes = 100000
+
 // InventoryHost is a host of a managed inventory
 type InventoryHost struct {
 	ID          int       `db:"id" json:"id" backup:"-"`
@@ -46,9 +49,10 @@ func ParseInventoryVariables(text string) (map[string]any, error) {
 		return nil, invalid
 	}
 
-	// Decoding skips a null key with its value, so that value would stay unchecked
-	if hasNullKey(&doc) {
-		return nil, common_errors.NewValidationError("variable names must not be null")
+	// Decoding skips a null key and an overridden merged value, so the whole graph is checked here
+	_, err = expandedNodes(&doc, map[*yaml.Node]int{})
+	if err != nil {
+		return nil, err
 	}
 
 	err = doc.Decode(&vars)
@@ -63,22 +67,35 @@ func ParseInventoryVariables(text string) (map[string]any, error) {
 	return vars, nil
 }
 
-func hasNullKey(node *yaml.Node) bool {
-	for i, child := range node.Content {
-		if node.Kind == yaml.MappingNode && i%2 == 0 {
-			key := child
-			if key.Kind == yaml.AliasNode {
-				key = key.Alias
-			}
-			if key.ShortTag() == "!!null" {
-				return true
-			}
+// expandedNodes counts the nodes with aliases expanded and rejects an alias to its own parent
+func expandedNodes(node *yaml.Node, counts map[*yaml.Node]int) (int, error) {
+	if node.Kind == yaml.AliasNode {
+		node = node.Alias
+	}
+
+	count, seen := counts[node]
+	if seen && count == 0 {
+		return 0, common_errors.NewValidationError("variables must not refer to themselves")
+	}
+	if seen {
+		return count, nil
+	}
+
+	counts[node] = 0
+	count = 1
+	for _, child := range node.Content {
+		n, err := expandedNodes(child, counts)
+		if err != nil {
+			return 0, err
 		}
-		if hasNullKey(child) {
-			return true
+		count += n
+		if count > inventoryVariablesMaxNodes {
+			return 0, common_errors.NewValidationError("variables are too large")
 		}
 	}
-	return false
+	counts[node] = count
+
+	return count, nil
 }
 
 func (h InventoryHost) Validate() error {
