@@ -404,6 +404,10 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.StopCh)
 	}
 
+	if params.AutoApprove {
+		t.Logger.Log("Auto approval was requested, but the template does not allow it. Enable Auto approve in the template's task prompts to allow tasks and workflows to skip confirmation.")
+	}
+
 	t.Logger.SetStatus(task_logger.TaskWaitingConfirmation)
 
 	for {
