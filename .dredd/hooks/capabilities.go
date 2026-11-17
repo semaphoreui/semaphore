@@ -409,7 +409,8 @@ func alterRequestBody(t *trans.Transaction) {
 			}
 			request["id"] = objectID
 
-		} else {
+		} else if !regexp.MustCompile(`/\d+/\w+$`).MatchString(t.FullPath) {
+			// A PUT of one field of an object, like /inventory/1/variables, carries no id
 			panic("Unexpected PUT request " + t.FullPath)
 		}
 	}
