@@ -487,7 +487,24 @@ definitions:
               type: string
             type:
               type: string
-              enum: [static, static-yaml, file]
+              enum: [static, static-yaml, file, managed]
+            variables:
+              type: string
+              description: Variables of a managed inventory, a YAML or JSON mapping
+            hosts:
+              type: array
+              description: Hosts of a managed inventory
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  enabled:
+                    type: boolean
+                  variables:
+                    type: string
       environments:
         type: array
         items:
