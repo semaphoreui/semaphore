@@ -85,7 +85,9 @@ func linkLdapIdentity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ldapUser, userDN, err := tryFindLDAPUser(provider, creds.Username, creds.Password)
+	// Linking needs no groups, a group search error must not look like wrong credentials.
+	provider.GroupSearchDN = ""
+	ldapUser, userDN, _, err := tryFindLDAPUser(provider, creds.Username, creds.Password)
 	if err != nil || ldapUser == nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return

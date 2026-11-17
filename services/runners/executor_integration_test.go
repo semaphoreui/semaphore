@@ -534,7 +534,6 @@ func setupIntegrationConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	util.Config = &util.ConfigType{
 		TmpPath: tmpDir,
-		Process: &util.ConfigProcess{},
 		Runner: &util.RunnerConfig{
 			Executor:   &util.ExecutorConfig{Type: util.ExecutorTypeLocal},
 			Connection: &util.RunnerConnectionConfig{},

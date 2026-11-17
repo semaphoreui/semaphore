@@ -15,3 +15,7 @@ func NewRoleSyncService(mappings db.RoleMappingStore) pro_interfaces.RoleSyncSer
 func (s *RoleSyncServiceImpl) SyncLoginRoles(userID int, provider string, claims map[string]any) ([]db.MappedRole, []db.MappedRole, error) {
 	return nil, nil, nil
 }
+
+func (s *RoleSyncServiceImpl) SyncGroupRoles(userID int, provider string, groups []string) ([]db.MappedRole, []db.MappedRole, error) {
+	return nil, nil, nil
+}

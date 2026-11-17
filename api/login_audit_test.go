@@ -238,11 +238,22 @@ type fakeRoleSync struct {
 	added, removed []db.MappedRole
 	err            error
 	provider       *string
+	groups         *[]string
 }
 
 func (f fakeRoleSync) SyncLoginRoles(userID int, provider string, claims map[string]any) ([]db.MappedRole, []db.MappedRole, error) {
 	if f.provider != nil {
 		*f.provider = provider
+	}
+	return f.added, f.removed, f.err
+}
+
+func (f fakeRoleSync) SyncGroupRoles(userID int, provider string, groups []string) ([]db.MappedRole, []db.MappedRole, error) {
+	if f.provider != nil {
+		*f.provider = provider
+	}
+	if f.groups != nil {
+		*f.groups = groups
 	}
 	return f.added, f.removed, f.err
 }
@@ -281,14 +292,16 @@ func TestLogin_PasswordSignInTakesAwayMappedRoles(t *testing.T) {
 
 	t.Run("the mapped roles go away", func(t *testing.T) {
 		provider := "unset"
+		groups := []string{"unset"}
 		r, rec := withAuditRecorder(loginRequest(store, `{"auth":"alice","password":"verystrongpassword1","method":"password"}`))
-		r = helpers.SetContextValue(r, "role_sync", fakeRoleSync{removed: []db.MappedRole{row}, provider: &provider})
+		r = helpers.SetContextValue(r, "role_sync", fakeRoleSync{removed: []db.MappedRole{row}, provider: &provider, groups: &groups})
 		w := httptest.NewRecorder()
 
 		login(w, r)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 		assert.Empty(t, provider, "a sign-in without groups")
+		assert.Equal(t, []string{}, groups, "an empty list, not nil, takes the mapped roles away")
 		kinds, err := rec.Kinds()
 		require.NoError(t, err)
 		assert.Equal(t, []audit.Kind{audit.IAMMappedRoleRemove, audit.AuthLogin}, kinds)

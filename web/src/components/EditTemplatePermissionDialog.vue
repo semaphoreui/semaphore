@@ -2,15 +2,17 @@
   <EditDialog
     v-model="dialog"
     :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-    :title="$t('templatePermission', { expr: itemId === 'new' ? $t('nnew') : $t('edit') })"
+    :title="title"
     @save="onSave"
+    test-id="templatePermDialog"
+    :help-doc="helpDoc"
   >
     <template v-slot:form="{ onSave, onError, needSave, needReset }">
       <EditTemplatePermissionForm
         :project-id="projectId"
-        :template-id="templateId"
+        :object-id="objectId"
         :item-id="itemId"
-        scope="template"
+        :scope="scope"
         @save="onSave"
         @error="onError"
         :need-save="needSave"
@@ -31,11 +33,14 @@ export default {
   },
 
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     projectId: Number,
-    templateId: [String, Number],
+    scope: String,
+    objectId: [String, Number],
     itemId: [String, Number],
   },
+
+  emits: ['update:modelValue', 'save'],
 
   data() {
     return {
@@ -43,12 +48,26 @@ export default {
     };
   },
 
-  watch: {
-    async dialog(val) {
-      this.$emit('input', val);
+  computed: {
+    // The help document of the scope: the checkboxes differ for a template and a workflow. A
+    // computed property, because the build takes every string literal of a bound `help-doc`
+    // expression for the key of a document (vite/help).
+    helpDoc() {
+      return this.scope === 'workflow' ? 'workflow-permission' : 'template-permission';
     },
 
-    async value(val) {
+    title() {
+      const key = this.scope === 'workflow' ? 'workflowPermission' : 'templatePermission';
+      return this.$t(key, { expr: this.itemId === 'new' ? this.$t('nnew') : this.$t('edit') });
+    },
+  },
+
+  watch: {
+    async dialog(val) {
+      this.$emit('update:modelValue', val);
+    },
+
+    async modelValue(val) {
       this.dialog = val;
     },
   },

@@ -11,7 +11,6 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/audit"
-	log "github.com/sirupsen/logrus"
 )
 
 // TemplatesMiddleware ensures a template exists and loads it to the context
@@ -27,6 +26,14 @@ func TemplatesMiddleware(next http.Handler) http.Handler {
 
 		if err != nil {
 			helpers.WriteError(w, err)
+			return
+		}
+
+		// A template the member may not read is not there for them.
+		user := helpers.GetFromContext(r, "user").(*db.User)
+		permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+		if !user.Admin && permissions&db.CanReadProject == 0 {
+			helpers.WriteError(w, db.ErrNotFound)
 			return
 		}
 
@@ -54,6 +61,21 @@ func NewTemplateController(
 func GetTemplate(w http.ResponseWriter, r *http.Request) {
 	template := helpers.GetFromContext(r, "template").(db.Template)
 	permissions := helpers.GetFromContext(r, "permissions").(db.ProjectUserPermission)
+	user := helpers.GetFromContext(r, "user").(*db.User)
+
+	// The last task is loaded again through the viewer filter so a hidden build task is left out.
+	if !user.Admin && template.LastTask != nil {
+		filter := db.TaskFilter{Viewer: &db.Viewer{UserID: user.ID}}
+		tasks, err := helpers.Store(r).GetTemplateTasks(template.ProjectID, template.ID, db.RetrieveQueryParams{Count: 1, TaskFilter: &filter})
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		if len(tasks) > 0 {
+			template.LastTask = &tasks[0]
+		}
+	}
+
 	res := db.TemplateWithPerms{
 		Template:    template,
 		Permissions: &permissions,
@@ -63,10 +85,32 @@ func GetTemplate(w http.ResponseWriter, r *http.Request) {
 
 func GetTemplateRefs(w http.ResponseWriter, r *http.Request) {
 	tpl := helpers.GetFromContext(r, "template").(db.Template)
+	user := helpers.GetFromContext(r, "user").(*db.User)
 	refs, err := helpers.Store(r).GetTemplateRefs(tpl.ProjectID, tpl.ID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	// Templates built on this one are named only when the member may read them.
+	if !user.Admin {
+		filter := db.TemplateFilter{Viewer: &db.Viewer{UserID: user.ID}}
+		visible, err := helpers.Store(r).GetTemplates(tpl.ProjectID, filter, db.RetrieveQueryParams{})
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		seen := map[int]bool{}
+		for _, t := range visible {
+			seen[t.ID] = true
+		}
+		kept := []db.ObjectReferrer{}
+		for _, ref := range refs.Templates {
+			if seen[ref.ID] {
+				kept = append(kept, ref)
+			}
+		}
+		refs.Templates = kept
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, refs)
@@ -76,7 +120,7 @@ func GetTemplateRefs(w http.ResponseWriter, r *http.Request) {
 func GetTemplates(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	user := helpers.UserFromContext(r)
-	filter := db.TemplateFilter{}
+	filter := db.TemplateFilter{Viewer: &db.Viewer{UserID: user.ID, Admin: user.Admin}}
 	if r.URL.Query().Get("app") != "" {
 		app := db.TemplateApp(r.URL.Query().Get("app"))
 		filter.App = &app
@@ -421,9 +465,13 @@ func (c *TemplateController) AddTemplatePerm(w http.ResponseWriter, r *http.Requ
 	if !helpers.Bind(w, r, &perm) {
 		return
 	}
-	if perm.Permissions&^db.KnownRolePermissions != 0 {
-		helpers.WriteErrorStatus(w, "Permissions contain unknown bits", http.StatusBadRequest)
+	if perm.Permissions&^db.TemplateGrantPermissions != 0 {
+		helpers.WriteErrorStatus(w, "Permissions are not template permissions", http.StatusBadRequest)
 		return
+	}
+	// A verb on a template includes seeing it.
+	if perm.Permissions != 0 {
+		perm.Permissions |= db.CanReadProject
 	}
 
 	role, err := helpers.Store(r).GetProjectOrSharedRoleBySlug(template.ProjectID, perm.RoleSlug)
@@ -472,35 +520,37 @@ func (c *TemplateController) UpdateTemplatePerm(w http.ResponseWriter, r *http.R
 	if !helpers.Bind(w, r, &perm) {
 		return
 	}
-	if perm.Permissions&^db.KnownRolePermissions != 0 {
-		helpers.WriteErrorStatus(w, "Permissions contain unknown bits", http.StatusBadRequest)
+	if perm.Permissions&^db.TemplateGrantPermissions != 0 {
+		helpers.WriteErrorStatus(w, "Permissions are not template permissions", http.StatusBadRequest)
 		return
+	}
+	// A verb on a template includes seeing it.
+	if perm.Permissions != 0 {
+		perm.Permissions |= db.CanReadProject
 	}
 
 	perm.ID = permID
 	perm.ProjectID = template.ProjectID
 	perm.TemplateID = template.ID
 
-	err := c.templateRepo.UpdateTemplateRole(perm)
+	// The update changes only permissions, so the role comes from the stored grant.
+	stored, err := c.templateRepo.GetTemplateRole(template.ProjectID, template.ID, permID)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
-
-	// The update changes only permissions, so the role comes from the stored rule.
-	var role audit.RoleRef
-	if stored, err := c.templateRepo.GetTemplateRole(template.ProjectID, template.ID, permID); err != nil {
-		log.WithError(err).WithField("context", "audit").Error("Cannot read the template permission for the audit")
-	} else {
-		role = audit.NewRoleRef(db.Role{ID: stored.RoleID, Slug: stored.RoleSlug})
+	if err = c.templateRepo.UpdateTemplateRole(perm); err != nil {
+		helpers.WriteError(w, err)
+		return
 	}
+
 	helpers.Audit(r).Record(r.Context(), audit.Event{
 		Kind:      audit.IAMTemplatePermissionUpdate,
 		Target:    &audit.Target{Type: audit.TargetTemplatePermission, ID: strconv.Itoa(permID)},
 		ProjectID: template.ProjectID,
 		Metadata: audit.TemplatePermissionMetadata{
 			TemplateID:  template.ID,
-			Role:        role,
+			Role:        audit.NewRoleRef(db.Role{ID: stored.RoleID, Slug: stored.RoleSlug}),
 			Permissions: audit.PermissionNames(perm.Permissions),
 		},
 	})

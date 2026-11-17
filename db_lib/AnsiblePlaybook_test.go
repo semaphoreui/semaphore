@@ -13,7 +13,7 @@ import (
 
 func TestAnsiblePlaybookRunDoesNotStartWhenCancellationIsPending(t *testing.T) {
 	previousConfig := util.Config
-	util.Config = &util.ConfigType{Process: &util.ConfigProcess{}}
+	util.Config = &util.ConfigType{}
 	t.Cleanup(func() { util.Config = previousConfig })
 
 	// Keep ansible-playbook unavailable so the test would fail if RunPlaybook

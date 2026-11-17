@@ -315,6 +315,10 @@ func taskIdentityEnv(task db.Task) (env []string) {
 		env = append(env, fmt.Sprintf("SEMAPHORE_WORKFLOW_ID=%d", *task.WorkflowTemplateID))
 	}
 
+	if task.WorkflowVersion != nil && *task.WorkflowVersion != "" {
+		env = append(env, fmt.Sprintf("SEMAPHORE_WORKFLOW_VERSION=%s", *task.WorkflowVersion))
+	}
+
 	if workflowUrl := task.GetWorkflowUrl(); workflowUrl != nil {
 		env = append(env, fmt.Sprintf("SEMAPHORE_WORKFLOW_URL=%s", *workflowUrl))
 	}
@@ -1202,10 +1206,6 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 			t.Log("Creating task home dir failed: " + err.Error())
 			return err
 		}
-		if err := util.ChownDir(t.Repository.GetHomePath(t.Template.ID)); err != nil {
-			t.Log("Chowning task home dir failed: " + err.Error())
-			return err
-		}
 	}
 
 	if t.Repository.GetType() == db.RepositoryLocal {
@@ -1256,10 +1256,6 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 	if util.Config.HomeDirMode != util.HomeDirModeProjectHome {
 		if err := checkTmpDir(t.Repository.GetHomePath(t.Template.ID)); err != nil {
 			t.Log("Creating task home dir failed: " + err.Error())
-			return err
-		}
-		if err := util.ChownDir(t.Repository.GetHomePath(t.Template.ID)); err != nil {
-			t.Log("Chowning task home dir failed: " + err.Error())
 			return err
 		}
 	}

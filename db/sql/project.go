@@ -75,6 +75,8 @@ func (d *SqlDb) GetProject(projectID int) (project db.Project, err error) {
 }
 
 func (d *SqlDb) DeleteProject(projectID int) error {
+	// Project runners are removed by the cascade.
+	defer d.runnerCache.Invalidate()
 
 	//tpls, err := d.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
 	//
@@ -94,6 +96,7 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		"update project__template set build_template_id = null where project_id=?",
 		"delete from project__template where project_id=?",
 		"delete from project__template_role where project_id=?",
+		"delete from project__workflow_role where project_id=?",
 		"delete from project__invite where project_id=?",
 		"delete from project__user_role where project_id=?",
 		// Before the roles: a mapping keeps its role from being deleted.

@@ -21,26 +21,45 @@ only when the task touches that topic. Keep this file under 150 lines.
 - Verify a claim about Chromium wheel/scroll behaviour against the facts in
   `AGENTS/work/workflow-editor/` before changing wheel handling in the workflow editor — three
   rounds of fixes were built on guesses.
+- A new API endpoint or route is the owner's call, even when a frontend task seems to need one —
+  ask first, and look for a way to carry the ids in the URL instead (2026-11-17: `workflow_runs/{id}`
+  added for the `?w=` run panel was called a mistake and reverted; `w=<workflow>/<run>` replaced it).
 
 ## Gotchas
 
+- Container executors (pro_impl `services/tasks/{docker,k8s}`): `docker.tls_verify` and `docker.poll_interval_seconds` are
+  read but unused, Docker pulls send no registry auth, a K8s Pod stuck `Pending` keeps the task running forever, and
+  neither executor sweeps leftovers on restart — documented in `docs/docs/admin-guide/executors/`; update it when fixed.
 - `default:` struct tags in `util/config.go` are applied at config load (when the section exists),
   so they — not in-package fallback constants — are the effective documented defaults.
+- Removing a config option that restricted something: refuse it at startup, do not just delete the
+  field — the JSON/YAML decoders drop unknown keys and an unread env var vanishes silently, so the
+  restriction would disappear on upgrade. `util/config_removed.go` does this for `process`.
 - `config.schema.yaml` is not a source of truth; it drifts (gave wrong k8s executor image
   defaults). Generate reference docs from the Go struct with `task docs:gen`.
-- No CI job checks out the `docs/` submodule: the only one that did, `docs-reference` in
-  `.github/workflows/dev.yml`, is commented out since `09cf6b91 ci: disable docs check`
-  (2026-09-28), so drift in the generated reference is caught only by a local `task docs:check`.
-  A build step that reads `docs/` must fail loudly when it is absent.
+- `docs/` is not a submodule: `8fd22965 chore: remove submodules` deleted `.gitmodules`, and `/docs/`
+  and `/pro_impl/` are gitignored separate clones (a fresh worktree has neither). No CI job gets
+  `docs/`, so nothing a build needs may live there, and drift in the generated reference is caught
+  only by a local `task docs:check`.
+- The docs clone's `main` may be generated from code ahead of `develop` (2026-10-25: it had the
+  `ha.redis_sentinel.*` rows develop lacks) — after `task docs:gen`, diff `docs/reference/configuration.md`
+  and keep only the rows your change produced, or you un-document another branch's feature.
 - Anything the Vue build emits to `api/public` is `go:embed`-ed into the binary and served by
   `serveFile()`; ship static content that way, not through a new Go handler. Use relative paths
   (`publicPath: './'`) — `serveFile()` rewrites `<base href>` from `util.WebHostURL`.
+- Frontend build code lives in `web/vite/` (`build/` is gitignored at any depth, `.gitignore:2`);
+  the Vite 8 config loader resolves a relative `.mjs` import only with its extension, and
+  `npm run build` run by hand deletes the tracked `api/public/.gitkeep` — `git checkout` it.
 - `go.mod` has `replace .../pro => ./pro`; `go.work` is gitignored. Since 2026-10-18 `pro_impl/` is a
   git submodule (`semaphorepro-module`, `update = none`, so `git submodule update` leaves it empty;
   branch `feat/wf_integrations_2`) — a worktree's `go.work` may still point at another checkout's
   `pro_impl`; check both are on the same commit before trusting a build. Any Dockerfile layer
   running `go mod download` must also COPY `pro/go.mod` + `pro/go.sum`; build images from a
   shallow `git clone file://<repo>` so they never see `go.work`.
+- A fresh worktree of `develop` (seen 2026-11-17 at `526f6eb5`) has no `.gitmodules`, no `pro_impl/`
+  and no `docs/`: for a Pro build write a gitignored `go.work` that `use`s `.` and the absolute
+  path of the main checkout's `pro_impl`; the user guide lives in the main checkout's `docs/`
+  (its own repo, often with someone's uncommitted work — do not edit it from another worktree).
 - `go mod why` in workspace mode blames `pro/services/tasks/docker`; use `GOWORK=off` to see the
   real dependency chain. A version-specific `replace` (not a wildcard) is used to pin grpc, because
   a wildcard downgrades the Pro workspace.
@@ -74,6 +93,9 @@ only when the task touches that topic. Keep this file under 150 lines.
 - `ItemListPageBase` calls `allowActions()` from `data()`, before computed properties exist — an
   override must read props (`this.user`, `this.isAdmin`) directly, or the actions column silently
   disappears (hit in `Users.vue`/`Roles.vue`, 2026-10-17).
+- Vuetify 4 `.v-overlay__content` has `contain: layout`, so a `position: fixed` child of a dialog is
+  laid out against the dialog, not the window — set `contain: none; isolation: isolate` on the
+  content element (through `content-class`) for anything that must reach the window edge.
 - Semaphore web: `/api/user` carries `global_permissions` (mask) — gate admin menus and pages with
   `hasGlobalPermission(user, GLOBAL_PERMISSIONS.x)` from `web/src/lib/role-permissions.js`, not `user.admin`.
 - An object that runs "a template or a workflow" (integration, schedule) shares one shape: nullable
