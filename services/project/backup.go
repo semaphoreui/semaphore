@@ -180,7 +180,7 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 	}
 	b.keys = filteredKeys
 
-	b.views, err = store.GetViews(projectID)
+	b.views, err = store.GetViews(projectID, nil)
 	if err != nil {
 		return
 	}
