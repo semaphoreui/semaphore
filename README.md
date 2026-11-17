@@ -60,6 +60,7 @@ You can install Semaphore using the following methods:
   * [Yandex Cloud](https://yandex.cloud/ru/marketplace/products/fastlix/semaphore)
   * [RepoCloud](https://repocloud.io/details/Semaphore/)
   * [Pethost](https://pethost.dev/templates/semaphore/)
+  * [ZopDay](https://zop.dev/zopday/app/deploy?image=semaphoreui/semaphore&port=3000&name=semaphore&utm_source=github&utm_medium=one_click&utm_content=semaphore)
 * [Snap](http://snapcraft.io/semaphore)
 * [Binary file](https://semaphoreui.com/install/binary)
 * [Debian or RPM package](https://semaphoreui.com/install/binary)
