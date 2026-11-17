@@ -85,12 +85,14 @@ func (p AnsiblePlaybook) CallbackPluginPaths(environmentVars []string) ([]string
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
+	cmd.WaitDelay = 250 * time.Millisecond
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	timer := time.AfterFunc(ansibleConfigTimeout, func() { _ = cmd.Process.Kill() })
+	stopCh := make(chan struct{})
+	timer := time.AfterFunc(ansibleConfigTimeout, func() { close(stopCh) })
 	defer timer.Stop()
-	if err := cmd.Wait(); err != nil {
+	if err := waitCommand(cmd, stopCh, p.Logger); err != nil {
 		return nil, err
 	}
 
