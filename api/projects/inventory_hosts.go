@@ -14,7 +14,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// writtenValue keeps whether a scalar is quoted, since Ansible reads no and "no" differently
+// writtenValue keeps the tag and the quoting of a scalar, since Ansible reads no and "no" differently
 func writtenValue(node *yaml.Node) any {
 	switch node.Kind {
 	case yaml.AliasNode:
@@ -50,7 +50,7 @@ func writtenValue(node *yaml.Node) any {
 		return values
 	}
 	quoted := node.Style&(yaml.DoubleQuotedStyle|yaml.SingleQuotedStyle|yaml.LiteralStyle|yaml.FoldedStyle) != 0
-	return [2]any{node.Value, quoted}
+	return [3]any{node.Value, node.ShortTag(), quoted}
 }
 
 func writtenVariables(text string) map[string]any {
