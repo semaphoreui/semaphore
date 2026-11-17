@@ -64,9 +64,12 @@ export function compileHelpDoc(root, file, source) {
     return compileTranslation(root, file, source, key, locale);
   }
 
+  // Not `!==`: Vite names the file with forward slashes on every platform, `path.join` with the
+  // separator of the platform. `path.relative` normalises both (on Windows the letter case too)
+  // and is empty for the file itself.
   const twin = HELP_DOCS_DIRS
     .map((dir) => path.join(root, dir, `${key}.md`))
-    .find((other) => other !== file && fs.existsSync(other));
+    .find((other) => path.relative(other, file) !== '' && fs.existsSync(other));
   if (twin) {
     throw new HelpDocError(name, 1, `another document has the same name: ${slashes(path.relative(root, twin))}`);
   }
