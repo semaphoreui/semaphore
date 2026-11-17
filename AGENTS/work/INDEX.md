@@ -14,7 +14,7 @@ not migrate to a new project.
 | Changing how encryption keys are sourced, identified, rotated or verified (`vault rekey` / `check`) | `encryption-keys/INDEX.md` |
 | Returning to the project-alerts PR #4272 or its un-pushed docs branch | `alerts/INDEX.md` |
 | Changing the workflow editor canvas (Drawflow visual layer, wheel, zoom), workflow artifacts, or planning Workflows-as-Code | `workflow-editor/INDEX.md` |
-| Touching user options (pinned menu), task history pagination, or the contextual help panel idea | `ui-features/INDEX.md` |
+| Touching user options (pinned menu), task history pagination, or the built-in help panel of dialogs and pages | `ui-features/INDEX.md` |
 | Changing cron schedules: timezone, survey defaults for scheduled tasks | `schedules/INDEX.md` |
 | Adding debug logging or touching the debug filter | `logging/INDEX.md` |
 | Touching the task pool, output streaming, runner polling, DB indexes, or planning a load test | `performance/INDEX.md` |

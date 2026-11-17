@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -257,13 +259,11 @@ func TestJobPool_ConcurrentAccess(t *testing.T) {
 	start := make(chan struct{})
 
 	// Running-jobs map mutators/readers.
-	for w := 0; w < workers; w++ {
+	for w := range workers {
 		base := w
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
-			for i := 0; i < iterations; i++ {
+			for i := range iterations {
 				id := base*iterations + i
 				p.addRunningJob(id, &runningJob{
 					job:    &tasks.LocalExecutor{Task: db.Task{ID: id}},
@@ -275,24 +275,22 @@ func TestJobPool_ConcurrentAccess(t *testing.T) {
 				p.hasRunningJobs()
 				p.deleteRunningJob(id)
 			}
-		}()
+		})
 	}
 
 	// Queue mutators/readers.
-	for w := 0; w < workers; w++ {
+	for w := range workers {
 		base := w
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
-			for i := 0; i < iterations; i++ {
+			for i := range iterations {
 				id := base*iterations + i
 				p.enqueue(newTestJob(id))
 				p.existsInQueue(id)
 				p.queueLen()
 				p.dequeue()
 			}
-		}()
+		})
 	}
 
 	close(start)
@@ -330,7 +328,7 @@ func TestJobPool_ReusesConnections(t *testing.T) {
 
 	p := NewJobPool(nil)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		require.True(t, p.sendProgress())
 		p.checkNewJobs()
 	}
@@ -687,4 +685,86 @@ func TestJobPoolDoRequestDoesNotBoundUpload(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, "{}", string(body))
+}
+
+func newRegistrationServer(t *testing.T, body string) *httptest.Server {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/api/internal/runners", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func setRegistrationConfig(t *testing.T, webHost string, tokenFile string) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	util.Config = &util.ConfigType{
+		WebHost: webHost,
+		Runner: &util.RunnerConfig{
+			RegistrationToken: "registration-token",
+			TokenFile:         tokenFile,
+			Connection:        &util.RunnerConnectionConfig{},
+		},
+	}
+}
+
+func TestJobPool_RegisterKeepsTokenInMemory_TokenFile(t *testing.T) {
+	srv := newRegistrationServer(t, `{"token":"runner-token"}`)
+	tokenFile := filepath.Join(t.TempDir(), "runner_token.txt")
+	setRegistrationConfig(t, srv.URL, tokenFile)
+
+	p := &JobPool{client: newHTTPClient()}
+
+	require.NoError(t, p.Register(nil))
+
+	assert.Equal(t, "runner-token", util.Config.Runner.Token)
+
+	saved, err := os.ReadFile(tokenFile)
+	require.NoError(t, err)
+	assert.Equal(t, "runner-token", string(saved))
+}
+
+func TestJobPool_RegisterKeepsTokenInMemory_ConfigFile(t *testing.T) {
+	srv := newRegistrationServer(t, `{"token":"runner-token"}`)
+	configFile := filepath.Join(t.TempDir(), "config.json")
+	require.NoError(t, os.WriteFile(configFile, []byte(`{"web_host":"`+srv.URL+`","runner":{}}`), 0600))
+	setRegistrationConfig(t, srv.URL, "")
+
+	p := &JobPool{client: newHTTPClient()}
+
+	require.NoError(t, p.Register(&configFile))
+
+	assert.Equal(t, "runner-token", util.Config.Runner.Token)
+
+	saved, err := os.ReadFile(configFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(saved), `"token": "runner-token"`)
+}
+
+func TestJobPool_RegisterRejectsEmptyToken(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{"no token field", `{}`},
+		{"empty token", `{"token":""}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newRegistrationServer(t, tt.body)
+			tokenFile := filepath.Join(t.TempDir(), "runner_token.txt")
+			setRegistrationConfig(t, srv.URL, tokenFile)
+
+			p := &JobPool{client: newHTTPClient()}
+
+			require.Error(t, p.Register(nil))
+
+			assert.Empty(t, util.Config.Runner.Token)
+			assert.NoFileExists(t, tokenFile)
+		})
+	}
 }

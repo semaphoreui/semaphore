@@ -70,8 +70,6 @@ func (c CmdGitClient) makeCmd(
 
 	cmd.Args = append(cmd.Args, args...)
 
-	cmd.SysProcAttr = util.Config.GetSysProcAttr()
-
 	return cmd
 }
 
@@ -135,9 +133,6 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 
 	targetPath := r.GetFullPath()
 	if err := os.MkdirAll(targetPath, 0755); err != nil {
-		return err
-	}
-	if err := util.ChownDir(targetPath); err != nil {
 		return err
 	}
 

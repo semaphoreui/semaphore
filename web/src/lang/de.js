@@ -165,7 +165,7 @@ export default {
   pleaseAllowOverridingCliArgumentInTaskTemplateSett:
     'Erlauben Sie das Überschreiben von CLI-Argumenten in den Task-Template-Einstellungen.',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe:
-    'CLI-Argumente (JSON Array). Beispiel: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
+    'CLI-Argumente (JSON Array). Beispiel: [ "-i", "{\'@\'}myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   started: 'Gestartet',
   author: 'Autor',
   duration: 'Dauer',
@@ -214,7 +214,7 @@ export default {
   suppressSuccessAlerts: 'Erfolgsbenachrichtigungen unterdrücken',
   suppressErrorAlerts: 'Fehlerbenachrichtigungen unterdrücken',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2:
-    'CLI-Argumente (JSON Array). Beispiel: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
+    'CLI-Argumente (JSON Array). Beispiel: [ "-i", "{\'@\'}myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   allowCliArgsInTask: 'CLI-Argumente',
   docs: 'Dokumentation',
   editViews: 'Ansichten bearbeiten',
@@ -406,4 +406,8 @@ export default {
   noProjectsText: 'Sie sind in keinem Projekt Mitglied. Bitten Sie Ihren Semaphore-Administrator, Sie zu einem hinzuzufügen.',
   signedInAs: 'Angemeldet als {username} ({email})',
   signedInAsNoEmail: 'Angemeldet als {username}',
+  helpPanelOpen: 'Hilfe zu diesem Dialog',
+  helpPanelOpenPage: 'Hilfe zu dieser Seite',
+  helpPanelClose: 'Hilfe schließen',
+  helpPanelFieldHidden: 'Dieses Feld wird mit den aktuellen Einstellungen nicht angezeigt.',
 };

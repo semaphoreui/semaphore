@@ -19,7 +19,6 @@ func setupExecutorConfig(t *testing.T) {
 	t.Cleanup(func() { util.Config = prevCfg })
 	util.Config = &util.ConfigType{
 		TmpPath: t.TempDir(),
-		Process: &util.ConfigProcess{},
 	}
 }
 
@@ -575,6 +574,8 @@ func TestHostConfigEnv_CarriesRewritesToThePlaybook(t *testing.T) {
 func TestTaskIdentityEnv(t *testing.T) {
 	runID := 42
 	workflowID := 7
+	version := "1.4.0"
+	emptyVersion := ""
 
 	tests := []struct {
 		name     string
@@ -601,6 +602,32 @@ func TestTaskIdentityEnv(t *testing.T) {
 				"SEMAPHORE_WORKFLOW_RUN_ID=42",
 				"SEMAPHORE_WORKFLOW_ID=7",
 				"SEMAPHORE_WORKFLOW_URL=https://semaphore.example.com/project/3/workflows/7/runs/42",
+			},
+		},
+		{
+			name:    "workflow task with version",
+			webHost: "https://semaphore.example.com",
+			task: db.Task{ID: 11, ProjectID: 3, WorkflowRunID: &runID, WorkflowTemplateID: &workflowID,
+				WorkflowVersion: &version},
+			expected: []string{
+				"SEMAPHORE_PROJECT_ID=3",
+				"SEMAPHORE_TASK_ID=11",
+				"SEMAPHORE_WORKFLOW_RUN_ID=42",
+				"SEMAPHORE_WORKFLOW_ID=7",
+				"SEMAPHORE_WORKFLOW_VERSION=1.4.0",
+				"SEMAPHORE_WORKFLOW_URL=https://semaphore.example.com/project/3/workflows/7/runs/42",
+			},
+		},
+		{
+			name:    "workflow task with empty version",
+			webHost: "",
+			task: db.Task{ID: 11, ProjectID: 3, WorkflowRunID: &runID, WorkflowTemplateID: &workflowID,
+				WorkflowVersion: &emptyVersion},
+			expected: []string{
+				"SEMAPHORE_PROJECT_ID=3",
+				"SEMAPHORE_TASK_ID=11",
+				"SEMAPHORE_WORKFLOW_RUN_ID=42",
+				"SEMAPHORE_WORKFLOW_ID=7",
 			},
 		},
 		{

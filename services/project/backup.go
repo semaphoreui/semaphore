@@ -261,9 +261,16 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
-	b.workflows, err = workflowStore.GetWorkflowTemplates(projectID, db.RetrieveQueryParams{})
+	b.workflows, err = workflowStore.GetWorkflowTemplates(projectID, nil, db.RetrieveQueryParams{})
 	if err != nil {
 		return
+	}
+	b.workflowRoles = make(map[int][]db.WorkflowRolePerm)
+	for _, w := range b.workflows {
+		b.workflowRoles[w.ID], err = store.GetWorkflowRoles(projectID, w.ID)
+		if err != nil {
+			return
+		}
 	}
 
 	b.makeUniqueNames()
@@ -512,9 +519,15 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			}
 			nodes[j] = node
 		}
+		var roles []BackupWorkflowRole
+		for _, r := range b.workflowRoles[o.ID] {
+			roles = append(roles, BackupWorkflowRole{Slug: r.RoleSlug, Permissions: r.Permissions})
+		}
+
 		workflows[i] = BackupWorkflow{
 			WorkflowTemplate: o,
 			Nodes:            nodes,
+			Roles:            roles,
 		}
 	}
 

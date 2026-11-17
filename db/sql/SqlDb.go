@@ -28,7 +28,8 @@ type SqlDbConnection struct {
 }
 
 type SqlDb struct {
-	connection SqlDbConnection
+	connection  SqlDbConnection
+	runnerCache db.RunnerCache
 }
 
 func (d *SqlDb) Sql() *gorp.DbMap {
@@ -155,7 +156,6 @@ func InitConfigCreateTestStoreAt(targetVersion *string) *SqlDb {
 			Events: &util.EventLogType{},
 			Tasks:  &util.TaskLogType{},
 		},
-		Process: &util.ConfigProcess{},
 		Runners: &util.RunnersConfig{},
 		Apps: map[string]util.App{
 			"ansible": {},
@@ -414,7 +414,14 @@ func CreateDb(dialect string) *SqlDb {
 		connection: SqlDbConnection{
 			dialect: dialect,
 		},
+		runnerCache: newMemoryRunnerCache(),
 	}
+}
+
+// SetRunnerCache replaces the in-memory runner cache, which is only correct
+// on a single node. Call it before the store serves requests.
+func (d *SqlDb) SetRunnerCache(cache db.RunnerCache) {
+	d.runnerCache = cache
 }
 
 func (d *SqlDbConnection) GetDialect() string {
@@ -1039,6 +1046,11 @@ func (d *SqlDb) GetTaskStats(projectID int, templateID *int, unit db.TaskStatUni
 
 	if templateID != nil {
 		q = q.Where("template_id=?", *templateID)
+	}
+
+	if filtered(filter.Viewer) {
+		where, args := visibleTasksWhere(projectID, filter.Viewer.UserID)
+		q = q.Where(where, args...)
 	}
 
 	if filter.UserID != nil {

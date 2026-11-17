@@ -1,11 +1,18 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null && secretStorages != null"
+    class="KeyForm"
+    data-testid="key-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
-    <v-alert :value="formError" color="error" class="mb-6">{{ formError }}</v-alert>
+    <v-alert
+      :model-value="!!formError"
+      color="error"
+      class="mb-6"
+      data-testid="key-error"
+    >{{ formError }}</v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -13,43 +20,68 @@
       :rules="[(v) => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="key-name"
     />
 
     <v-card
       class="mb-6"
-      :color="$vuetify.theme.dark ? '#212121' : 'white'"
-      style="background: #8585850f"
+      :color="$vuetify.theme.current.dark ? '#212121' : 'white'"
+      data-testid="key-source"
     >
-      <v-tabs fixed-tabs v-model="sourceStorageTypeIndex">
-        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0"
+      <v-tabs
+        fixed-tabs
+        v-model="sourceStorageTypeIndex"
+        class="KeyForm__sourceTabs"
+        data-testid="key-sourceTabs"
+      >
+        <v-tab
+          :disabled="formSaving || !canEditSecrets || isSynced"
+          style="padding: 0"
+          data-testid="key-tab-local"
           >Local</v-tab
         >
         <v-tab
           v-if="isPro"
           :disabled="formSaving || !canEditSecrets || isSynced"
           style="padding: 0"
+          data-testid="key-tab-storage"
           >
             Storage
           </v-tab
         >
-        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">Env</v-tab>
-        <v-tab :disabled="formSaving || !canEditSecrets || isSynced" style="padding: 0">File</v-tab>
+        <v-tab
+          :disabled="formSaving || !canEditSecrets || isSynced"
+          style="padding: 0"
+          data-testid="key-tab-env"
+        >Env</v-tab>
+        <v-tab
+          :disabled="formSaving || !canEditSecrets || isSynced"
+          style="padding: 0"
+          data-testid="key-tab-file"
+        >File</v-tab>
       </v-tabs>
 
       <div
         :class="!supportStorages && sourceStorageType === 'vault' ? '' : 'ml-4 mr-4 mt-6'"
         v-if="sourceStorageType"
+        data-testid="key-sourceBody"
       >
         <v-alert
-          text
+          variant="tonal"
           color="hsl(348deg, 86%, 61%)"
-          class="PageAlert PageAlert--flat-top"
+          class="PageAlert PageAlert--flat-top mb-0"
           v-if="!supportStorages && sourceStorageType === 'vault'"
+          data-testid="key-storageUpgradeAlert"
         >
           <span v-html="$t('project_runners_only_pro')"></span>
-          <v-btn dark class="ml-2" color="hsl(348deg, 86%, 61%)" @click="upgradeToPro()">
+          <v-btn
+            class="ml-2"
+            color="hsl(348deg, 86%, 61%)"
+            @click="upgradeToPro()"
+            data-testid="key-storageUpgrade"
+          >
             {{ $t('upgrade_to_pro') }}
           </v-btn>
         </v-alert>
@@ -60,11 +92,13 @@
           :label="$t('Storage')"
           :items="secretStorages"
           item-value="id"
-          item-text="name"
+          item-title="name"
           :disabled="formSaving || !canEditSecrets || isSynced"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           clearable
+          :menu-props="storageMenu"
+          data-testid="key-sourceStorageId"
         />
 
         <v-text-field
@@ -72,8 +106,9 @@
           v-model="item.source_storage_key"
           :label="$t('Source Key')"
           :disabled="formSaving || !canEditSecrets || isSynced"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
+          data-testid="key-sourceStorageKey"
         />
 
         <v-text-field
@@ -84,8 +119,9 @@
           "
           :rules="[(v) => !!v || $t('type_required')]"
           :disabled="formSaving || !canEditSecrets"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
+          :data-testid="`key-sourceStorageKey-${sourceStorageType}`"
         />
       </div>
     </v-card>
@@ -96,27 +132,34 @@
       :rules="[(v) => !!v || !canEditSecrets || $t('type_required')]"
       :items="inventoryTypes"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :required="canEditSecrets"
       :disabled="formSaving || !canEditSecrets"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="key-type"
     />
 
-    <v-alert v-if="isReadOnly" type="info" text>Read-only secret storage chosen.</v-alert>
+    <v-alert
+      v-if="isReadOnly"
+      type="info"
+      variant="tonal"
+      data-testid="key-readOnlyAlert"
+    >Read-only secret storage chosen.</v-alert>
 
     <v-text-field
       v-model="item.login_password.login"
       :label="$t('usernameOptional')"
       v-if="!isReadOnly && item.type === 'login_password'"
       :disabled="formSaving || !canEditSecrets"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="key-loginPasswordLogin"
     />
 
     <v-text-field
       v-model="item.login_password.password"
-      :append-icon="showLoginPassword ? 'mdi-eye' : 'mdi-eye-off'"
+      :append-inner-icon="showLoginPassword ? 'mdi-eye' : 'mdi-eye-off'"
       :label="$t('password')"
       :rules="[(v) => !!v || !canEditSecrets || $t('password_required')]"
       :class="{ 'masked-secret-input': !showLoginPassword }"
@@ -124,14 +167,15 @@
       :required="canEditSecrets"
       :disabled="formSaving || !canEditSecrets"
       autocomplete="new-password"
-      @click:append="showLoginPassword = !showLoginPassword"
-      outlined
-      dense
+      @click:append-inner="showLoginPassword = !showLoginPassword"
+      variant="outlined"
+      density="compact"
+      data-testid="key-loginPasswordPassword"
     />
 
     <v-text-field
       v-model="item.string"
-      :append-icon="showString ? 'mdi-eye' : 'mdi-eye-off'"
+      :append-inner-icon="showString ? 'mdi-eye' : 'mdi-eye-off'"
       :label="$t('keyFormStringValue')"
       :rules="[(v) => !!v || !canEditSecrets || $t('value_required')]"
       :class="{ 'masked-secret-input': !showString }"
@@ -139,9 +183,10 @@
       :required="canEditSecrets"
       :disabled="formSaving || !canEditSecrets"
       autocomplete="new-password"
-      @click:append="showString = !showString"
-      outlined
-      dense
+      @click:append-inner="showString = !showString"
+      variant="outlined"
+      density="compact"
+      data-testid="key-stringValue"
     />
 
     <v-text-field
@@ -149,20 +194,22 @@
       :label="$t('usernameOptional')"
       v-if="!isReadOnly && item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="key-sshLogin"
     />
 
     <v-text-field
       v-model="item.ssh.passphrase"
-      :append-icon="showSSHPassphrase ? 'mdi-eye' : 'mdi-eye-off'"
+      :append-inner-icon="showSSHPassphrase ? 'mdi-eye' : 'mdi-eye-off'"
       label="Passphrase (Optional)"
       :class="{ 'masked-secret-input': !showSSHPassphrase }"
       v-if="!isReadOnly && item.type === 'ssh'"
       :disabled="formSaving || !canEditSecrets"
-      @click:append="showSSHPassphrase = !showSSHPassphrase"
-      outlined
-      dense
+      @click:append-inner="showSSHPassphrase = !showSSHPassphrase"
+      variant="outlined"
+      density="compact"
+      data-testid="key-sshPassphrase"
     />
 
     <v-checkbox
@@ -172,10 +219,11 @@
       :disabled="formSaving || !canEditSecrets"
       class="mt-0 mb-3"
       hide-details
+      data-testid="key-generateSshKey"
     />
 
     <v-textarea
-      outlined
+      variant="outlined"
       v-model="item.ssh.private_key"
       :label="$t('privateKey')"
       :disabled="formSaving || !canEditSecrets || item.generate_ssh_key"
@@ -184,11 +232,14 @@
           (v) => !canEditSecrets || item.generate_ssh_key || !!v || $t('private_key_required')
         ]"
       v-if="!isReadOnly && item.type === 'ssh'"
+      class="KeyForm__privateKey"
+      data-testid="key-sshPrivateKey"
     />
 
     <div
       v-if="!item.override_secret && item.type === 'ssh' && !isNew && hasGeneratedPublicKey"
       class="mb-4"
+      data-testid="key-publicKey"
     >
       <div class="pb-1">Public key:</div>
       <div style="position: relative">
@@ -204,13 +255,15 @@
           "
           :style="{height: showPublicKey ? 'auto' : '35px' }"
           class="pa-2"
+          data-testid="key-publicKeyValue"
           >{{ publicKey }}</pre
         >
 
         <v-btn
           style="position: absolute; right: 40px; top: 0; transform: scale(0.9);"
-          text
+          variant="text"
           @click="showPublicKey = !showPublicKey"
+          data-testid="key-publicKeyToggle"
         >
           {{ showPublicKey ? 'Hide' : 'Show' }}
         </v-btn>
@@ -218,6 +271,7 @@
         <CopyClipboardButton
           style="position: absolute; right: 0; top: 0; transform: scale(0.9);"
           :text="publicKey"
+          test-id="key-publicKeyCopy"
         />
       </div>
     </div>
@@ -229,17 +283,72 @@
         v-if="!isNew"
         hide-details
         class="mt-0"
+        data-testid="key-overrideSecret"
     />
 
-    <v-alert dense text type="info" v-if="item.type === 'none'">
+    <v-alert
+      density="compact"
+      variant="tonal"
+      type="info"
+      v-if="item.type === 'none'"
+      data-testid="key-noneInfo"
+    >
       {{ $t('useThisTypeOfKeyForHttpsRepositoriesAndForPlaybook') }}
     </v-alert>
 
-    <v-alert dense text type="info" v-if="item.type === 'string'">
+    <v-alert
+      density="compact"
+      variant="tonal"
+      type="info"
+      v-if="item.type === 'string'"
+      data-testid="key-stringInfo"
+    >
       {{ $t('keyFormStringHint') }}
     </v-alert>
   </v-form>
 </template>
+<style lang="scss">
+// The source card is white (#212121 in the dark theme) as in Vuetify 2, where the colour class
+// of `color` hid the inline grey background the card had (removed: in Vuetify 4 it won).
+
+// The source tabs share the card width equally, as `fixed-tabs` of Vuetify 2 did
+// (`.v-tabs--fixed-tabs .v-tab { flex: 1 1 auto; width: 100% }`); Vuetify 4 sizes them by text.
+.KeyForm__sourceTabs .v-tab {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+// The outlined textarea of Vuetify 2 (`.v-textarea textarea`): lines of 28 px, 10 px above the
+// text, none below — 150 px for 5 rows (Vuetify 4: 24 px lines between 16 px paddings, 152 px).
+.KeyForm__privateKey textarea.v-field__input {
+  padding-top: 10px;
+  padding-bottom: 0;
+  line-height: 28px;
+}
+
+// The message of a disabled field (the stale "Private key is required" under Generate SSH Key)
+// in the disabled text colour, not dimmed again (Vuetify 2: no error state while disabled; the
+// grey outline — App.vue).
+.KeyForm .v-input--disabled > .v-input__details {
+  opacity: 1;
+
+  .v-messages {
+    color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+  }
+}
+
+// A disabled checkbox (Generate SSH Key, Override) in the disabled text colour
+// (`.v-input--is-disabled` of Vuetify 2), not the medium emphasis dimmed to .38 again.
+.KeyForm .v-selection-control--disabled {
+  opacity: 1;
+
+  .v-label,
+  .v-selection-control__input > .v-icon {
+    color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+    opacity: 1;
+  }
+}
+</style>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
@@ -281,6 +390,9 @@ export default {
       secretStorages: null,
       isSynced: false,
       showPublicKey: false,
+      // The list of the storage autocomplete 1 px under the field and at most 304 px high, as the
+      // `offset-y` menu of Vuetify 2 (`menuProps`; Vuetify 4: flush with the field, 310 px).
+      storageMenu: { maxHeight: 304, offset: 1 },
     };
   },
 

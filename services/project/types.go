@@ -27,8 +27,11 @@ type BackupDB struct {
 	roles          []db.Role
 	unassigned     []UnassignedRole
 	templateRoles  map[int][]db.TemplateRolePerm
+	workflowRoles  map[int][]db.WorkflowRolePerm
 	runners        []db.Runner
 	workflows      []db.WorkflowTemplate
+	// version is the format version of the file being restored.
+	version int
 
 	// store is the main store every entity restores into. Held here so Restore
 	// implementations read it from BackupDB instead of taking it as a parameter.
@@ -39,8 +42,9 @@ type BackupDB struct {
 	workflowStore db.WorkflowManager
 }
 
-// BackupFormatVersion is 2: files before it carry no version and refer to roles by name.
-const BackupFormatVersion = 2
+// BackupFormatVersion is 4: version 2 gave roles slugs, 3 added the workflow verbs and grants on workflows,
+// 4 writes read_project, so a role or a grant without it is meant that way.
+const BackupFormatVersion = 4
 
 // CleanupError says the project stayed behind after a failed restore.
 type CleanupError struct {
@@ -62,6 +66,13 @@ type UnassignedTemplate struct {
 	Permissions db.ProjectUserPermission `json:"permissions"`
 }
 
+// UnassignedWorkflow is a workflow whose grant to the role was not restored.
+type UnassignedWorkflow struct {
+	ID          int                      `json:"id"`
+	Name        string                   `json:"name"`
+	Permissions db.ProjectUserPermission `json:"permissions"`
+}
+
 // Why a role is in the report.
 const (
 	ReasonNotInFile = "not_in_file"
@@ -75,6 +86,7 @@ type UnassignedRole struct {
 	Name        string                   `json:"name,omitempty"`
 	Permissions db.ProjectUserPermission `json:"permissions,omitempty"`
 	Templates   []UnassignedTemplate     `json:"templates"`
+	Workflows   []UnassignedWorkflow     `json:"workflows"`
 }
 
 // RestoredProject is the restore result: the project and what it did not restore.
@@ -201,6 +213,12 @@ type BackupRunner struct {
 type BackupWorkflow struct {
 	db.WorkflowTemplate
 	Nodes []BackupWorkflowNode `backup:"nodes"`
+	Roles []BackupWorkflowRole `backup:"roles"`
+}
+
+type BackupWorkflowRole struct {
+	Slug        string                   `backup:"slug"`
+	Permissions db.ProjectUserPermission `backup:"permissions"`
 }
 
 // BackupWorkflowNode wraps a workflow node, replacing its template_id with a

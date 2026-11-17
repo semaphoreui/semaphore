@@ -275,10 +275,7 @@ func (t *LocalExecutor) writeTaskTmpFile(kind string, content []byte) (string, e
 	path := f.Name()
 	_ = f.Close()
 
-	if err = os.WriteFile(path, content, 0o600); err == nil {
-		err = util.ChownDir(path)
-	}
-	if err != nil {
+	if err = os.WriteFile(path, content, 0o600); err != nil {
 		_ = os.Remove(path)
 		return "", err
 	}

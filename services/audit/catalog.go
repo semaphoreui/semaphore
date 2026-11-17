@@ -80,6 +80,9 @@ func Catalog() []Entry {
 		{Kind: IAMTemplatePermissionCreate, Type: TypeCreation, Metadata: TemplatePermissionMetadata{}},
 		{Kind: IAMTemplatePermissionUpdate, Type: TypeChange, Metadata: TemplatePermissionMetadata{}},
 		{Kind: IAMTemplatePermissionDelete, Type: TypeDeletion, Metadata: TemplatePermissionMetadata{}},
+		{Kind: IAMWorkflowPermissionCreate, Type: TypeCreation, Metadata: WorkflowPermissionMetadata{}, Pro: true},
+		{Kind: IAMWorkflowPermissionUpdate, Type: TypeChange, Metadata: WorkflowPermissionMetadata{}, Pro: true},
+		{Kind: IAMWorkflowPermissionDelete, Type: TypeDeletion, Metadata: WorkflowPermissionMetadata{}, Pro: true},
 
 		{Kind: ResourceProjectCreate, Type: TypeCreation, Metadata: ProjectCreateMetadata{}},
 		{Kind: ResourceProjectUpdate, Type: TypeChange},
@@ -141,6 +144,9 @@ func Catalog() []Entry {
 		{Kind: TaskControlStop, Type: TypeChange, Metadata: TaskMetadata{}},
 		{Kind: TaskControlForceStop, Type: TypeChange, Metadata: TaskMetadata{}},
 		{Kind: TaskControlStopAll, Type: TypeChange},
+
+		{Kind: WorkflowApprovalApprove, Type: TypeChange, Metadata: WorkflowApprovalMetadata{}, Pro: true},
+		{Kind: WorkflowApprovalReject, Type: TypeChange, Metadata: WorkflowApprovalMetadata{}, Pro: true},
 		{Kind: TaskHistoryDelete, Type: TypeDeletion, Metadata: TaskMetadata{}},
 
 		{Kind: RunnerLifecycleCreate, Type: TypeCreation},
