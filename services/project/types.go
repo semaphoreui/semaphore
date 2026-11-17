@@ -7,15 +7,16 @@ import (
 )
 
 type BackupDB struct {
-	meta         db.Project
-	templates    []db.Template
-	repositories []db.Repository
-	hostConfigs  []db.HostConfig
-	keys         []db.AccessKey
-	views        []db.View
-	inventories  []db.Inventory
-	environments []db.Environment
-	schedules    []db.Schedule
+	meta           db.Project
+	templates      []db.Template
+	repositories   []db.Repository
+	hostConfigs    []db.HostConfig
+	keys           []db.AccessKey
+	views          []db.View
+	inventories    []db.Inventory
+	inventoryHosts map[int][]db.InventoryHost
+	environments   []db.Environment
+	schedules      []db.Schedule
 
 	integrationProjAliases   []db.IntegrationAlias
 	integrations             []db.Integration
@@ -140,8 +141,16 @@ type BackupView struct {
 
 type BackupInventory struct {
 	db.Inventory
-	SSHKey    *string `backup:"ssh_key"`
-	BecomeKey *string `backup:"become_key"`
+	SSHKey    *string               `backup:"ssh_key"`
+	BecomeKey *string               `backup:"become_key"`
+	Hosts     []BackupInventoryHost `backup:"hosts"`
+}
+
+type BackupInventoryHost struct {
+	Name        string `backup:"name"`
+	Description string `backup:"description"`
+	Enabled     bool   `backup:"enabled"`
+	Variables   string `backup:"variables"`
 }
 
 type BackupRepository struct {

@@ -190,6 +190,17 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
+	b.inventoryHosts = make(map[int][]db.InventoryHost)
+	for _, inv := range b.inventories {
+		if inv.Type != db.InventoryManaged {
+			continue
+		}
+		b.inventoryHosts[inv.ID], _, err = store.GetInventoryHosts(projectID, inv.ID, db.InventoryHostListParams{Count: 0})
+		if err != nil {
+			return
+		}
+	}
+
 	b.environments, err = store.GetEnvironments(projectID, db.RetrieveQueryParams{})
 	if err != nil {
 		return
@@ -351,10 +362,15 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		if o.BecomeKeyID != nil {
 			BecomeKey, _ = findNameByID[db.AccessKey](*o.BecomeKeyID, b.keys)
 		}
+		var hosts []BackupInventoryHost
+		for _, h := range b.inventoryHosts[o.ID] {
+			hosts = append(hosts, BackupInventoryHost{Name: h.Name, Description: h.Description, Enabled: h.Enabled, Variables: h.Variables})
+		}
 		inventories[i] = BackupInventory{
 			Inventory: o,
 			SSHKey:    SSHKey,
 			BecomeKey: BecomeKey,
+			Hosts:     hosts,
 		}
 	}
 
