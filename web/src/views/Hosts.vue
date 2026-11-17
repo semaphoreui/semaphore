@@ -375,6 +375,7 @@ export default {
     async projectId() {
       this.filter = 'all';
       this.templateId = null;
+      this.templates = [];
       this.offset = 0;
       await this.open();
     },
