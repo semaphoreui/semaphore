@@ -379,6 +379,11 @@ export default {
       await this.open();
     },
 
+    // The page stays open while the plan is upgraded from it
+    'features.hosts': async function reloadOnUpgrade(enabled) {
+      if (enabled) await this.open();
+    },
+
     searchText(value) {
       clearTimeout(this.searchTimer);
       if ((value || '') === this.search) return;
