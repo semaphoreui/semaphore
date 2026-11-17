@@ -60,7 +60,7 @@ func TestScheduleRejectsInvalidTargets(t *testing.T) {
 	}
 }
 
-func TestMigration_2_20_17_Schedules(t *testing.T) {
+func TestMigration_2_21_3_Schedules(t *testing.T) {
 	before := "2.20.16"
 	store := InitConfigCreateTestStoreAt(&before)
 	project, template := createTestTemplate(t, store)
