@@ -1,7 +1,7 @@
 # Schedules that run a workflow
 
 A schedule starts either a task template or a workflow: `project__schedule` carries a nullable
-`template_id` and a nullable `workflow_id` (migration `2.20.17`, a table rebuild on SQLite with
+`template_id` and a nullable `workflow_id` (migration `2.21.3`, a table rebuild on SQLite with
 foreign keys off because `task.schedule_id` refers to it). Exactly one is set — `Schedule.Validate`
 and the store (`validateRunTarget`, shared with integrations) refuse anything else, and a workflow
 schedule may not be a commit checker (`repository_id`) because the git working copy is keyed by

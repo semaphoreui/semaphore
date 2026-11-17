@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMigration_2_20_17 seeds a schedule with a task that refers to it on the
+// TestMigration_2_21_3 seeds a schedule with a task that refers to it on the
 // pre-workflow schema and checks the upgrade (a table rebuild on SQLite)
 // keeps those rows and lets a schedule point at a workflow.
-func TestMigration_2_20_17(t *testing.T) {
+func TestMigration_2_21_3(t *testing.T) {
 	target := "2.20.16"
 	store := InitConfigCreateTestStoreAt(&target)
 
