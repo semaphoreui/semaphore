@@ -7,6 +7,7 @@
     <EditDialog
       v-model="editDialog"
       test-id="integrationMatcherDialog"
+      help-doc="integration-matcher"
       :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
       :title="`${itemId === 'new' ? 'New' : 'Edit'} Matcher`"
       :max-width="450"

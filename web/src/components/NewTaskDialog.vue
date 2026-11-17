@@ -6,6 +6,7 @@
     @save="closeDialog"
     @close="closeDialog"
     :test-id="testId"
+    help-doc="task-new"
   >
     <template #title>
       <v-icon

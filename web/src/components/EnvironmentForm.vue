@@ -359,9 +359,24 @@
           </div>
         </div>
 
-        <v-dialog v-model="syncSettingsDialog" max-width="500" persistent>
+        <HelpDialog
+          v-model="syncSettingsDialog"
+          help-doc="secret-sync-paths"
+          max-width="500"
+          persistent
+          v-slot="{ docs }"
+        >
           <v-card data-testid="varGroupSyncDialog">
-            <v-card-title data-testid="varGroupSyncDialog-title">Sync paths</v-card-title>
+            <v-card-title class="d-flex align-center" data-testid="varGroupSyncDialog-title">
+              Sync paths
+              <v-spacer></v-spacer>
+              <HelpButton
+                v-if="docs.available"
+                :open="docs.open"
+                data-testid="varGroupSyncDialog-docs"
+                @click="docs.toggle()"
+              />
+            </v-card-title>
             <v-card-text class="pt-4 pb-0">
               <v-text-field
                 style="width: 140px"
@@ -394,7 +409,7 @@
               </v-btn>
             </v-card-actions>
           </v-card>
-        </v-dialog>
+        </HelpDialog>
 
         <div>
           <div class="EnvSubheader d-flex align-center text-medium-emphasis">
@@ -716,6 +731,8 @@ import codeEditorExtensions from '@/lib/codeEditor';
 import { getErrorMessage } from '@/lib/error';
 import RichEditor from '@/components/RichEditor.vue';
 import SecretStorageSyncOptionsForm from '@/components/SecretStorageSyncOptionsForm.vue';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpDialog from '@/components/HelpDialog.vue';
 
 // The editor as CodeMirror 5 drew it in Vuetify 2 (`codemirror.css`): black text on white in the
 // line height of the card text (22 px, not 1.4), lines padded 4 px, a 30 px gutter of #f7f7f7 with
@@ -753,6 +770,8 @@ export default {
     RichEditor,
     CodeMirror,
     SecretStorageSyncOptionsForm,
+    HelpButton,
+    HelpDialog,
   },
 
   computed: {

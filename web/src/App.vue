@@ -19,6 +19,7 @@
     <EditDialog
       v-model="userDialog"
       test-id="appEditAccountDialog"
+      help-doc="user"
       save-button-text="Save"
       :title="$t('editUser')"
       v-if="user"
@@ -65,6 +66,7 @@
     <EditDialog
       v-model="newProjectDialog"
       test-id="appNewProjectDialog"
+      help-doc="project-new"
       save-button-text="Create"
       :title="$t('newProject')"
       event-name="i-project"
@@ -85,6 +87,7 @@
     <EditDialog
       v-model="subscriptionDialog"
       test-id="appSubscriptionDialog"
+      help-doc="subscription"
       hide-buttons
       v-if="user"
       event-name="i-user"
@@ -114,6 +117,7 @@
     <EditDialog
       v-model="restoreProjectDialog"
       test-id="appRestoreProjectDialog"
+      help-doc="project-restore"
       save-button-text="Restore"
       :title="$t('restoreProject')"
       event-name="i-project"

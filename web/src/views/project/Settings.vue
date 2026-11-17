@@ -1,5 +1,5 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div data-testid="settings-page">
+  <HelpPage help-doc="project-settings" data-testid="settings-page" v-slot="{ docs }">
     <YesNoDialog
       v-model="deleteProjectDialog"
       :title="$t('deleteProject')"
@@ -14,6 +14,15 @@
         data-testid="settings-drawerToggle"
       ></v-app-bar-nav-icon>
       <v-toolbar-title data-testid="settings-title">{{ $t('dashboard') }}</v-toolbar-title>
+      <v-spacer></v-spacer>
+      <HelpButton
+        v-if="docs.available"
+        page
+        class="mr-2"
+        :open="docs.open"
+        data-testid="settings-docs"
+        @click="docs.toggle()"
+      />
     </v-toolbar>
 
     <DashboardMenu
@@ -166,7 +175,7 @@
         </v-row>
       </div>
     </div>
-  </div>
+  </HelpPage>
 </template>
 <style lang="scss">
 @use 'sass:map';
@@ -203,9 +212,13 @@ import axios from 'axios';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import delay from '@/lib/delay';
 import DashboardMenu from '@/components/DashboardMenu.vue';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpPage from '@/components/HelpPage.vue';
 
 export default {
-  components: { DashboardMenu, YesNoDialog, ProjectForm },
+  components: {
+    DashboardMenu, HelpButton, HelpPage, YesNoDialog, ProjectForm,
+  },
   props: {
     projectId: Number,
     projectType: String,
