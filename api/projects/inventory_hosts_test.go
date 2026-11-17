@@ -269,3 +269,26 @@ func TestInventoryHosts_ListPageSize(t *testing.T) {
 		})
 	}
 }
+
+func TestDiffVariables(t *testing.T) {
+	tests := []struct {
+		name    string
+		oldText string
+		newText string
+		changed []string
+	}{
+		{"same", "a: 1\nb: [x, y]", "b:\n  - x\n  - y\na: 1", nil},
+		{"value", "a: 1", "a: 2", []string{"a"}},
+		{"quoted", "flag: no", `flag: "no"`, []string{"flag"}},
+		{"nested quoted", "a:\n  flag: yes", "a:\n  flag: 'yes'", []string{"a"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			diff := diffVariables(tt.oldText, tt.newText)
+
+			assert.Equal(t, tt.changed, diff.ChangedVariables)
+			assert.Empty(t, diff.AddedVariables)
+			assert.Empty(t, diff.RemovedVariables)
+		})
+	}
+}

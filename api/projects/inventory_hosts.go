@@ -11,12 +11,43 @@ import (
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/audit"
+	"gopkg.in/yaml.v3"
 )
+
+// writtenValue keeps whether a scalar is quoted, since Ansible reads no and "no" differently
+func writtenValue(node *yaml.Node) any {
+	switch node.Kind {
+	case yaml.AliasNode:
+		return writtenValue(node.Alias)
+	case yaml.MappingNode:
+		values := map[string]any{}
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			values[node.Content[i].Value] = writtenValue(node.Content[i+1])
+		}
+		return values
+	case yaml.SequenceNode:
+		values := []any{}
+		for _, item := range node.Content {
+			values = append(values, writtenValue(item))
+		}
+		return values
+	}
+	return [2]any{node.Value, node.Style&(yaml.DoubleQuotedStyle|yaml.SingleQuotedStyle|yaml.LiteralStyle|yaml.FoldedStyle) != 0}
+}
+
+func writtenVariables(text string) map[string]any {
+	var doc yaml.Node
+	if _, err := db.ParseInventoryVariables(text); err != nil || yaml.Unmarshal([]byte(text), &doc) != nil || len(doc.Content) == 0 {
+		return nil
+	}
+	values, _ := writtenValue(doc.Content[0]).(map[string]any)
+	return values
+}
 
 // diffVariables names the top-level keys added, removed and changed, never the values.
 func diffVariables(oldText, newText string) audit.InventoryVariablesMetadata {
-	oldVars, _ := db.ParseInventoryVariables(oldText)
-	newVars, _ := db.ParseInventoryVariables(newText)
+	oldVars := writtenVariables(oldText)
+	newVars := writtenVariables(newText)
 
 	var diff audit.InventoryVariablesMetadata
 	for _, key := range slices.Sorted(maps.Keys(newVars)) {
