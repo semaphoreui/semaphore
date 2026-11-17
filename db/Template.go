@@ -38,7 +38,7 @@ const (
 func (t TemplateApp) InventoryTypes() []InventoryType {
 	switch t {
 	case AppAnsible:
-		return []InventoryType{InventoryStatic, InventoryStaticYaml, InventoryFile}
+		return []InventoryType{InventoryStatic, InventoryStaticYaml, InventoryFile, InventoryManaged}
 	case AppTerraform:
 		return []InventoryType{InventoryTerraformWorkspace}
 	case AppTofu:
