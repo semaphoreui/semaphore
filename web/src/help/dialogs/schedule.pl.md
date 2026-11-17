@@ -21,6 +21,12 @@ Szablon zadania, który uruchamia harmonogram. Pole jest wymagane. Zadanie jest 
 jakby zostało uruchomione z szablonu, z inwentarzem, repozytorium, grupą zmiennych i pozostałymi
 ustawieniami szablonu oraz z poniższymi parametrami tam, gdzie szablon pozwala zadaniu je zmienić.
 
+## Workflow to run {#scheduleForm-workflowId}
+
+Widoczne, gdy celem uruchomienia jest **Workflow**. Wybierz workflow uruchamiany przez harmonogram;
+pole jest wymagane. Planowanie workflow wymaga Semaphore Pro. Bez tej funkcji pole jest wyłączone,
+a **Upgrade to PRO** otwiera okno subskrypcji. Parametry zadania są dostępne tylko dla szablonów.
+
 ## Parametry zadania {#scheduleForm-taskParams}
 
 Wyświetlane, gdy wybrano szablon.

@@ -17,6 +17,12 @@ form: src/components/ScheduleForm.vue, src/components/TaskParamsForm.vue, src/co
 排程所啟動的任務範本。此欄位為必填。任務的執行方式就如同從該範本啟動一樣，使用範本本身的清單、儲存庫、變數群組及其他設定，
 並在範本允許任務變更的地方使用下方的參數。
 
+## Workflow to run {#scheduleForm-workflowId}
+
+當執行目標為 **Workflow** 時顯示。選擇排程要啟動的工作流程，此欄位為必填項。
+排程執行工作流程需要 Semaphore Pro。沒有此功能時，該欄位無法使用，
+按一下 **Upgrade to PRO** 可開啟訂閱對話框。任務參數僅適用於範本目標。
+
 ## 任務參數 {#scheduleForm-taskParams}
 
 在選取範本後顯示。

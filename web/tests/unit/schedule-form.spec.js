@@ -56,8 +56,38 @@ describe('ScheduleForm.vue', () => {
 
     const withWorkflows = mountForm({ itemId: 'new', features: { workflows: true } });
     await flush();
-    expect(withWorkflows.find('.ScheduleForm__target').exists()).to.equal(true);
+    expect(withWorkflows.findAll('.ScheduleForm__target')).to.have.length(1);
     expect(http.requests.map((r) => r.url)).to.include('/api/project/7/workflows');
+  });
+
+  it('switches targets using the toggle without duplicating workflow controls', async () => {
+    http.respond((c) => respondTo(c.url));
+    const wrapper = mountForm({
+      itemId: 'new',
+      features: { workflows: true, workflow_schedules_management: true },
+    });
+    await flush();
+
+    wrapper.vm.item.template_id = 11;
+    wrapper.vm.item.task_params = { params: { debug: true } };
+    await wrapper.get('[data-testid="scheduleForm-target-workflow"]').trigger('click');
+    await flush();
+
+    expect(wrapper.vm.target).to.equal('workflow');
+    expect(wrapper.vm.item.template_id).to.equal(null);
+    expect(wrapper.vm.item.task_params).to.equal(null);
+    expect(wrapper.findAll('.ScheduleForm__workflow')).to.have.length(1);
+    expect(wrapper.find('[data-testid="scheduleForm-templateId"]').exists()).to.equal(false);
+
+    wrapper.vm.item.workflow_id = 5;
+    await wrapper.get('[data-testid="scheduleForm-target-template"]').trigger('click');
+    await flush();
+
+    expect(wrapper.vm.target).to.equal('template');
+    expect(wrapper.vm.item.workflow_id).to.equal(null);
+    expect(wrapper.vm.item.task_params).to.deep.equal({});
+    expect(wrapper.find('.ScheduleForm__workflow').exists()).to.equal(false);
+    expect(wrapper.find('[data-testid="scheduleForm-templateId"]').exists()).to.equal(true);
   });
 
   it('derives the target from the loaded item', async () => {
@@ -81,6 +111,7 @@ describe('ScheduleForm.vue', () => {
     expect(wrapper.vm.target).to.equal('template');
     expect(wrapper.vm.item.workflow_id).to.equal(null);
     expect(wrapper.vm.item.task_params).to.deep.equal({});
+    expect(wrapper.vm.formError).to.equal(null);
   });
 
   it('clears the other target and task params when switching to a workflow', async () => {
@@ -140,7 +171,7 @@ describe('ScheduleForm.vue', () => {
     expect(wrapper.find('.ScheduleForm__target').exists()).to.equal(true, 'the toggle stays');
     expect(wrapper.find('.ScheduleForm__workflow').classes()).to.include('v-input--disabled');
     const chip = wrapper.find('.ScheduleForm__upgrade');
-    expect(chip.exists()).to.equal(true);
+    expect(wrapper.findAll('.ScheduleForm__upgrade')).to.have.length(1);
     expect(chip.text()).to.equal('Upgrade to PRO');
 
     const events = [];
@@ -176,7 +207,7 @@ describe('ScheduleForm.vue', () => {
     await flush();
 
     expect(wrapper.vm.target).to.equal('workflow');
-    expect(wrapper.find('.ScheduleForm__workflowUnavailable').exists()).to.equal(true);
+    expect(wrapper.findAll('.ScheduleForm__workflowUnavailable')).to.have.length(1);
     expect(wrapper.find('.ScheduleForm__target').exists()).to.equal(false);
   });
 });

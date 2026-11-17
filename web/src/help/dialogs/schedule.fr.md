@@ -22,6 +22,13 @@ elle avait été lancée depuis le modèle, avec l'inventaire, le dépôt, le gr
 autres paramètres propres au modèle, et avec les paramètres ci-dessous lorsque le modèle permet à
 une tâche de les modifier.
 
+## Workflow to run {#scheduleForm-workflowId}
+
+Affiché lorsque la cible est **Workflow**. Le workflow lancé par la planification ; ce champ
+est obligatoire. La planification des workflows nécessite Semaphore Pro. Sans cette fonction,
+le champ est désactivé et **Upgrade to PRO** ouvre la fenêtre d’abonnement. Les paramètres de tâche
+sont disponibles uniquement pour les modèles.
+
 ## Paramètres de la tâche {#scheduleForm-taskParams}
 
 Affiché lorsqu'un modèle est sélectionné.

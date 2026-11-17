@@ -22,6 +22,13 @@ hubiera iniciado desde la plantilla, con el inventario, el repositorio, el grupo
 resto de la configuración propios de la plantilla, y con los parámetros de abajo allí donde la
 plantilla permite que una tarea los cambie.
 
+## Workflow to run {#scheduleForm-workflowId}
+
+Se muestra cuando el destino es **Workflow**. Selecciona el workflow que iniciará la programación;
+el campo es obligatorio. Programar workflows requiere Semaphore Pro. Sin esta función, el campo
+está deshabilitado y **Upgrade to PRO** abre el diálogo de suscripción. Los parámetros de tarea
+solo están disponibles para plantillas.
+
 ## Parámetros de la tarea {#scheduleForm-taskParams}
 
 Se muestra cuando se ha seleccionado una plantilla.

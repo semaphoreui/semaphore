@@ -20,6 +20,12 @@ harmonogram dělá.
 šablony, s vlastním inventářem, repozitářem, skupinou proměnných a dalšími nastaveními šablony
 a s parametry níže tam, kde šablona dovoluje úloze je změnit.
 
+## Workflow to run {#scheduleForm-workflowId}
+
+Zobrazuje se, když je cílem spuštění **Workflow**. Vyberte workflow, které má plán spouštět;
+pole je povinné. Plánování workflow vyžaduje Semaphore Pro. Bez této funkce je pole zakázané
+a **Upgrade to PRO** otevře dialog předplatného. Parametry úlohy jsou dostupné pouze pro šablony.
+
 ## Parametry úlohy {#scheduleForm-taskParams}
 
 Zobrazí se, když je vybrána šablona.

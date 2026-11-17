@@ -4,8 +4,8 @@ form: src/components/ScheduleForm.vue, src/components/TaskParamsForm.vue, src/co
 
 # Edit Schedule
 
-A schedule starts a task of a task template without anyone pressing **Run**: again and again by
-a cron expression, or once at a set moment. The task gets the parameters saved in this dialog.
+A schedule starts a task template or a workflow without anyone pressing **Run**: again and again
+by a cron expression, or once at a set moment. Template tasks get the parameters saved in this dialog.
 All times are in the timezone of the Semaphore server, shown next to the time fields: `UTC`
 unless the administrator sets `schedule.timezone` or `SEMAPHORE_SCHEDULE_TIMEZONE`.
 
@@ -16,9 +16,18 @@ change what the schedule does.
 
 ## Template {#scheduleForm-templateId}
 
+Shown when the run target is **Template**.
+
 The task template the schedule starts. The field is required. The task runs as if it was
 started from the template, with the template's own inventory, repository, variable group and
 other settings, and with the parameters below where the template lets a task change them.
+
+## Workflow to run {#scheduleForm-workflowId}
+
+Shown when the run target is **Workflow**. The workflow the schedule starts; this field is required.
+Scheduling workflows requires Semaphore Pro. Without this feature, the field is disabled and
+**Upgrade to PRO** opens the subscription dialog. Task parameters are available only for template
+targets.
 
 ## Task parameters {#scheduleForm-taskParams}
 
