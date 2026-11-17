@@ -732,14 +732,12 @@ func TestInventoryHostEvents(t *testing.T) {
 	assert.Equal(t, audit.ResourceTarget(audit.TargetInventoryHost, hostID, "web2"), renamed.Event.Target)
 	assert.Equal(t, audit.InventoryHostMetadata{InventoryID: inventory.ID, InventoryName: "prod", ChangedFields: []string{"name"}, OldName: "web1"}, renamed.Event.Metadata)
 
-	body = `{"name":"web2","enabled":false,"variables":"ansible_host: 10.0.0.9\nansible_port: 22"}`
-	w, rec = hostCall(f, inventory, http.MethodPut, body, hostID, UpdateInventoryHost)
+	w, rec = hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, hostID, SetInventoryHostEnabled)
 	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
 	disabled := only(t, rec, audit.ResourceInventoryHostDisable)
 	assert.Equal(t, audit.InventoryHostMetadata{InventoryID: inventory.ID, InventoryName: "prod"}, disabled.Event.Metadata)
 
-	body = `{"name":"web2","enabled":true,"variables":"ansible_host: 10.0.0.9\nansible_port: 22"}`
-	w, rec = hostCall(f, inventory, http.MethodPut, body, hostID, UpdateInventoryHost)
+	w, rec = hostCall(f, inventory, http.MethodPut, `{"enabled":true}`, hostID, SetInventoryHostEnabled)
 	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
 	only(t, rec, audit.ResourceInventoryHostEnable)
 
@@ -795,16 +793,19 @@ func TestInventoryHostEvents_NeverCarryVariableValues(t *testing.T) {
 	assert.Contains(t, all, "ansible_password")
 }
 
-func TestInventoryHostEvents_OnlyEnabledChanged(t *testing.T) {
+func TestInventoryHostEvents_EnabledIsRecordedOnce(t *testing.T) {
 	f := newResourceFixture(t)
 	inventory := newManagedInventory(t, f, "prod")
 	host, err := f.store.CreateInventoryHost(db.InventoryHost{InventoryID: inventory.ID, ProjectID: f.project.ID, Name: "web1", Enabled: true, Variables: "a: 1"})
 	require.NoError(t, err)
 
-	w, rec := hostCall(f, inventory, http.MethodPut, `{"name":"web1","enabled":false,"variables":"a: 1"}`, host.ID, UpdateInventoryHost)
+	w, rec := hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, host.ID, SetInventoryHostEnabled)
 	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
-
 	only(t, rec, audit.ResourceInventoryHostDisable)
+
+	w, rec = hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, host.ID, SetInventoryHostEnabled)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	assert.Empty(t, rec.All())
 }
 
 func TestInventoryEvents_ManagedVariables(t *testing.T) {

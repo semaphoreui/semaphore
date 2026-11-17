@@ -59,11 +59,18 @@ func TestInventoryHosts_CreateListUpdateDelete(t *testing.T) {
 	var got db.InventoryHost
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
 	assert.Equal(t, "web2", got.Name)
+	assert.True(t, got.Enabled)
+
+	w, _ = hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, created.ID, SetInventoryHostEnabled)
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	got, err := f.store.GetInventoryHost(f.project.ID, inventory.ID, created.ID)
+	require.NoError(t, err)
 	assert.False(t, got.Enabled)
+	assert.Equal(t, "web2", got.Name)
 
 	w, _ = hostCall(f, inventory, http.MethodDelete, "", created.ID, RemoveInventoryHost)
 	require.Equal(t, http.StatusNoContent, w.Code)
-	_, err := f.store.GetInventoryHost(f.project.ID, inventory.ID, created.ID)
+	_, err = f.store.GetInventoryHost(f.project.ID, inventory.ID, created.ID)
 	assert.ErrorIs(t, err, db.ErrNotFound)
 }
 

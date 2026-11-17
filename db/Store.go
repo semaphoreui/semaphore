@@ -315,7 +315,10 @@ type InventoryHostManager interface {
 	GetInventoryHost(projectID, inventoryID, hostID int) (InventoryHost, error)
 	GetEnabledInventoryHosts(projectID, inventoryID int) ([]InventoryHost, error)
 	CreateInventoryHost(host InventoryHost) (InventoryHost, error)
+	// UpdateInventoryHost leaves the enabled flag as it is
 	UpdateInventoryHost(host InventoryHost) error
+	// SetInventoryHostEnabled reports whether the flag was different before
+	SetInventoryHostEnabled(projectID, inventoryID, hostID int, enabled bool) (changed bool, err error)
 	DeleteInventoryHost(projectID, inventoryID, hostID int) error
 }
 

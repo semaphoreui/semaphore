@@ -236,9 +236,44 @@ func UpdateInventoryHost(w http.ResponseWriter, r *http.Request) {
 		recordInventoryHost(r, helpers.EventLogUpdate, "updated", audit.ResourceInventoryHostUpdate, inventory, host, metadata)
 	}
 
-	if host.Enabled != oldHost.Enabled {
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// SetInventoryHostEnabled enables or disables a host and leaves its other fields alone.
+func SetInventoryHostEnabled(w http.ResponseWriter, r *http.Request) {
+	inventory, ok := managedInventory(w, r)
+	if !ok {
+		return
+	}
+
+	hostID, ok := helpers.GetIntParamOrAbort("inventory_host_id", w, r)
+	if !ok {
+		return
+	}
+
+	host, err := helpers.Store(r).GetInventoryHost(inventory.ProjectID, inventory.ID, hostID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	var body struct {
+		Enabled bool `json:"enabled"`
+	}
+	if !helpers.Bind(w, r, &body) {
+		return
+	}
+
+	changed, err := helpers.Store(r).SetInventoryHostEnabled(inventory.ProjectID, inventory.ID, hostID, body.Enabled)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	// The update itself tells whether the flag changed, so two requests never record one change twice
+	if changed {
 		verb, kind := "disabled", audit.ResourceInventoryHostDisable
-		if host.Enabled {
+		if body.Enabled {
 			verb, kind = "enabled", audit.ResourceInventoryHostEnable
 		}
 		recordInventoryHost(r, helpers.EventLogUpdate, verb, kind, inventory, host, audit.InventoryHostMetadata{})

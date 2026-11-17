@@ -1068,7 +1068,7 @@ definitions:
         type: string
       enabled:
         type: boolean
-        description: True when omitted on create. An update replaces the whole host, so there an omitted value is false.
+        description: Used on create only, true when omitted. An update leaves it as it is.
       variables:
         type: string
         description: Host variables as YAML or JSON mapping
@@ -4078,6 +4078,31 @@ paths:
           description: The inventory is not managed
         204:
           description: host removed
+
+  /project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id}/enabled:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+      - $ref: "#/parameters/inventory_host_id"
+    put:
+      tags:
+        - inventory
+      summary: Enables or disables a host of a managed inventory
+      parameters:
+        - name: enabled
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [enabled]
+            properties:
+              enabled:
+                type: boolean
+      responses:
+        400:
+          description: The inventory is not managed
+        204:
+          description: host enabled or disabled
 
   # project environment
   /project/{project_id}/environment:

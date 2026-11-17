@@ -33,16 +33,6 @@
         data-testid="inventoryHostForm-description"
       ></v-text-field>
 
-      <v-switch
-        v-model="item.enabled"
-        :label="$t('enabled')"
-        :disabled="formSaving"
-        color="primary"
-        hide-details
-        density="compact"
-        data-testid="inventoryHostForm-enabled"
-      ></v-switch>
-
       <div class="mt-2 mb-1 text-medium-emphasis">{{ $t('inventory_hosts_variables') }}</div>
       <CodeMirror
         class="InventoryHostForm__editor"

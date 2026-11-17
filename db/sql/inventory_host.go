@@ -136,7 +136,6 @@ func (d *SqlDb) UpdateInventoryHost(host db.InventoryHost) error {
 		SetMap(map[string]any{
 			"name":        host.Name,
 			"description": host.Description,
-			"enabled":     host.Enabled,
 			"variables":   host.Variables,
 		}).
 		Where(sq.Eq{"id": host.ID, "inventory_id": host.InventoryID, "project_id": host.ProjectID}).
@@ -178,6 +177,18 @@ func (d *SqlDb) UpdateInventoryHost(host db.InventoryHost) error {
 	}
 
 	return nil
+}
+
+func (d *SqlDb) SetInventoryHostEnabled(projectID, inventoryID, hostID int, enabled bool) (bool, error) {
+	res, err := d.exec(
+		"update project__inventory_host set enabled=? where id=? and inventory_id=? and project_id=? and enabled<>?",
+		enabled, hostID, inventoryID, projectID, enabled)
+	if err != nil {
+		return false, err
+	}
+
+	affected, err := res.RowsAffected()
+	return affected > 0, err
 }
 
 func (d *SqlDb) DeleteInventoryHost(projectID, inventoryID, hostID int) error {

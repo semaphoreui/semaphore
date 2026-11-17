@@ -65,22 +65,16 @@ describe('InventoryHosts.vue', () => {
     ]).to.deep.equal(['inventory_hosts_enabled_label', 'inventory_hosts_edit', 'inventory_hosts_delete']);
   });
 
-  it('sends a fresh copy of the host with enabled false when the switch is turned off', async () => {
+  it('sends only enabled false when the switch is turned off', async () => {
     const wrapper = mountHosts({ isAdmin: true });
     await flush();
-    http.respond((c) => {
-      if (c.method !== 'get') return {};
-      return c.url.endsWith('/hosts/1') ? { ...hosts[0], description: 'newer' } : hosts;
-    });
 
     await wrapper.find('[data-testid="inventoryHosts-enabled"] input').setValue(false);
     await flush();
 
     const put = http.requests.find((r) => r.method === 'put');
-    expect(put.url).to.equal('/api/project/7/inventory/3/hosts/1');
-    expect(put.data.enabled).to.equal(false);
-    expect(put.data.name).to.equal('web1');
-    expect(put.data.description).to.equal('newer');
+    expect(put.url).to.equal('/api/project/7/inventory/3/hosts/1/enabled');
+    expect(put.data).to.deep.equal({ enabled: false });
   });
 
   it('gives a read-only user no add button and a disabled switch', async () => {
