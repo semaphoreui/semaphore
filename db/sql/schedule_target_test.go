@@ -167,3 +167,46 @@ func TestDeleteWorkflow_CascadesToItsSchedules(t *testing.T) {
 	_, err = store.GetSchedule(project.ID, created.ID)
 	assert.ErrorIs(t, err, db.ErrNotFound)
 }
+
+func TestUpdateSchedule_NullTaskParamsClearsOverrides(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, template := createTestTemplate(t, store)
+
+	created, err := store.CreateSchedule(db.Schedule{
+		Name: "nightly", ProjectID: project.ID, TemplateID: &template.ID, CronFormat: "0 0 * * *",
+		TaskParams: &db.TaskParams{Message: "deploy"},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, created.TaskParamsID)
+	paramsID := *created.TaskParamsID
+
+	// task_params: null in the request body.
+	err = store.UpdateSchedule(db.Schedule{
+		ID: created.ID, Name: "nightly", ProjectID: project.ID, TemplateID: &template.ID, CronFormat: "0 0 * * *",
+	})
+	require.NoError(t, err)
+
+	updated, err := store.GetSchedule(project.ID, created.ID)
+	require.NoError(t, err)
+	assert.Nil(t, updated.TaskParamsID)
+	assert.Nil(t, updated.TaskParams)
+	count, err := store.Sql().SelectInt("select count(*) from project__task_params where id = ?", paramsID)
+	require.NoError(t, err)
+	assert.Zero(t, count, "the cleared task params row is deleted")
+
+	// Params sent again are kept on the next update.
+	err = store.UpdateSchedule(db.Schedule{
+		ID: created.ID, Name: "nightly", ProjectID: project.ID, TemplateID: &template.ID, CronFormat: "0 0 * * *",
+		TaskParams: &db.TaskParams{Message: "again"},
+	})
+	require.NoError(t, err)
+	err = store.UpdateSchedule(db.Schedule{
+		ID: created.ID, Name: "renamed", ProjectID: project.ID, TemplateID: &template.ID, CronFormat: "0 0 * * *",
+		TaskParams: &db.TaskParams{Message: "again"},
+	})
+	require.NoError(t, err)
+	kept, err := store.GetSchedule(project.ID, created.ID)
+	require.NoError(t, err)
+	require.NotNil(t, kept.TaskParams)
+	assert.Equal(t, "again", kept.TaskParams.Message)
+}
