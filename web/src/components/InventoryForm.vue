@@ -92,7 +92,7 @@
       item-value="id"
       item-title="name"
       required
-      :disabled="formSaving"
+      :disabled="formSaving || (!isNew && item.type === 'managed')"
       variant="outlined"
       density="compact"
       data-testid="inventoryForm-type"
@@ -235,33 +235,8 @@ import ItemFormBase from '@/components/ItemFormBase';
 
 import { markRaw } from 'vue';
 import CodeMirror from 'vue-codemirror6';
-import { EditorView } from '@codemirror/view';
-import codeEditorExtensions from '@/lib/codeEditor';
+import codeEditorExtensions, { CODEMIRROR5_LOOK } from '@/lib/codeEditor';
 import RichEditor from '@/components/RichEditor.vue';
-
-// The editor as CodeMirror 5 drew it in Vuetify 2 (`codemirror.css`): black text on white in the
-// line height of the card text (22 px, not 1.4), lines padded 4 px, a 30 px gutter of #f7f7f7 with
-// numbers in #999. A theme, not a style block: CodeMirror 6 mounts its own styles outside the CSS
-// layers, where they win over any layered rule.
-const CODEMIRROR5_LOOK = EditorView.theme({
-  '&': {
-    color: '#000',
-    backgroundColor: '#fff',
-  },
-  '.cm-scroller': {
-    lineHeight: 'inherit',
-  },
-  '.cm-line': {
-    padding: '0 4px',
-  },
-  '.cm-gutters': {
-    backgroundColor: '#f7f7f7',
-    color: '#999',
-  },
-  '.cm-lineNumbers .cm-gutterElement': {
-    minWidth: '29px',
-  },
-});
 
 export default {
   mixins: [ItemFormBase],
@@ -281,16 +256,6 @@ export default {
         ...codeEditorExtensions({ tab: 'spaces' }),
         CODEMIRROR5_LOOK,
       ]),
-      inventoryTypes: [{
-        id: 'static',
-        name: 'Static',
-      }, {
-        id: 'static-yaml',
-        name: 'Static YAML',
-      }, {
-        id: 'file',
-        name: 'File',
-      }],
       keys: null,
       repositories: null,
       runnerTags: null,
@@ -298,6 +263,18 @@ export default {
   },
 
   computed: {
+    // The server rejects a change of the type to or from managed, so the list never offers it.
+    inventoryTypes() {
+      const types = [
+        { id: 'static', name: 'Static' },
+        { id: 'static-yaml', name: 'Static YAML' },
+        { id: 'file', name: 'File' },
+      ];
+      if (this.isNew || (this.item && this.item.type === 'managed')) {
+        types.push({ id: 'managed', name: 'Managed' });
+      }
+      return types;
+    },
     // A string key is a bare value with no login or private key, so it can not
     // authenticate a user; the picker offers only the types the executor accepts.
     sshKeys() {
