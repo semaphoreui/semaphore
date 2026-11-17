@@ -23,6 +23,7 @@
     <EditDialog
       v-model="editDialog"
       test-id="secretStoragesDialog"
+      help-doc="secret-storage"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${itemType} Storage`"
       :max-width="450"

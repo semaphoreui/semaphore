@@ -583,6 +583,7 @@
               @change="setArgs"
               title="CLI args"
               test-id="templateForm-args"
+              data-testid="templateForm-args"
             />
 
             <RichEditor
@@ -649,6 +650,7 @@
             :arg-title="$t('limit')"
             :add-arg-title="$t('addLimit')"
             test-id="templateForm-limit"
+            data-testid="templateForm-limit"
           />
 
           <ArgsPicker
@@ -659,6 +661,7 @@
             :arg-title="$t('tag')"
             :add-arg-title="$t('addTag')"
             test-id="templateForm-tags"
+            data-testid="templateForm-tags"
           />
 
           <ArgsPicker
@@ -669,6 +672,7 @@
             :arg-title="$t('tag')"
             :add-arg-title="$t('addSkippedTag')"
             test-id="templateForm-skipTags"
+            data-testid="templateForm-skipTags"
           />
 
           <TemplateVaults
@@ -793,6 +797,7 @@
             :title="$t('galaxyRoleArgs')"
             :arg-title="$t('arg')"
             test-id="templateForm-galaxyRoleArgs"
+            data-testid="templateForm-galaxyRoleArgs"
           />
 
           <ArgsPicker
@@ -802,6 +807,7 @@
             :title="$t('galaxyCollectionArgs')"
             :arg-title="$t('arg')"
             test-id="templateForm-galaxyCollectionArgs"
+            data-testid="templateForm-galaxyCollectionArgs"
           />
 
           <template v-if="needField('allow_override_skip_galaxy_install')">

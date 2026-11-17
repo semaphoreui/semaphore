@@ -7,6 +7,7 @@
     <EditDialog
       v-model="editDialog"
       test-id="keystoreDialog"
+      help-doc="key"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Key`"
       :max-width="450"

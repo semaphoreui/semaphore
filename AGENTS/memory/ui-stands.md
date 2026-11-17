@@ -8,23 +8,31 @@
 - Released version: `gh release download vX.Y.Z -R semaphoreui/semaphore -p
   'semaphore_X.Y.Z_darwin_arm64.tar.gz'` (`-R` needed outside the repo). The Pro build enables
   Workflows without a license; secret storages and executors stay paywalled.
-- Unreleased branch: `cd web && npm run build` (Vite since the Vue 3 move; `npm ci` first in a
-  fresh worktree), then `go build -tags netgo -o
-  /tmp/semaphore-stand-bin ./cli` (the embed picks up `api/public`), then `migrate --config`,
-  `user add --admin ... --config`, `server --config`.
+- Unreleased branch: `cd web && npm run build` (Vite since 2026-11; `vue-cli-service` is gone;
+  `npm ci` first in a fresh worktree), then `go build -tags netgo -o /tmp/semaphore-stand-bin
+  ./cli` (the embed picks up `api/public`; a worktree without `go.work` / `pro_impl` builds
+  community with `GOWORK=off`), then `migrate --config`, `user add --admin ... --config`,
+  `server --config`.
+- A stand of the config-only kind needs five keys: `dialect: sqlite`, `sqlite.host` (file path),
+  `port`, `tmp_path` and the three secrets (`cookie_hash`, `cookie_encryption`,
+  `access_key_encryption`, base64 of 32 random bytes); add `"interface": "127.0.0.1"` — without it
+  the server listens on every interface with the stand's `admin123`.
 - `use_remote_runner: true` removes the "Global runners disabled" banner; a tagged runner is
   skipped by untagged templates, so mark the runner `is_default`.
 - Seed through the REST API with the login cookie: `POST /api/auth/login {auth, password}` → 204,
   `POST /api/projects` → 201. Workflow nodes may be sent with arbitrary IDs (`nodeIDMap` remaps),
   but every PUT reinserts nodes, so old runs lose node statuses. Seed/shoot scripts live in
   `/tmp/semaphore-stand/` (`seed-hc.sh`, `shoot-hc.cjs`, `wheel-wf*.cjs`).
-- ⚠️ 2026-11-17: the recipe below is from the vue-cli era; the app builds with Vite now
-  (`npm run serve`), the proxy override was not re-checked.
 - Test current sources without a rebuild: run a second hot-reloading dev server proxying to :3100 —
-  `VUE_CLI_SERVICE_CONFIG_PATH=$PWD/node_modules/.cache/vue.config.stand.js npx vue-cli-service
-  serve --port 8090`, where the config `require`s `web/vue.config.js` and overrides
-  `configureWebpack.devServer.proxy['^/api'].target`. The override file must live under `web/`
-  (is-file-esm crashes on a `/tmp` path without package.json).
+  `cd web && SEMAPHORE_DEV_API_URL=http://127.0.0.1:3100 npx vite --port 8090 --strictPort --host
+  127.0.0.1` (`vite.config.mjs` defaults to host `0.0.0.0`). Playwright for the shoot scripts:
+  `NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules`, `chromium.launch({ channel: 'chrome' })`.
+- Help-panel stand: `AGENTS/tools/help-stand/` builds, starts and seeds it (`:3100`, a sub-path
+  instance on `:3102`) and holds the browser checks of the built-in help.
+- Copying the SQLite file of a running stand loses its last writes (they are in the `-wal` file
+  next to it): use `sqlite3 <db> ".backup '<copy>'"`.
+- Community build has no `project_runners` feature: the Runner tag field of the inventory form
+  never shows on such a stand.
 - Stand workflow 1 shows the unsaved-changes dialog after merely selecting a node (pre-existing,
   unexplained).
 - ⚠️ macOS purges files under `/tmp` untouched for ~3 days (directories stay): the stand's config, DB, admin

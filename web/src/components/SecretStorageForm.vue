@@ -119,7 +119,7 @@
         :disabled="formSaving"
         :rules="[(v) => !!v || itemId !== 'new' || $t('key_required')]"
         required
-        data-testid="secretStorage-dvlsKey"
+        data-testid="secretStorage-dvlsAppKey"
         variant="outlined"
         density="compact"
       ></v-text-field>
@@ -343,9 +343,24 @@
       </v-btn>
     </div>
 
-    <v-dialog v-model="syncSettingsDialog" max-width="500" persistent>
+    <HelpDialog
+      v-model="syncSettingsDialog"
+      help-doc="secret-sync-paths"
+      max-width="500"
+      persistent
+      v-slot="{ docs }"
+    >
       <v-card data-testid="secretStorageSyncDialog">
-        <v-card-title data-testid="secretStorageSyncDialog-title">Sync paths</v-card-title>
+        <v-card-title class="d-flex align-center" data-testid="secretStorageSyncDialog-title">
+          Sync paths
+          <v-spacer></v-spacer>
+          <HelpButton
+            v-if="docs.available"
+            :open="docs.open"
+            data-testid="secretStorageSyncDialog-docs"
+            @click="docs.toggle()"
+          />
+        </v-card-title>
         <v-card-text class="pt-4 pb-0">
           <v-text-field
             style="width: 140px"
@@ -379,16 +394,20 @@
           </v-btn>
         </v-card-actions>
       </v-card>
-    </v-dialog>
+    </HelpDialog>
   </v-form>
 </template>
 <script>
 import ItemFormBase from '@/components/ItemFormBase';
 import SecretStorageSyncOptionsForm from '@/components/SecretStorageSyncOptionsForm.vue';
 import SecretSourceToggle from '@/components/SecretSourceToggle.vue';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpDialog from '@/components/HelpDialog.vue';
 
 export default {
-  components: { SecretStorageSyncOptionsForm, SecretSourceToggle },
+  components: {
+    SecretStorageSyncOptionsForm, SecretSourceToggle, HelpButton, HelpDialog,
+  },
 
   props: {
     itemType: String,

@@ -2,6 +2,7 @@
   <EditDialog
     v-model="dialog"
     test-id="teamMemberDialog"
+    help-doc="team-member"
     :save-button-text="(
       itemId === 'new'
         ? (invitesEnabled ? 'Invite' : 'Link')

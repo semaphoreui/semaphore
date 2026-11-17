@@ -63,6 +63,7 @@
     }
   ],
   "notes": [
+    "Auto approval is controlled by task parameters, not CLI arguments: enable task_params.allow_auto_approve in the template, then params.auto_approve in a task or task_params.params.auto_approve in a workflow node. This also applies to destroy. Template task_params.auto_approve enables automatic approval for every run.",
     "Array format is automatically converted to map with 'default' key at runtime (original JSON in database remains unchanged)",
     "Common arguments like -var, -destroy, and environment secrets are automatically added to all stages",
     "Stage resolution order: specific stage key -> 'default' key -> empty array",
