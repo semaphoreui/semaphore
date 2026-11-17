@@ -981,7 +981,10 @@ definitions:
         description: Repository holding the inventory file. Used only by a "file" inventory; for any other type it is dropped and stored as null.
       type:
         type: string
-        enum: [static, static-yaml, file, terraform-workspace]
+        enum: [static, static-yaml, file, terraform-workspace, managed]
+      variables:
+        type: string
+        description: Group variables of a "managed" inventory as YAML or JSON mapping, dropped for any other type.
 
   Inventory:
     type: object
@@ -1008,7 +1011,50 @@ definitions:
         x-nullable: true
       type:
         type: string
-        enum: [static, static-yaml, file, terraform-workspace]
+        enum: [static, static-yaml, file, terraform-workspace, managed]
+      variables:
+        type: string
+        description: Group variables of a "managed" inventory, null for any other type.
+        x-nullable: true
+
+  InventoryHost:
+    type: object
+    properties:
+      id:
+        type: integer
+      inventory_id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+        example: web1
+      description:
+        type: string
+      enabled:
+        type: boolean
+      variables:
+        type: string
+        description: Host variables as YAML or JSON mapping
+      created:
+        type: string
+        format: date-time
+
+  InventoryHostRequest:
+    type: object
+    required: [name]
+    properties:
+      name:
+        type: string
+        example: web1
+      description:
+        type: string
+      enabled:
+        type: boolean
+        description: True when omitted on create. An update replaces the whole host, so there an omitted value is false.
+      variables:
+        type: string
+        description: Host variables as YAML or JSON mapping
 
   Integration:
     type: object
@@ -2273,6 +2319,13 @@ parameters:
     type: integer
     required: true
     x-example: 26
+  inventory_host_id:
+    name: inventory_host_id
+    description: host ID of a managed inventory
+    in: path
+    type: integer
+    required: true
+    x-example: 27
   perm_id:
     name: perm_id
     description: role grant ID
@@ -3917,6 +3970,97 @@ paths:
       responses:
         204:
           description: inventory removed
+
+  /project/{project_id}/inventory/{inventory_id}/hosts:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    get:
+      tags:
+        - inventory
+      summary: Get hosts of a managed inventory
+      parameters:
+        - name: search
+          in: query
+          required: false
+          type: string
+          description: Part of the host name, case-insensitive
+        - name: offset
+          in: query
+          required: false
+          type: integer
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 50 by default (also for 0), 1000 at most
+      responses:
+        400:
+          description: Invalid query parameter or the inventory is not managed
+        200:
+          description: Page of hosts, X-Total-Count header holds the total
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/InventoryHost"
+    post:
+      tags:
+        - inventory
+      summary: Add a host to a managed inventory
+      parameters:
+        - name: InventoryHost
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/InventoryHostRequest"
+      responses:
+        400:
+          description: Invalid host or the inventory is not managed
+        201:
+          description: host created
+          schema:
+            $ref: "#/definitions/InventoryHost"
+
+  /project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+      - $ref: "#/parameters/inventory_host_id"
+    get:
+      tags:
+        - inventory
+      summary: Get a host of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        200:
+          description: host object
+          schema:
+            $ref: "#/definitions/InventoryHost"
+    put:
+      tags:
+        - inventory
+      summary: Updates a host of a managed inventory
+      parameters:
+        - name: InventoryHost
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/InventoryHostRequest"
+      responses:
+        400:
+          description: Invalid host or the inventory is not managed
+        204:
+          description: host updated
+    delete:
+      tags:
+        - inventory
+      summary: Removes a host of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        204:
+          description: host removed
 
   # project environment
   /project/{project_id}/environment:

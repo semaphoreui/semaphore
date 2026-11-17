@@ -97,13 +97,24 @@ func AddInventory(w http.ResponseWriter, r *http.Request) {
 		db.InventoryStaticYaml,
 		db.InventoryFile,
 		db.InventoryTofuWorkspace,
-		db.InventoryTerraformWorkspace:
+		db.InventoryTerraformWorkspace,
+		db.InventoryManaged:
 		break
 	default:
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Not supported inventory type",
 		})
 		return
+	}
+
+	if inventory.Type == db.InventoryManaged {
+		if _, err := db.ParseInventoryVariables(inventory.VariablesText()); err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		inventory.Inventory = ""
+	} else {
+		inventory.Variables = nil
 	}
 
 	err := db.ValidateInventory(helpers.Store(r), &inventory)
@@ -181,9 +192,23 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if inventory.Type != oldInventory.Type &&
+		(inventory.Type == db.InventoryManaged || oldInventory.Type == db.InventoryManaged) {
+		helpers.WriteErrorStatus(w,
+			"the type of a managed inventory can not be changed",
+			http.StatusBadRequest)
+		return
+	}
+
 	switch inventory.Type {
 	case db.InventoryTerraformWorkspace, db.InventoryTofuWorkspace:
 	case db.InventoryStatic, db.InventoryStaticYaml:
+	case db.InventoryManaged:
+		if _, err := db.ParseInventoryVariables(inventory.VariablesText()); err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		inventory.Inventory = ""
 	case db.InventoryFile:
 		if !IsValidInventoryPath(inventory.Inventory) {
 			helpers.WriteErrorStatus(w, "Invalid inventory file pathname. Must be: path/to/inventory.", http.StatusBadRequest)
@@ -194,6 +219,10 @@ func UpdateInventory(w http.ResponseWriter, r *http.Request) {
 			"unknown inventory type: "+string(inventory.Type),
 			http.StatusBadRequest)
 		return
+	}
+
+	if inventory.Type != db.InventoryManaged {
+		inventory.Variables = nil
 	}
 
 	if err := db.ValidateInventory(helpers.Store(r), &inventory); err != nil {

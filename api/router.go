@@ -499,6 +499,12 @@ func Route(
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.UpdateInventory).Methods("PUT")
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.RemoveInventory).Methods("DELETE")
 
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts", projects.GetInventoryHosts).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts", projects.AddInventoryHost).Methods("POST")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}", projects.GetInventoryHost).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}", projects.UpdateInventoryHost).Methods("PUT")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}", projects.RemoveInventoryHost).Methods("DELETE")
+
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases", terraformInventoryController.GetTerraformInventoryAliases).Methods("GET", "HEAD")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases", terraformInventoryController.AddTerraformInventoryAlias).Methods("POST")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases/{alias_id}", terraformInventoryController.GetTerraformInventoryAlias).Methods("GET")
