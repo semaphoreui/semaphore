@@ -207,13 +207,18 @@ export default {
     })).data;
   },
   computed: {
-    // A string key is a bare value with no login or private key, so it can not
-    // authenticate a user; the picker offers only the types the executor accepts.
+    // The picker offers only the types the executor accepts. A string key is a
+    // bare token, such as a personal access token: an HTTP(S) server takes it,
+    // an SSH server has no use for it.
     sshKeys() {
       if (this.keys == null) {
         return null;
       }
-      return this.keys.filter((key) => ['ssh', 'login_password', 'none'].includes(key.type));
+      const types = ['ssh', 'login_password', 'none'];
+      if (this.type === 'http' || this.type === 'https') {
+        types.push('string');
+      }
+      return this.keys.filter((key) => types.includes(key.type));
     },
     type() {
       return getRepositoryUrlType(this.item.git_url);

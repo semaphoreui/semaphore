@@ -80,6 +80,16 @@ func (c GoGitClient) getAuthMethod(r GitRepository) (transport.AuthMethod, error
 		}
 
 		return password, nil
+	case db.AccessKeyString:
+		// A string key is a token, and only an HTTP(S) server takes one.
+		if r.Repository.GetType() != db.RepositoryHTTP {
+			return nil, errors.New("unsupported auth method")
+		}
+
+		return &http.BasicAuth{
+			Username: db.GitTokenLogin,
+			Password: r.Repository.SSHKey.String,
+		}, nil
 	case db.AccessKeyNone:
 		return nil, nil
 	default:

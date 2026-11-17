@@ -26,6 +26,13 @@ const (
 	RepositoryLocal RepositoryType = "local"
 )
 
+// GitTokenLogin is the username sent along with a string access key. Such a key
+// is a bare token, and GitHub, GitLab, Azure DevOps and Gitea all take a
+// personal access token as the password of any non-empty username. A server
+// that insists on a username of its own, like Bitbucket's "x-token-auth", needs
+// a login/password key.
+const GitTokenLogin = "oauth2"
+
 // Repository is the model for code stored in a git repository
 type Repository struct {
 	ID        int    `db:"id" json:"id" backup:"-"`
@@ -120,10 +127,38 @@ func (r Repository) GetFullPath(templateID int) string {
 	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetCheckoutDirName(templateID))
 }
 
+// GetHTTPUserinfo returns the repository's access key as URL userinfo, or nil
+// when the repository is not reached over HTTP(S) or its key holds no HTTP
+// credential. A login/password key with an empty login is a token sent as the
+// username; a string key is a token sent as the password of GitTokenLogin.
+func (r Repository) GetHTTPUserinfo() *url.Userinfo {
+	if r.GetType() != RepositoryHTTP {
+		return nil
+	}
+
+	switch r.SSHKey.Type {
+	case AccessKeyLoginPassword:
+		if r.SSHKey.LoginPassword.Login == "" {
+			if r.SSHKey.LoginPassword.Password == "" {
+				return nil
+			}
+			return url.User(r.SSHKey.LoginPassword.Password)
+		}
+		return url.UserPassword(r.SSHKey.LoginPassword.Login, r.SSHKey.LoginPassword.Password)
+	case AccessKeyString:
+		if r.SSHKey.String == "" {
+			return nil
+		}
+		return url.UserPassword(GitTokenLogin, r.SSHKey.String)
+	default:
+		return nil
+	}
+}
+
 // GetGitURL returns the URL git is invoked with. With embedCredentials set,
-// the repository's login/password access key is embedded in the userinfo,
-// percent encoded, so credentials containing "@", ":", "#" or "%" survive
-// intact. Otherwise the URL is returned exactly as configured. It may still
+// the repository's login/password or string access key is embedded in the
+// userinfo, percent encoded, so credentials containing "@", ":", "#" or "%"
+// survive intact. Otherwise the URL is returned exactly as configured. It may still
 // carry userinfo typed into the URL itself, which go-git uses as basic auth,
 // so it is not safe to log in either mode. Use GetRedactedGitURL for that.
 //
@@ -158,15 +193,8 @@ func (r Repository) GetGitURL(embedCredentials bool) string {
 		return rawURL
 	}
 
-	if r.GetType() == RepositoryHTTP && r.SSHKey.Type == AccessKeyLoginPassword {
-		if r.SSHKey.LoginPassword.Login == "" {
-			if r.SSHKey.LoginPassword.Password == "" {
-				return rawURL
-			}
-			parsed.User = url.User(r.SSHKey.LoginPassword.Password)
-		} else {
-			parsed.User = url.UserPassword(r.SSHKey.LoginPassword.Login, r.SSHKey.LoginPassword.Password)
-		}
+	if userinfo := r.GetHTTPUserinfo(); userinfo != nil {
+		parsed.User = userinfo
 
 		// Credentials are still embedded for plain http so existing installations
 		// keep working, but the transport is unencrypted and the credentials are

@@ -332,7 +332,8 @@ func galaxyGitEnv(repo db.Repository) (env []string) {
 	// Without this git prompts on /dev/tty and the task hangs instead of failing.
 	env = append(env, "GIT_TERMINAL_PROMPT=0")
 
-	if repo.GetType() != db.RepositoryHTTP || repo.SSHKey.Type != db.AccessKeyLoginPassword {
+	userinfo := repo.GetHTTPUserinfo()
+	if userinfo == nil {
 		return
 	}
 
@@ -346,11 +347,7 @@ func galaxyGitEnv(repo db.Repository) (env []string) {
 	plain.Path, plain.RawQuery, plain.Fragment, plain.User = "/", "", "", nil
 
 	withAuth := *plain
-	if login := repo.SSHKey.LoginPassword.Login; login == "" {
-		withAuth.User = url.User(repo.SSHKey.LoginPassword.Password)
-	} else {
-		withAuth.User = url.UserPassword(login, repo.SSHKey.LoginPassword.Password)
-	}
+	withAuth.User = userinfo
 
 	// git splits each GIT_CONFIG_PARAMETERS entry at its first "=", and net/url
 	// leaves "=" unescaped in userinfo, so a credential containing one would cut

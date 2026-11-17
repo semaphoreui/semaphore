@@ -142,6 +142,64 @@ func TestRepository_GetGitURL(t *testing.T) {
 			ExpectedGitUrl:   "https://token%25with%23special%40chars@devops.domain.com/tfs/project/_git/repo",
 		},
 		{
+			// A string key is a bare token: it goes in as the password, since
+			// not every server takes a token in place of the username.
+			name: "HTTPS string key embedded as the password of the token login",
+			Repository: Repository{
+				GitURL: "https://github.com/user/project.git",
+				SSHKey: AccessKey{Type: AccessKeyString, String: "ghp_token"},
+			},
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "https://oauth2:ghp_token@github.com/user/project.git",
+		},
+		{
+			name: "HTTPS string key with special chars is encoded",
+			Repository: Repository{
+				GitURL: "https://devops.domain.com/tfs/project/_git/repo",
+				SSHKey: AccessKey{Type: AccessKeyString, String: "token%with#special@chars"},
+			},
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "https://oauth2:token%25with%23special%40chars@devops.domain.com/tfs/project/_git/repo",
+		},
+		{
+			name: "Plain HTTP embeds the string key too",
+			Repository: Repository{
+				GitURL: "http://insecure-git.domain.local/project/_git/repo",
+				SSHKey: AccessKey{Type: AccessKeyString, String: "glpat-token"},
+			},
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "http://oauth2:glpat-token@insecure-git.domain.local/project/_git/repo",
+		},
+		{
+			name: "HTTPS empty string key leaves the URL untouched",
+			Repository: Repository{
+				GitURL: "https://github.com/user/project.git",
+				SSHKey: AccessKey{Type: AccessKeyString},
+			},
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "https://github.com/user/project.git",
+		},
+		{
+			name: "HTTPS embedCredentials=false does not embed the string key",
+			Repository: Repository{
+				GitURL: "https://github.com/user/project.git",
+				SSHKey: AccessKey{Type: AccessKeyString, String: "ghp_token"},
+			},
+			EmbedCredentials: false,
+			ExpectedGitUrl:   "https://github.com/user/project.git",
+		},
+		{
+			// A token means nothing to an SSH server, and the URL must not grow
+			// a userinfo that would replace the "git" login.
+			name: "ssh:// URL never embeds the string key",
+			Repository: Repository{
+				GitURL: "ssh://git@github.com/user/project.git",
+				SSHKey: AccessKey{Type: AccessKeyString, String: "ghp_token"},
+			},
+			EmbedCredentials: true,
+			ExpectedGitUrl:   "ssh://git@github.com/user/project.git",
+		},
+		{
 			name: "HTTPS embedCredentials=false does not embed the access key",
 			Repository: Repository{
 				GitURL: "https://devops.domain.com/tfs/project/_git/repo",
