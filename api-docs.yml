@@ -4127,7 +4127,7 @@ paths:
                 example: false
       responses:
         400:
-          description: The inventory is not managed
+          description: No enabled value or the inventory is not managed
         204:
           description: host enabled or disabled
 

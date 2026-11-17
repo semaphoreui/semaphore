@@ -258,13 +258,19 @@ func SetInventoryHostEnabled(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		Enabled bool `json:"enabled"`
+		Enabled *bool `json:"enabled"`
 	}
 	if !helpers.Bind(w, r, &body) {
 		return
 	}
 
-	changed, err := helpers.Store(r).SetInventoryHostEnabled(inventory.ProjectID, inventory.ID, hostID, body.Enabled)
+	// An empty body would otherwise disable the host
+	if body.Enabled == nil {
+		helpers.WriteErrorStatus(w, "enabled is required", http.StatusBadRequest)
+		return
+	}
+
+	changed, err := helpers.Store(r).SetInventoryHostEnabled(inventory.ProjectID, inventory.ID, hostID, *body.Enabled)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -273,7 +279,7 @@ func SetInventoryHostEnabled(w http.ResponseWriter, r *http.Request) {
 	// The update itself tells whether the flag changed, so two requests never record one change twice
 	if changed {
 		verb, kind := "disabled", audit.ResourceInventoryHostDisable
-		if body.Enabled {
+		if *body.Enabled {
 			verb, kind = "enabled", audit.ResourceInventoryHostEnable
 		}
 		recordInventoryHost(r, helpers.EventLogUpdate, verb, kind, inventory, host, audit.InventoryHostMetadata{})

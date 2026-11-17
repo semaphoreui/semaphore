@@ -254,18 +254,24 @@ func SetInventoryVariables(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body struct {
-		Variables string `json:"variables"`
+		Variables *string `json:"variables"`
 	}
 	if !helpers.Bind(w, r, &body) {
 		return
 	}
 
-	if _, err := db.ParseInventoryVariables(body.Variables); err != nil {
+	// An empty body would otherwise clear the variables
+	if body.Variables == nil {
+		helpers.WriteErrorStatus(w, "variables are required", http.StatusBadRequest)
+		return
+	}
+
+	if _, err := db.ParseInventoryVariables(*body.Variables); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	if err := helpers.Store(r).SetInventoryVariables(inventory.ProjectID, inventory.ID, body.Variables); err != nil {
+	if err := helpers.Store(r).SetInventoryVariables(inventory.ProjectID, inventory.ID, *body.Variables); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
@@ -282,7 +288,7 @@ func SetInventoryVariables(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.ResourceInventoryUpdate,
 		Target:    audit.ResourceTarget(audit.TargetInventory, inventory.ID, inventory.Name),
 		ProjectID: inventory.ProjectID,
-		Metadata:  diffVariables(inventory.VariablesText(), body.Variables),
+		Metadata:  diffVariables(inventory.VariablesText(), *body.Variables),
 	})
 
 	w.WriteHeader(http.StatusNoContent)

@@ -312,6 +312,9 @@ func TestSetInventoryVariables(t *testing.T) {
 		{"mapping", db.InventoryManaged, `{"variables":"a: 2"}`, http.StatusNoContent, "a: 2"},
 		{"not a mapping", db.InventoryManaged, `{"variables":"- a"}`, http.StatusBadRequest, "a: 1"},
 		{"not managed", db.InventoryStatic, `{"variables":"a: 2"}`, http.StatusBadRequest, "a: 1"},
+		{"cleared", db.InventoryManaged, `{"variables":""}`, http.StatusNoContent, ""},
+		{"omitted", db.InventoryManaged, `{}`, http.StatusBadRequest, "a: 1"},
+		{"null", db.InventoryManaged, `{"variables":null}`, http.StatusBadRequest, "a: 1"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -345,4 +348,22 @@ func TestUpdateInventory_KeepsVariables(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "renamed", got.Name)
 	assert.Equal(t, "a: 1", got.VariablesText())
+}
+
+func TestSetInventoryHostEnabled_NeedsTheValue(t *testing.T) {
+	for _, body := range []string{`{}`, `{"enabled":null}`} {
+		t.Run(body, func(t *testing.T) {
+			f := newResourceFixture(t)
+			inventory := newManagedInventory(t, f, "managed")
+			host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true})
+			require.NoError(t, err)
+
+			w, _ := hostCall(f, inventory, http.MethodPut, body, host.ID, SetInventoryHostEnabled)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+			got, err := f.store.GetInventoryHost(f.project.ID, inventory.ID, host.ID)
+			require.NoError(t, err)
+			assert.True(t, got.Enabled)
+		})
+	}
 }
