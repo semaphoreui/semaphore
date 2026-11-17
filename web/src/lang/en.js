@@ -415,6 +415,7 @@ export default {
   inventory_hosts_empty: 'No hosts',
   inventory_hosts_variables: 'Variables (YAML or JSON)',
   inventory_variables_saved: 'Variables saved',
+  inventory_variables_leave: 'You have unsaved changes. Leave without saving?',
   hosts_limit_exceeded: 'Host limit exceeded: {used} of {limit} hosts in use',
   subscription_limit_exceeded: 'limit exceeded',
   runners: 'Runners',

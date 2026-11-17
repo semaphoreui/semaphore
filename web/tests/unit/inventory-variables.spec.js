@@ -53,4 +53,23 @@ describe('InventoryVariables.vue', () => {
     expect(put.data.variables).to.equal('a: 2');
     expect(put.data.ssh_key_id).to.equal(5);
   });
+
+  it('asks before leaving with unsaved variables', async () => {
+    const wrapper = mountVariables();
+    await flush();
+    const leave = (next) => InventoryVariables.beforeRouteLeave.call(wrapper.vm, {}, {}, next);
+    const answers = [];
+
+    leave((v) => answers.push(v));
+    wrapper.vm.inventory.variables = 'a: 2';
+    leave((v) => answers.push(v));
+    await flush();
+    expect(wrapper.vm.leaveDialog).to.equal(true);
+    wrapper.vm.leaveDialog = false;
+    await flush();
+    leave((v) => answers.push(v));
+    wrapper.vm.confirmLeave();
+
+    expect(answers).to.deep.equal([undefined, false, undefined]);
+  });
 });
