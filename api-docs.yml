@@ -1001,7 +1001,7 @@ definitions:
         enum: [static, static-yaml, file, terraform-workspace, managed]
       variables:
         type: string
-        description: Group variables of a "managed" inventory as YAML or JSON mapping, dropped for any other type.
+        description: Group variables of a "managed" inventory as YAML or JSON mapping. Used on create only, an update leaves them as they are.
 
   Inventory:
     type: object
@@ -3988,6 +3988,32 @@ paths:
         204:
           description: inventory removed
 
+  /project/{project_id}/inventory/{inventory_id}/variables:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    put:
+      tags:
+        - inventory
+      summary: Replaces the variables of a managed inventory
+      parameters:
+        - name: variables
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [variables]
+            properties:
+              variables:
+                type: string
+                description: Group variables as YAML or JSON mapping
+                example: "http_port: 8080"
+      responses:
+        400:
+          description: Invalid variables or the inventory is not managed
+        204:
+          description: variables replaced
+
   /project/{project_id}/inventory/{inventory_id}/hosts:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -4098,6 +4124,7 @@ paths:
             properties:
               enabled:
                 type: boolean
+                example: false
       responses:
         400:
           description: The inventory is not managed

@@ -195,9 +195,15 @@ func TestInventory_VariablesRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "a: 1", got.VariablesText())
 
+	got.Name = "renamed"
 	got.Variables = new("b: 2")
 	require.NoError(t, store.UpdateInventory(got))
+	got, err = store.GetInventory(project.ID, inventory.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "renamed", got.Name)
+	assert.Equal(t, "a: 1", got.VariablesText())
 
+	require.NoError(t, store.SetInventoryVariables(project.ID, inventory.ID, "b: 2"))
 	got, err = store.GetInventory(project.ID, inventory.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "b: 2", got.VariablesText())

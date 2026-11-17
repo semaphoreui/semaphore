@@ -297,7 +297,9 @@ type InventoryManager interface {
 	GetInventory(projectID int, inventoryID int) (Inventory, error)
 	GetInventoryRefs(projectID int, inventoryID int) (ObjectReferrers, error)
 	GetInventories(projectID int, params RetrieveQueryParams, types []InventoryType) ([]Inventory, error)
+	// UpdateInventory leaves the variables as they are
 	UpdateInventory(inventory Inventory) error
+	SetInventoryVariables(projectID, inventoryID int, variables string) error
 	CreateInventory(inventory Inventory) (Inventory, error)
 	DeleteInventory(projectID int, inventoryID int) error
 }

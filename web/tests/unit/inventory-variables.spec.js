@@ -35,23 +35,17 @@ describe('InventoryVariables.vue', () => {
     http.restore();
   });
 
-  it('saves the variables over a fresh copy of the inventory', async () => {
+  it('saves only the variables', async () => {
     const wrapper = mountVariables();
     await flush();
     wrapper.vm.inventory.variables = 'a: 2';
-    http.respond((c) => (c.method === 'get'
-      ? {
-        id: 3, name: 'prod', type: 'managed', ssh_key_id: 5, variables: 'a: 1',
-      }
-      : {}));
 
     await wrapper.find('[data-testid="inventoryVariables-save"]').trigger('click');
     await flush();
 
     const put = http.requests.find((r) => r.method === 'put');
-    expect(put.url).to.equal('/api/project/7/inventory/3');
-    expect(put.data.variables).to.equal('a: 2');
-    expect(put.data.ssh_key_id).to.equal(5);
+    expect(put.url).to.equal('/api/project/7/inventory/3/variables');
+    expect(put.data).to.deep.equal({ variables: 'a: 2' });
   });
 
   it('asks before leaving with unsaved variables', async () => {

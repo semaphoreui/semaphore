@@ -300,3 +300,49 @@ func TestDiffVariables(t *testing.T) {
 		})
 	}
 }
+
+func TestSetInventoryVariables(t *testing.T) {
+	tests := []struct {
+		name string
+		kind db.InventoryType
+		body string
+		code int
+		want string
+	}{
+		{"mapping", db.InventoryManaged, `{"variables":"a: 2"}`, http.StatusNoContent, "a: 2"},
+		{"not a mapping", db.InventoryManaged, `{"variables":"- a"}`, http.StatusBadRequest, "a: 1"},
+		{"not managed", db.InventoryStatic, `{"variables":"a: 2"}`, http.StatusBadRequest, "a: 1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newResourceFixture(t)
+			inventory, err := f.store.CreateInventory(db.Inventory{ProjectID: f.project.ID, Name: "i", Type: tt.kind, Variables: new("a: 1")})
+			require.NoError(t, err)
+
+			w, _ := hostCall(f, inventory, http.MethodPut, tt.body, 0, SetInventoryVariables)
+
+			assert.Equal(t, tt.code, w.Code, w.Body.String())
+			got, err := f.store.GetInventory(f.project.ID, inventory.ID)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got.VariablesText())
+		})
+	}
+}
+
+func TestUpdateInventory_KeepsVariables(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory, err := f.store.CreateInventory(db.Inventory{ProjectID: f.project.ID, Name: "i", Type: db.InventoryManaged, Variables: new("a: 1")})
+	require.NoError(t, err)
+	body, err := json.Marshal(map[string]any{"id": inventory.ID, "name": "renamed", "project_id": f.project.ID, "type": "managed", "variables": "a: 9"})
+	require.NoError(t, err)
+	r, _ := f.request(http.MethodPut, string(body), map[string]any{"inventory": inventory}, nil)
+	w := httptest.NewRecorder()
+
+	UpdateInventory(w, r)
+
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	got, err := f.store.GetInventory(f.project.ID, inventory.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "renamed", got.Name)
+	assert.Equal(t, "a: 1", got.VariablesText())
+}

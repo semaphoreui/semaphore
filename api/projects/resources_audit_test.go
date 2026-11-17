@@ -813,14 +813,13 @@ func TestInventoryEvents_ManagedVariables(t *testing.T) {
 	inventory, err := f.store.CreateInventory(db.Inventory{ProjectID: f.project.ID, Name: "prod", Type: db.InventoryManaged, Variables: new("a: 1\nb: 2")})
 	require.NoError(t, err)
 
-	body := `{"id":` + strconv.Itoa(inventory.ID) + `,"name":"prod","project_id":` + strconv.Itoa(f.project.ID) + `,"type":"managed","variables":"a: 5\nc: 3","inventory":"all"}`
-	r, rec := f.request(http.MethodPut, body, map[string]any{"inventory": inventory}, nil)
+	r, rec := f.request(http.MethodPut, `{"variables":"a: 5\nc: 3"}`, map[string]any{"inventory": inventory}, nil)
 	w := httptest.NewRecorder()
-	UpdateInventory(w, r)
+	SetInventoryVariables(w, r)
 	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
 	stored, err := f.store.GetInventory(f.project.ID, inventory.ID)
 	require.NoError(t, err)
-	assert.Empty(t, stored.Inventory)
+	assert.Equal(t, "a: 5\nc: 3", stored.VariablesText())
 
 	updated := only(t, rec, audit.ResourceInventoryUpdate)
 	assert.Equal(t, audit.InventoryVariablesMetadata{AddedVariables: []string{"c"}, RemovedVariables: []string{"b"}, ChangedVariables: []string{"a"}}, updated.Event.Metadata)

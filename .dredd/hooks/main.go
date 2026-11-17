@@ -123,6 +123,7 @@ func main() {
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Updates inventory > 204 > application/json", capabilityWrapper("inventory"))
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Removes inventory > 204 > application/json", capabilityWrapper("inventory"))
 
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/variables > Replaces the variables of a managed inventory > 204 > application/json", capabilityWrapper("inventory_host"))
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts > Get hosts of a managed inventory > 200 > application/json", capabilityWrapper("inventory_host"))
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts > Add a host to a managed inventory > 201 > application/json", func(t *trans.Transaction) {
 		addCapabilities([]string{"inventory_host"})
