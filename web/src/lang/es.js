@@ -363,4 +363,8 @@ export default {
   noProjectsText: 'No eres miembro de ningún proyecto. Pide a tu administrador de Semaphore que te añada a uno.',
   signedInAs: 'Sesión iniciada como {username} ({email})',
   signedInAsNoEmail: 'Sesión iniciada como {username}',
+  helpPanelOpen: 'Ayuda de este diálogo',
+  helpPanelOpenPage: 'Ayuda de esta página',
+  helpPanelClose: 'Cerrar la ayuda',
+  helpPanelFieldHidden: 'Este campo no se muestra con la configuración actual.',
 };

@@ -91,14 +91,13 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 	}
 
 	if schedule.RunsWorkflow() {
-		// A workflow's root node carries its own task params.
+		// Switching to a workflow leaves the old task params behind: the row
+		// is unlinked below and removed after the update succeeds.
 		schedule.TaskParams = nil
+		schedule.TaskParamsID = nil
+	} else if schedule.TaskParams == nil {
+		schedule.TaskParamsID = curr.TaskParamsID
 	}
-
-	// TaskParamsID never comes from the request (json:"-"): an update without
-	// task params (a workflow target, or an explicit null) unlinks the saved
-	// overrides, and the orphaned row is removed after the update succeeds.
-	schedule.TaskParamsID = nil
 
 	if schedule.TaskParams != nil {
 		params := schedule.TaskParams
@@ -152,7 +151,7 @@ func (d *SqlDb) UpdateSchedule(schedule db.Schedule) (err error) {
 		return
 	}
 
-	if schedule.TaskParamsID == nil && curr.TaskParamsID != nil {
+	if schedule.RunsWorkflow() && curr.TaskParamsID != nil {
 		err = d.deleteObject(schedule.ProjectID, db.TaskParamsProps, *curr.TaskParamsID)
 		if errors.Is(err, db.ErrNotFound) {
 			err = nil

@@ -406,4 +406,8 @@ export default {
   noProjectsText: 'Sie sind in keinem Projekt Mitglied. Bitten Sie Ihren Semaphore-Administrator, Sie zu einem hinzuzufügen.',
   signedInAs: 'Angemeldet als {username} ({email})',
   signedInAsNoEmail: 'Angemeldet als {username}',
+  helpPanelOpen: 'Hilfe zu diesem Dialog',
+  helpPanelOpenPage: 'Hilfe zu dieser Seite',
+  helpPanelClose: 'Hilfe schließen',
+  helpPanelFieldHidden: 'Dieses Feld wird mit den aktuellen Einstellungen nicht angezeigt.',
 };

@@ -8,6 +8,7 @@
     <EditDialog
       v-model="attachInventoryDialog"
       test-id="inventoryAttachDialog"
+      help-doc="workspace-attach-template"
       :save-button-text="$t('Attach')"
       :icon="getAppIcon(itemApp)"
       :icon-color="getAppColor(itemApp)"
@@ -34,6 +35,7 @@
       :icon-color="getAppColor(itemApp)"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${APP_INVENTORY_TITLE[itemApp]}`"
       :max-width="450"
+      :help-doc="isAnsibleInventory ? 'inventory-ansible' : null"
       @save="loadItems"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -204,6 +206,13 @@ export default {
   computed: {
     APP_INVENTORY_TITLE() {
       return APP_INVENTORY_TITLE;
+    },
+
+    // The dialog also edits the workspaces of Terraform, OpenTofu and Terragrunt, which have no
+    // help document. A computed property, not a comparison in the template: the build takes
+    // every string literal of a `help-doc` expression for the key of a document (vite/help).
+    isAnsibleInventory() {
+      return this.itemApp === 'ansible';
     },
   },
   mixins: [ItemListPageBase, AppsMixin],

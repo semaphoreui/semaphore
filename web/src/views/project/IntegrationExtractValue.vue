@@ -7,6 +7,7 @@
     <EditDialog
       v-model="editDialog"
       test-id="integrationValueDialog"
+      help-doc="integration-extract-value"
       :save-button-text="itemId === 'new' ? 'Create' : 'Save'"
       :title="`${itemId === 'new' ? 'New' : 'Edit'} Extract Value`"
       :max-width="450"

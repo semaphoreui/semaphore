@@ -4,15 +4,31 @@
     data-testid="cluster-page"
     :data-state="status == null ? 'loading' : 'ready'"
   >
-    <v-dialog v-model="clearDialog" max-width="450" persistent>
+    <HelpDialog
+      v-model="clearDialog"
+      help-doc="cluster-clear"
+      max-width="450"
+      persistent
+      v-slot="{ docs }"
+    >
       <v-card
         class="ClusterClearDialog"
         data-testid="clusterClearDialog"
         :data-state="clearing ? 'loading' : 'ready'"
       >
         <v-card-title
+          class="d-flex align-center"
           data-testid="clusterClearDialog-title"
-        >{{ $t('clearTasksTitle') }}</v-card-title>
+        >
+          {{ $t('clearTasksTitle') }}
+          <v-spacer></v-spacer>
+          <HelpButton
+            v-if="docs.available"
+            :open="docs.open"
+            data-testid="clusterClearDialog-docs"
+            @click="docs.toggle()"
+          />
+        </v-card-title>
         <v-card-text>
           <v-alert
             type="warning"
@@ -85,7 +101,7 @@
           </v-btn>
         </v-card-actions>
       </v-card>
-    </v-dialog>
+    </HelpDialog>
 
     <v-toolbar flat>
       <v-btn
@@ -343,13 +359,15 @@
 import axios from 'axios';
 import EventBus from '@/event-bus';
 import RedisMemoryChart from '@/components/RedisMemoryChart.vue';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpDialog from '@/components/HelpDialog.vue';
 import { GLOBAL_PERMISSIONS } from '@/lib/constants';
 import { hasGlobalPermission } from '@/lib/role-permissions';
 
 const MEMORY_WINDOW_MS = 60 * 60 * 1000;
 
 export default {
-  components: { RedisMemoryChart },
+  components: { RedisMemoryChart, HelpButton, HelpDialog },
 
   props: {
     features: Object,

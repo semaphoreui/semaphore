@@ -363,4 +363,8 @@ export default {
   noProjectsText: 'Vous n\'êtes membre d\'aucun projet. Demandez à votre administrateur Semaphore de vous ajouter à un projet.',
   signedInAs: 'Connecté en tant que {username} ({email})',
   signedInAsNoEmail: 'Connecté en tant que {username}',
+  helpPanelOpen: 'Aide pour cette boîte de dialogue',
+  helpPanelOpenPage: 'Aide pour cette page',
+  helpPanelClose: 'Fermer l\'aide',
+  helpPanelFieldHidden: 'Ce champ n\'est pas affiché avec les paramètres actuels.',
 };

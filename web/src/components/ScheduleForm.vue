@@ -41,6 +41,66 @@
       density="compact"
       data-testid="scheduleForm-name"
     ></v-text-field>
+    <div
+      v-if="workflowsEnabled"
+      class="d-flex justify-space-between align-center mb-2 ScheduleForm__target"
+    >
+      <b style="font-size: 13px; margin-left: 5px">{{ $t('scheduleRunTarget') }}</b>
+      <v-btn-toggle
+        :value="target"
+        @change="setTarget($event)"
+        tile
+        group
+        mandatory
+        :disabled="formSaving"
+      >
+        <v-btn value="template" small class="ma-0" style="border-radius: 4px">
+          {{ $t('scheduleTargetTemplate') }}
+        </v-btn>
+        <v-btn value="workflow" small class="ma-0" style="border-radius: 4px">
+          {{ $t('scheduleTargetWorkflow') }}
+        </v-btn>
+      </v-btn-toggle>
+    </div>
+
+    <v-alert
+      v-if="target === 'workflow' && !workflowsEnabled"
+      type="info"
+      text
+      dense
+      class="ScheduleForm__workflowUnavailable"
+    >
+      {{ $t('scheduleWorkflowTargetUnavailable', { id: item.workflow_id }) }}
+    </v-alert>
+
+    <div v-else-if="target === 'workflow'" style="position: relative">
+      <v-autocomplete
+        v-model="item.workflow_id"
+        :label="$t('workflowToRun')"
+        :items="workflows"
+        item-value="id"
+        :item-text="(itm) => itm.name"
+        :rules="[v => !!v || $t('scheduleTargetRequired')]"
+        required
+        :disabled="formSaving || !workflowSchedulesAvailable"
+        outlined
+        dense
+        class="ScheduleForm__workflow"
+      />
+
+      <v-chip
+        v-if="!workflowSchedulesAvailable"
+        color="hsl(348deg, 86%, 61%)"
+        text-color="white"
+        small
+        label
+        class="ScheduleForm__upgrade"
+        style="position: absolute; top: 8px; right: 8px"
+        @click="upgradeToPro('workflow_schedules_management')"
+      >
+        Upgrade to PRO
+      </v-chip>
+    </div>
 
     <div
       v-if="workflowsEnabled"
@@ -962,7 +1022,7 @@ export default {
       // The API omits workflow_id when it is null; add the key reactively so the
       // workflow autocomplete can bind to it.
       if (this.item.workflow_id === undefined) {
-        this.item.workflow_id = null;
+        this.$set(this.item, 'workflow_id', null);
       }
 
       this.target = this.item.workflow_id ? 'workflow' : 'template';

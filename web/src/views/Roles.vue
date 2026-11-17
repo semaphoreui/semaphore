@@ -6,6 +6,7 @@
   >
     <EditDialog
       test-id="roleDialog"
+      help-doc="role"
       v-model="editDialog"
       save-button-text="Save"
       :title="itemId === 'new' ? $t('newRole') : $t('editRole')"

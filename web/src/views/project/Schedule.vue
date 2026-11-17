@@ -1,3 +1,4 @@
+
 <template>
   <div
     v-if="items != null && workflows != null"
@@ -7,6 +8,7 @@
     <EditDialog
       v-model="editDialog"
       test-id="scheduleDialog"
+      help-doc="schedule"
       :save-button-text="$t('save')"
       :title="$t('editSchedule')"
       :max-width="500"

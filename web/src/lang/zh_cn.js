@@ -363,4 +363,8 @@ export default {
   noProjectsText: '您还不是任何项目的成员。请联系 Semaphore 管理员将您添加到项目中。',
   signedInAs: '已登录为 {username} ({email})',
   signedInAsNoEmail: '已登录为 {username}',
+  helpPanelOpen: '此对话框的帮助',
+  helpPanelOpenPage: '此页面的帮助',
+  helpPanelClose: '关闭帮助',
+  helpPanelFieldHidden: '当前设置下不显示此字段。',
 };

@@ -363,4 +363,8 @@ export default {
   noProjectsText: 'どのプロジェクトにも参加していません。Semaphore の管理者に追加を依頼してください。',
   signedInAs: '{username} ({email}) としてサインイン中',
   signedInAsNoEmail: '{username} としてサインイン中',
+  helpPanelOpen: 'このダイアログのヘルプ',
+  helpPanelOpenPage: 'このページのヘルプ',
+  helpPanelClose: 'ヘルプを閉じる',
+  helpPanelFieldHidden: 'このフィールドは現在の設定では表示されません。',
 };

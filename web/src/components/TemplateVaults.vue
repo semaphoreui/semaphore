@@ -1,16 +1,26 @@
 <template>
   <div class="pb-6" style="margin-top: -10px;" data-testid="templateVaults">
-    <v-dialog
+    <HelpDialog
       v-model="editDialog"
+      help-doc="template-vault"
       :scrim="false"
       content-class="NestedDialog"
       width="300"
+      v-slot="{ docs }"
     >
       <v-card
         :style="{ backgroundColor: $vuetify.theme.current.dark ? '#212121' : '#fff' }"
         data-testid="templateVaultDialog"
       >
-        <v-card-title data-testid="templateVaultDialog-heading"></v-card-title>
+        <v-card-title class="d-flex align-center" data-testid="templateVaultDialog-heading">
+          <v-spacer></v-spacer>
+          <HelpButton
+            v-if="docs.available"
+            :open="docs.open"
+            data-testid="templateVaultDialog-docs"
+            @click="docs.toggle()"
+          />
+        </v-card-title>
         <v-card-text class="pb-0">
           <v-form
             ref="form"
@@ -89,7 +99,7 @@
           </v-btn>
         </v-card-actions>
       </v-card>
-    </v-dialog>
+    </HelpDialog>
     <fieldset style="padding: 0 10px 2px 10px;
                      border-width: 1px;
                      border-color: rgba(133, 133, 133, 0.4);
@@ -133,8 +143,15 @@
 </style>
 <script>
 import axios from 'axios';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpDialog from '@/components/HelpDialog.vue';
 
 export default {
+  components: {
+    HelpButton,
+    HelpDialog,
+  },
+
   props: {
     projectId: Number,
     vaults: Array,

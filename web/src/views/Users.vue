@@ -7,6 +7,7 @@
     <EditDialog
       v-model="editDialog"
       test-id="userDialog"
+      help-doc="user"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="itemId === 'new' ? $t('newUser') : $t('editUser')"
       :dont-close-on-save="itemId === 'new'"

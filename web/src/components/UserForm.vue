@@ -6,6 +6,7 @@
     <EditDialog
       v-model="passwordDialog"
       test-id="changePasswordDialog"
+      help-doc="change-password"
       save-button-text="Save"
       :title="$t('changePassword')"
       v-if="item"

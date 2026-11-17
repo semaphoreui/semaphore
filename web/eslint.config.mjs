@@ -143,9 +143,18 @@ export default [
 
   {
     // Build tooling: dependencies of the build only.
-    files: ['vite.config.mjs', 'eslint.config.mjs'],
+    files: ['vite.config.mjs', 'eslint.config.mjs', 'vite/**/*.mjs'],
     rules: {
       'import/no-extraneous-dependencies': ['error', { devDependencies: true }],
+    },
+  },
+
+  {
+    // Modules Node loads itself (the Vite config and what it imports) and their tests: Node
+    // resolves a relative import only with its extension.
+    files: ['vite.config.mjs', 'vite/**/*.mjs', 'tests/unit/help-docs.spec.js'],
+    rules: {
+      'import/extensions': ['error', 'ignorePackages'],
     },
   },
 ];

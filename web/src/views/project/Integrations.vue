@@ -7,6 +7,7 @@
     <EditDialog
       v-model="editDialog"
       test-id="integrationsDialog"
+      help-doc="integration"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="itemId === 'new' ? $t('NewIntegration') : $t('EditIntegration')"
       :max-width="450"

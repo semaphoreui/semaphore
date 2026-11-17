@@ -372,4 +372,8 @@ export default {
   noProjectsText: 'Вы не состоите ни в одном проекте. Попросите администратора Semaphore добавить вас в проект.',
   signedInAs: 'Вы вошли как {username} ({email})',
   signedInAsNoEmail: 'Вы вошли как {username}',
+  helpPanelOpen: 'Справка по этому диалогу',
+  helpPanelOpenPage: 'Справка по этой странице',
+  helpPanelClose: 'Закрыть справку',
+  helpPanelFieldHidden: 'Это поле не показывается при текущих настройках.',
 };

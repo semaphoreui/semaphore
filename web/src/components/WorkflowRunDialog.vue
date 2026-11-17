@@ -1,7 +1,22 @@
 <template>
-  <v-dialog v-model="dialog" max-width="520" :persistent="running">
+  <HelpDialog
+    v-model="dialog"
+    help-doc="workflow-run"
+    max-width="520"
+    :persistent="running"
+    v-slot="{ docs }"
+  >
     <v-card data-testid="workflowRunDialog" :data-state="running ? 'loading' : 'ready'">
-      <v-card-title data-testid="workflowRunDialog-title">{{ title }}</v-card-title>
+      <v-card-title class="d-flex align-center" data-testid="workflowRunDialog-title">
+        {{ title }}
+        <v-spacer></v-spacer>
+        <HelpButton
+          v-if="docs.available"
+          :open="docs.open"
+          data-testid="workflowRunDialog-docs"
+          @click="docs.toggle()"
+        />
+      </v-card-title>
       <v-card-text class="pb-0">
         <div
           class="text-body-small text-medium-emphasis mb-4"
@@ -38,10 +53,12 @@
         >{{ $t('run') }}</v-btn>
       </v-card-actions>
     </v-card>
-  </v-dialog>
+  </HelpDialog>
 </template>
 
 <script>
+import HelpButton from '@/components/HelpButton.vue';
+import HelpDialog from '@/components/HelpDialog.vue';
 import SurveyFields from '@/components/SurveyFields.vue';
 
 // Asks the workflow's survey before a run starts. Opens with the survey
@@ -52,7 +69,7 @@ import SurveyFields from '@/components/SurveyFields.vue';
 // the dialog (v-model) on success, so a server-side validation error keeps
 // the answers on screen.
 export default {
-  components: { SurveyFields },
+  components: { HelpButton, HelpDialog, SurveyFields },
 
   props: {
     modelValue: Boolean,
