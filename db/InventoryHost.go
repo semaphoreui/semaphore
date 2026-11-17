@@ -31,8 +31,9 @@ func ParseInventoryVariables(text string) (map[string]any, error) {
 	invalid := common_errors.NewValidationError("variables must be a YAML or JSON mapping")
 	vars := map[string]any{}
 
+	var doc yaml.Node
 	decoder := yaml.NewDecoder(strings.NewReader(text))
-	err := decoder.Decode(&vars)
+	err := decoder.Decode(&doc)
 	if errors.Is(err, io.EOF) {
 		return vars, nil
 	}
@@ -45,11 +46,39 @@ func ParseInventoryVariables(text string) (map[string]any, error) {
 		return nil, invalid
 	}
 
+	// Decoding skips a null key with its value, so that value would stay unchecked
+	if hasNullKey(&doc) {
+		return nil, common_errors.NewValidationError("variable names must not be null")
+	}
+
+	err = doc.Decode(&vars)
+	if err != nil {
+		return nil, invalid
+	}
+
 	if vars == nil {
 		vars = map[string]any{}
 	}
 
 	return vars, nil
+}
+
+func hasNullKey(node *yaml.Node) bool {
+	for i, child := range node.Content {
+		if node.Kind == yaml.MappingNode && i%2 == 0 {
+			key := child
+			if key.Kind == yaml.AliasNode {
+				key = key.Alias
+			}
+			if key.ShortTag() == "!!null" {
+				return true
+			}
+		}
+		if hasNullKey(child) {
+			return true
+		}
+	}
+	return false
 }
 
 func (h InventoryHost) Validate() error {

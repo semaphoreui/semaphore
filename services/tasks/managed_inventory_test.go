@@ -118,3 +118,11 @@ func TestBuildManagedInventory_ExpandsAnchors(t *testing.T) {
 	assert.Equal(t, map[string]any{"u": 1}, parsed["all"]["hosts"]["web2"]["copy"])
 	assert.Equal(t, map[string]any{"a": 1, "b": 2}, parsed["all"]["hosts"]["web3"]["merged"])
 }
+
+func TestBuildManagedInventory_RejectsCyclicAlias(t *testing.T) {
+	hosts := []db.InventoryHost{{Name: "web1", Variables: "&loop {null: *loop}"}}
+
+	_, err := buildManagedInventory("", hosts)
+
+	assert.Error(t, err)
+}

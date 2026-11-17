@@ -57,6 +57,10 @@ func TestParseInventoryVariables(t *testing.T) {
 		{"bad syntax", "a: [1", 0, false, true},
 		{"leading document marker", "---\na: 1", 1, true, false},
 		{"two documents", "a: 1\n---\nb: 2", 0, false, true},
+		{"null key", "&loop {null: *loop}", 0, false, true},
+		{"nested null key", "a:\n  ~: 1", 0, false, true},
+		{"alias to itself", "a: &x\n  b: *x", 0, false, true},
+		{"null value", "a: ~", 1, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
