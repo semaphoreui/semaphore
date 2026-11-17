@@ -122,4 +122,21 @@ describe('InventoryHosts.vue', () => {
     expect(wrapper.find('[data-testid="inventoryHosts-enabled"] input').element.disabled)
       .to.equal(false);
   });
+
+  it('disables the switches while the rows reload', async () => {
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+    let release;
+    http.respond(() => new Promise((resolve) => { release = resolve; }));
+
+    wrapper.vm.load();
+    await flush();
+    expect(wrapper.findAll('[data-testid="inventoryHosts-enabled"] input').map((e) => e.element.disabled))
+      .to.deep.equal([true, true]);
+
+    release(hosts);
+    await flush();
+    expect(wrapper.find('[data-testid="inventoryHosts-enabled"] input').element.disabled)
+      .to.equal(false);
+  });
 });

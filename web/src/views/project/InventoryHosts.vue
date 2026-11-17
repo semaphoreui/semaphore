@@ -72,7 +72,7 @@
       <template v-slot:item.enabled="{ item }">
         <v-switch
           :model-value="item.enabled"
-          :disabled="!canManage || busyIds.includes(item.id)"
+          :disabled="!canManage || loading || busyIds.includes(item.id)"
           color="primary"
           hide-details
           density="compact"
