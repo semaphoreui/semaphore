@@ -1,66 +1,97 @@
 <template>
-  <div v-if="views != null">
+  <div
+    v-if="views != null"
+    data-testid="viewsForm-form"
+    :data-state="views.length === 0 ? 'empty' : 'ready'"
+  >
     <draggable
         v-if="views.length > 0"
-        :list="views"
+        v-model="views"
         handle=".handle6785"
         class="mb-5"
         @end="onDragEnd"
+        data-testid="viewsForm-list"
     >
-      <div v-for="(view) in views" :key="view.id" class="mb-2">
+      <div
+        v-for="(view) in views"
+        :key="view.id"
+        class="mb-2"
+        data-testid="viewsForm-view"
+        :data-state="view.disabled ? 'loading' : 'ready'"
+      >
         <div class="d-flex">
 
-          <v-icon class="handle6785" style="cursor: move;">mdi-menu</v-icon>
+          <v-icon
+            class="handle6785 align-self-center"
+            style="cursor: move;"
+            data-testid="viewsForm-viewHandle"
+          >mdi-menu</v-icon>
 
           <v-text-field
-            class="ml-2 mr-1"
+            class="ml-2 mr-1 edit-views-form__title"
             hide-details
-            dense
-            solo
+            density="compact"
+            variant="solo"
             :flat="!view.active"
             v-model="view.title"
             @focus="editView(view.id)"
             :disabled="view.disabled"
+            data-testid="viewsForm-title"
           />
 
           <v-btn
             class="mt-1"
-            small
+            size="small"
             icon
+            variant="text"
             @click="saveView(view.id)"
             v-if="view.active"
             :disabled="view.disabled"
+            data-testid="viewsForm-viewSave"
           >
-            <v-icon small color="green">mdi-check</v-icon>
+            <v-icon size="small" color="green">mdi-check</v-icon>
           </v-btn>
           <v-btn
             class="mt-1"
-            small
+            size="small"
             icon
+            variant="text"
             @click="resetView(view.id)"
             v-if="view.active && view.id > 0"
             :disabled="view.disabled"
+            data-testid="viewsForm-viewReset"
           >
-            <v-icon small color="red">mdi-close</v-icon>
+            <v-icon size="small" color="red">mdi-close</v-icon>
           </v-btn>
 
           <v-btn
             class="ml-4"
             icon
+            variant="text"
             @click="activeViewId = (activeViewId === view.id ? null : view.id)"
+            data-testid="viewsForm-viewSettings"
           >
             <v-icon>mdi-cog</v-icon>
           </v-btn>
 
-          <v-btn class="ml-1" icon @click="removeView(view.id)">
+          <v-btn
+            class="ml-1"
+            icon
+            variant="text"
+            @click="removeView(view.id)"
+            data-testid="viewsForm-viewDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </div>
 
+        <!-- overflow: visible — a Vuetify 3 card clips its content; the corner above ⚙
+             sticks out of it -->
         <v-card
           v-if="view.id === activeViewId"
-          style="background: var(--highlighted-card-bg-color);"
+          style="background: var(--highlighted-card-bg-color); overflow: visible;"
           class="mb-6 pt-3 mt-5"
+          data-testid="viewsForm-viewSettingsCard"
         >
 
           <div style="
@@ -78,12 +109,13 @@
             <v-select
               :items="viewTypes"
               item-value="slug"
-              item-text="title"
+              item-title="title"
               v-model="view.type"
               label="Type"
-              outlined
-              dense
-              @change="saveView(view.id)"
+              variant="outlined"
+              density="compact"
+              @update:model-value="saveView(view.id)"
+              data-testid="viewsForm-type"
             />
 
             <div
@@ -94,13 +126,14 @@
               <v-select
                 :items="sortableColumns"
                 item-value="name"
-                item-text="title"
+                item-title="title"
                 v-model="view.sort_column"
                 label="Sort by"
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
                 hide-details
-                @change="saveView(view.id)"
+                @update:model-value="saveView(view.id)"
+                data-testid="viewsForm-sortColumn"
               />
 
               <v-checkbox
@@ -108,7 +141,8 @@
                 label="Reverse"
                 v-model="view.sort_reverse"
                 class="mt-0 pt-0"
-                @change="saveView(view.id)"
+                @update:model-value="saveView(view.id)"
+                data-testid="viewsForm-sortReverse"
               />
 
             </div>
@@ -117,7 +151,8 @@
               hide-details
               label="Hidden"
               v-model="view.hidden"
-              @change="saveView(view.id)"
+              @update:model-value="saveView(view.id)"
+              data-testid="viewsForm-hidden"
             />
           </v-card-text>
 
@@ -129,13 +164,29 @@
     <v-alert
         v-else
         type="info"
+        data-testid="viewsForm-empty"
     >{{ $t('noViews') }}</v-alert>
-    <v-btn @click="addView()" color="primary">{{ $t('addView') }}</v-btn>
+    <v-btn
+      @click="addView()"
+      color="primary"
+      data-testid="viewsForm-add"
+    >{{ $t('addView') }}</v-btn>
   </div>
 </template>
 
+<style lang="scss">
+// The view title: a dense solo field of Vuetify 2 is 38 px high
+// (`.v-text-field--solo.v-input--dense` control), not the 40 px of a compact field; its text line
+// (20 px, padding 4/2 in a 26 px input 6 px from the top) has its middle 20 px from the top.
+.edit-views-form__title .v-field {
+  --v-input-control-height: 38px;
+  --v-input-padding-top: 8px;
+  --v-field-padding-bottom: 6px;
+}
+</style>
+
 <script>
-import draggable from 'vuedraggable';
+import { VueDraggable as draggable } from 'vue-draggable-plus';
 import axios from 'axios';
 // import ArgsPicker from '@/components/ArgsPicker.vue';
 

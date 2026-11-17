@@ -116,7 +116,6 @@ func newExtraVarsExecutor(t *testing.T) *LocalExecutor {
 	t.Cleanup(func() { util.Config = previousConfig })
 	util.Config = &util.ConfigType{
 		TmpPath: t.TempDir(),
-		Process: &util.ConfigProcess{},
 	}
 	inventoryID := 1
 	executor := &LocalExecutor{

@@ -1,7 +1,11 @@
 <template>
-  <div>
+  <div
+    data-testid="user-root"
+    :data-state="formError ? 'error' : ((item == null || formSaving) ? 'loading' : 'ready')"
+  >
     <EditDialog
       v-model="passwordDialog"
+      test-id="changePasswordDialog"
       save-button-text="Save"
       :title="$t('changePassword')"
       v-if="item"
@@ -19,131 +23,175 @@
       </template>
     </EditDialog>
 
-    <v-tabs v-model="tab">
-      <v-tab key="settings" href="#settings">Settings</v-tab>
-      <v-tab key="2fa" href="#security" v-if="canChangePassword || authMethods.totp || !isNew">
+    <v-tabs v-model="tab" data-testid="user-tabs">
+      <v-tab key="settings" value="settings" data-testid="user-tab-settings">Settings</v-tab>
+      <v-tab
+        key="2fa"
+        value="security"
+        v-if="canChangePassword || authMethods.totp || !isNew"
+        data-testid="user-tab-security"
+      >
         Security
       </v-tab>
-      <v-tab key="global-roles" href="#global-roles" v-if="canManageGlobalRoles && !isNew">
+      <v-tab
+        key="global-roles"
+        value="global-roles"
+        v-if="canManageGlobalRoles && !isNew"
+        data-testid="user-tab-globalRoles"
+      >
         {{ $t('globalRolesTab') }}
       </v-tab>
     </v-tabs>
 
     <v-divider class="mb-6" style="margin-top: -1px" />
 
-    <v-tabs-items v-model="tab" style="overflow: unset">
-      <v-tab-item key="settings" value="settings">
-        <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
-          <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
+    <v-window v-model="tab" style="overflow: unset">
+      <v-window-item value="settings" data-testid="user-panel-settings">
+        <v-form
+          ref="form"
+          v-model="formValid"
+          v-if="item != null"
+          data-testid="user-form"
+        >
+          <v-alert
+            :model-value="!!formError"
+            color="error"
+            class="pb-2"
+            data-testid="user-error"
+          >{{ formError }}</v-alert>
 
           <v-text-field
             v-model="item.name"
+            data-testid="user-name"
             :label="$t('name')"
             :rules="[(v) => !!v || $t('name_required')]"
             required
             :disabled="formSaving"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
           ></v-text-field>
 
           <v-text-field
             v-model="item.username"
+            data-testid="user-username"
             :label="$t('username')"
             :rules="[(v) => !!v || $t('user_name_required')]"
             required
             :disabled="formSaving"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
           ></v-text-field>
 
           <v-text-field
             v-model="item.email"
+            data-testid="user-email"
             :label="$t('email')"
             :rules="[(v) => !!v || $t('email_required')]"
             required
             :disabled="(!isNew && item.external) || formSaving"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
           >
-            <template v-slot:append>
-              <v-chip outlined color="green" disabled small style="opacity: 1">private</v-chip>
+            <template v-slot:append-inner>
+              <v-chip
+                variant="outlined"
+                color="green"
+                disabled
+                size="small"
+                style="opacity: 1"
+                data-testid="user-emailPrivate"
+              >private</v-chip>
             </template>
           </v-text-field>
 
           <v-text-field
             v-if="isNew"
             v-model="item.password"
+            data-testid="user-password"
             :label="$t('password')"
             class="masked-secret-input"
             :required="isNew && !item.external"
             :rules="isNew && !item.external ? [(v) => !!v || $t('password_required')] : []"
             :disabled="item.external || formSaving"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
           ></v-text-field>
 
-          <v-row class="pb-5 pt-2">
+          <v-row class="pb-5 pt-2 UserForm__checks">
             <v-col cols="6">
               <v-checkbox
-                dense
+                density="compact"
                 hide-details
                 v-model="item.alert"
+                data-testid="user-alert"
                 :label="$t('sendAlerts')"
               ></v-checkbox>
             </v-col>
             <v-col cols="6" v-if="isAdmin">
               <v-checkbox
-                dense
+                density="compact"
                 hide-details
                 v-model="item.admin"
+                data-testid="user-admin"
                 :label="$t('adminUser')"
               ></v-checkbox>
             </v-col>
             <v-col cols="6" v-if="isPro">
               <v-checkbox
                 :disabled="!isAdmin"
-                dense
+                density="compact"
                 hide-details
                 v-model="item.pro"
+                data-testid="user-pro"
                 :label="$t('Pro user')"
               ></v-checkbox>
             </v-col>
             <v-col cols="6" v-if="isAdmin">
               <v-checkbox
                 :disabled="!isNew"
-                dense
+                density="compact"
                 hide-details
                 v-model="item.external"
+                data-testid="user-external"
                 :label="$t('external')"
               ></v-checkbox>
             </v-col>
           </v-row>
         </v-form>
-      </v-tab-item>
+      </v-window-item>
 
-      <v-tab-item
-        key="2fa"
+      <v-window-item
         value="security"
         v-if="item != null && (canChangePassword || authMethods.totp || !isNew)"
+        data-testid="user-panel-security"
       >
         <div v-if="canChangePassword">
-          <div class="title mb-3">Password</div>
-          <v-btn color="primary" @click="passwordDialog = true">Change password</v-btn>
+          <div class="text-headline-small mb-3" data-testid="user-passwordTitle">Password</div>
+          <v-btn
+            color="primary"
+            @click="passwordDialog = true"
+            data-testid="user-changePassword"
+          >Change password</v-btn>
         </div>
 
         <div :class="{ 'pt-10': canChangePassword }" v-if="authMethods.totp">
-          <div class="title mb-2">Two-factor authentication</div>
+          <div
+            class="text-headline-small mb-2"
+            data-testid="user-totpTitle"
+          >Two-factor authentication</div>
 
           <v-switch
             class="mt-0"
             v-model="totpEnabled"
             label="Time-based one-time password"
+            data-testid="user-totp"
           ></v-switch>
 
           <v-card
             class="pt-2 mt-1"
-            style="background: var(--highlighted-card-bg-color)"
+            style="background: var(--highlighted-card-bg-color); overflow: visible"
             v-if="totpQrUrl"
+            data-testid="user-totpCard"
           >
             <div
               style="
@@ -171,15 +219,23 @@
                   background-color: white;
                 "
                 alt="QR code"
+                data-testid="user-totpQr"
               />
 
               <div
                 v-if="authMethods.totp.allow_recovery && item.totp && item.totp.recovery_code"
                 class="mt-5 pb-3"
+                data-testid="user-recovery"
               >
-                <div class="subtitle-1 mb-2">Recovery code</div>
+                <div
+                  class="mb-2 UserForm__subtitle"
+                  data-testid="user-recoveryTitle"
+                >Recovery code</div>
                 <div style="position: relative">
-                  <code style="font-size: 18px; background-color: #e03755">
+                  <code
+                    style="font-size: 18px; background-color: #e03755"
+                    data-testid="user-recoveryCode"
+                  >
                     {{ item.totp.recovery_code }}
                   </code>
 
@@ -188,6 +244,7 @@
                     :text="item.totp.recovery_code"
                     large
                     color="white"
+                    test-id="user-recoveryCodeCopy"
                   />
                 </div>
               </div>
@@ -197,25 +254,33 @@
 
         <div
           v-if="!isNew"
+          data-testid="user-identities"
           :class="{
             'pt-10': canChangePassword || authMethods.totp,
           }"
           :style="{ marginTop: (!authMethods.totp || totpEnabled) ? 0 : '-30px' }"
         >
           <template v-if="identities.length > 0">
-            <div class="title mb-2">Linked accounts</div>
+            <div
+              class="text-headline-small mb-2"
+              data-testid="user-identitiesTitle"
+            >Linked accounts</div>
 
             <div style="margin-bottom: -8px;">
+              <!-- A closable chip hides itself on close; here the identities list decides. -->
               <v-chip
                 v-for="identity in identities"
                 :key="identity.id"
                 :color="identityProvider(identity).color"
                 :title="identity.external_uid"
-                class="mr-2 mb-2"
-                close
+                class="mr-2 mb-2 UserForm__identity"
+                :model-value="true"
+                @update:model-value="() => {}"
+                closable
                 @click:close="unlinkIdentity(identity)"
+                :data-testid="`user-identity-${identity.type}-${identity.provider}`"
               >
-                <v-icon left v-if="identityProvider(identity).icon">
+                <v-icon start v-if="identityProvider(identity).icon">
                   mdi-{{ identityProvider(identity).icon }}
                 </v-icon>
                 {{ identity.provider }}
@@ -226,27 +291,40 @@
           <div
             v-if="isSelf && (unlinkedLdapProviders.length > 0 || unlinkedOidcProviders.length > 0)"
             :class="{ 'pt-10': identities.length > 0 }"
+            data-testid="user-link"
           >
-            <div class="title mb-2">Link account</div>
+            <div class="text-headline-small mb-2" data-testid="user-linkTitle">Link account</div>
 
-            <v-card class="mt-4" style="background: var(--highlighted-card-bg-color)">
+            <v-card
+              class="mt-4"
+              style="background: var(--highlighted-card-bg-color)"
+              data-testid="user-linkCard"
+            >
               <v-card-text>
                 <div>
-                  <v-alert :value="!!linkError" color="error" dense text>{{ linkError }}</v-alert>
+                  <v-alert
+                    :model-value="!!linkError"
+                    color="error"
+                    density="compact"
+                    variant="tonal"
+                    data-testid="user-linkError"
+                  >{{ linkError }}</v-alert>
 
                   <v-btn-toggle
                     v-model="ldapLinkProvider"
-                    mandatory
-                    borderless
-                    class="mb-7 d-flex"
-                    :background-color="$vuetify.theme.dark ? '#212121' : 'grey lighten-3'"
+                    mandatory="force"
+                    class="mb-7 d-flex UserForm__ldapProviders"
+                    :class="$vuetify.theme.current.dark ? '' : 'bg-grey-lighten-3'"
+                    :style="$vuetify.theme.current.dark ? { backgroundColor: '#212121' } : null"
+                    data-testid="user-ldapProvider"
                   >
                     <v-btn
                       v-for="provider in unlinkedLdapProviders"
                       :key="provider.id"
                       :value="provider.id"
-                      small
+                      size="small"
                       class="flex-grow-1"
+                      :data-testid="`user-ldapProvider-${provider.id}`"
                     >
                       {{ provider.name }}
                     </v-btn>
@@ -255,17 +333,19 @@
                   <v-text-field
                     v-model="ldapUsername"
                     label="LDAP username"
-                    outlined
-                    dense
+                    data-testid="user-ldapUsername"
+                    variant="outlined"
+                    density="compact"
                   ></v-text-field>
 
                   <v-text-field
                     v-model="ldapPassword"
                     label="LDAP password"
+                    data-testid="user-ldapPassword"
                     type="password"
                     autocomplete="new-password"
-                    outlined
-                    dense
+                    variant="outlined"
+                    density="compact"
                   ></v-text-field>
 
                   <v-btn
@@ -273,6 +353,7 @@
                     :disabled="!ldapUsername || !ldapPassword || linkingLdap"
                     :loading="linkingLdap"
                     @click="linkLdapIdentity()"
+                    data-testid="user-ldapLink"
                   >
                     Link
                   </v-btn>
@@ -285,29 +366,29 @@
                 v-for="provider in unlinkedOidcProviders"
                 :key="provider.id"
                 :color="provider.color || 'secondary'"
-                dark
                 class="mr-3 mb-3"
                 rounded
                 style="width: 100%"
                 width="100%"
                 @click="linkOidcIdentity(provider.id)"
+                :data-testid="`user-oidcLink-${provider.id}`"
               >
-                <v-icon left dark v-if="provider.icon">mdi-{{ provider.icon }}</v-icon>
+                <v-icon start v-if="provider.icon">mdi-{{ provider.icon }}</v-icon>
                 Link {{ provider.name || provider.id }}
               </v-btn>
             </div>
           </div>
         </div>
-      </v-tab-item>
+      </v-window-item>
 
-      <v-tab-item
-        key="global-roles"
+      <v-window-item
         value="global-roles"
         v-if="item != null && canManageGlobalRoles && !isNew"
+        data-testid="user-panel-globalRoles"
       >
         <GlobalRoleAssignments :user-id="itemId" />
-      </v-tab-item>
-    </v-tabs-items>
+      </v-window-item>
+    </v-window>
   </div>
 </template>
 <script>
@@ -328,10 +409,12 @@ export default {
     // The signed-in user may assign global roles; the tab is hidden otherwise.
     canManageGlobalRoles: Boolean,
     authMethods: Object,
-    LoginWithPassword: Boolean,
+    loginWithPassword: Boolean,
   },
 
   mixins: [ItemFormBase],
+
+  emits: ['show-action-buttons', 'hide-action-buttons'],
 
   data() {
     return {
@@ -408,7 +491,7 @@ export default {
     },
 
     canChangePassword() {
-      return !this.isNew && !this.item.external && this.LoginWithPassword;
+      return !this.isNew && !this.item.external && this.loginWithPassword;
     },
 
     linkedProviders() {
@@ -539,3 +622,56 @@ export default {
   },
 };
 </script>
+<style lang="scss" scoped>
+// `subtitle-1` of Vuetify 2 (the codemod made it `text-body-large`, the body-1 of Vuetify 2,
+// whose utility would win over this layer): 16 px on a 28 px line, letter-spacing .009375em.
+.UserForm__subtitle {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.75rem;
+  letter-spacing: .009375em;
+}
+
+// The dense check boxes of the settings (`v-checkbox dense`): a 20 px box icon in the 24 px
+// control; a disabled one in the disabled text colour (.38), icon and label, under the .5 of a
+// disabled input (App.vue), as in Vuetify 2 — not the extra .38 of the Vuetify 4 control.
+.UserForm__checks :deep(.v-input--density-compact) {
+  .v-selection-control__input > .v-icon {
+    font-size: 20px;
+  }
+
+  &.v-input--disabled {
+    .v-selection-control--disabled {
+      opacity: 1;
+    }
+
+    .v-selection-control__input > .v-icon,
+    .v-label {
+      color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+    }
+  }
+}
+
+// The provider icon of a linked account is a 24 px icon (`.v-chip .v-icon`), not scaled down to
+// the chip text as in Vuetify 4.
+.UserForm__identity .v-icon--start {
+  font-size: 24px;
+}
+
+// The LDAP provider switch of Vuetify 2 (`v-btn-toggle borderless` with a background colour and
+// small buttons): as high as its 28 px buttons, the buttons without a frame or a background of
+// their own (the grey of the group shows through), the selected one darkened by the active
+// overlay (`.v-btn--active::before`: .18).
+.UserForm__ldapProviders {
+  height: 28px;
+
+  > .v-btn:not(.v-btn--variant-text):not(.v-btn--variant-plain) {
+    border-width: 0;
+    background-color: transparent;
+
+    &.v-btn--active > :deep(.v-btn__overlay) {
+      opacity: .18;
+    }
+  }
+}
+</style>

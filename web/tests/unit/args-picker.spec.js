@@ -1,33 +1,26 @@
 import { expect } from 'chai';
-import { shallowMount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { shallowMount, flushPromises } from '@vue/test-utils';
 import ArgsPicker from '@/components/ArgsPicker.vue';
 
-const localVue = createLocalVue();
-localVue.use(Vuetify);
-
 describe('ArgsPicker.vue', () => {
-  let vuetify;
-
-  beforeEach(() => {
-    vuetify = new Vuetify();
-  });
-
   it('saveVar adds the arg and closes the edit dialog', async () => {
     const wrapper = shallowMount(ArgsPicker, {
-      localVue,
-      vuetify,
-      propsData: { vars: [] },
-      mocks: { $t: (k) => k },
-      stubs: {
-        'v-dialog': {
-          template: '<div><slot /></div>',
-        },
-        'v-form': {
-          template: '<form><slot /></form>',
-          methods: {
-            validate: () => true,
-            resetValidation: () => {},
+      props: { vars: [] },
+      global: {
+        // the stubs render their default slot, as the stubs of @vue/test-utils 1 did
+        renderStubDefaultSlot: true,
+        mocks: { $t: (k) => k },
+        stubs: {
+          'v-dialog': {
+            template: '<div><slot /></div>',
+          },
+          // Vuetify 3: validate() resolves to { valid }.
+          'v-form': {
+            template: '<form><slot /></form>',
+            methods: {
+              validate: async () => ({ valid: true }),
+              resetValidation: () => {},
+            },
           },
         },
       },
@@ -40,13 +33,14 @@ describe('ArgsPicker.vue', () => {
 
     // `@keydown.enter` on a component is a component event, not a DOM event,
     // so emit it through the stubbed v-text-field instead of `trigger()`.
-    wrapper.find('v-text-field-stub').vm.$emit('keydown', {
+    wrapper.findComponent({ name: 'VTextField' }).vm.$emit('keydown', {
       type: 'keydown',
       key: 'Enter',
       keyCode: 13,
       preventDefault: () => {},
     });
-    await wrapper.vm.$nextTick();
+    // saveVar awaits the form validation
+    await flushPromises();
 
     expect(wrapper.emitted().change[0][0]).to.deep.equal(['--check']);
     expect(wrapper.vm.editDialog).to.equal(false);

@@ -17,6 +17,9 @@ $wf-text: rgba(0, 0, 0, 0.87);
 $wf-text-dark: #ffffff;
 $wf-text2: rgba(0, 0, 0, 0.6);
 $wf-text2-dark: rgba(255, 255, 255, 0.7);
+// An icon without a colour (`.theme--light.v-icon` / `.theme--dark.v-icon` of Vuetify 2).
+$wf-icon: rgba(0, 0, 0, 0.54);
+$wf-icon-dark: #ffffff;
 $wf-divider: rgba(0, 0, 0, 0.12);
 $wf-divider-dark: rgba(255, 255, 255, 0.12);
 $wf-divider-strong: rgba(0, 0, 0, 0.28);

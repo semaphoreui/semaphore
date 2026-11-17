@@ -1,34 +1,57 @@
 <template>
-  <div>
+  <div
+    data-testid="workflowRuns-page"
+    :data-state="runs == null ? 'loading' : (runs.length === 0 ? 'empty' : 'ready')"
+  >
     <v-data-table
-      class="mt-4"
+      class="mt-4 workflow-runs-table"
       hide-default-footer
       :headers="headers"
       :items="runs || []"
       :loading="runs == null"
-      :items-per-page="Number.MAX_VALUE"
+      :items-per-page="-1"
       :no-data-text="$t('notLaunched')"
+      data-testid="workflowRuns-table"
+      :data-state="runs == null ? 'loading' : (runs.length === 0 ? 'empty' : 'ready')"
     >
       <template v-slot:item.id="{ item: run }">
         <router-link
           :to="`/project/${projectId}/workflows/${workflow.id}/runs/${run.id}`"
+          data-testid="workflowRuns-rowId"
         >#{{ run.id }}</router-link>
       </template>
       <template v-slot:item.status="{ item: run }">
-        <v-chip :color="statusColor(run.status)" small>{{ run.status }}</v-chip>
+        <v-chip
+          :color="statusColor(run.status)"
+          size="small"
+          :data-testid="`workflowRuns-rowStatus-${run.status}`"
+        >{{ run.status }}</v-chip>
       </template>
       <template v-slot:item.version="{ item: run }">
         {{ run.version || '—' }}
       </template>
       <template v-slot:item.start="{ item: run }">
-        {{ run.start | formatDate }}
+        {{ $filters.formatDate(run.start) }}
       </template>
       <template v-slot:item.end="{ item: run }">
-        {{ run.end | formatDate }}
+        {{ $filters.formatDate(run.end) }}
       </template>
     </v-data-table>
   </div>
 </template>
+
+<style lang="scss">
+// Status chips: a small chip of Vuetify 2 is 24 px high (`$chip-sizes`), Vuetify 4 makes it 26 px.
+.workflow-runs-table .v-chip.v-chip--size-small {
+  --v-chip-height: 24px;
+}
+
+// The loading line in the disabled text colour, as the no-data line (both are
+// `.v-data-table__empty-wrapper` of Vuetify 2).
+.workflow-runs-table .v-data-table-rows-loading {
+  color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+}
+</style>
 
 <script>
 import axios from 'axios';
@@ -50,11 +73,11 @@ export default {
   computed: {
     headers() {
       return [
-        { text: this.$i18n.t('workflowRun'), value: 'id', sortable: false },
-        { text: this.$i18n.t('status'), value: 'status', sortable: false },
-        { text: this.$i18n.t('version'), value: 'version', sortable: false },
-        { text: this.$i18n.t('start'), value: 'start', sortable: false },
-        { text: this.$i18n.t('end'), value: 'end', sortable: false },
+        { title: this.$t('workflowRun'), key: 'id', sortable: false },
+        { title: this.$t('status'), key: 'status', sortable: false },
+        { title: this.$t('version'), key: 'version', sortable: false },
+        { title: this.$t('start'), key: 'start', sortable: false },
+        { title: this.$t('end'), key: 'end', sortable: false },
       ];
     },
   },

@@ -1,7 +1,12 @@
 <template>
-  <div v-if="items != null && keys != null">
+  <div
+    v-if="items != null && keys != null"
+    data-testid="hostConfig-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="hostConfigDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="itemId === 'new' ? $t('addMapping') : $t('editMapping')"
       @save="loadItems()"
@@ -20,6 +25,7 @@
     </EditDialog>
 
     <YesNoDialog
+      test-id="hostConfigDeleteDialog"
       :title="$t('deleteMapping')"
       :text="$t('askDeleteMapping')"
       v-model="deleteItemDialog"
@@ -27,13 +33,21 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('hostConfig') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="hostConfig-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="hostConfig-title"
+      >{{ $t('hostConfig') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        data-testid="hostConfig-new"
       >{{ $t('addMapping') }}</v-btn>
     </v-toolbar>
 
@@ -42,9 +56,9 @@
     <v-alert
       v-if="items.length === 0"
       type="info"
-      text
-      class="mt-4"
-      style="max-width: 800px; margin: auto;"
+      variant="tonal"
+      class="mt-4 HostConfigEmpty"
+      data-testid="hostConfig-empty"
     >{{ $t('hostConfigEmpty') }}</v-alert>
 
     <v-data-table
@@ -52,12 +66,15 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px); margin: auto;"
+      class="mt-4 HostConfigTable"
+      :items-per-page="-1"
+      data-testid="hostConfig-table"
     >
       <template v-slot:item.type="{ item }">
-        <v-chip small>{{
+        <v-chip
+          size="small"
+          :data-testid="`hostConfig-rowType-${item.type === 'url' ? 'url' : 'host'}`"
+        >{{
           item.type === 'url' ? $t('hostConfigTypeUrl') : $t('hostConfigTypeHost')
         }}</v-chip>
       </template>
@@ -67,18 +84,59 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)">
+        <v-btn-group
+          density="compact"
+          data-testid="hostConfig-rowActions"
+        >
+          <v-btn
+            @click="askDeleteItem(item.id)"
+            data-testid="hostConfig-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-          <v-btn @click="editItem(item.id)">
+          <v-btn
+            @click="editItem(item.id)"
+            data-testid="hostConfig-rowEdit"
+          >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// Not inline styles: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to them.
+// `.v-alert` too, as the inline style was: it beats the `margin-bottom` of `.v-alert` in
+// components.scss.
+.v-alert.HostConfigEmpty {
+  max-width: 800px;
+  margin: auto;
+}
+
+.HostConfigTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px);
+  margin: auto;
+}
+
+// The type chips as high as in Vuetify 2 (`.v-size--small`: 24 px); Vuetify 4 makes them 26 px.
+.HostConfigTable .v-chip.v-chip--size-small {
+  --v-chip-height: 24px;
+}
+
+// Mobile rows: a flex row of Vuetify 2 (`.v-data-table__mobile-row`: space-between, the header
+// 16 px from the value), not the two grid columns of Vuetify 4; a long URL starts right after
+// the header and runs past the window, as it did.
+.HostConfigTable .v-data-table__tr--mobile > td {
+  display: flex;
+  justify-content: space-between;
+  column-gap: 0;
+
+  > .v-data-table__td-title {
+    padding-right: 16px;
+  }
+}
+</style>
 <script>
 import axios from 'axios';
 import ItemListPageBase from '@/components/ItemListPageBase';
@@ -105,23 +163,23 @@ export default {
   methods: {
     getHeaders() {
       return [{
-        text: this.$i18n.t('hostConfigHostOrUrl'),
-        value: 'host',
+        title: this.$t('hostConfigHostOrUrl'),
+        key: 'host',
         width: '50%',
       },
       {
-        text: this.$i18n.t('type'),
-        value: 'type',
+        title: this.$t('type'),
+        key: 'type',
         width: '15%',
       },
       {
-        text: this.$i18n.t('credential'),
-        value: 'ssh_key_id',
+        title: this.$t('credential'),
+        key: 'ssh_key_id',
         width: '25%',
       },
       {
-        text: this.$i18n.t('actions'),
-        value: 'actions',
+        title: this.$t('actions'),
+        key: 'actions',
         sortable: false,
       }];
     },

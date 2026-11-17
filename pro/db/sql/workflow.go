@@ -15,7 +15,7 @@ func (d *WorkflowStoreImpl) GetWorkflowRunTasks(projectID int, runID int, params
 	return
 }
 
-func (d *WorkflowStoreImpl) GetWorkflowTemplates(projectID int, params db.RetrieveQueryParams) (res []db.WorkflowTemplate, err error) {
+func (d *WorkflowStoreImpl) GetWorkflowTemplates(projectID int, viewer *db.Viewer, params db.RetrieveQueryParams) (res []db.WorkflowTemplate, err error) {
 	return
 }
 

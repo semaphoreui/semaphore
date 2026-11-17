@@ -14,6 +14,14 @@ import (
 
 const gracePeriod = 15 * time.Second
 
+// appSysProcAttr returns the process attributes of a child app (ansible,
+// terraform, shell templates). The app starts in its own session, which makes
+// it the leader of a dedicated process group: stopCommand and killProcessGroup
+// signal that group to stop the app together with everything it spawned.
+func appSysProcAttr() *syscall.SysProcAttr {
+	return &syscall.SysProcAttr{Setsid: true}
+}
+
 // waitCommand takes ownership of waiting for and terminating an already-started
 // command. The caller must not wait for or signal the command after this call.
 func waitCommand(cmd *exec.Cmd, stopCh <-chan struct{}, logger task_logger.Logger) error {

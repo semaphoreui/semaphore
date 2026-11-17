@@ -1,8 +1,9 @@
 <template>
-  <div>
+  <div class="TaskParamsAnsibleForm">
 
     <ArgsPicker
       v-if="templateParams.allow_override_limit"
+      test-id="taskParams-limit"
       :vars="params.limit"
       @change="setLimit"
       :title="$t('limit')"
@@ -12,6 +13,7 @@
 
     <ArgsPicker
       v-if="templateParams.allow_override_tags"
+      test-id="taskParams-tags"
       :vars="params.tags"
       @change="setTags"
       :title="$t('tags')"
@@ -21,6 +23,7 @@
 
     <ArgsPicker
       v-if="templateParams.allow_override_skip_tags"
+      test-id="taskParams-skipTags"
       :vars="params.skip_tags"
       @change="setSkipTags"
       :title="$t('skipTags')"
@@ -32,10 +35,10 @@
       <v-col v-if="templateParams.allow_debug">
         <v-checkbox
           class="mt-0"
-          :input-value="params.debug"
           v-model="params.debug"
-          @change="updateValue('debug', $event)"
+          @update:model-value="updateValue('debug', $event)"
           hide-details
+          data-testid="taskParams-debug"
         >
           <template v-slot:label>
             <div class="text-no-wrap">
@@ -43,23 +46,33 @@
             </div>
           </template>
         </v-checkbox>
+        <!-- The slider of Vuetify 2: a 2 px track (filled in primary, the rest primary lighten-3),
+             a 12 px thumb without a shadow -->
         <v-slider
           :disabled="!params.debug"
           class="ml-7 mb-2"
           style="max-width: 100px;"
           v-model="params.debug_level"
-          @change="updateValue('debug_level', $event)"
+          @update:model-value="updateValue('debug_level', $event)"
+          data-testid="taskParams-debugLevel"
           step="1"
           min="1"
           max="6"
           hide-details
+          color="primary"
+          track-color="primary-lighten-3"
+          thumb-size="12"
+          track-size="2"
+          :elevation="0"
+          rounded="0"
         ></v-slider>
       </v-col>
       <v-col v-if="!templateParams.hide_dry_run">
         <v-checkbox
           class="mt-0"
-          :input-value="params.dry_run"
-          @change="updateValue('dry_run', $event)"
+          :model-value="params.dry_run"
+          @update:model-value="updateValue('dry_run', $event)"
+          data-testid="taskParams-dryRun"
         >
           <template v-slot:label>
             <div class="text-no-wrap">{{ $t('dryRun') }} <code>--check</code></div>
@@ -69,8 +82,9 @@
       <v-col v-if="!templateParams.hide_diff">
         <v-checkbox
           class="mt-0"
-          :input-value="params.diff"
-          @change="updateValue('diff', $event)"
+          :model-value="params.diff"
+          @update:model-value="updateValue('diff', $event)"
+          data-testid="taskParams-diff"
         >
           <template v-slot:label>
             <div class="text-no-wrap">{{ $t('diff') }} <code>--diff</code></div>
@@ -79,9 +93,10 @@
       </v-col>
       <v-col v-if="templateParams.allow_override_skip_galaxy_install">
         <v-checkbox
-          :input-value="params.skip_galaxy_install"
+          :model-value="params.skip_galaxy_install"
           class="mt-0"
-          @change="updateValue('skip_galaxy_install', $event)"
+          @update:model-value="updateValue('skip_galaxy_install', $event)"
+          data-testid="taskParams-skipGalaxyInstall"
         >
           <template v-slot:label>
             <div class="text-no-wrap">{{ $t('skipGalaxyInstall') }}</div>
@@ -93,7 +108,11 @@
 </template>
 
 <style lang="scss">
-
+// Vuetify 3 gives a .v-input min-width 0, so equal v-col columns squeezed the no-wrap labels
+// over each other; as in Vuetify 2, a checkbox keeps its content width and the row wraps.
+.TaskParamsAnsibleForm .v-checkbox {
+  min-width: max-content;
+}
 </style>
 
 <script>
@@ -116,14 +135,34 @@ const APP_PARAMS = {
 export default {
   components: { ArgsPicker },
   props: {
-    value: Object,
+    modelValue: Object,
     app: String,
     templateParams: Object,
   },
 
+  emits: ['update:modelValue'],
+
+  computed: {
+    debugLevelMissing() {
+      return !!this.templateParams?.allow_debug && this.params.debug_level == null;
+    },
+  },
+
   watch: {
-    value(val) {
+    modelValue(val) {
       this.params = val;
+    },
+
+    // The debug level slider defaults to its min, 1. Vuetify 2 v-slider clamped a missing value
+    // to min and wrote it back through v-model, so New Task (its params come without debug_level)
+    // showed «-v» and sent debug_level 1; Vuetify 3 leaves the model as it is.
+    debugLevelMissing: {
+      immediate: true,
+      handler(missing) {
+        if (missing) {
+          this.params.debug_level = 1;
+        }
+      },
     },
   },
 
@@ -137,8 +176,8 @@ export default {
 
   created() {
     this.params = {
-      ...this.value,
-      debug_level: this.value.debug_level || 4,
+      ...this.modelValue,
+      debug_level: this.modelValue.debug_level || 4,
     };
   },
 
@@ -168,7 +207,7 @@ export default {
         }), {});
       }
 
-      this.$emit('input', input);
+      this.$emit('update:modelValue', input);
     },
   },
 };

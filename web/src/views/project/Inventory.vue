@@ -1,8 +1,13 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+<template>
+  <div
+    v-if="items != null"
+    data-testid="inventory-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
 
     <EditDialog
       v-model="attachInventoryDialog"
+      test-id="inventoryAttachDialog"
       :save-button-text="$t('Attach')"
       :icon="getAppIcon(itemApp)"
       :icon-color="getAppColor(itemApp)"
@@ -23,6 +28,7 @@
 
     <EditDialog
       v-model="editDialog"
+      test-id="inventoryDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :icon="getAppIcon(itemApp)"
       :icon-color="getAppColor(itemApp)"
@@ -44,6 +50,7 @@
     </EditDialog>
 
     <ObjectRefsDialog
+      test-id="inventoryRefsDialog"
       object-title="inventory"
       :object-refs="itemRefs"
       :project-id="projectId"
@@ -51,6 +58,7 @@
     />
 
     <YesNoDialog
+      test-id="inventoryDeleteDialog"
       :title="$t('deleteInventory')"
       :text="$t('askDeleteInv')"
       v-model="deleteItemDialog"
@@ -58,37 +66,49 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('inventory') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="inventory-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="inventory-title"
+      >{{ $t('inventory') }}</v-toolbar-title>
       <v-spacer></v-spacer>
 
+      <!-- `offset-y` of Vuetify 2: the menu, wider than the button, is pushed back into the
+        window up to 12 px from its edge, 4 px past the end of the button (16 px from the edge);
+        Vuetify 4 flips it to the end of the button instead -->
       <v-menu
-        offset-y
+        location="bottom end"
+        :offset="[0, 4]"
       >
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
           <v-btn
             class="pr-2"
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             color="primary"
+            variant="elevated"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
+            data-testid="inventory-new"
           >{{ $t('newInventory') }}
             <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
-        <v-list>
+        <v-list data-testid="inventory-newMenu">
           <v-list-item
             v-for="item in apps"
             :key="item"
             link
             @click="itemApp = item; editItem('new');"
+            :data-testid="`inventory-new-${item}`"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon
                 :color="getAppColor(item)"
               >{{ getAppIcon(item) }}
               </v-icon>
-            </v-list-item-icon>
+            </template>
             <v-list-item-title>{{ APP_INVENTORY_TITLE[item] }}</v-list-item-title>
           </v-list-item>
         </v-list>
@@ -101,12 +121,13 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
+      class="mt-4 InventoryTable"
+      :items-per-page="-1"
+      data-testid="inventory-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.name="{ item }">
-        <v-icon class="mr-3" small>
+        <v-icon class="mr-3 InventoryTable__appIcon" size="small" data-testid="inventory-rowIcon">
           {{ getAppIcon(getAppByType(item.type)) }}
         </v-icon>
 
@@ -114,19 +135,26 @@
       </template>
 
       <template v-slot:item.type="{ item }">
-        <code>{{ item.type }}</code>
+        <code data-testid="inventory-rowType">{{ item.type }}</code>
       </template>
       <template v-slot:item.inventory="{ item }">
         {{ ['file', 'terraform-workspace'].includes(item.type) ? item.inventory : '&mdash;' }}
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)">
+        <v-btn-group
+          density="compact"
+          data-testid="inventory-rowActions"
+        >
+          <v-btn
+            @click="askDeleteItem(item.id)"
+            data-testid="inventory-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
           <v-btn
             @click="itemApp = getAppByType(item.type); editItem(item.id)"
             v-if="!['tofu', 'terraform'].includes(getAppByType(item.type))"
+            data-testid="inventory-rowEdit"
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
@@ -137,15 +165,33 @@
               itemApp = getAppByType(item.type);
               attachInventoryDialog = true;
             "
+            data-testid="inventory-rowAttach"
           >
             <v-icon>mdi-connection</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
 
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.InventoryTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+
+// The app icon in front of the name: an icon without a colour is grey (.54) in the light theme and
+// white in the dark one (`.theme--light.v-icon`), not the text colour of the cell (as Templates).
+.InventoryTable__appIcon.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.InventoryTable__appIcon.v-theme--dark {
+  color: #fff;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import InventoryForm from '@/components/InventoryForm.vue';
@@ -200,22 +246,22 @@ export default {
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
+        title: this.$t('name'),
+        key: 'name',
         width: '30%',
       },
       {
-        text: this.$i18n.t('type'),
-        value: 'type',
+        title: this.$t('type'),
+        key: 'type',
         width: '20%',
       },
       {
-        text: this.$i18n.t('path'),
-        value: 'inventory',
+        title: this.$t('path'),
+        key: 'inventory',
         width: '50%',
       },
       {
-        value: 'actions',
+        key: 'actions',
         sortable: false,
         width: '0%',
       },

@@ -24,10 +24,21 @@ only when the task touches that topic. Keep this file under 150 lines.
 
 ## Gotchas
 
+- Container executors (pro_impl `services/tasks/{docker,k8s}`): `docker.tls_verify` and `docker.poll_interval_seconds` are
+  read but unused, Docker pulls send no registry auth, a K8s Pod stuck `Pending` keeps the task running forever, and
+  neither executor sweeps leftovers on restart — documented in `docs/docs/admin-guide/executors/`; update it when fixed.
 - `default:` struct tags in `util/config.go` are applied at config load (when the section exists),
   so they — not in-package fallback constants — are the effective documented defaults.
+- Removing a config option that restricted something: refuse it at startup, do not just delete the
+  field — the JSON/YAML decoders drop unknown keys and an unread env var vanishes silently, so the
+  restriction would disappear on upgrade. `util/config_removed.go` does this for `process`.
 - `config.schema.yaml` is not a source of truth; it drifts (gave wrong k8s executor image
   defaults). Generate reference docs from the Go struct with `task docs:gen`.
+- The docs submodule's `main` may be generated from code ahead of `develop` (2026-10-25: it had the
+  `ha.redis_sentinel.*` rows develop lacks) — after `task docs:gen`, diff `docs/reference/configuration.md`
+  and keep only the rows your change produced, or you un-document another branch's feature.
+- The `docs/` submodule is checked out by no CI job except `docs-reference` in
+  `.github/workflows/dev.yml` — a build step that reads `docs/` must fail loudly when it is absent.
 - No CI job checks out the `docs/` submodule: the only one that did, `docs-reference` in
   `.github/workflows/dev.yml`, is commented out since `09cf6b91 ci: disable docs check`
   (2026-09-28), so drift in the generated reference is caught only by a local `task docs:check`.

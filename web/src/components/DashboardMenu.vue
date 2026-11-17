@@ -1,6 +1,6 @@
 <template>
-  <div>
-    <v-tabs class="pl-4">
+  <div class="DashboardMenu" data-testid="dashboard-menu">
+    <v-tabs class="pl-4" data-testid="dashboard-tabs">
       <v-tab
         v-if="projectType === ''"
         key="history"
@@ -16,7 +16,12 @@
         data-testid="dashboard-stats"
       >{{ $t('project_stats') }}</v-tab>
 
-      <v-tab key="activity" :to="`/project/${projectId}/activity`">{{ $t('activity') }}</v-tab>
+      <v-tab
+        v-if="canRead"
+        key="activity"
+        :to="`/project/${projectId}/activity`"
+        data-testid="dashboard-activity"
+      >{{ $t('activity') }}</v-tab>
 
       <v-tab
         v-if="canUpdateProject"
@@ -30,6 +35,14 @@
     <v-divider style="margin-top: -1px;" />
   </div>
 </template>
+<style lang="scss">
+// The slider of Vuetify 2 is drawn over the divider under the tabs
+// (`.v-tabs-slider-wrapper { z-index: 1 }`); the divider of Vuetify 4 is translucent and so
+// painted above a slider without a z-index, which turns the slider darker.
+.DashboardMenu .v-tab__slider {
+  z-index: 1;
+}
+</style>
 <script>
 
 export default {
@@ -38,6 +51,7 @@ export default {
     projectId: Number,
     projectType: String,
     canUpdateProject: Boolean,
+    canRead: Boolean,
   },
 
   computed: {
