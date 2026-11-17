@@ -148,6 +148,8 @@ func (e BackupSchedule) Restore(b *BackupDB) error {
 	v.WorkflowID = nil
 
 	switch {
+	case e.Template != nil && e.Workflow != nil:
+		return fmt.Errorf("schedule runs either a template or a workflow, not both")
 	case e.Template != nil:
 		tpl := findEntityByName[db.Template](e.Template, b.templates)
 		if tpl == nil {
