@@ -21,6 +21,9 @@ only when the task touches that topic. Keep this file under 150 lines.
 - Verify a claim about Chromium wheel/scroll behaviour against the facts in
   `AGENTS/work/workflow-editor/` before changing wheel handling in the workflow editor — three
   rounds of fixes were built on guesses.
+- A new API endpoint or route is the owner's call, even when a frontend task seems to need one —
+  ask first, and look for a way to carry the ids in the URL instead (2026-11-17: `workflow_runs/{id}`
+  added for the `?w=` run panel was called a mistake and reverted; `w=<workflow>/<run>` replaced it).
 
 ## Gotchas
 
@@ -52,6 +55,10 @@ only when the task touches that topic. Keep this file under 150 lines.
   `pro_impl`; check both are on the same commit before trusting a build. Any Dockerfile layer
   running `go mod download` must also COPY `pro/go.mod` + `pro/go.sum`; build images from a
   shallow `git clone file://<repo>` so they never see `go.work`.
+- A fresh worktree of `develop` (seen 2026-11-17 at `526f6eb5`) has no `.gitmodules`, no `pro_impl/`
+  and no `docs/`: for a Pro build write a gitignored `go.work` that `use`s `.` and the absolute
+  path of the main checkout's `pro_impl`; the user guide lives in the main checkout's `docs/`
+  (its own repo, often with someone's uncommitted work — do not edit it from another worktree).
 - `go mod why` in workspace mode blames `pro/services/tasks/docker`; use `GOWORK=off` to see the
   real dependency chain. A version-specific `replace` (not a wildcard) is used to pin grpc, because
   a wildcard downgrades the Pro workspace.

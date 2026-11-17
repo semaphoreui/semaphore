@@ -109,7 +109,7 @@
       <template v-slot:item.last_run="{ item }">
         <div class="mt-2 mb-2" v-if="item.last_run != null" style="line-height: 1">
           <router-link
-            :to="`/project/${projectId}/workflows/${item.id}/runs/${item.last_run.id}`"
+            :to="workflowRunLocation($route, item.id, item.last_run.id)"
             data-testid="workflows-rowLastRun"
           >#{{ item.last_run.id }}</router-link>
           <div style="color: gray; font-size: 14px;" data-testid="workflows-rowLastRunStart">
@@ -154,7 +154,7 @@
             >
               <template v-slot:item.id="{ item: run }">
                 <router-link
-                  :to="`/project/${projectId}/workflows/${item.id}/runs/${run.id}`"
+                  :to="workflowRunLocation($route, item.id, run.id)"
                   data-testid="workflows-runsRowId"
                 >
                   #{{ run.id }}
@@ -251,6 +251,7 @@ import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import WorkflowRunDialog from '@/components/WorkflowRunDialog.vue';
+import { workflowRunLocation } from '@/lib/workflowRunQuery';
 
 export default {
   components: {
@@ -290,6 +291,14 @@ export default {
     },
   },
 
+  created() {
+    EventBus.$on('i-workflow-run', this.onWorkflowRunChanged);
+  },
+
+  beforeUnmount() {
+    EventBus.$off('i-workflow-run', this.onWorkflowRunChanged);
+  },
+
   watch: {
     // Ids of the expanded rows (Vuetify 3 keeps item values, not items): one at most,
     // as single-expand of Vuetify 2 did — the update handler keeps the last one.
@@ -299,6 +308,21 @@ export default {
   },
 
   methods: {
+    workflowRunLocation,
+
+    // A run started or changed its status in the run panel, which lies over this list: the last
+    // run of the workflow and its expanded runs are read again.
+    async onWorkflowRunChanged(e) {
+      try {
+        await this.loadItems();
+      } catch (err) {
+        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+      }
+      if (e && e.workflowId != null && this.runs[e.workflowId] != null) {
+        await this.loadRuns(e.workflowId, true);
+      }
+    },
+
     // The row holds the play button, which has its own rule.
     allowActions() {
       return true;
@@ -332,8 +356,9 @@ export default {
       );
     },
 
-    async loadRuns(workflowId) {
-      if (this.runs[workflowId] != null) {
+    // The runs of an expanded workflow, read once; `force` reads them again.
+    async loadRuns(workflowId, force = false) {
+      if (this.runs[workflowId] != null && !force) {
         return;
       }
       this.runsLoading[workflowId] = true;
@@ -420,9 +445,9 @@ export default {
           color: 'success',
           text: this.$t('workflowRunStarted'),
         });
-        this.$router.push(
-          `/project/${this.projectId}/workflows/${workflow.id}/runs/${run.id}`,
-        );
+        // The run opens in the run panel, over this list, which shows it as the last run.
+        await this.$router.push(workflowRunLocation(this.$route, workflow.id, run.id));
+        await this.onWorkflowRunChanged({ workflowId: workflow.id });
       } catch (err) {
         EventBus.$emit('i-snackbar', {
           color: 'error',

@@ -4,6 +4,7 @@
     :max-width="1000"
     :hide-buttons="true"
     :expandable="true"
+    resizable
     no-body-paddings
     @close="onClose()"
     test-id="taskLogDialog"

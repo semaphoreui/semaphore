@@ -708,6 +708,7 @@ export default {
   workflowTemplateRequired: 'Template is required',
   workflowRunNow: 'Run workflow',
   workflowRunStarted: 'Workflow run started',
+  workflowRunNotFound: 'Workflow run not found',
   workflowRun: 'Run',
   workflowNodePending: 'Pending',
   workflowTaskColumn: 'Task',

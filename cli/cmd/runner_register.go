@@ -40,7 +40,7 @@ func readRegistrationTokenFromFile(path string) {
 	}
 
 	if len(tokenBytes) == 0 {
-		panic("Empty token")
+		panic("Empty registration token")
 	}
 
 	util.Config.Runner.RegistrationToken = strings.TrimSpace(string(tokenBytes))
@@ -67,7 +67,7 @@ func initRunnerRegistrationToken() {
 	}
 
 	if len(tokenBytes) == 0 {
-		panic("Empty token")
+		panic("Empty registration token")
 	}
 
 	util.Config.Runner.RegistrationToken = strings.TrimSpace(string(tokenBytes))
