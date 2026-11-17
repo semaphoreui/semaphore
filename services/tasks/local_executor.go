@@ -964,9 +964,18 @@ func (t *LocalExecutor) ansibleCallbackPlugins(env []string, dir string) string 
 		current = t.ansibleCfgCallbackPlugins(env)
 	}
 	if current == "" {
+		// ANSIBLE_HOME as the process gets it: the base value, the one of makeCmd, then the task's own
 		ansibleHome := "~/.ansible"
+		if v := db_lib.BaseEnvironmentVar("ANSIBLE_HOME"); v != "" {
+			ansibleHome = v
+		}
 		if util.Config.HomeDirMode == util.HomeDirModeTemplateDir {
 			ansibleHome = filepath.Join(t.Repository.GetHomePath(t.Template.ID), ".ansible")
+		}
+		for _, e := range env {
+			if v, ok := strings.CutPrefix(e, "ANSIBLE_HOME="); ok && v != "" {
+				ansibleHome = v
+			}
 		}
 		current = filepath.Join(ansibleHome, "plugins", "callback") +
 			string(os.PathListSeparator) + "/usr/share/ansible/plugins/callback"

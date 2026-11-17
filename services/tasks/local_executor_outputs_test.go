@@ -209,6 +209,17 @@ func TestLocalExecutor_ansibleCallbackPlugins(t *testing.T) {
 			expected: "~/.ansible/plugins/callback" + sep + "/usr/share/ansible/plugins/callback" + sep + dir,
 		},
 		{
+			name:     "follows ANSIBLE_HOME set for the task",
+			env:      []string{"ANSIBLE_HOME=/opt/ansible"},
+			config:   util.ConfigType{EnvVars: map[string]string{"ANSIBLE_HOME": "/from/config"}},
+			expected: "/opt/ansible/plugins/callback" + sep + "/usr/share/ansible/plugins/callback" + sep + dir,
+		},
+		{
+			name:     "follows ANSIBLE_HOME from the config env vars",
+			config:   util.ConfigType{EnvVars: map[string]string{"ANSIBLE_HOME": "/from/config"}},
+			expected: "/from/config/plugins/callback" + sep + "/usr/share/ansible/plugins/callback" + sep + dir,
+		},
+		{
 			// expected is derived below from the helper the app uses for
 			// ANSIBLE_HOME, so the two cannot drift apart.
 			name:   "follows ANSIBLE_HOME of the template_dir home mode",
