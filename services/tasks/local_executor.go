@@ -68,6 +68,10 @@ type LocalExecutor struct {
 	// succeeded and produced outputs.
 	outputs *string
 
+	hostsCapture *hostsCapture
+	// hosts is the host stats document of an Ansible task, set by Run.
+	hosts *string
+
 	// extraVarsFile is the YAML file the extra vars of an Ansible task are
 	// passed through, secretVarsFile the vault-encrypted one holding the
 	// secrets among them (see extra_vars_file.go); both removed by Cleanup.
@@ -847,6 +851,8 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 		TemplateParams:  t.preparedTplParams,
 		StopCh:          t.stopCh,
 	})
+	// A failed playbook still reaches its stats, so they are read regardless.
+	t.collectHosts()
 	if err != nil {
 		return err
 	}
@@ -859,6 +865,54 @@ func (t *LocalExecutor) Run(username string, incomingVersion *string, alias stri
 // stores it before it marks the task successful.
 func (t *LocalExecutor) Outputs() *string {
 	return t.outputs
+}
+
+// Hosts returns the host stats document of an Ansible task, or nil when the
+// playbook did not reach its stats.
+func (t *LocalExecutor) Hosts() *string {
+	return t.hosts
+}
+
+// beginHosts creates the host stats file of an Ansible task and returns the
+// environment variables that load the callback plugin writing it. A failure
+// only loses the stats: the task runs without them.
+func (t *LocalExecutor) beginHosts(env []string) []string {
+	if t.Template.App != db.AppAnsible {
+		return nil
+	}
+
+	capture, err := beginHostsCapture(util.Config.GetProjectTmpDir(t.Template.ProjectID), t.Task.ID)
+	if err != nil {
+		t.Log("Host stats will not be captured: " + err.Error())
+		return nil
+	}
+
+	dir, err := capture.CallbackDir()
+	if err != nil {
+		capture.Close()
+		t.Log("Host stats will not be captured: " + err.Error())
+		return nil
+	}
+
+	t.hostsCapture = capture
+
+	return append(capture.Env(), ansibleCallbackPluginsEnv+"="+t.ansibleCallbackPlugins(env, dir))
+}
+
+// collectHosts reads the host stats after the app has finished. A broken
+// document never fails the task: nothing downstream depends on it.
+func (t *LocalExecutor) collectHosts() {
+	if t.hostsCapture == nil || t.IsKilled() {
+		return
+	}
+
+	document, err := t.hostsCapture.Read()
+	if err != nil {
+		t.Log("Host stats were not captured: " + err.Error())
+		return
+	}
+
+	t.hosts = document
 }
 
 // beginOutputs creates the outputs file of a workflow task and returns the
@@ -891,9 +945,10 @@ func (t *LocalExecutor) beginOutputs(env []string) (res []string, err error) {
 const ansibleCallbackPluginsEnv = "ANSIBLE_CALLBACK_PLUGINS"
 
 // ansibleCallbackPlugins returns the ANSIBLE_CALLBACK_PLUGINS value that adds
-// dir to the callback plugin path. The variable replaces Ansible's whole path,
-// so the value keeps what the task would have had without it: the value already
-// set for the task, or else Ansible's default path.
+// dir to the callback plugin path. The variable replaces Ansible's whole path
+// and beats ansible.cfg, so the value keeps what the task would have had
+// without it: the value set for the task, callback_plugins of its ansible.cfg,
+// or else Ansible's default path.
 func (t *LocalExecutor) ansibleCallbackPlugins(env []string, dir string) string {
 	current := ""
 	for _, e := range env {
@@ -905,9 +960,21 @@ func (t *LocalExecutor) ansibleCallbackPlugins(env []string, dir string) string 
 		current = db_lib.BaseEnvironmentVar(ansibleCallbackPluginsEnv)
 	}
 	if current == "" {
+		current = t.ansibleConfigCallbackPlugins(env)
+	}
+	if current == "" {
+		// ANSIBLE_HOME as the process gets it: the base value, the one of makeCmd, then the task's own
 		ansibleHome := "~/.ansible"
+		if v := db_lib.BaseEnvironmentVar("ANSIBLE_HOME"); v != "" {
+			ansibleHome = v
+		}
 		if util.Config.HomeDirMode == util.HomeDirModeTemplateDir {
 			ansibleHome = filepath.Join(t.Repository.GetHomePath(t.Template.ID), ".ansible")
+		}
+		for _, e := range env {
+			if v, ok := strings.CutPrefix(e, "ANSIBLE_HOME="); ok && v != "" {
+				ansibleHome = v
+			}
 		}
 		current = filepath.Join(ansibleHome, "plugins", "callback") +
 			string(os.PathListSeparator) + "/usr/share/ansible/plugins/callback"
@@ -916,11 +983,24 @@ func (t *LocalExecutor) ansibleCallbackPlugins(env []string, dir string) string 
 	return current + string(os.PathListSeparator) + dir
 }
 
-// collectOutputs reads the outputs of a workflow task after its app has
-// finished. Only a successful task has outputs. For Terraform apps the outputs
-// of the state are captured as well. An outputs file that breaks the contract
-// fails the task: the error must show at the task that wrote the file, not at
-// a downstream node.
+// ansibleConfigCallbackPlugins returns the callback plugin path Ansible itself
+// reports for the task. It returns "" when Ansible can not be asked, as with
+// a version whose ansible-config has no JSON output.
+func (t *LocalExecutor) ansibleConfigCallbackPlugins(env []string) string {
+	app, ok := t.App.(*db_lib.AnsibleApp)
+	if !ok || app.Playbook == nil {
+		return ""
+	}
+
+	paths, err := app.Playbook.CallbackPluginPaths(env)
+	if err != nil {
+		log.WithError(err).WithField("task_id", t.Task.ID).Debug("ansible-config did not report the callback plugin path")
+		return ""
+	}
+
+	return strings.Join(paths, string(os.PathListSeparator))
+}
+
 func (t *LocalExecutor) collectOutputs() error {
 	if t.outputsCapture == nil || t.IsKilled() {
 		return nil
@@ -1111,6 +1191,8 @@ func (t *LocalExecutor) Prepare(username string, incomingVersion *string, alias 
 	}
 	environmentVariables = append(environmentVariables, outputsEnv...)
 
+	environmentVariables = append(environmentVariables, t.beginHosts(environmentVariables)...)
+
 	environmentVariables = append(environmentVariables, taskIdentityEnv(t.Task)...)
 
 	if t.Template.Type != db.TemplateTask {
@@ -1149,6 +1231,9 @@ func (t *LocalExecutor) Cleanup() {
 	t.destroyExtraVarsFiles()
 	if t.outputsCapture != nil {
 		t.outputsCapture.Close()
+	}
+	if t.hostsCapture != nil {
+		t.hostsCapture.Close()
 	}
 	if t.App != nil {
 		t.App.Clear()
@@ -1209,7 +1294,7 @@ func (t *LocalExecutor) prepareRun(installingArgs db_lib.LocalAppInstallingArgs)
 	}
 
 	if t.Repository.GetType() == db.RepositoryLocal {
-		localPath := t.Repository.GetGitURL(false)
+		localPath := t.Repository.GetLocalPath()
 		if _, err := os.Stat(localPath); err != nil {
 			t.Log("Failed in finding static repository: " + err.Error())
 			return err
@@ -1261,7 +1346,7 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 	}
 
 	if t.Repository.GetType() == db.RepositoryLocal {
-		localPath := t.Repository.GetGitURL(false)
+		localPath := t.Repository.GetLocalPath()
 		if _, err := os.Stat(localPath); err != nil {
 			t.Log("Failed in finding static repository: " + err.Error())
 			return err

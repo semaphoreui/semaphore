@@ -9,6 +9,9 @@ import ObjectPerms from '@/views/project/ObjectPerms.vue';
 import Roles from '@/views/Roles.vue';
 import RoleMappings from '@/views/RoleMappings.vue';
 import AuditLog from '@/views/AuditLog.vue';
+import Hosts from '@/views/Hosts.vue';
+import HostView from '@/views/HostView.vue';
+import HostTaskList from '@/components/HostTaskList.vue';
 import Schedule from '../views/project/Schedule.vue';
 import History from '../views/project/History.vue';
 import Activity from '../views/project/Activity.vue';
@@ -74,6 +77,32 @@ const routes = [
   {
     path: '/project/:projectId/activity',
     component: Activity,
+  },
+  {
+    path: '/project/:projectId/hosts',
+    component: Hosts,
+  },
+  {
+    path: '/project/:projectId/hosts/:hostId',
+    redirect: redirectTo((p) => `/project/${p.projectId}/hosts/${p.hostId}/tasks`),
+    component: HostView,
+    children: [{
+      path: 'tasks',
+      component: HostTaskList,
+    }],
+  },
+  {
+    path: '/hosts',
+    component: Hosts,
+  },
+  {
+    path: '/hosts/:hostId',
+    redirect: redirectTo((p) => `/hosts/${p.hostId}/tasks`),
+    component: HostView,
+    children: [{
+      path: 'tasks',
+      component: HostTaskList,
+    }],
   },
   {
     path: '/project/:projectId/runners',

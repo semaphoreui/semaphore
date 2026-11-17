@@ -456,10 +456,6 @@ func (d *SqlDb) GetTaskStageOutputs(projectID int, taskID int, stageID int) (out
 	return
 }
 
-func (d *SqlDb) GetNodeCount() (int, error) {
-	return 0, nil
-}
-
 func (d *SqlDb) GetUiCount() (int, error) {
 	return 1, nil
 }

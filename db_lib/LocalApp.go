@@ -9,10 +9,10 @@ import (
 	"github.com/semaphoreui/semaphore/util"
 )
 
-// getHomeDir returns the HOME directory value for a task based on the configured
+// GetHomeDir returns the HOME directory value for a task based on the configured
 // HomeDirMode. For "project_home" it returns the project tmp directory.
 // For "template_dir" and "user_home" it returns the real user HOME (no override).
-func getHomeDir(repo db.Repository, templateID int) string {
+func GetHomeDir(repo db.Repository, templateID int) string {
 	switch util.Config.HomeDirMode {
 	case util.HomeDirModeProjectHome:
 		return util.Config.GetProjectTmpDir(repo.ProjectID)

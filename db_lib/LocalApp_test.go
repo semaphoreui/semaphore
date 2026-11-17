@@ -153,7 +153,7 @@ func TestGetHomeDir(t *testing.T) {
 				TmpPath:     tt.tmpPath,
 			}
 
-			result := getHomeDir(repo, templateID)
+			result := GetHomeDir(repo, templateID)
 
 			assert.Equal(t, tt.expectedHome, result, "%s: expected HOME=%s, got HOME=%s",
 				tt.description, tt.expectedHome, result)

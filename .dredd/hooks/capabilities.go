@@ -306,6 +306,7 @@ var pathSubPatterns = []func() string{
 		return strconv.Itoa(globalRole.ID)
 	}, // global role_id, x-example: 24
 	func() string { return strconv.Itoa(permID) }, // perm_id, x-example: 25
+	func() string { return "0" },                  // host_id, x-example: 26, the stand has no hosts
 }
 
 // alterRequestPath with the above slice of functions

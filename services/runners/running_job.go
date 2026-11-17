@@ -38,6 +38,9 @@ type runningJob struct {
 	// progress snapshot never sees success without the outputs that go with it.
 	outputs *string
 
+	// hosts is the host stats document of a finished task, set before its final status.
+	hosts *string
+
 	statusListeners []task_logger.StatusListener
 	logListeners    []task_logger.LogListener
 }
@@ -158,6 +161,12 @@ func (p *runningJob) transition(status task_logger.TaskStatus, outputs *string) 
 	}
 }
 
+func (p *runningJob) setHosts(hosts *string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.hosts = hosts
+}
+
 // getStatus returns the current status under the lock.
 func (p *runningJob) getStatus() task_logger.TaskStatus {
 	p.mu.Lock()
@@ -168,7 +177,7 @@ func (p *runningJob) getStatus() task_logger.TaskStatus {
 // getProgress atomically snapshots the data needed to report progress to the
 // server. The returned slice is a copy, so the caller can read it freely while
 // the job keeps appending records.
-func (p *runningJob) getProgress() (status task_logger.TaskStatus, logRecords []LogRecord, commit *CommitInfo, outputs *string) {
+func (p *runningJob) getProgress() (status task_logger.TaskStatus, logRecords []LogRecord, commit *CommitInfo, outputs *string, hosts *string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	status = p.status
@@ -176,6 +185,7 @@ func (p *runningJob) getProgress() (status task_logger.TaskStatus, logRecords []
 	copy(logRecords, p.logRecords)
 	commit = p.commit
 	outputs = p.outputs
+	hosts = p.hosts
 	return
 }
 
