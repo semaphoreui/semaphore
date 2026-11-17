@@ -281,6 +281,8 @@ func TestDiffVariables(t *testing.T) {
 		{"value", "a: 1", "a: 2", []string{"a"}},
 		{"quoted", "flag: no", `flag: "no"`, []string{"flag"}},
 		{"nested quoted", "a:\n  flag: yes", "a:\n  flag: 'yes'", []string{"a"}},
+		{"merged", "<<: {a: 1, b: 1}\nb: 2", "<<: {a: 2, b: 3}\nb: 2", []string{"a"}},
+		{"merged list", "<<: [{a: 1}, {a: 5}]", "<<: [{a: 1}, {a: 6}]", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

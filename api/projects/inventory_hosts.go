@@ -21,8 +21,25 @@ func writtenValue(node *yaml.Node) any {
 		return writtenValue(node.Alias)
 	case yaml.MappingNode:
 		values := map[string]any{}
+		var merged []any
 		for i := 0; i+1 < len(node.Content); i += 2 {
-			values[node.Content[i].Value] = writtenValue(node.Content[i+1])
+			value := writtenValue(node.Content[i+1])
+			if node.Content[i].ShortTag() != "!!merge" {
+				values[node.Content[i].Value] = value
+			} else if list, ok := value.([]any); ok {
+				merged = append(merged, list...)
+			} else {
+				merged = append(merged, value)
+			}
+		}
+		// A merged key never replaces a key of the mapping or of an earlier merge
+		for _, source := range merged {
+			sourceValues, _ := source.(map[string]any)
+			for key, value := range sourceValues {
+				if _, ok := values[key]; !ok {
+					values[key] = value
+				}
+			}
 		}
 		return values
 	case yaml.SequenceNode:
@@ -32,7 +49,8 @@ func writtenValue(node *yaml.Node) any {
 		}
 		return values
 	}
-	return [2]any{node.Value, node.Style&(yaml.DoubleQuotedStyle|yaml.SingleQuotedStyle|yaml.LiteralStyle|yaml.FoldedStyle) != 0}
+	quoted := node.Style&(yaml.DoubleQuotedStyle|yaml.SingleQuotedStyle|yaml.LiteralStyle|yaml.FoldedStyle) != 0
+	return [2]any{node.Value, quoted}
 }
 
 func writtenVariables(text string) map[string]any {
