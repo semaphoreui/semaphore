@@ -508,6 +508,13 @@ func Route(
 	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}", projects.UpdateInventoryHost).Methods("PUT")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}", projects.RemoveInventoryHost).Methods("DELETE")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}/enabled", projects.SetInventoryHostEnabled).Methods("PUT")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/host_groups", projects.SetInventoryHostGroups).Methods("PUT")
+
+	projectInventoryManagement.HandleFunc("/{inventory_id}/groups", projects.GetInventoryGroups).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/groups", projects.AddInventoryGroup).Methods("POST")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/groups/{inventory_group_id}", projects.GetInventoryGroup).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/groups/{inventory_group_id}", projects.UpdateInventoryGroup).Methods("PUT")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/groups/{inventory_group_id}", projects.RemoveInventoryGroup).Methods("DELETE")
 
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases", terraformInventoryController.GetTerraformInventoryAliases).Methods("GET", "HEAD")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases", terraformInventoryController.AddTerraformInventoryAlias).Methods("POST")

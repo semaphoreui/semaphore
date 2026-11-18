@@ -141,9 +141,19 @@ func (d *SqlDb) GetInventoryGroup(projectID, inventoryID, groupID int) (group db
 		return
 	}
 
-	group.Children = []int{}
-	_, err = d.selectAll(&group.Children,
-		"select child_id from project__inventory_group_child where parent_id=? order by child_id", groupID)
+	children, err := d.inventoryGroupChildren(d.Sql(), projectID, inventoryID, nil)
+	if err != nil {
+		return
+	}
+	group.Children = append([]int{}, children[groupID]...)
+
+	query, args, err := sq.Select("count(distinct host_id)").From("project__inventory_group_host").
+		Where(sq.Eq{"group_id": append(db.InventoryGroupDescendants(children, groupID), groupID)}).
+		ToSql()
+	if err != nil {
+		return
+	}
+	err = d.selectOne(&group.HostCount, query, args...)
 	return
 }
 

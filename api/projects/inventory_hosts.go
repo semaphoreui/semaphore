@@ -85,6 +85,13 @@ func recordInventoryHost(r *http.Request, action helpers.EventLogType, verb stri
 	})
 }
 
+// inventoryHostRequest is a host with the changes of its groups
+type inventoryHostRequest struct {
+	db.InventoryHost
+	AddGroups    []int `json:"add_groups"`
+	RemoveGroups []int `json:"remove_groups"`
+}
+
 // managedInventory takes the inventory from the context and answers 400 when it is not managed.
 func managedInventory(w http.ResponseWriter, r *http.Request) (db.Inventory, bool) {
 	inventory := helpers.GetFromContext(r, "inventory").(db.Inventory)
@@ -116,6 +123,23 @@ func GetInventoryHosts(w http.ResponseWriter, r *http.Request) {
 			helpers.WriteErrorStatus(w, "invalid count", http.StatusBadRequest)
 			return
 		}
+	}
+
+	if s := r.URL.Query().Get("group"); s != "" {
+		if params.GroupID, err = strconv.Atoi(s); err != nil || params.GroupID <= 0 {
+			helpers.WriteErrorStatus(w, "invalid group", http.StatusBadRequest)
+			return
+		}
+	}
+	if s := r.URL.Query().Get("ungrouped"); s != "" {
+		if params.Ungrouped, err = strconv.ParseBool(s); err != nil {
+			helpers.WriteErrorStatus(w, "invalid ungrouped", http.StatusBadRequest)
+			return
+		}
+	}
+	if params.GroupID != 0 && params.Ungrouped {
+		helpers.WriteErrorStatus(w, "group and ungrouped can not be used together", http.StatusBadRequest)
+		return
 	}
 
 	if params.Count == 0 {
@@ -150,16 +174,17 @@ func AddInventoryHost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// A host is enabled unless the request says otherwise
-	host := db.InventoryHost{Enabled: true}
-	if !helpers.Bind(w, r, &host) {
+	body := inventoryHostRequest{InventoryHost: db.InventoryHost{Enabled: true}}
+	if !helpers.Bind(w, r, &body) {
 		return
 	}
 
+	host := body.InventoryHost
 	host.ID = 0
 	host.InventoryID = inventory.ID
 	host.ProjectID = inventory.ProjectID
 
-	newHost, err := helpers.Store(r).CreateInventoryHost(host, nil)
+	newHost, err := helpers.Store(r).CreateInventoryHost(host, body.AddGroups)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -211,16 +236,17 @@ func UpdateInventoryHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var host db.InventoryHost
-	if !helpers.Bind(w, r, &host) {
+	var body inventoryHostRequest
+	if !helpers.Bind(w, r, &body) {
 		return
 	}
 
+	host := body.InventoryHost
 	host.ID = hostID
 	host.InventoryID = inventory.ID
 	host.ProjectID = inventory.ProjectID
 
-	if _, _, err := helpers.Store(r).UpdateInventoryHost(host, nil, nil); err != nil {
+	if _, _, err := helpers.Store(r).UpdateInventoryHost(host, body.AddGroups, body.RemoveGroups); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
