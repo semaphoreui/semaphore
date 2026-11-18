@@ -88,7 +88,7 @@ func recordInventoryHost(r *http.Request, action helpers.EventLogType, verb stri
 	}
 }
 
-// inventoryGroupNames maps the group ids of an inventory to names, a failed read only leaves names out of the records
+// inventoryGroupNames maps the group ids of an inventory to names, a failed read is only logged
 func inventoryGroupNames(r *http.Request, inventory db.Inventory) map[int]string {
 	groups, err := helpers.Store(r).GetInventoryGroups(inventory.ProjectID, inventory.ID)
 	if err != nil {
