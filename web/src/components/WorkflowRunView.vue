@@ -483,7 +483,12 @@ export default {
     },
   },
   async created() {
+    // Set when the view goes away; not reactive, nothing renders from it.
+    this.closed = false;
     await this.loadData();
+    // The host swapped the run or closed the view while the run was loading: a timer started
+    // now would poll a run in progress with nothing left to stop it.
+    if (this.closed) return;
     this.pollHandle = setInterval(() => {
       const status = this.details && this.details.run.status;
       if (status === 'running' || status === 'approval') {
@@ -495,6 +500,7 @@ export default {
     }, 5000);
   },
   beforeUnmount() {
+    this.closed = true;
     if (this.pollHandle) clearInterval(this.pollHandle);
   },
   methods: {
