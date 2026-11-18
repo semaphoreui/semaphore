@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
+	"html"
 	"net"
 	"net/smtp"
 	"strings"
@@ -78,7 +79,7 @@ func Send(
 		To:      r.Replace(to),
 		From:    r.Replace(from),
 		Subject: r.Replace(subject),
-		Body:    content,
+		Body:    html.EscapeString(content),
 	})
 	if err != nil {
 		return err
