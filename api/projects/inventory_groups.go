@@ -1,11 +1,91 @@
 package projects
 
 import (
+	"encoding/json"
+	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
+	log "github.com/sirupsen/logrus"
 )
+
+// recordInventoryGroup writes one event log entry and an audit record for each metadata of a group change.
+func recordInventoryGroup(r *http.Request, action helpers.EventLogType, verb string, kind audit.Kind, inventory db.Inventory, group db.InventoryGroup, metadata ...audit.InventoryGroupMetadata) {
+	helpers.EventLog(r, action, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   inventory.ProjectID,
+		ObjectType:  db.EventInventoryGroup,
+		ObjectID:    group.ID,
+		Description: fmt.Sprintf("Group %s %s in inventory %s", group.Name, verb, inventory.Name),
+	})
+
+	for _, part := range metadata {
+		part.InventoryID = inventory.ID
+		part.InventoryName = inventory.Name
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:      kind,
+			Target:    audit.ResourceTarget(audit.TargetInventoryGroup, group.ID, group.Name),
+			ProjectID: inventory.ProjectID,
+			Metadata:  part,
+		})
+	}
+}
+
+// auditNameChunks cuts names into lists that each fit one audit record of the inventory.
+// The audit drops metadata over the limit whole, so a long list goes to several records.
+func auditNameChunks(inventory db.Inventory, names []string) [][]string {
+	base, _ := json.Marshal(audit.InventoryGroupMetadata{InventoryID: inventory.ID, InventoryName: inventory.Name})
+	chunks := [][]string{nil}
+	size := len(base)
+	for _, name := range names {
+		raw, _ := json.Marshal(name)
+		if len(chunks[len(chunks)-1]) > 0 && size+len(raw)+1 > audit.MaxMetadataBytes*3/4 {
+			chunks = append(chunks, nil)
+			size = len(base)
+		}
+		chunks[len(chunks)-1] = append(chunks[len(chunks)-1], name)
+		size += len(raw) + 1
+	}
+	return chunks
+}
+
+// recordInventoryGroupLinks records each group whose links changed, names holds the names of the linked hosts or child groups.
+func recordInventoryGroupLinks(r *http.Request, inventory db.Inventory, kind audit.Kind, verb string, groupNames map[int]string, links map[int][]int, names map[int]string) {
+	hosts := kind == audit.ResourceInventoryGroupHostAdd || kind == audit.ResourceInventoryGroupHostRemove
+
+	for _, groupID := range slices.Sorted(maps.Keys(links)) {
+		if len(links[groupID]) == 0 {
+			continue
+		}
+
+		linked := make([]string, len(links[groupID]))
+		for i, id := range links[groupID] {
+			name, ok := names[id]
+			if !ok {
+				continue
+			}
+			linked[i] = name
+		}
+
+		chunks := auditNameChunks(inventory, linked)
+		parts := make([]audit.InventoryGroupMetadata, len(chunks))
+		for i, chunk := range chunks {
+			if hosts {
+				parts[i].Hosts = chunk
+			} else {
+				parts[i].Children = chunk
+			}
+			if len(chunks) > 1 {
+				parts[i].Part, parts[i].Parts = i+1, len(chunks)
+			}
+		}
+		recordInventoryGroup(r, helpers.EventLogUpdate, verb, kind, inventory, db.InventoryGroup{ID: groupID, Name: groupNames[groupID]}, parts...)
+	}
+}
 
 // inventoryGroupRequest is a group with the changes of its child groups
 type inventoryGroupRequest struct {
@@ -62,6 +142,13 @@ func AddInventoryGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	recordInventoryGroup(r, helpers.EventLogCreate, "created", audit.ResourceInventoryGroupCreate, inventory, newGroup,
+		audit.InventoryGroupMetadata{AddedVariables: diffVariables("", newGroup.Variables).AddedVariables})
+	if len(newGroup.Children) > 0 {
+		recordInventoryGroupLinks(r, inventory, audit.ResourceInventoryGroupChildAdd, "had child groups added",
+			map[int]string{newGroup.ID: newGroup.Name}, map[int][]int{newGroup.ID: newGroup.Children}, inventoryGroupNames(r, inventory))
+	}
+
 	// The stored group carries the counted fields, the request may hold anything in them
 	newGroup, err = helpers.Store(r).GetInventoryGroup(inventory.ProjectID, inventory.ID, newGroup.ID)
 	if err != nil {
@@ -105,6 +192,13 @@ func UpdateInventoryGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The old group is the base of the audit record
+	oldGroup, err := helpers.Store(r).GetInventoryGroup(inventory.ProjectID, inventory.ID, groupID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
 	var body inventoryGroupRequest
 	if !helpers.Bind(w, r, &body) {
 		return
@@ -115,9 +209,36 @@ func UpdateInventoryGroup(w http.ResponseWriter, r *http.Request) {
 	group.InventoryID = inventory.ID
 	group.ProjectID = inventory.ProjectID
 
-	if _, _, err := helpers.Store(r).UpdateInventoryGroup(group, body.AddChildren, body.RemoveChildren); err != nil {
+	added, removed, err := helpers.Store(r).UpdateInventoryGroup(group, body.AddChildren, body.RemoveChildren)
+	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	var metadata audit.InventoryGroupMetadata
+	if group.Name != oldGroup.Name {
+		metadata.ChangedFields = append(metadata.ChangedFields, "name")
+		metadata.OldName = oldGroup.Name
+	}
+	if group.Description != oldGroup.Description {
+		metadata.ChangedFields = append(metadata.ChangedFields, "description")
+	}
+	diff := diffVariables(oldGroup.Variables, group.Variables)
+	if len(diff.AddedVariables)+len(diff.RemovedVariables)+len(diff.ChangedVariables) > 0 {
+		metadata.ChangedFields = append(metadata.ChangedFields, "variables")
+	}
+	metadata.AddedVariables = diff.AddedVariables
+	metadata.RemovedVariables = diff.RemovedVariables
+	metadata.ChangedVariables = diff.ChangedVariables
+
+	if len(metadata.ChangedFields) > 0 {
+		recordInventoryGroup(r, helpers.EventLogUpdate, "updated", audit.ResourceInventoryGroupUpdate, inventory, group, metadata)
+	}
+	if len(added)+len(removed) > 0 {
+		groupNames := inventoryGroupNames(r, inventory)
+		target := map[int]string{groupID: group.Name}
+		recordInventoryGroupLinks(r, inventory, audit.ResourceInventoryGroupChildAdd, "had child groups added", target, map[int][]int{groupID: added}, groupNames)
+		recordInventoryGroupLinks(r, inventory, audit.ResourceInventoryGroupChildRemove, "had child groups removed", target, map[int][]int{groupID: removed}, groupNames)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -135,10 +256,52 @@ func RemoveInventoryGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A failed read only leaves names and the count out of the record, as for a host
+	groups, err := helpers.Store(r).GetInventoryGroups(inventory.ProjectID, inventory.ID)
+	if err != nil {
+		log.WithError(err).Error("Failed to read the groups of an inventory")
+	}
+	links, err := helpers.Store(r).GetInventoryGroupHosts(inventory.ProjectID, inventory.ID)
+	if err != nil {
+		log.WithError(err).Error("Failed to read the group hosts of an inventory")
+	}
+
+	group := db.InventoryGroup{ID: groupID}
+	names := map[int]string{}
+	var children []string
+	for _, g := range groups {
+		names[g.ID] = g.Name
+		if g.ID == groupID {
+			group = g
+		}
+	}
+	for _, id := range group.Children {
+		if name, ok := names[id]; ok {
+			children = append(children, name)
+		}
+	}
+	hostCount := 0
+	for _, link := range links {
+		if link.GroupID == groupID {
+			hostCount++
+		}
+	}
+
 	if err := helpers.Store(r).DeleteInventoryGroup(inventory.ProjectID, inventory.ID, groupID); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
+
+	chunks := auditNameChunks(inventory, children)
+	parts := make([]audit.InventoryGroupMetadata, len(chunks))
+	for i, chunk := range chunks {
+		parts[i].Children = chunk
+		if len(chunks) > 1 {
+			parts[i].Part, parts[i].Parts = i+1, len(chunks)
+		}
+	}
+	parts[0].HostCount = hostCount
+	recordInventoryGroup(r, helpers.EventLogDelete, "deleted", audit.ResourceInventoryGroupDelete, inventory, group, parts...)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -172,10 +335,25 @@ func SetInventoryHostGroups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, _, err := helpers.Store(r).ChangeInventoryHostGroups(inventory.ProjectID, inventory.ID, body.Hosts, body.Add, body.Remove)
+	added, removed, err := helpers.Store(r).ChangeInventoryHostGroups(inventory.ProjectID, inventory.ID, body.Hosts, body.Add, body.Remove)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	if len(added)+len(removed) > 0 {
+		// One read names every host, a host deleted meanwhile is only left out of the records
+		hosts, _, err := helpers.Store(r).GetInventoryHosts(inventory.ProjectID, inventory.ID, db.InventoryHostListParams{IDs: body.Hosts, Count: len(body.Hosts)})
+		if err != nil {
+			log.WithError(err).Error("Failed to read the host names of an inventory")
+		}
+		hostNames := map[int]string{}
+		for _, host := range hosts {
+			hostNames[host.ID] = host.Name
+		}
+		groupNames := inventoryGroupNames(r, inventory)
+		recordInventoryGroupLinks(r, inventory, audit.ResourceInventoryGroupHostAdd, "had hosts added", groupNames, added, hostNames)
+		recordInventoryGroupLinks(r, inventory, audit.ResourceInventoryGroupHostRemove, "had hosts removed", groupNames, removed, hostNames)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
