@@ -517,6 +517,8 @@ export default {
   status_success: 'Success',
   status_failed: 'Failed',
   status_stopped: 'Stopped',
+  status_confirming: 'Waiting confirmation',
+  status_running: 'Running',
 
   api_tokens: 'API Tokens',
   tokenName: 'Token Name',

@@ -49,6 +49,14 @@ Verbergt het tabblad voor leden die de resources van het project niet mogen behe
 mag, ziet het nog, doorgestreept. Het verbergen van een tabblad verbergt de sjablonen ervan niet:
 een weergave van het type **All** vermeldt ze nog steeds.
 
+## Show task counts {#viewsForm-showTemplateStats}
+
+Toont op het tabblad hoeveel van de sjablonen ervan in welke toestand zijn, als één chip van
+gekleurde segmenten: groen voor een laatste taak die is geslaagd, rood voor een mislukte, grijs voor
+een gestopte of een sjabloon dat nooit is gestart, oranje voor een taak die op bevestiging wacht,
+blauw voor een taak in de wachtrij of in uitvoering. Het staat standaard uit, en de aantallen worden
+alleen berekend voor de weergaven waarbij het aan staat.
+
 ## Weergave Toevoegen {#viewsForm-add}
 
 Voegt een weergave toe aan het eind van de lijst, met een lege titel om in te typen.
