@@ -1,7 +1,6 @@
 package sql
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 
@@ -51,6 +50,24 @@ func (d *SqlDb) inventoryGroupChildren(q gorp.SqlExecutor, projectID, inventoryI
 	return children, nil
 }
 
+// insertInventoryGroupHosts writes links with multi-row inserts of at most 500 rows
+func (d *SqlDb) insertInventoryGroupHosts(tx *gorp.Transaction, links []db.InventoryGroupHost) error {
+	for chunk := range slices.Chunk(links, 500) {
+		insert := sq.Insert("project__inventory_group_host").Columns("group_id", "host_id")
+		for _, link := range chunk {
+			insert = insert.Values(link.GroupID, link.HostID)
+		}
+		query, args, err := insert.ToSql()
+		if err != nil {
+			return err
+		}
+		if _, err = d.execTx(tx, query, args...); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // lockInventory starts every change of links, so the changes of one inventory wait for each other
 func (d *SqlDb) lockInventory(tx *gorp.Transaction, projectID, inventoryID int) error {
 	_, err := d.execTx(tx, "update project__inventory set name=name where id=? and project_id=?", inventoryID, projectID)
@@ -75,8 +92,8 @@ func addRemoveIDs(add, remove []int) ([]int, []int, error) {
 	add = slices.Compact(slices.Sorted(slices.Values(add)))
 	remove = slices.Compact(slices.Sorted(slices.Values(remove)))
 	for _, id := range remove {
-		if slices.Contains(add, id) {
-			return nil, nil, common_errors.NewValidationError(fmt.Sprintf("%d can not be both added and removed", id))
+		if _, found := slices.BinarySearch(add, id); found {
+			return nil, nil, common_errors.NewValidationError(fmt.Sprintf("group %d can not be both added and removed", id))
 		}
 	}
 	return add, remove, nil
@@ -218,11 +235,6 @@ func (d *SqlDb) CreateInventoryGroup(group db.InventoryGroup, addChildren []int)
 	group.ID, err = d.connection.InsertTx(tx, "id", query, args...)
 	if err != nil {
 		_ = tx.Rollback()
-		// A concurrent request may have taken the name after the check
-		var nameErr *common_errors.ValidationError
-		if errors.As(d.validateInventoryGroupNameIsFree(d.Sql(), group), &nameErr) {
-			return db.InventoryGroup{}, nameErr
-		}
 		return db.InventoryGroup{}, err
 	}
 
@@ -256,7 +268,7 @@ func (d *SqlDb) UpdateInventoryGroup(group db.InventoryGroup, addChildren, remov
 		return nil, nil, err
 	}
 
-	children, err := d.inventoryGroupChildren(tx, group.ProjectID, group.InventoryID, slices.Concat(addChildren, removeChildren))
+	children, err := d.inventoryGroupChildren(tx, group.ProjectID, group.InventoryID, addChildren)
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, nil, err
@@ -308,11 +320,6 @@ func (d *SqlDb) UpdateInventoryGroup(group db.InventoryGroup, addChildren, remov
 
 	if _, err = d.execTx(tx, query, args...); err != nil {
 		_ = tx.Rollback()
-		// A concurrent request may have taken the name after the check
-		var nameErr *common_errors.ValidationError
-		if errors.As(d.validateInventoryGroupNameIsFree(d.Sql(), group), &nameErr) {
-			return nil, nil, nameErr
-		}
 		return nil, nil, err
 	}
 
@@ -338,9 +345,26 @@ func (d *SqlDb) UpdateInventoryGroup(group db.InventoryGroup, addChildren, remov
 }
 
 func (d *SqlDb) DeleteInventoryGroup(projectID, inventoryID, groupID int) error {
-	return requireDeletedRow(d.exec(
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return err
+	}
+
+	// The delete removes links by cascade, so it waits for the changes of links as they wait for each other
+	if err = d.lockInventory(tx, projectID, inventoryID); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	err = requireDeletedRow(d.execTx(tx,
 		"delete from project__inventory_group where id=? and inventory_id=? and project_id=?",
 		groupID, inventoryID, projectID))
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (d *SqlDb) ChangeInventoryHostGroups(projectID, inventoryID int, hostIDs, add, remove []int) (added, removed map[int][]int, err error) {
@@ -359,7 +383,7 @@ func (d *SqlDb) ChangeInventoryHostGroups(projectID, inventoryID int, hostIDs, a
 		return nil, nil, err
 	}
 
-	if _, err = d.inventoryGroupChildren(tx, projectID, inventoryID, slices.Concat(add, remove)); err != nil {
+	if _, err = d.inventoryGroupChildren(tx, projectID, inventoryID, add); err != nil {
 		_ = tx.Rollback()
 		return nil, nil, err
 	}
@@ -401,30 +425,39 @@ func (d *SqlDb) ChangeInventoryHostGroups(projectID, inventoryID int, hostIDs, a
 	}
 
 	added, removed = map[int][]int{}, map[int][]int{}
+	var newLinks []db.InventoryGroupHost
 	for _, group := range add {
 		for _, host := range hostIDs {
-			if linked[db.InventoryGroupHost{GroupID: group, HostID: host}] {
-				continue
+			link := db.InventoryGroupHost{GroupID: group, HostID: host}
+			if !linked[link] {
+				newLinks = append(newLinks, link)
+				added[group] = append(added[group], host)
 			}
-			_, err = d.execTx(tx, "insert into project__inventory_group_host (group_id, host_id) values (?, ?)", group, host)
-			if err != nil {
-				_ = tx.Rollback()
-				return nil, nil, err
-			}
-			added[group] = append(added[group], host)
 		}
 	}
+	if err = d.insertInventoryGroupHosts(tx, newLinks); err != nil {
+		_ = tx.Rollback()
+		return nil, nil, err
+	}
+
 	for _, group := range remove {
 		for _, host := range hostIDs {
-			if !linked[db.InventoryGroupHost{GroupID: group, HostID: host}] {
-				continue
+			if linked[db.InventoryGroupHost{GroupID: group, HostID: host}] {
+				removed[group] = append(removed[group], host)
 			}
-			_, err = d.execTx(tx, "delete from project__inventory_group_host where group_id=? and host_id=?", group, host)
+		}
+		for chunk := range slices.Chunk(removed[group], 500) {
+			query, args, err = sq.Delete("project__inventory_group_host").
+				Where(sq.Eq{"group_id": group, "host_id": chunk}).
+				ToSql()
 			if err != nil {
 				_ = tx.Rollback()
 				return nil, nil, err
 			}
-			removed[group] = append(removed[group], host)
+			if _, err = d.execTx(tx, query, args...); err != nil {
+				_ = tx.Rollback()
+				return nil, nil, err
+			}
 		}
 	}
 

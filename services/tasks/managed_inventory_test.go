@@ -171,11 +171,13 @@ func TestBuildManagedInventory_GroupCycle(t *testing.T) {
 }
 
 func TestBuildManagedInventory_GroupErrorNamesGroup(t *testing.T) {
-	groups := []db.InventoryGroup{{ID: 1, Name: "web", Variables: "[oops"}}
+	groups := []db.InventoryGroup{{ID: 1, Name: "web", Variables: "secret: [oops"}}
 
 	_, err := buildManagedInventory("", nil, groups, nil)
 
+	require.Error(t, err)
 	assert.ErrorContains(t, err, "group web: ")
+	assert.NotContains(t, err.Error(), "secret")
 }
 
 func TestBuildManagedInventory_KeepsOnlyAllAtTheTop(t *testing.T) {

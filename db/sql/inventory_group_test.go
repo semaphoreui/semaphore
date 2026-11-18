@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -132,8 +133,9 @@ func TestGetInventoryGroups_DiamondCountsHostOnce(t *testing.T) {
 
 func TestGetInventoryGroup_CountsAsTheList(t *testing.T) {
 	tests := []struct {
-		name  string
-		setup func(t *testing.T, f inventoryGroupFixture)
+		name   string
+		setup  func(t *testing.T, f inventoryGroupFixture)
+		counts map[string]int
 	}{
 		{"diamond", func(t *testing.T, f inventoryGroupFixture) {
 			shared := f.group(t, "web-shared")
@@ -142,13 +144,13 @@ func TestGetInventoryGroup_CountsAsTheList(t *testing.T) {
 			f.group(t, "web", eu.ID, us.ID)
 			f.host(t, "h1", shared.ID, eu.ID)
 			f.host(t, "h2", us.ID)
-		}},
+		}, map[string]int{"web": 2, "web-eu": 1, "web-shared": 1, "web-us": 2}},
 		{"cycle in the table", func(t *testing.T, f inventoryGroupFixture) {
 			a, b := f.group(t, "a"), f.group(t, "b")
 			f.host(t, "h1", a.ID)
 			_, err := f.store.exec("insert into project__inventory_group_child (parent_id, child_id) values (?, ?), (?, ?)", a.ID, b.ID, b.ID, a.ID)
 			require.NoError(t, err)
-		}},
+		}, map[string]int{"a": 1, "b": 1}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -158,10 +160,11 @@ func TestGetInventoryGroup_CountsAsTheList(t *testing.T) {
 			groups, err := f.store.GetInventoryGroups(f.project.ID, f.inventory.ID)
 
 			require.NoError(t, err)
+			require.Len(t, groups, len(tt.counts))
 			for _, want := range groups {
 				got, err := f.store.GetInventoryGroup(f.project.ID, f.inventory.ID, want.ID)
 				require.NoError(t, err)
-				assert.Positive(t, got.HostCount, want.Name)
+				assert.Equal(t, tt.counts[want.Name], want.HostCount, want.Name)
 				assert.Equal(t, want.HostCount, got.HostCount, want.Name)
 				assert.Equal(t, want.Children, got.Children, want.Name)
 			}
@@ -189,6 +192,57 @@ func TestUpdateInventoryGroup_RejectsCycle(t *testing.T) {
 	assert.Empty(t, got.Children)
 }
 
+func TestUpdateInventoryGroup_OtherInventoryIsNotFound(t *testing.T) {
+	f := newInventoryGroupFixture(t)
+	web := f.group(t, "web")
+	other := createTestManagedInventory(t, f.store, f.project.ID, "other")
+	foreign, err := f.store.CreateInventoryGroup(db.InventoryGroup{ProjectID: f.project.ID, InventoryID: other.ID, Name: "web"}, nil)
+	require.NoError(t, err)
+	foreign.InventoryID = f.inventory.ID
+
+	_, _, err = f.store.UpdateInventoryGroup(foreign, []int{web.ID}, nil)
+
+	assert.ErrorIs(t, err, db.ErrNotFound)
+	count, err := f.store.Sql().SelectInt("select count(*) from project__inventory_group_child")
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), count)
+}
+
+func TestInventoryGroupLinks_RemoveOfUnknownGroupRemovesNothing(t *testing.T) {
+	f := newInventoryGroupFixture(t)
+	web := f.group(t, "web")
+	host := f.host(t, "h1", web.ID)
+	unknown := web.ID + 100
+
+	_, removed, err := f.store.UpdateInventoryHost(host, nil, []int{unknown})
+	require.NoError(t, err)
+	assert.Empty(t, removed)
+
+	_, removed, err = f.store.UpdateInventoryGroup(web, nil, []int{unknown})
+	require.NoError(t, err)
+	assert.Empty(t, removed)
+
+	_, bulkRemoved, err := f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, []int{host.ID}, nil, []int{unknown})
+	require.NoError(t, err)
+	assert.Empty(t, bulkRemoved)
+	assert.Equal(t, int64(1), f.linkCount(t))
+}
+
+func TestChangeInventoryHostGroups_StoresManyLinks(t *testing.T) {
+	f := newInventoryGroupFixture(t)
+	groups := []int{f.group(t, "a").ID, f.group(t, "b").ID, f.group(t, "c").ID}
+	hosts := make([]int, 1200)
+	for i := range hosts {
+		hosts[i] = f.host(t, fmt.Sprintf("h%d", i)).ID
+	}
+
+	added, _, err := f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, hosts, groups, nil)
+
+	require.NoError(t, err)
+	assert.Len(t, added[groups[2]], 1200)
+	assert.Equal(t, int64(3600), f.linkCount(t))
+}
+
 func TestUpdateInventoryGroup_CycleInTheTableAllowsOtherChanges(t *testing.T) {
 	f := newInventoryGroupFixture(t)
 	a, b := f.group(t, "a"), f.group(t, "b")
@@ -205,21 +259,6 @@ func TestUpdateInventoryGroup_CycleInTheTableAllowsOtherChanges(t *testing.T) {
 	_, removed, err := f.store.UpdateInventoryGroup(a, nil, []int{b.ID})
 	require.NoError(t, err)
 	assert.Equal(t, []int{b.ID}, removed)
-}
-
-func TestGetInventoryGroups_ReturnsWithCycleInTheTable(t *testing.T) {
-	f := newInventoryGroupFixture(t)
-	a, b := f.group(t, "a"), f.group(t, "b")
-	f.host(t, "h1", a.ID)
-	_, err := f.store.exec("insert into project__inventory_group_child (parent_id, child_id) values (?, ?), (?, ?)", a.ID, b.ID, b.ID, a.ID)
-	require.NoError(t, err)
-
-	groups, err := f.store.GetInventoryGroups(f.project.ID, f.inventory.ID)
-
-	require.NoError(t, err)
-	require.Len(t, groups, 2)
-	assert.Equal(t, 1, groups[0].HostCount)
-	assert.Equal(t, 1, groups[1].HostCount)
 }
 
 func TestGetInventoryHosts_FiltersByGroup(t *testing.T) {

@@ -327,7 +327,7 @@ type InventoryHostManager interface {
 	DeleteInventoryHost(projectID, inventoryID, hostID int) error
 }
 
-// InventoryGroupManager handles groups of managed inventories, every change of links is applied whole or not at all
+// InventoryGroupManager handles groups of managed inventories, every change of links is applied whole or not at all, an unknown id to remove is ignored
 type InventoryGroupManager interface {
 	GetInventoryGroups(projectID, inventoryID int) ([]InventoryGroup, error)
 	GetInventoryGroup(projectID, inventoryID, groupID int) (InventoryGroup, error)
