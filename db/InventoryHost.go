@@ -25,6 +25,7 @@ type InventoryHost struct {
 	Enabled     bool      `db:"enabled" json:"enabled"`
 	Variables   string    `db:"variables" json:"variables"`
 	Created     time.Time `db:"created" json:"created" backup:"-"`
+	Groups      []int     `db:"-" json:"groups" backup:"-"`
 
 	// VariableCount is the number of top-level variables, set when the host is saved
 	VariableCount int `db:"variable_count" json:"variable_count" backup:"-"`
