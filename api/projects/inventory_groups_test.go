@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -353,4 +356,23 @@ func TestInventoryGroups_OtherInventoryIs404(t *testing.T) {
 	got, err := f.store.GetInventoryGroup(f.project.ID, a.ID, group.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "web", got.Name)
+}
+
+func TestAuditNameChunks(t *testing.T) {
+	inventory := db.Inventory{ID: 1, Name: "prod"}
+	names := make([]string, 100)
+	for i := range names {
+		names[i] = strings.Repeat("g", 250)
+	}
+
+	chunks := auditNameChunks(inventory, names)
+
+	assert.Greater(t, len(chunks), 1)
+	assert.Equal(t, names, slices.Concat(chunks...))
+	for _, chunk := range chunks {
+		raw, err := json.Marshal(audit.InventoryGroupMetadata{InventoryID: 1, InventoryName: "prod", Children: chunk, Part: 1, Parts: len(chunks), HostCount: 1000})
+		require.NoError(t, err)
+		assert.LessOrEqual(t, len(raw), audit.MaxMetadataBytes)
+	}
+	assert.Equal(t, [][]string{nil}, auditNameChunks(inventory, nil))
 }

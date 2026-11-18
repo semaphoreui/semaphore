@@ -343,6 +343,7 @@ type InventoryHostListParams struct {
 	Count     int // 0 means no limit
 	GroupID   int // hosts of the group and of its descendants
 	Ungrouped bool
+	IDs       []int // only these hosts, nil means any
 }
 
 // InventoryHostManager handles hosts of managed inventories

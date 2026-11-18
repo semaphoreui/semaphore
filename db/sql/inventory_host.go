@@ -50,6 +50,10 @@ func (d *SqlDb) GetInventoryHosts(projectID, inventoryID int, params db.Inventor
 			sq.Select("host_id").From("project__inventory_group_host").Where(sq.Eq{"group_id": groups})))
 	}
 
+	if params.IDs != nil {
+		where = append(where, sq.Eq{"id": params.IDs})
+	}
+
 	if params.Ungrouped {
 		where = append(where, sq.Expr(
 			"not exists (select 1 from project__inventory_group_host gh where gh.host_id = project__inventory_host.id)"))
