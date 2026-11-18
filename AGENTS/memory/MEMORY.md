@@ -66,9 +66,10 @@ only when the task touches that topic. Keep this file under 150 lines.
   verify locale pages with Python.
 - Port 3000 is usually taken by the Docusaurus dev server; 8080 by the dev stand; local stands use
   3100 (see `ui-stands.md`).
-- Research MCP: `query_search_run` returned zero sources on several days (2026-09-08/09) and many
-  fetches return `error`; check `sources_list` before assuming a search worked, and expect to fall
-  back to WebSearch/WebFetch with URLs cited in notes.
+- Research MCP: `query_search_run` returned zero sources on several days (2026-09-08/09, 2026-11-16)
+  and many fetches return `error`; check `sources_list` before assuming a search worked — on
+  2026-11-16 long queries returned nothing while short ones worked — and expect to fall back to
+  WebSearch/WebFetch with URLs cited in notes.
 - Workbench MCP: every session starts unbound and can silently lose the binding mid-session —
   re-run `workspace_use` on the first "not bound" error.
 - Workbench MCP: `task_update` refuses to change context/constraints/criteria of a human-created

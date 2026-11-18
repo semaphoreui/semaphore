@@ -43,3 +43,4 @@ maintained, not a full export of the MCP catalogue.
 | `RESEARCH@84146f310f` | Overview of the separate `integration-tests` Java/Bookwright repo: libraries, layout, pipeline. |
 | `RESEARCH@037925c6fb` | Distributing the GPG signing key for release artifacts. |
 | `RESEARCH@68b3ce04ef` | Best practices of CLI-clients (gh, glab, doctl, kubectl, aws, clig.dev): command tree, config, exit codes — based on `semaphore client` (TASK@F7CC584F59). |
+| `RESEARCH@b8659e081f` | Stacks: how Dockge/Portainer/Komodo, Spacelift/env0/HCP/Pulumi, Octopus/Port/Juju/Argo CD, AWX/EDA/Kestra model a stateful group with start/stop, AI agents inside such units, and the variants A–D with the recommended data model and state machine — start here for any Stack task. |
