@@ -35,7 +35,10 @@ run of the same graph in which the carried nodes have already succeeded.
 1. A failed node (task not `success`, approval `rejected`, delay `stopped`) and every node after
    it run again.
 2. A node that never started but is ready on the carried results runs, with everything after
-   it. Only a stopped run has such nodes.
+   it. The first node has no incoming edge and is always ready, so a first node without a state
+   (its task could not be queued, or was deleted since) runs again and nothing is carried —
+   `RerunWorkflowRun` launches it anyway, and a carried node after it would let its successors
+   start on the old result before it finishes. A stopped run has such nodes too.
 3. An approved approval with a path to a non-approval node that runs again, with no other
    approval on that path, is requested again. Only the decision is re-asked; nodes after it are
    not pulled in by this rule.
