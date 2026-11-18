@@ -26,6 +26,7 @@ func TestInventoryHosts_CRUD(t *testing.T) {
 		ProjectID: project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true,
 	}, nil)
 	require.NoError(t, err)
+	assert.Equal(t, []int{}, created.Groups)
 	got, err := store.GetInventoryHost(project.ID, inventory.ID, created.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "web1", got.Name)

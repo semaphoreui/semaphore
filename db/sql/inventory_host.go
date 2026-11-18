@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"database/sql"
 	"errors"
 	"slices"
 	"strings"
@@ -146,36 +147,24 @@ func (d *SqlDb) GetEnabledInventoryHosts(projectID, inventoryID int) (hosts []db
 	return
 }
 
+// inventoryHostWriteError returns the name error when a concurrent request took the name, older nodes write hosts without the lock
+func (d *SqlDb) inventoryHostWriteError(host db.InventoryHost, err error) error {
+	var nameErr *common_errors.ValidationError
+	if errors.As(d.validateInventoryHostNameIsFree(d.Sql(), host), &nameErr) {
+		return nameErr
+	}
+	return err
+}
+
 func (d *SqlDb) CreateInventoryHost(host db.InventoryHost, addGroups []int) (db.InventoryHost, error) {
 	if err := host.Validate(); err != nil {
 		return db.InventoryHost{}, err
 	}
 	addGroups = slices.Compact(slices.Sorted(slices.Values(addGroups)))
 
-	tx, err := d.Sql().Begin()
-	if err != nil {
-		return db.InventoryHost{}, err
-	}
-
-	if err = d.lockInventory(tx, host.ProjectID, host.InventoryID); err != nil {
-		_ = tx.Rollback()
-		return db.InventoryHost{}, err
-	}
-
-	if len(addGroups) > 0 {
-		if _, err = d.inventoryGroupChildren(tx, host.ProjectID, host.InventoryID, addGroups); err != nil {
-			_ = tx.Rollback()
-			return db.InventoryHost{}, err
-		}
-	}
-
-	if err = d.validateInventoryHostNameIsFree(tx, host); err != nil {
-		_ = tx.Rollback()
-		return db.InventoryHost{}, err
-	}
-
 	host.Created = tz.Now()
 	host.VariableCount = db.CountInventoryVariables(host.Variables)
+	host.Groups = append([]int{}, addGroups...)
 
 	query, args, err := sq.Insert("project__inventory_host").
 		SetMap(map[string]any{
@@ -190,6 +179,37 @@ func (d *SqlDb) CreateInventoryHost(host db.InventoryHost, addGroups []int) (db.
 		}).
 		ToSql()
 	if err != nil {
+		return db.InventoryHost{}, err
+	}
+
+	// Only a change of links takes the inventory lock
+	if len(addGroups) == 0 {
+		if err = d.validateInventoryHostNameIsFree(d.Sql(), host); err != nil {
+			return db.InventoryHost{}, err
+		}
+		host.ID, err = d.insert("id", query, args...)
+		if err != nil {
+			return db.InventoryHost{}, d.inventoryHostWriteError(host, err)
+		}
+		return host, nil
+	}
+
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return db.InventoryHost{}, err
+	}
+
+	if err = d.lockInventory(tx, host.ProjectID, host.InventoryID); err != nil {
+		_ = tx.Rollback()
+		return db.InventoryHost{}, err
+	}
+
+	if _, err = d.inventoryGroupChildren(tx, host.ProjectID, host.InventoryID, addGroups); err != nil {
+		_ = tx.Rollback()
+		return db.InventoryHost{}, err
+	}
+
+	if err = d.validateInventoryHostNameIsFree(tx, host); err != nil {
 		_ = tx.Rollback()
 		return db.InventoryHost{}, err
 	}
@@ -197,23 +217,18 @@ func (d *SqlDb) CreateInventoryHost(host db.InventoryHost, addGroups []int) (db.
 	host.ID, err = d.connection.InsertTx(tx, "id", query, args...)
 	if err != nil {
 		_ = tx.Rollback()
-		// A concurrent request may have taken the name after the check
-		var nameErr *common_errors.ValidationError
-		if errors.As(d.validateInventoryHostNameIsFree(d.Sql(), host), &nameErr) {
-			return db.InventoryHost{}, nameErr
-		}
+		return db.InventoryHost{}, d.inventoryHostWriteError(host, err)
+	}
+
+	links := make([]db.InventoryGroupHost, len(addGroups))
+	for i, group := range addGroups {
+		links[i] = db.InventoryGroupHost{GroupID: group, HostID: host.ID}
+	}
+	if err = d.insertInventoryGroupHosts(tx, links); err != nil {
+		_ = tx.Rollback()
 		return db.InventoryHost{}, err
 	}
 
-	for _, group := range addGroups {
-		_, err = d.execTx(tx, "insert into project__inventory_group_host (group_id, host_id) values (?, ?)", group, host.ID)
-		if err != nil {
-			_ = tx.Rollback()
-			return db.InventoryHost{}, err
-		}
-	}
-
-	host.Groups = append([]int{}, addGroups...)
 	return host, tx.Commit()
 }
 
@@ -222,6 +237,47 @@ func (d *SqlDb) UpdateInventoryHost(host db.InventoryHost, addGroups, removeGrou
 		return
 	}
 	if addGroups, removeGroups, err = addRemoveIDs(addGroups, removeGroups); err != nil {
+		return
+	}
+
+	query, args, err := sq.Update("project__inventory_host").
+		SetMap(map[string]any{
+			"name":           host.Name,
+			"description":    host.Description,
+			"variables":      host.Variables,
+			"variable_count": db.CountInventoryVariables(host.Variables),
+		}).
+		Where(sq.Eq{"id": host.ID, "inventory_id": host.InventoryID, "project_id": host.ProjectID}).
+		ToSql()
+	if err != nil {
+		return
+	}
+
+	// Only a change of links takes the inventory lock
+	if len(addGroups) == 0 && len(removeGroups) == 0 {
+		if err = d.validateInventoryHostNameIsFree(d.Sql(), host); err != nil {
+			return
+		}
+		var res sql.Result
+		if res, err = d.exec(query, args...); err != nil {
+			err = d.inventoryHostWriteError(host, err)
+		}
+		if err = validateMutationResult(res, err); err != nil {
+			return
+		}
+		var affected int64
+		if affected, err = res.RowsAffected(); err != nil || affected > 0 {
+			return
+		}
+
+		// MySQL counts only changed rows, so an update without changes also affects none
+		var count int
+		err = d.selectOne(&count,
+			"select count(*) from project__inventory_host where id=? and inventory_id=? and project_id=?",
+			host.ID, host.InventoryID, host.ProjectID)
+		if err == nil && count == 0 {
+			err = db.ErrNotFound
+		}
 		return
 	}
 
@@ -235,9 +291,8 @@ func (d *SqlDb) UpdateInventoryHost(host db.InventoryHost, addGroups, removeGrou
 		return nil, nil, err
 	}
 
-	if len(addGroups) > 0 || len(removeGroups) > 0 {
-		_, err = d.inventoryGroupChildren(tx, host.ProjectID, host.InventoryID, slices.Concat(addGroups, removeGroups))
-		if err != nil {
+	if len(addGroups) > 0 {
+		if _, err = d.inventoryGroupChildren(tx, host.ProjectID, host.InventoryID, addGroups); err != nil {
 			_ = tx.Rollback()
 			return nil, nil, err
 		}
@@ -266,9 +321,11 @@ func (d *SqlDb) UpdateInventoryHost(host db.InventoryHost, addGroups, removeGrou
 		_ = tx.Rollback()
 		return nil, nil, err
 	}
+	var links []db.InventoryGroupHost
 	for _, id := range addGroups {
 		if !slices.Contains(current, id) {
 			added = append(added, id)
+			links = append(links, db.InventoryGroupHost{GroupID: id, HostID: host.ID})
 		}
 	}
 	for _, id := range removeGroups {
@@ -277,36 +334,14 @@ func (d *SqlDb) UpdateInventoryHost(host db.InventoryHost, addGroups, removeGrou
 		}
 	}
 
-	query, args, err := sq.Update("project__inventory_host").
-		SetMap(map[string]any{
-			"name":           host.Name,
-			"description":    host.Description,
-			"variables":      host.Variables,
-			"variable_count": db.CountInventoryVariables(host.Variables),
-		}).
-		Where(sq.Eq{"id": host.ID, "inventory_id": host.InventoryID, "project_id": host.ProjectID}).
-		ToSql()
-	if err != nil {
-		_ = tx.Rollback()
-		return nil, nil, err
-	}
-
 	if _, err = d.execTx(tx, query, args...); err != nil {
 		_ = tx.Rollback()
-		// A concurrent request may have taken the name after the check
-		var nameErr *common_errors.ValidationError
-		if errors.As(d.validateInventoryHostNameIsFree(d.Sql(), host), &nameErr) {
-			return nil, nil, nameErr
-		}
-		return nil, nil, err
+		return nil, nil, d.inventoryHostWriteError(host, err)
 	}
 
-	for _, group := range added {
-		_, err = d.execTx(tx, "insert into project__inventory_group_host (group_id, host_id) values (?, ?)", group, host.ID)
-		if err != nil {
-			_ = tx.Rollback()
-			return nil, nil, err
-		}
+	if err = d.insertInventoryGroupHosts(tx, links); err != nil {
+		_ = tx.Rollback()
+		return nil, nil, err
 	}
 	for _, group := range removed {
 		_, err = d.execTx(tx, "delete from project__inventory_group_host where group_id=? and host_id=?", group, host.ID)
