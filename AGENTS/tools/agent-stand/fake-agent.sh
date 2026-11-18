@@ -7,6 +7,15 @@
 # (fake-codex-events.sh).
 # FAKE_AGENT_QUIET (a variable of the template's Variable Group) leaves these lines out: a real
 # CLI does not print them, and a screenshot for the docs must not show them.
+# FAKE_AGENT_SCENARIO=leaks reports a run repeating the secrets it got instead (fake-leaks.py,
+# check-masking.cjs).
+# FAKE_AGENT_SCENARIO=tokens prints the URL of every MCP server with a hash of its token
+# (fake-tokens.py, check-runner-tokens.cjs).
+case "${FAKE_AGENT_SCENARIO:-}" in
+  leaks) exec python3 -I "$(dirname "$0")/fake-leaks.py" "$@" ;;
+  tokens) exec python3 -I "$(dirname "$0")/fake-tokens.py" "$@" ;;
+esac
+
 if [ -n "${FAKE_AGENT_QUIET:-}" ]; then
   cat > /dev/null
 else
