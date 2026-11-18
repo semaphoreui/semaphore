@@ -35,6 +35,13 @@
       </v-tab>
       <v-tab data-testid="inventoryView-tab-variables" :to="`${listPath}/${inventoryId}/variables`">
         {{ $t('inventory_tab_variables') }}
+        <v-chip
+          v-if="variableCount > 0"
+          size="x-small"
+          class="ml-2 font-weight-bold"
+          style="cursor: inherit"
+          data-testid="inventoryView-variableCount"
+        >{{ variableCount }}</v-chip>
       </v-tab>
     </v-tabs>
 
@@ -45,6 +52,7 @@
       :inventory-id="inventoryId"
       :user-permissions="userPermissions"
       :is-admin="isAdmin"
+      @variables-saved="inventory.variables = $event"
     ></router-view>
   </div>
 </template>
@@ -53,6 +61,7 @@
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import ProjectMixin from '@/components/ProjectMixin';
+import variableNames from '@/lib/inventoryVariables';
 
 export default {
   mixins: [ProjectMixin],
@@ -74,6 +83,10 @@ export default {
   computed: {
     inventoryId() {
       return Number(this.$route.params.inventoryId);
+    },
+
+    variableCount() {
+      return variableNames(this.inventory.variables).length;
     },
 
     listPath() {

@@ -46,6 +46,7 @@ describe('InventoryVariables.vue', () => {
     const put = http.requests.find((r) => r.method === 'put');
     expect(put.url).to.equal('/api/project/7/inventory/3/variables');
     expect(put.data).to.deep.equal({ variables: 'a: 2' });
+    expect(wrapper.emitted('variables-saved')[0]).to.deep.equal(['a: 2']);
   });
 
   it('asks before leaving with unsaved variables', async () => {
