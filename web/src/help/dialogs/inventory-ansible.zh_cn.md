@@ -15,8 +15,6 @@ form: src/components/InventoryForm.vue
 
 ## 运行器标签 {#inventoryForm-runnerTag}
 
-在项目有可用的运行器时显示。
-
 使用此库存的任务会在带有此标签的运行器上运行。任务模板上设置的运行器标签优先于库存的标签。将此字段留空，
 则任何运行器都可以领取这些任务。
 
