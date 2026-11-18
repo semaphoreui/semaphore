@@ -663,7 +663,19 @@ func (t *TaskRunner) populateDetails() error {
 			return err
 		}
 
-		t.Inventory.Inventory, err = buildManagedInventory(t.Inventory.VariablesText(), hosts)
+		var groups []db.InventoryGroup
+		groups, err = t.pool.store.GetInventoryGroups(t.Inventory.ProjectID, t.Inventory.ID)
+		if err != nil {
+			return err
+		}
+
+		var members []db.InventoryGroupHost
+		members, err = t.pool.store.GetInventoryGroupHosts(t.Inventory.ProjectID, t.Inventory.ID)
+		if err != nil {
+			return err
+		}
+
+		t.Inventory.Inventory, err = buildManagedInventory(t.Inventory.VariablesText(), hosts, groups, members)
 		if err != nil {
 			t.Log("Managed inventory is invalid: " + err.Error())
 			return err
