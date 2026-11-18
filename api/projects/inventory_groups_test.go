@@ -2,6 +2,7 @@ package projects
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -240,6 +241,10 @@ func TestInventoryGroups_HostGroupsNeedsHostsAndChanges(t *testing.T) {
 	for i := range tooMany {
 		tooMany[i] = host.ID
 	}
+	tooManyGroups := make([]int, 101)
+	for i := range tooManyGroups {
+		tooManyGroups[i] = group.ID
+	}
 
 	tests := []struct {
 		name string
@@ -248,6 +253,7 @@ func TestInventoryGroups_HostGroupsNeedsHostsAndChanges(t *testing.T) {
 		{"no hosts", map[string]any{"hosts": []int{}, "add": []int{group.ID}}},
 		{"no changes", map[string]any{"hosts": []int{host.ID}, "add": nil}},
 		{"too many hosts", map[string]any{"hosts": tooMany, "add": []int{group.ID}}},
+		{"too many groups", map[string]any{"hosts": []int{host.ID}, "add": tooManyGroups}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -260,6 +266,58 @@ func TestInventoryGroups_HostGroupsNeedsHostsAndChanges(t *testing.T) {
 		})
 	}
 
+	links, err := f.store.GetInventoryGroupHosts(f.project.ID, inventory.ID)
+	require.NoError(t, err)
+	assert.Empty(t, links)
+}
+
+func TestInventoryGroups_TooManyGroupsIsRejected(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "managed")
+	group := newInventoryGroup(t, f, inventory, "web")
+	host := newInventoryHost(t, f, inventory, "web1")
+	tooMany := make([]int, 1001)
+	for i := range tooMany {
+		tooMany[i] = group.ID
+	}
+	ids, err := json.Marshal(tooMany)
+	require.NoError(t, err)
+	hostIDs, err := json.Marshal(tooMany[:101])
+	require.NoError(t, err)
+
+	tests := []struct {
+		name   string
+		method string
+		body   string
+		vars   map[string]string
+		call   http.HandlerFunc
+	}{
+		{"host create", http.MethodPost, `{"name":"web2","add_groups":` + string(hostIDs) + `}`, nil, AddInventoryHost},
+		{"host update", http.MethodPut, `{"name":"web3","remove_groups":` + string(hostIDs) + `}`, map[string]string{"inventory_host_id": strconv.Itoa(host.ID)}, UpdateInventoryHost},
+		{"group create", http.MethodPost, `{"name":"app","add_children":` + string(ids) + `}`, nil, AddInventoryGroup},
+		{"group update", http.MethodPut, `{"name":"db","remove_children":` + string(ids) + `}`, map[string]string{"inventory_group_id": strconv.Itoa(group.ID)}, UpdateInventoryGroup},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			vars := map[string]string{"inventory_id": strconv.Itoa(inventory.ID)}
+			maps.Copy(vars, tt.vars)
+			r, _ := f.request(tt.method, tt.body, map[string]any{"inventory": inventory}, vars)
+			w := httptest.NewRecorder()
+
+			tt.call(w, r)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+		})
+	}
+
+	hosts, _, err := f.store.GetInventoryHosts(f.project.ID, inventory.ID, db.InventoryHostListParams{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	assert.Equal(t, "web1", hosts[0].Name)
+	groups, err := f.store.GetInventoryGroups(f.project.ID, inventory.ID)
+	require.NoError(t, err)
+	require.Len(t, groups, 1)
+	assert.Equal(t, "web", groups[0].Name)
 	links, err := f.store.GetInventoryGroupHosts(f.project.ID, inventory.ID)
 	require.NoError(t, err)
 	assert.Empty(t, links)

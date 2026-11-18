@@ -195,6 +195,11 @@ func AddInventoryHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(body.AddGroups)+len(body.RemoveGroups) > 100 {
+		helpers.WriteErrorStatus(w, "at most 100 groups can be changed at once", http.StatusBadRequest)
+		return
+	}
+
 	host := body.InventoryHost
 	host.ID = 0
 	host.InventoryID = inventory.ID
@@ -262,6 +267,11 @@ func UpdateInventoryHost(w http.ResponseWriter, r *http.Request) {
 
 	var body inventoryHostRequest
 	if !helpers.Bind(w, r, &body) {
+		return
+	}
+
+	if len(body.AddGroups)+len(body.RemoveGroups) > 100 {
+		helpers.WriteErrorStatus(w, "at most 100 groups can be changed at once", http.StatusBadRequest)
 		return
 	}
 

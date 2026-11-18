@@ -131,8 +131,14 @@ func AddInventoryGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(body.AddChildren) > 1000 || len(body.RemoveChildren) > 1000 {
+		helpers.WriteErrorStatus(w, "at most 1000 child groups can be added or removed at once", http.StatusBadRequest)
+		return
+	}
+
 	group := body.InventoryGroup
 	group.ID = 0
+	group.HostCount = 0
 	group.InventoryID = inventory.ID
 	group.ProjectID = inventory.ProjectID
 
@@ -150,13 +156,14 @@ func AddInventoryGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// The stored group carries the counted fields, the request may hold anything in them
-	newGroup, err = helpers.Store(r).GetInventoryGroup(inventory.ProjectID, inventory.ID, newGroup.ID)
+	stored, err := helpers.Store(r).GetInventoryGroup(inventory.ProjectID, inventory.ID, newGroup.ID)
 	if err != nil {
-		helpers.WriteError(w, err)
-		return
+		// The group exists, an error would only make a retry fail on the name
+		log.WithError(err).Error("Failed to read a created group")
+		stored = newGroup
 	}
 
-	helpers.WriteJSON(w, http.StatusCreated, newGroup)
+	helpers.WriteJSON(w, http.StatusCreated, stored)
 }
 
 // GetInventoryGroup returns a group of a managed inventory
@@ -201,6 +208,11 @@ func UpdateInventoryGroup(w http.ResponseWriter, r *http.Request) {
 
 	var body inventoryGroupRequest
 	if !helpers.Bind(w, r, &body) {
+		return
+	}
+
+	if len(body.AddChildren) > 1000 || len(body.RemoveChildren) > 1000 {
+		helpers.WriteErrorStatus(w, "at most 1000 child groups can be added or removed at once", http.StatusBadRequest)
 		return
 	}
 
@@ -332,6 +344,10 @@ func SetInventoryHostGroups(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(body.Add) == 0 && len(body.Remove) == 0 {
 		helpers.WriteErrorStatus(w, "add or remove is required", http.StatusBadRequest)
+		return
+	}
+	if len(body.Add)+len(body.Remove) > 100 {
+		helpers.WriteErrorStatus(w, "at most 100 groups can be changed at once", http.StatusBadRequest)
 		return
 	}
 
