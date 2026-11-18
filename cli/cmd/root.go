@@ -364,6 +364,10 @@ func runService() {
 	go schedulePool.Run()
 	go taskPool.Run()
 
+	// Recovery fails tasks through the normal completion path, which needs
+	// the queue and log consumers started by Run.
+	taskPool.RecoverOrphanedTasks()
+
 	secretStorageSyncScheduler.Start()
 	defer secretStorageSyncScheduler.Stop()
 
@@ -429,9 +433,7 @@ func runService() {
 		}
 
 		if httpRedirectAddr != "" {
-
 			go func() {
-
 				err = http.ListenAndServe(httpRedirectAddr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					target := "https://"
 
@@ -465,7 +467,6 @@ func runService() {
 		}
 
 		err = http.ListenAndServeTLS(util.Config.Interface+port, util.Config.TLS.CertFile, util.Config.TLS.KeyFile, cropTrailingSlashMiddleware(router))
-
 		if err != nil {
 			log.Panic(err)
 		}
@@ -498,7 +499,6 @@ func createStoreWithMigrationVersion(token string, undoTo *string, applyTo *stri
 	}
 
 	err = db.FillConfigFromDB(store)
-
 	if err != nil {
 		panic(err)
 	}
