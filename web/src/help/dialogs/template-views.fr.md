@@ -48,6 +48,14 @@ Masque l'onglet aux membres qui ne peuvent pas gérer les ressources du projet. 
 le voient toujours, barré. Masquer un onglet ne masque pas ses modèles : une vue de type **All**
 les liste toujours.
 
+## Show task counts {#viewsForm-showTemplateStats}
+
+Affiche sur l'onglet combien de ses modèles sont dans chaque état, sous la forme d'une puce composée
+de segments colorés : vert pour une dernière tâche qui a réussi, rouge pour une tâche en échec, gris
+pour une tâche arrêtée ou un modèle qui n'a jamais été lancé, orange pour une tâche qui attend une
+confirmation, bleu pour une tâche en file d'attente ou en cours d'exécution. C'est désactivé par
+défaut, et les nombres ne sont calculés que pour les vues où c'est activé.
+
 ## Ajouter une vue {#viewsForm-add}
 
 Ajoute une vue à la fin de la liste, avec un titre vide à saisir.

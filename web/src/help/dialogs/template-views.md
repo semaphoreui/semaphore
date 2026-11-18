@@ -46,6 +46,13 @@ Hides the tab from members who can not manage the resources of the project. Thos
 see it, struck through. Hiding a tab does not hide its templates: a view of the type **All**
 still lists them.
 
+## Show task counts {#viewsForm-showTemplateStats}
+
+Shows on the tab how many of its templates are in each state, as one chip of coloured segments:
+green for a last task that succeeded, red for a failed one, grey for a stopped one or a template
+that was never launched, orange for a task that waits for confirmation, blue for a queued or running
+one. It is off by default, and the counts are computed only for the views that have it on.
+
 ## Add view {#viewsForm-add}
 
 Adds a view at the end of the list, with an empty title to type in.

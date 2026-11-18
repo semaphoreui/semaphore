@@ -61,6 +61,7 @@ describe('template pages without read_project', () => {
       canRead: false,
       isNew: false,
       itemId: 7,
+      item: { id: 7 },
       app: 'ansible',
       loadProjectResources: async (name) => {
         loaded.push(name);
@@ -74,13 +75,42 @@ describe('template pages without read_project', () => {
 
     await TemplateForm.methods.loadRelativeData.call(ctx);
 
-    expect(loaded).to.deep.equal(['views', 'templates']);
-    expect(endpoints).to.deep.equal([]);
+    expect(loaded).to.deep.equal(['templates']);
+    expect(endpoints).to.deep.equal(['/views?type=custom']);
     expect(ctx.repositories).to.deep.equal([]);
     expect(ctx.inventory).to.deep.equal([]);
     expect(ctx.environment).to.deep.equal([]);
     expect(ctx.runnerTags).to.deep.equal([]);
     expect(ctx.schedules).to.deep.equal([]);
+  });
+
+  it('TemplateForm.vue offers Custom views only and drops an assignment to another type', async () => {
+    const endpoints = [];
+    const load = async (item) => {
+      const ctx = {
+        canRead: false,
+        isNew: false,
+        itemId: 7,
+        item,
+        app: 'ansible',
+        loadProjectResources: async () => [],
+        loadProjectEndpoint: async (url) => {
+          endpoints.push(url);
+          return url.startsWith('/views') ? [{ id: 2, title: 'Build' }] : [];
+        },
+      };
+      await TemplateForm.methods.loadRelativeData.call(ctx);
+      return ctx;
+    };
+
+    const kept = await load({ id: 7, view_id: 2 });
+    expect(endpoints).to.deep.equal(['/views?type=custom']);
+    expect(kept.views).to.deep.equal([{ id: 2, title: 'Build' }]);
+    expect(kept.item.view_id).to.equal(2);
+
+    // view 1 is the built-in "All" view: the backend filter leaves it out
+    expect((await load({ id: 7, view_id: 1 })).item.view_id).to.equal(null);
+    expect((await load({ id: 7 })).item.view_id).to.equal(undefined);
   });
 
   it('Templates.vue offers a new template only with project read', () => {

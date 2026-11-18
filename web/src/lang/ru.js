@@ -335,6 +335,8 @@ export default {
   status_success: 'Успех',
   status_failed: 'Неудача',
   status_stopped: 'Остановлено',
+  status_confirming: 'Ожидает подтверждения',
+  status_running: 'Выполняется',
 
   api_tokens: 'API токены',
 

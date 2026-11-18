@@ -1792,6 +1792,11 @@ definitions:
       position:
         type: integer
         minimum: 1
+      show_template_stats:
+        type: boolean
+        description: >
+          Show on the tab of the view the counts of its templates by the
+          status of their last task. Off when omitted.
   View:
     type: object
     properties:
@@ -1813,6 +1818,38 @@ definitions:
         enum: [name]
       sort_reverse:
         type: boolean
+      show_template_stats:
+        type: boolean
+        description: >
+          The tab of the view shows the counts of its templates by the
+          status of their last task. Off by default.
+      template_stats:
+        $ref: "#/definitions/ViewTemplateStats"
+
+  ViewTemplateStats:
+    type: object
+    description: >
+      Number of templates of a view by the status of their last task,
+      returned by the views list with `include=template_stats` for a view
+      that has `show_template_stats` on. A Custom
+      view counts the templates assigned to it, the "All" view every
+      template of the project. Every template is in exactly one count.
+    properties:
+      success:
+        type: integer
+        description: The last task succeeded.
+      failed:
+        type: integer
+        description: The last task failed.
+      stopped:
+        type: integer
+        description: The last task is stopped or being stopped, or the template was never launched.
+      confirming:
+        type: integer
+        description: The last task waits for a confirmation.
+      running:
+        type: integer
+        description: The last task is waiting in the queue, starting or running.
 
   Runner:
     type: object
@@ -4788,10 +4825,30 @@ paths:
     get:
       tags:
         - project
-      summary: Get view
+      summary: Get views
+      parameters:
+        - name: type
+          in: query
+          required: false
+          type: string
+          enum: [custom, all]
+          description: >
+            Return only the views of this type. `custom` selects the views
+            created by users (their `type` field is empty), `all` the
+            built-in "All" view. Every view is returned when omitted.
+        - name: include
+          in: query
+          required: false
+          type: string
+          enum: [template_stats]
+          description: >
+            `template_stats` adds the `template_stats` object to the views
+            that have `show_template_stats` on: the number of their templates
+            the caller may see, by the status of their last task. The other
+            views are returned without it and cost no counting.
       responses:
         200:
-          description: view
+          description: views
           schema:
             type: array
             items:

@@ -527,7 +527,14 @@ type ScheduleManager interface {
 // ViewManager handles view-related operations
 type ViewManager interface {
 	GetView(projectID int, viewID int) (View, error)
-	GetViews(projectID int) ([]View, error)
+	// GetViews returns the views of a project; a non-empty types narrows the
+	// list to the views of those types.
+	GetViews(projectID int, types []ViewType) ([]View, error)
+	// GetViewTemplateCounts groups the templates of a project that are in the
+	// scope by their view and by the status of their last task; an empty scope
+	// costs no query. viewer keeps only the templates this member may see; nil
+	// counts them all.
+	GetViewTemplateCounts(projectID int, scope ViewTemplateCountScope, viewer *Viewer) ([]ViewTemplateCount, error)
 	UpdateView(view View) error
 	CreateView(view View) (View, error)
 	DeleteView(projectID int, viewID int) error

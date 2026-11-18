@@ -48,6 +48,14 @@ Nasconde la scheda ai membri che non possono gestire le risorse del progetto. Ch
 vede ancora, barrata. Nascondere una scheda non nasconde i suoi modelli: una vista di tipo **All**
 continua a elencarli.
 
+## Show task counts {#viewsForm-showTemplateStats}
+
+Mostra sulla scheda quanti dei suoi modelli sono in ciascuno stato, in un chip di segmenti colorati:
+verde per un ultimo task riuscito, rosso per uno fallito, grigio per uno arrestato o per un modello
+mai avviato, arancione per un task che attende una conferma, blu per uno in coda o in esecuzione. È
+disattivato per impostazione predefinita, e i conteggi vengono calcolati solo per le viste in cui è
+attivo.
+
 ## Aggiungi vista {#viewsForm-add}
 
 Aggiunge una vista alla fine dell'elenco, con un titolo vuoto da digitare.
