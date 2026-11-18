@@ -33,11 +33,11 @@
 }
 
 .view-template-stats__segment {
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 .v-tab--selected .view-template-stats__segment {
-  opacity: 1;
+  opacity: 0.8;
 }
 
 .view-template-stats .v-chip.view-template-stats__segment:first-child {
