@@ -301,7 +301,7 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 			Description: h.Description,
 			Enabled:     h.Enabled,
 			Variables:   h.Variables,
-		})
+		}, nil)
 		if err != nil {
 			return fmt.Errorf("host %q of inventory %q: %w", h.Name, e.Name, err)
 		}

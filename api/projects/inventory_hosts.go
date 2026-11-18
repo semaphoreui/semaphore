@@ -159,7 +159,7 @@ func AddInventoryHost(w http.ResponseWriter, r *http.Request) {
 	host.InventoryID = inventory.ID
 	host.ProjectID = inventory.ProjectID
 
-	newHost, err := helpers.Store(r).CreateInventoryHost(host)
+	newHost, err := helpers.Store(r).CreateInventoryHost(host, nil)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
@@ -220,7 +220,7 @@ func UpdateInventoryHost(w http.ResponseWriter, r *http.Request) {
 	host.InventoryID = inventory.ID
 	host.ProjectID = inventory.ProjectID
 
-	if err := helpers.Store(r).UpdateInventoryHost(host); err != nil {
+	if _, _, err := helpers.Store(r).UpdateInventoryHost(host, nil, nil); err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
