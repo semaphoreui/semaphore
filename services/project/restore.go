@@ -3,6 +3,7 @@ package project
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -261,6 +262,48 @@ func (e BackupInventory) Verify(backup *BackupFormat) error {
 			return fmt.Errorf("host %q of inventory %q at hosts[%d]: %w", h.Name, e.Name, i, err)
 		}
 	}
+	if len(e.Groups) > 0 && e.Type != db.InventoryManaged {
+		return fmt.Errorf("inventory %q is not managed but has groups", e.Name)
+	}
+	groupIndex := make(map[string]int)
+	for i, g := range e.Groups {
+		if _, ok := groupIndex[g.Name]; ok {
+			return fmt.Errorf("group %q of inventory %q is duplicated", g.Name, e.Name)
+		}
+		groupIndex[g.Name] = i
+		group := db.InventoryGroup{Name: g.Name, Variables: g.Variables}
+		if err := group.Validate(); err != nil {
+			return fmt.Errorf("group %q of inventory %q at groups[%d]: %w", g.Name, e.Name, i, err)
+		}
+		listed := make(map[string]bool)
+		for _, h := range g.Hosts {
+			if !names[h] {
+				return fmt.Errorf("group %q of inventory %q names unknown host %q", g.Name, e.Name, h)
+			}
+			if listed[h] {
+				return fmt.Errorf("group %q of inventory %q lists host %q twice", g.Name, e.Name, h)
+			}
+			listed[h] = true
+		}
+	}
+	children := make(map[int][]int)
+	for i, g := range e.Groups {
+		listed := make(map[string]bool)
+		for _, c := range g.Children {
+			child, ok := groupIndex[c]
+			if !ok {
+				return fmt.Errorf("group %q of inventory %q names unknown child group %q", g.Name, e.Name, c)
+			}
+			if listed[c] {
+				return fmt.Errorf("group %q of inventory %q lists child group %q twice", g.Name, e.Name, c)
+			}
+			listed[c] = true
+			children[i] = append(children[i], child)
+		}
+	}
+	if cycle := db.InventoryGroupCycle(children); cycle != nil {
+		return fmt.Errorf("group %q of inventory %q is its own ancestor", e.Groups[cycle[0]].Name, e.Name)
+	}
 	return nil
 }
 
@@ -293,8 +336,9 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 	}
 	b.inventories = append(b.inventories, newInventory)
 
+	hostIDs := make(map[string]int)
 	for _, h := range e.Hosts {
-		_, err = b.store.CreateInventoryHost(db.InventoryHost{
+		host, err := b.store.CreateInventoryHost(db.InventoryHost{
 			ProjectID:   b.meta.ID,
 			InventoryID: newInventory.ID,
 			Name:        h.Name,
@@ -304,6 +348,46 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 		}, nil)
 		if err != nil {
 			return fmt.Errorf("host %q of inventory %q: %w", h.Name, e.Name, err)
+		}
+		hostIDs[h.Name] = host.ID
+	}
+
+	groups := make(map[string]db.InventoryGroup)
+	for _, g := range e.Groups {
+		group, err := b.store.CreateInventoryGroup(db.InventoryGroup{
+			ProjectID:   b.meta.ID,
+			InventoryID: newInventory.ID,
+			Name:        g.Name,
+			Description: g.Description,
+			Variables:   g.Variables,
+		}, nil)
+		if err != nil {
+			return fmt.Errorf("group %q of inventory %q: %w", g.Name, e.Name, err)
+		}
+		groups[g.Name] = group
+	}
+
+	for _, g := range e.Groups {
+		group := groups[g.Name]
+		if len(g.Children) > 0 {
+			var children []int
+			for _, c := range g.Children {
+				children = append(children, groups[c].ID)
+			}
+			if _, _, err = b.store.UpdateInventoryGroup(group, children, nil); err != nil {
+				return fmt.Errorf("group %q of inventory %q: %w", g.Name, e.Name, err)
+			}
+		}
+
+		var members []int
+		for _, h := range g.Hosts {
+			members = append(members, hostIDs[h])
+		}
+		// Batches keep the host id list of one call within database parameter limits
+		for batch := range slices.Chunk(members, 1000) {
+			if _, _, err = b.store.ChangeInventoryHostGroups(b.meta.ID, newInventory.ID, batch, []int{group.ID}, nil); err != nil {
+				return fmt.Errorf("group %q of inventory %q: %w", g.Name, e.Name, err)
+			}
 		}
 	}
 	return nil
