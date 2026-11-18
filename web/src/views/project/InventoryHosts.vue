@@ -64,7 +64,6 @@
       class="mt-2"
       data-testid="inventoryHosts-table"
       :data-state="state"
-      @click:row="(event, { item }) => toggleDetails(item)"
     >
       <template v-slot:no-data>
         <span data-testid="inventoryHosts-empty">{{ $t('inventory_hosts_empty') }}</span>
@@ -317,7 +316,7 @@ export default {
     },
 
     rowProps({ item }) {
-      return this.hasDetails(item.id) ? { style: 'cursor: pointer' } : {};
+      return this.hasDetails(item.id) ? { onClick: () => this.toggleDetails(item) } : {};
     },
 
     // A host whose variables cannot be counted still opens

@@ -72,6 +72,7 @@ describe('InventoryHosts.vue', () => {
     const counts = wrapper.findAll('[data-testid="inventoryHosts-variables"]');
     expect(counts.map((e) => e.text())).to.deep.equal(['1']);
     expect(wrapper.findAll('[data-testid="inventoryHosts-noVariables"]')).to.have.length(1);
+    expect(wrapper.findAll('.v-data-table__tr--clickable')).to.have.length(1);
 
     await counts[0].trigger('click');
 
