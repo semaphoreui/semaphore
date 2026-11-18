@@ -52,7 +52,6 @@
       :inventory-id="inventoryId"
       :user-permissions="userPermissions"
       :is-admin="isAdmin"
-      @variables-saved="inventory.variables = $event"
     ></router-view>
   </div>
 </template>
@@ -104,10 +103,22 @@ export default {
   },
 
   async created() {
+    EventBus.$on('i-inventory-variables', this.onVariablesSaved);
     await this.load();
   },
 
+  beforeUnmount() {
+    EventBus.$off('i-inventory-variables', this.onVariablesSaved);
+  },
+
   methods: {
+    // The tab that saved may be gone by now, so the save comes over the bus
+    onVariablesSaved({ projectId, inventoryId, variables }) {
+      if (this.inventory && projectId === this.projectId && inventoryId === this.inventoryId) {
+        this.inventory.variables = variables;
+      }
+    },
+
     showDrawer() {
       EventBus.$emit('i-show-drawer');
     },

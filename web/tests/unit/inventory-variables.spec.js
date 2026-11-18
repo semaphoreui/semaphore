@@ -1,6 +1,7 @@
 import './setup';
 import { expect } from 'chai';
 import { mount } from '@vue/test-utils';
+import EventBus from '@/event-bus';
 import InventoryVariables from '@/views/project/InventoryVariables.vue';
 import mockAxios from './helpers/axiosMock';
 
@@ -39,14 +40,18 @@ describe('InventoryVariables.vue', () => {
     const wrapper = mountVariables();
     await flush();
     wrapper.vm.inventory.variables = 'a: 2';
+    const saved = [];
+    const onSaved = (e) => saved.push(e);
+    EventBus.$on('i-inventory-variables', onSaved);
 
     await wrapper.find('[data-testid="inventoryVariables-save"]').trigger('click');
     await flush();
 
     const put = http.requests.find((r) => r.method === 'put');
     expect(put.url).to.equal('/api/project/7/inventory/3/variables');
+    EventBus.$off('i-inventory-variables', onSaved);
     expect(put.data).to.deep.equal({ variables: 'a: 2' });
-    expect(wrapper.emitted('variables-saved')[0]).to.deep.equal(['a: 2']);
+    expect(saved).to.deep.equal([{ projectId: 7, inventoryId: 3, variables: 'a: 2' }]);
   });
 
   it('asks before leaving with unsaved variables', async () => {

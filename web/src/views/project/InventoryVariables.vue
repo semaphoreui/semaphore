@@ -76,8 +76,6 @@ export default {
     inventoryId: Number,
   },
 
-  emits: ['variables-saved'],
-
   data() {
     return {
       inventory: null,
@@ -162,7 +160,11 @@ export default {
           { variables: this.inventory.variables || '' },
         );
         this.savedVariables = this.inventory.variables || '';
-        this.$emit('variables-saved', this.savedVariables);
+        EventBus.$emit('i-inventory-variables', {
+          projectId: this.projectId,
+          inventoryId: this.inventoryId,
+          variables: this.savedVariables,
+        });
         EventBus.$emit('i-snackbar', { color: 'success', text: this.$t('inventory_variables_saved') });
       } catch (err) {
         this.error = getErrorMessage(err);
