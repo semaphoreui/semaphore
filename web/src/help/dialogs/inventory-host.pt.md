@@ -18,6 +18,11 @@ parênteses retos nem dois pontos, e tem no máximo 250 caracteres.
 
 Opcional. Uma nota para as pessoas, mostrada na lista de hosts. O Ansible não a recebe.
 
+## Groups {#inventoryHostForm-groups}
+
+Opcional. Os grupos em que este host está. Um host pode estar em vários grupos. Os grupos são
+criados no separador Groups.
+
 ## Variáveis {#inventoryHostForm-variables}
 
 Opcional. As variáveis deste host, escritas como um mapeamento YAML ou JSON:

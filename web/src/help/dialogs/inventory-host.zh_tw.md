@@ -14,6 +14,10 @@ Ansible 用來識別主機的名稱；如果變數中沒有設定 `ansible_host`
 
 選填。給人看的備註，顯示在主機列表中。Ansible 不會收到它。
 
+## Groups {#inventoryHostForm-groups}
+
+選填。此主機所在的群組。一台主機可以屬於多個群組。群組在 Groups 分頁中建立。
+
 ## 變數 {#inventoryHostForm-variables}
 
 選填。此主機的變數，以 YAML 或 JSON 對應的形式書寫：

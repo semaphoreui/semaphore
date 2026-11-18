@@ -130,6 +130,21 @@ describe('InventoryGroups.vue', () => {
     expect(wrapper.find('[data-testid="inventoryGroups-rowDelete"]').exists()).to.equal(false);
   });
 
+  it('forgets the groups and closes the dialogs when the inventory changes', async () => {
+    const wrapper = mountGroups({ isAdmin: true });
+    await flush();
+    await wrapper.find('[data-testid="inventoryGroups-rowDelete"]').trigger('click');
+    await wrapper.find('[data-testid="inventoryGroups-rowEdit"]').trigger('click');
+    http.respond(() => new Promise(() => {}));
+
+    await wrapper.setProps({ inventoryId: 4 });
+
+    expect(wrapper.findAll('[data-testid="inventoryGroups-name"]')).to.have.length(0);
+    expect(wrapper.findComponent({ name: 'YesNoDialog' }).props('modelValue')).to.equal(false);
+    expect(wrapper.findComponent({ name: 'EditDialog' }).props('modelValue')).to.equal(false);
+    expect(http.requests.at(-1).url).to.equal('/api/project/7/inventory/4/groups');
+  });
+
   it('asks to count again after a group is deleted', async () => {
     const wrapper = mountGroups({ isAdmin: true });
     await flush();
