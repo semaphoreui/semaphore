@@ -437,10 +437,14 @@ func addWorkflow() *db.WorkflowTemplate {
 }
 
 func addWorkflowRun() *db.WorkflowRun {
+	return addWorkflowRunWithStatus(db.WorkflowRunRunning)
+}
+
+func addWorkflowRunWithStatus(status db.WorkflowRunStatus) *db.WorkflowRun {
 	run, err := workflowStore.CreateWorkflowRun(db.WorkflowRun{
 		ProjectID:          userProject.ID,
 		WorkflowTemplateID: workflowID,
-		Status:             db.WorkflowRunRunning,
+		Status:             status,
 		Start:              new(tz.Now()),
 	})
 	if err != nil {

@@ -70,6 +70,12 @@
   (built from this worktree), users `admin`/`admin123`, `manager`/`manager123` (holds the global
   role `user_manager`), `plain`/`plain1234`; roles were inserted with `sqlite3` because the community
   roles API is a stub. Screenshots in `shots-global-roles/`.
+- Re-run stand (2026-11-17, `feat/workflow_rerun_only_failed`): `/tmp/semaphore-stand-rerun`, port
+  `:3103`, `config.json` + `database.sqlite` (schema 2.20.19), binary `semaphore` there, pid in
+  `server.pid`, admin `admin`/`admin123`. Project 1 "Rerun QA": workflow 1 "Build and deploy"
+  (Build → Test → Approval → Deploy A / Deploy B → Notify) and 2 "Fan out"; `wf-repo/flaky.sh`
+  fails while `/tmp/semaphore-stand-rerun/fail-flag` exists, so a node can fail, be "fixed" and be
+  re-run. The `:3100` stand belongs to other branches — do not rebuild or migrate it from here.
 - macOS has no `timeout`; wait for a server with a `for` loop around `curl -sf …/api/ping` and
   `python3 -c 'import time; time.sleep(0.5)'`.
 - Admin pages (`/users`, `/roles`, `/runners`…) render without the navigation drawer; the

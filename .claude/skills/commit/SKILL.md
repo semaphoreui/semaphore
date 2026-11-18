@@ -1,8 +1,10 @@
 ---
-name: semaphore-commit
+name: semaphore:commit
 ---
 
 Create well-formatted git commits following conventional commit standards.
+
+Do nothing if current branch is `develop`.
 
 ## Behavior
 1. Analyze staged changes with `git diff --staged`
@@ -37,3 +39,9 @@ feat(auth): add password reset functionality
 - Implement email verification flow
 - Add password reset endpoint
 ```
+
+# Commit in pro_impl directory
+
+If directory `pro_impl` exists in the root, you should commit change in this directory too:
+- Ensure the branch name of `pro_impl` similar for the branch of the root project.
+- Provide same commit message as for the root project.

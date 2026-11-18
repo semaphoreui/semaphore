@@ -69,6 +69,7 @@ var capabilities = map[string][]string{
 	"global_runner":           {},
 	"workflow":                {"template"},
 	"workflow_run":            {"workflow"},
+	"workflow_run_finished":   {"workflow"},
 	"workflow_approval":       {"workflow_run"},
 	"template_perm":           {"template"},
 	"workflow_perm":           {"workflow"},
@@ -240,6 +241,9 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			workflowID = workflow.ID
 		case "workflow_run":
 			workflowRun = addWorkflowRun()
+			workflowRunID = workflowRun.ID
+		case "workflow_run_finished":
+			workflowRun = addWorkflowRunWithStatus(db.WorkflowRunFailed)
 			workflowRunID = workflowRun.ID
 		case "workflow_approval":
 			workflowApproval = addWorkflowApproval()

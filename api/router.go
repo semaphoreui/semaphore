@@ -586,6 +586,7 @@ func Route(
 	projectWorkflowRunManagement.Use(workflowMiddlewareController.WorkflowRunsMiddleware)
 	projectWorkflowRunManagement.HandleFunc("/{run_id}", workflowController.GetWorkflowRun).Methods("GET", "HEAD")
 	projectWorkflowRunManagement.HandleFunc("/{run_id}/stop", workflowController.StopWorkflowRun).Methods("POST")
+	projectWorkflowRunManagement.HandleFunc("/{run_id}/rerun", workflowController.RerunWorkflowRun).Methods("POST")
 	projectWorkflowRunManagement.HandleFunc("/{run_id}/artifacts", workflowController.GetWorkflowRunArtifacts).Methods("GET", "HEAD")
 	projectWorkflowRunManagement.HandleFunc("/{run_id}/approvals", workflowController.GetWorkflowApprovals).Methods("GET", "HEAD")
 
