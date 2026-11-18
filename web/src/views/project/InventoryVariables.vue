@@ -154,12 +154,13 @@ export default {
     async save() {
       this.error = null;
       this.state = 'saving';
+      const variables = this.inventory.variables || '';
       try {
         await axios.put(
           `/api/project/${this.projectId}/inventory/${this.inventoryId}/variables`,
-          { variables: this.inventory.variables || '' },
+          { variables },
         );
-        this.savedVariables = this.inventory.variables || '';
+        this.savedVariables = variables;
         EventBus.$emit('i-inventory-variables', {
           projectId: this.projectId,
           inventoryId: this.inventoryId,
