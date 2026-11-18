@@ -7,16 +7,17 @@ import (
 )
 
 type BackupDB struct {
-	meta           db.Project
-	templates      []db.Template
-	repositories   []db.Repository
-	hostConfigs    []db.HostConfig
-	keys           []db.AccessKey
-	views          []db.View
-	inventories    []db.Inventory
-	inventoryHosts map[int][]db.InventoryHost
-	environments   []db.Environment
-	schedules      []db.Schedule
+	meta            db.Project
+	templates       []db.Template
+	repositories    []db.Repository
+	hostConfigs     []db.HostConfig
+	keys            []db.AccessKey
+	views           []db.View
+	inventories     []db.Inventory
+	inventoryHosts  map[int][]db.InventoryHost
+	inventoryGroups map[int][]db.InventoryGroup
+	environments    []db.Environment
+	schedules       []db.Schedule
 
 	integrationProjAliases   []db.IntegrationAlias
 	integrations             []db.Integration
@@ -145,9 +146,10 @@ type BackupView struct {
 
 type BackupInventory struct {
 	db.Inventory
-	SSHKey    *string               `backup:"ssh_key"`
-	BecomeKey *string               `backup:"become_key"`
-	Hosts     []BackupInventoryHost `backup:"hosts"`
+	SSHKey    *string                `backup:"ssh_key"`
+	BecomeKey *string                `backup:"become_key"`
+	Hosts     []BackupInventoryHost  `backup:"hosts"`
+	Groups    []BackupInventoryGroup `backup:"groups"`
 }
 
 type BackupInventoryHost struct {
@@ -155,6 +157,15 @@ type BackupInventoryHost struct {
 	Description string `backup:"description"`
 	Enabled     bool   `backup:"enabled"`
 	Variables   string `backup:"variables"`
+}
+
+// BackupInventoryGroup refers to hosts and child groups of its inventory by name
+type BackupInventoryGroup struct {
+	Name        string   `backup:"name"`
+	Description string   `backup:"description"`
+	Variables   string   `backup:"variables"`
+	Hosts       []string `backup:"hosts"`
+	Children    []string `backup:"children"`
 }
 
 type BackupRepository struct {
