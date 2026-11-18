@@ -16,8 +16,6 @@ d'un modèle de tâche. Choisissez un nom qui distingue les hôtes, par exemple 
 
 ## Étiquette de l'exécuteur {#inventoryForm-runnerTag}
 
-Affiché lorsque des exécuteurs de projet sont disponibles.
-
 Les tâches qui utilisent cet inventaire s'exécutent sur un exécuteur portant cette étiquette. Une
 étiquette d'exécuteur définie sur le modèle de tâche l'emporte sur celle de l'inventaire. Laissez le
 champ vide pour que n'importe quel exécuteur puisse prendre les tâches.

@@ -16,8 +16,6 @@ szablonie zadania. Wybierz nazwę, która odróżnia hosty, na przykład `Produc
 
 ## Tag uruchamiacza {#inventoryForm-runnerTag}
 
-Wyświetlane, gdy dostępne są uruchamiacze projektu.
-
 Zadania korzystające z tego inwentarza są wykonywane na uruchamiaczu, który ma ten tag. Tag
 uruchamiacza ustawiony w szablonie zadania ma pierwszeństwo przed tagiem inwentarza. Pozostaw pole
 puste, aby zadania mógł przejąć dowolny uruchamiacz.
