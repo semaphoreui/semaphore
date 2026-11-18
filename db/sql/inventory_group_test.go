@@ -130,6 +130,45 @@ func TestGetInventoryGroups_DiamondCountsHostOnce(t *testing.T) {
 	assert.Equal(t, 1, groups[2].HostCount)
 }
 
+func TestGetInventoryGroup_CountsAsTheList(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, f inventoryGroupFixture)
+	}{
+		{"diamond", func(t *testing.T, f inventoryGroupFixture) {
+			shared := f.group(t, "web-shared")
+			eu := f.group(t, "web-eu", shared.ID)
+			us := f.group(t, "web-us", shared.ID)
+			f.group(t, "web", eu.ID, us.ID)
+			f.host(t, "h1", shared.ID, eu.ID)
+			f.host(t, "h2", us.ID)
+		}},
+		{"cycle in the table", func(t *testing.T, f inventoryGroupFixture) {
+			a, b := f.group(t, "a"), f.group(t, "b")
+			f.host(t, "h1", a.ID)
+			_, err := f.store.exec("insert into project__inventory_group_child (parent_id, child_id) values (?, ?), (?, ?)", a.ID, b.ID, b.ID, a.ID)
+			require.NoError(t, err)
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newInventoryGroupFixture(t)
+			tt.setup(t, f)
+
+			groups, err := f.store.GetInventoryGroups(f.project.ID, f.inventory.ID)
+
+			require.NoError(t, err)
+			for _, want := range groups {
+				got, err := f.store.GetInventoryGroup(f.project.ID, f.inventory.ID, want.ID)
+				require.NoError(t, err)
+				assert.Positive(t, got.HostCount, want.Name)
+				assert.Equal(t, want.HostCount, got.HostCount, want.Name)
+				assert.Equal(t, want.Children, got.Children, want.Name)
+			}
+		})
+	}
+}
+
 func TestUpdateInventoryGroup_RejectsCycle(t *testing.T) {
 	f := newInventoryGroupFixture(t)
 	a, b := f.group(t, "a"), f.group(t, "b")
