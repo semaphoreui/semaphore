@@ -1085,12 +1085,14 @@ definitions:
         description: Host variables as YAML or JSON mapping
       add_groups:
         type: array
-        description: IDs of groups of the inventory to add the host to
+        description: IDs of groups of the inventory to add the host to. Together with remove_groups at most 100.
+        maxItems: 100
         items:
           type: integer
       remove_groups:
         type: array
-        description: IDs of groups to remove the host from. Ignored on create.
+        description: IDs of groups to remove the host from. Ignored on create. Together with add_groups at most 100.
+        maxItems: 100
         items:
           type: integer
 
@@ -1141,11 +1143,13 @@ definitions:
       add_children:
         type: array
         description: IDs of groups of the inventory to add as direct child groups
+        maxItems: 1000
         items:
           type: integer
       remove_children:
         type: array
         description: IDs of direct child groups to remove. Ignored on create.
+        maxItems: 1000
         items:
           type: integer
 
@@ -4229,7 +4233,9 @@ paths:
             $ref: "#/definitions/InventoryHostRequest"
       responses:
         400:
-          description: Invalid host or the inventory is not managed
+          description: >-
+            Invalid host, too many groups, a group to add that is not in this inventory, or the
+            inventory is not managed
         201:
           description: host created
           schema:
@@ -4263,7 +4269,9 @@ paths:
             $ref: "#/definitions/InventoryHostRequest"
       responses:
         400:
-          description: Invalid host or the inventory is not managed
+          description: >-
+            Invalid host, too many groups, an ID both added and removed, a group to add that is not
+            in this inventory, or the inventory is not managed
         204:
           description: host updated
     delete:
@@ -4327,19 +4335,25 @@ paths:
                   type: integer
               add:
                 type: array
-                description: IDs of groups to add the hosts to
+                description: IDs of groups to add the hosts to. Together with remove at most 100.
+                maxItems: 100
                 items:
                   type: integer
               remove:
                 type: array
-                description: IDs of groups to remove the hosts from
+                description: IDs of groups to remove the hosts from. Together with add at most 100.
+                maxItems: 100
                 items:
                   type: integer
       responses:
         400:
-          description: Invalid hosts or groups, no change, or the inventory is not managed
+          description: >-
+            No hosts, nothing to add or remove, too many hosts or groups, an ID both added and removed,
+            a host or a group to add that is not in this inventory, or the inventory is not managed
+        404:
+          description: The inventory does not exist
         204:
-          description: groups of the hosts changed
+          description: groups of the hosts changed or were already as asked
 
   /project/{project_id}/inventory/{inventory_id}/groups:
     parameters:
