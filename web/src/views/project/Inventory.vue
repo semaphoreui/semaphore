@@ -133,7 +133,12 @@
           {{ getAppIcon(getAppByType(item.type)) }}
         </v-icon>
 
-        {{ item.name }}
+        <router-link
+          v-if="item.type === 'managed'"
+          :to="`/project/${projectId}/inventory/${item.id}`"
+          data-testid="inventory-rowLink"
+        >{{ item.name }}</router-link>
+        <template v-else>{{ item.name }}</template>
       </template>
 
       <template v-slot:item.type="{ item }">

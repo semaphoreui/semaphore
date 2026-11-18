@@ -47,6 +47,8 @@ De dónde procede el inventario:
 - **Static YAML**: el inventario se escribe en este diálogo en formato YAML. Úselo también para la
   configuración de un plugin de inventario.
 - **File**: el inventario es un archivo en un repositorio Git.
+- **Managed**: los hosts y sus variables se guardan como registros. Abra el inventario desde la
+  lista para editarlos.
 
 Los campos debajo del tipo cambian según este.
 

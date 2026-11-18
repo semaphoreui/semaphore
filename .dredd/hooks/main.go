@@ -123,6 +123,20 @@ func main() {
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Updates inventory > 204 > application/json", capabilityWrapper("inventory"))
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Removes inventory > 204 > application/json", capabilityWrapper("inventory"))
 
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/variables > Replaces the variables of a managed inventory > 204 > application/json", capabilityWrapper("inventory_host"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts > Get hosts of a managed inventory > 200 > application/json", capabilityWrapper("inventory_host"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts > Add a host to a managed inventory > 201 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"inventory_host"})
+		t.Request.Body = "{\"name\":\"dredd-" + getUUID() + ".example.org\",\"enabled\":true}"
+	})
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id} > Get a host of a managed inventory > 200 > application/json", capabilityWrapper("inventory_host"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id} > Updates a host of a managed inventory > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"inventory_host"})
+		t.Request.Body = "{\"name\":\"dredd-" + getUUID() + ".example.org\"}"
+	})
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id}/enabled > Enables or disables a host of a managed inventory > 204 > application/json", capabilityWrapper("inventory_host"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id} > Removes a host of a managed inventory > 204 > application/json", capabilityWrapper("inventory_host"))
+
 	h.Before("variable-group > /api/project/{project_id}/environment > Add environment > 201 > application/json", capabilityWrapper("environment"))
 	h.Before("variable-group > /api/project/{project_id}/environment/{environment_id} > Get environment > 200 > application/json", capabilityWrapper("environment"))
 	h.Before("variable-group > /api/project/{project_id}/environment/{environment_id} > Update environment > 204 > application/json", capabilityWrapper("environment"))
@@ -191,6 +205,21 @@ func main() {
 			defer store.Close()
 			globalRole = addGlobalRole()
 		})
+	}
+
+	// The hosts registry needs a PRO plan the Dredd stand does not have: a PRO server answers 403, the community one [] for the lists and 404 for a host.
+	if !hostsEnabled() {
+		for _, v := range []string{
+			"project > /api/project/{project_id}/hosts > Get hosts of the project (PRO) > 200 > application/json",
+			"project > /api/project/{project_id}/hosts/{host_id} > Get a host of the project (PRO) > 200 > application/json",
+			"project > /api/project/{project_id}/hosts/{host_id}/tasks > Get project tasks of the host (PRO) > 200 > application/json",
+			"/api/hosts > Get hosts of all projects (PRO) > 200 > application/json",
+			"/api/hosts/{host_id} > Get a host (PRO) > 200 > application/json",
+			"/api/hosts/{host_id}/tasks > Get tasks of the host (PRO) > 200 > application/json",
+			"/api/hosts/{host_id}/decommission > Decommission the host (PRO) > 204 > application/json",
+		} {
+			h.Before(v, skipTest)
+		}
 	}
 
 	if isProBuild() {

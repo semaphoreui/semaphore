@@ -47,6 +47,8 @@ Where the inventory comes from:
 - **Static YAML**: the inventory is typed into this dialog in the YAML format. Use it for the
   configuration of an inventory plugin as well.
 - **File**: the inventory is a file in a Git repository.
+- **Managed**: the hosts and their variables are kept as records. Open the inventory from the list
+  to edit them.
 
 The fields below the type change with it.
 

@@ -154,6 +154,14 @@
               @update:model-value="saveView(view.id)"
               data-testid="viewsForm-hidden"
             />
+
+            <v-checkbox
+              hide-details
+              label="Show task counts"
+              v-model="view.show_template_stats"
+              @update:model-value="saveView(view.id)"
+              data-testid="viewsForm-showTemplateStats"
+            />
           </v-card-text>
 
         </v-card>
@@ -283,6 +291,7 @@ export default {
               sort_column: view.sort_column,
               sort_reverse: view.sort_reverse,
               hidden: view.hidden,
+              show_template_stats: view.show_template_stats,
             },
           })).data;
           view.id = newView.id;
@@ -300,6 +309,7 @@ export default {
               sort_column: view.sort_column,
               sort_reverse: view.sort_reverse,
               hidden: view.hidden,
+              show_template_stats: view.show_template_stats,
             },
           });
         }

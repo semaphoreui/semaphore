@@ -83,6 +83,7 @@ func Route(
 	workflowStore db.WorkflowManager,
 	roleMappingStore db.RoleMappingStore,
 	ansibleTaskRepo db.AnsibleTaskRepository,
+	hostRepo db.HostRepository,
 	taskPool *taskServices.TaskPool,
 	projectService server.ProjectService,
 	integrationService server.IntegrationService,
@@ -116,10 +117,11 @@ func Route(
 	scheduleController := projects.NewScheduleController(subscriptionService)
 	userController := NewUserController(subscriptionService)
 	usersController := NewUsersController(subscriptionService)
-	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore)
+	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore, hostRepo)
 	projectRunnerController := proProjects.NewProjectRunnerController(subscriptionService, runnerService)
 	globalRunnerController := NewGlobalRunnerController(runnerService)
 	taskController := projects.NewTaskController(store, ansibleTaskRepo)
+	hostController := proProjects.NewHostController(hostRepo, subscriptionService)
 	rolesController := proApi.NewRolesController(store)
 	globalRolesController := proApi.NewGlobalRolesController(globalRoleStore, store, subscriptionService)
 	roleMappingsController := proApi.NewRoleMappingsController(roleMappingStore, store)
@@ -271,6 +273,11 @@ func Route(
 	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("PUT", "POST")
 	appsAPI.Path("/{app_id}/active").HandlerFunc(setAppActive).Methods("POST")
 	appsAPI.Path("/{app_id}").HandlerFunc(deleteApp).Methods("DELETE")
+
+	systemAPI.Path("/hosts").HandlerFunc(hostController.GetHosts).Methods("GET", "HEAD")
+	systemAPI.Path("/hosts/{host_id}").HandlerFunc(hostController.GetHost).Methods("GET", "HEAD")
+	systemAPI.Path("/hosts/{host_id}/tasks").HandlerFunc(hostController.GetHostTasks).Methods("GET", "HEAD")
+	systemAPI.Path("/hosts/{host_id}/decommission").HandlerFunc(hostController.DecommissionHost).Methods("POST")
 
 	systemAPI.Path("/tasks").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
 	tasksAPI := systemAPI.PathPrefix("/tasks").Subrouter()
@@ -493,6 +500,15 @@ func Route(
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.UpdateInventory).Methods("PUT")
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.RemoveInventory).Methods("DELETE")
 
+	projectInventoryManagement.HandleFunc("/{inventory_id}/variables", projects.SetInventoryVariables).Methods("PUT")
+
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts", projects.GetInventoryHosts).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts", projects.AddInventoryHost).Methods("POST")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}", projects.GetInventoryHost).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}", projects.UpdateInventoryHost).Methods("PUT")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}", projects.RemoveInventoryHost).Methods("DELETE")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}/enabled", projects.SetInventoryHostEnabled).Methods("PUT")
+
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases", terraformInventoryController.GetTerraformInventoryAliases).Methods("GET", "HEAD")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases", terraformInventoryController.AddTerraformInventoryAlias).Methods("POST")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases/{alias_id}", terraformInventoryController.GetTerraformInventoryAlias).Methods("GET")
@@ -587,6 +603,12 @@ func Route(
 	projectTaskManagement.HandleFunc("/{task_id}/stages", taskController.GetTaskStages).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}/ansible/hosts", taskController.GetAnsibleTaskHosts).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}/ansible/errors", taskController.GetAnsibleTaskErrors).Methods("GET", "HEAD")
+
+	projectHostsAPI := authenticatedAPI.PathPrefix("/project/{project_id}/hosts").Subrouter()
+	projectHostsAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanReadProject))
+	projectHostsAPI.HandleFunc("", hostController.GetProjectHosts).Methods("GET", "HEAD")
+	projectHostsAPI.HandleFunc("/{host_id}", hostController.GetProjectHost).Methods("GET", "HEAD")
+	projectHostsAPI.HandleFunc("/{host_id}/tasks", hostController.GetProjectHostTasks).Methods("GET", "HEAD")
 
 	projectScheduleManagement := projectUserAPI.PathPrefix("/schedules").Subrouter()
 	projectScheduleManagement.Use(projects.SchedulesMiddleware)

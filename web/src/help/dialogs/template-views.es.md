@@ -47,6 +47,14 @@ Oculta la pestaña a los miembros que no pueden gestionar los recursos del proye
 pueden la siguen viendo, tachada. Ocultar una pestaña no oculta sus plantillas: una vista del tipo
 **All** las sigue listando.
 
+## Show task counts {#viewsForm-showTemplateStats}
+
+Muestra en la pestaña cuántas de sus plantillas están en cada estado, en un chip de segmentos de
+colores: verde para una última tarea que terminó bien, rojo para una fallida, gris para una detenida
+o una plantilla que nunca se ha ejecutado, naranja para una tarea que espera confirmación, azul para
+una en cola o en ejecución. Está desactivado por defecto, y los recuentos se calculan solo para las
+vistas que lo tienen activado.
+
 ## Agregar vista {#viewsForm-add}
 
 Añade una vista al final de la lista, con un título vacío para escribirlo.

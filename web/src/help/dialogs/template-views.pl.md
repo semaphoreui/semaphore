@@ -46,6 +46,14 @@ Ukrywa kartę przed członkami, którzy nie mogą zarządzać zasobami projektu.
 ją widzą, przekreśloną. Ukrycie karty nie ukrywa jej szablonów: widok typu **All** nadal je
 wyświetla.
 
+## Show task counts {#viewsForm-showTemplateStats}
+
+Pokazuje na karcie, ile jej szablonów jest w jakim stanie, jako jeden znacznik z kolorowych
+segmentów: zielony dla ostatniego zadania zakończonego powodzeniem, czerwony dla nieudanego, szary
+dla zatrzymanego lub dla szablonu, który nigdy nie został uruchomiony, pomarańczowy dla zadania
+oczekującego na potwierdzenie, niebieski dla zadania w kolejce lub uruchomionego. Domyślnie jest
+wyłączone, a liczby są obliczane tylko dla widoków, które mają to włączone.
+
 ## Dodaj widok {#viewsForm-add}
 
 Dodaje widok na końcu listy z pustym tytułem do wpisania.

@@ -48,6 +48,8 @@ Odkud inventář pochází:
 - **Static YAML**: inventář se zadává v tomto dialogu ve formátu YAML. Použijte ho také pro
   konfiguraci pluginu inventáře.
 - **File**: inventář je soubor v repozitáři Git.
+- **Managed**: hosté a jejich proměnné jsou uloženi jako záznamy. Chcete-li je upravit, otevřete
+  inventář ze seznamu.
 
 Pole pod typem se mění podle něj.
 

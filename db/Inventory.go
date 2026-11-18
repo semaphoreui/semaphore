@@ -9,6 +9,7 @@ const (
 	InventoryStaticYaml InventoryType = "static-yaml"
 	// InventoryFile means that it is path to the Ansible inventory file
 	InventoryFile                InventoryType = "file"
+	InventoryManaged             InventoryType = "managed"
 	InventoryTerraformWorkspace  InventoryType = "terraform-workspace"
 	InventoryTofuWorkspace       InventoryType = "tofu-workspace"
 	InventoryTerragruntWorkspace InventoryType = "terragrunt-workspace"
@@ -24,6 +25,9 @@ type Inventory struct {
 	Name      string `db:"name" json:"name" binding:"required"`
 	ProjectID int    `db:"project_id" json:"project_id" backup:"-"`
 	Inventory string `db:"inventory" json:"inventory"`
+
+	// Variables are the group variables of a managed inventory, YAML or JSON
+	Variables *string `db:"variables" json:"variables"`
 
 	// accesses hosts in inventory
 	SSHKeyID *int      `db:"ssh_key_id" json:"ssh_key_id" backup:"-"`
@@ -56,6 +60,15 @@ func (e Inventory) GetFilename() string {
 	}
 
 	return e.Inventory
+}
+
+// VariablesText is the variables text, empty when the column is null
+func (e Inventory) VariablesText() string {
+	if e.Variables == nil {
+		return ""
+	}
+
+	return *e.Variables
 }
 
 func (e Inventory) Validate() error {

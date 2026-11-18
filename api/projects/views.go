@@ -3,6 +3,7 @@ package projects
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
@@ -45,7 +46,39 @@ func GetViewTemplates(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, templates)
 }
 
-// GetViews retrieves sorted keys from the database
+// viewTypesFromQuery reads the optional `type` filter of the views list. The
+// Custom type is stored as an empty string, so the query names it "custom";
+// no parameter means every type.
+func viewTypesFromQuery(query url.Values) ([]db.ViewType, error) {
+	switch t := query.Get("type"); t {
+	case "":
+		return nil, nil
+	case "custom":
+		return []db.ViewType{db.ViewTypeCustom}, nil
+	case string(db.ViewTypeAll):
+		return []db.ViewType{db.ViewTypeAll}, nil
+	default:
+		return nil, fmt.Errorf("unknown view type %q", t)
+	}
+}
+
+// viewsIncludeTemplateStats reads the optional `include` parameter of the views
+// list: `template_stats` adds the template counts to the views that show them.
+func viewsIncludeTemplateStats(query url.Values) (bool, error) {
+	switch include := query.Get("include"); include {
+	case "":
+		return false, nil
+	case "template_stats":
+		return true, nil
+	default:
+		return false, fmt.Errorf("unknown include %q", include)
+	}
+}
+
+// GetViews returns the views of a project sorted by position, or the single
+// view loaded by ViewMiddleware. The list accepts the `type` query filter and
+// `include=template_stats`, which counts, for the views that show the counts,
+// the templates the caller may see by the status of their last task.
 func GetViews(w http.ResponseWriter, r *http.Request) {
 	if view := helpers.GetFromContext(r, "view"); view != nil {
 		k := view.(db.View)
@@ -54,16 +87,44 @@ func GetViews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	project := helpers.GetFromContext(r, "project").(db.Project)
-	var views []db.View
 
-	views, err := helpers.Store(r).GetViews(project.ID)
+	types, err := viewTypesFromQuery(r.URL.Query())
+	if err != nil {
+		helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	withTemplateStats, err := viewsIncludeTemplateStats(r.URL.Query())
+	if err != nil {
+		helpers.WriteErrorStatus(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	views, err := helpers.Store(r).GetViews(project.ID, types)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, views)
+	if !withTemplateStats {
+		helpers.WriteJSON(w, http.StatusOK, views)
+		return
+	}
+
+	user := helpers.UserFromContext(r)
+	counts, err := helpers.Store(r).GetViewTemplateCounts(
+		project.ID,
+		db.ViewTemplateCountScopeOf(views),
+		&db.Viewer{UserID: user.ID, Admin: user.Admin},
+	)
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, db.ViewsWithTemplateStats(views, counts))
 }
 
 // AddView adds a new key to the database

@@ -73,6 +73,12 @@ type JobProgress struct {
 	// status but success. Optional on the wire: an old server ignores it and
 	// an old runner never sends it.
 	Outputs *string `json:"outputs,omitempty"`
+
+	// Hosts is the host stats document of the task, attached together with
+	// the final status whatever it is. Nil for executors that do not capture
+	// host stats and while the task runs. Optional on the wire: an old server
+	// ignores it and an old runner never sends it.
+	Hosts *string `json:"hosts,omitempty"`
 }
 
 type RunnerRegistration struct {

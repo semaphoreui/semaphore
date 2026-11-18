@@ -55,6 +55,7 @@ func truncateAll() {
 		"task",
 		"session",
 		"project__environment",
+		"project__inventory_host",
 		"project__inventory",
 		"project__repository",
 		"project__template",
@@ -508,6 +509,12 @@ func globalRolesEnabled() bool {
 // implementation enables them only for an active Enterprise plan, which the Dredd stand does not have.
 func customRolesEnabled() bool {
 	return proFeatures.GetFeatures(&db.User{}, "").CustomRolesManagement
+}
+
+// hostsEnabled reports whether the server under test offers the hosts registry: the PRO implementation enables it
+// only for an active PRO plan, which the Dredd stand does not have.
+func hostsEnabled() bool {
+	return proFeatures.GetFeatures(&db.User{}, "").Hosts
 }
 
 // HELPERS

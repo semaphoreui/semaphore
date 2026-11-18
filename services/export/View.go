@@ -19,7 +19,7 @@ func (e *ViewExporter) load(store db.Store, exporter DataExporter, progress Prog
 
 	for _, proj := range projs {
 
-		envs, err := store.GetViews(proj)
+		envs, err := store.GetViews(proj, nil)
 		if err != nil {
 			return err
 		}

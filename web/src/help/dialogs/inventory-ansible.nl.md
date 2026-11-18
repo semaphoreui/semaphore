@@ -50,6 +50,8 @@ Waar de inventaris vandaan komt:
 - **Static YAML**: de inventaris wordt in dit dialoogvenster ingevoerd in het YAML-formaat.
   Gebruik dit ook voor de configuratie van een inventarisplugin.
 - **File**: de inventaris is een bestand in een Git-repository.
+- **Managed**: de hosts en hun variabelen worden als records bewaard. Open de inventaris vanuit de
+  lijst om ze te bewerken.
 
 De velden onder het type veranderen mee met het type.
 
