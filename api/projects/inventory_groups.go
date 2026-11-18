@@ -54,6 +54,7 @@ func auditNameChunks(inventory db.Inventory, names []string) [][]string {
 }
 
 // recordInventoryGroupLinks records each group whose links changed, names holds the names of the linked hosts or child groups.
+// A name that could not be read is written as the id, so the record keeps what changed.
 func recordInventoryGroupLinks(r *http.Request, inventory db.Inventory, kind audit.Kind, verb string, groupNames map[int]string, links map[int][]int, names map[int]string) {
 	hosts := kind == audit.ResourceInventoryGroupHostAdd || kind == audit.ResourceInventoryGroupHostRemove
 
@@ -66,7 +67,7 @@ func recordInventoryGroupLinks(r *http.Request, inventory db.Inventory, kind aud
 		for i, id := range links[groupID] {
 			name, ok := names[id]
 			if !ok {
-				continue
+				name = fmt.Sprintf("#%d", id)
 			}
 			linked[i] = name
 		}
@@ -83,7 +84,11 @@ func recordInventoryGroupLinks(r *http.Request, inventory db.Inventory, kind aud
 				parts[i].Part, parts[i].Parts = i+1, len(chunks)
 			}
 		}
-		recordInventoryGroup(r, helpers.EventLogUpdate, verb, kind, inventory, db.InventoryGroup{ID: groupID, Name: groupNames[groupID]}, parts...)
+		groupName, ok := groupNames[groupID]
+		if !ok {
+			groupName = fmt.Sprintf("#%d", groupID)
+		}
+		recordInventoryGroup(r, helpers.EventLogUpdate, verb, kind, inventory, db.InventoryGroup{ID: groupID, Name: groupName}, parts...)
 	}
 }
 
@@ -280,11 +285,15 @@ func RemoveInventoryGroup(w http.ResponseWriter, r *http.Request) {
 
 	group := db.InventoryGroup{ID: groupID}
 	names := map[int]string{}
-	var children []string
+	var parents, children []string
 	for _, g := range groups {
 		names[g.ID] = g.Name
 		if g.ID == groupID {
 			group = g
+		}
+		// The delete also removes, by cascade, the links of the parents to the group
+		if slices.Contains(g.Children, groupID) {
+			parents = append(parents, g.Name)
 		}
 	}
 	for _, id := range group.Children {
@@ -304,10 +313,13 @@ func RemoveInventoryGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chunks := auditNameChunks(inventory, children)
+	chunks := auditNameChunks(inventory, slices.Concat(parents, children))
 	parts := make([]audit.InventoryGroupMetadata, len(chunks))
+	rest := len(parents)
 	for i, chunk := range chunks {
-		parts[i].Children = chunk
+		n := min(rest, len(chunk))
+		parts[i].Parents, parts[i].Children = chunk[:n], chunk[n:]
+		rest -= n
 		if len(chunks) > 1 {
 			parts[i].Part, parts[i].Parts = i+1, len(chunks)
 		}
@@ -358,7 +370,7 @@ func SetInventoryHostGroups(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(added)+len(removed) > 0 {
-		// One read names every host, a host deleted meanwhile is only left out of the records
+		// One read names every host, a host deleted meanwhile is recorded by its id
 		hosts, _, err := helpers.Store(r).GetInventoryHosts(inventory.ProjectID, inventory.ID, db.InventoryHostListParams{IDs: body.Hosts, Count: len(body.Hosts)})
 		if err != nil {
 			log.WithError(err).Error("Failed to read the host names of an inventory")

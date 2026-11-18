@@ -913,6 +913,39 @@ func TestInventoryHostEvents_DeleteNamesItsGroups(t *testing.T) {
 	assert.Equal(t, audit.InventoryHostMetadata{InventoryID: inventory.ID, InventoryName: "prod", Groups: []string{"web", "eu"}}, deleted.Event.Metadata)
 }
 
+func TestInventoryGroupEvents_DeleteNamesParentsAndChildren(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	child := newInventoryGroup(t, f, inventory, "eu-1")
+	eu := newInventoryGroup(t, f, inventory, "eu", child.ID)
+	newInventoryGroup(t, f, inventory, "web", eu.ID)
+	newInventoryHost(t, f, inventory, "web1", eu.ID)
+
+	vars := map[string]string{"inventory_id": strconv.Itoa(inventory.ID), "inventory_group_id": strconv.Itoa(eu.ID)}
+	r, rec := f.request(http.MethodDelete, "", map[string]any{"inventory": inventory}, vars)
+	w := httptest.NewRecorder()
+
+	RemoveInventoryGroup(w, r)
+
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	deleted := only(t, rec, audit.ResourceInventoryGroupDelete)
+	assert.Equal(t, audit.InventoryGroupMetadata{
+		InventoryID: inventory.ID, InventoryName: "prod", Children: []string{"eu-1"}, Parents: []string{"web"}, HostCount: 1,
+	}, deleted.Event.Metadata)
+}
+
+func TestInventoryGroupEvents_MissingNamesAreIDs(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	r, rec := f.request(http.MethodPut, "", nil, nil)
+
+	recordInventoryGroupLinks(r, inventory, audit.ResourceInventoryGroupHostAdd, "had hosts added", map[int]string{}, map[int][]int{5: {7, 8}}, map[int]string{8: "web8"})
+
+	added := only(t, rec, audit.ResourceInventoryGroupHostAdd)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetInventoryGroup, 5, "#5"), added.Event.Target)
+	assert.Equal(t, audit.InventoryGroupMetadata{InventoryID: inventory.ID, InventoryName: "prod", Hosts: []string{"#7", "web8"}}, added.Event.Metadata)
+}
+
 func TestInventoryGroupEvents_LongHostListIsSplit(t *testing.T) {
 	f := newResourceFixture(t)
 	inventory := newManagedInventory(t, f, "prod")

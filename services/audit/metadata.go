@@ -341,6 +341,8 @@ type InventoryGroupMetadata struct {
 	Hosts []string `json:"hosts,omitempty"`
 	// Names of the child groups whose link changed, or of all children of a deleted group.
 	Children []string `json:"children,omitempty"`
+	// Names of the groups a deleted group was a direct child of.
+	Parents []string `json:"parents,omitempty"`
 	// Direct hosts of a deleted group are only counted, there may be thousands.
 	HostCount int `json:"host_count,omitempty"`
 	// A list too long for one record is split, part runs from 1 to parts.
