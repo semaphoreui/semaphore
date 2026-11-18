@@ -1,5 +1,5 @@
 ---
-name: semaphore-config-schema
+name: semaphore:config-schema
 description: >
   Generate or update the JSON Schema (in YAML form) that describes the Semaphore configuration file. The schema
   lives at `config.schema.yaml` in the repository root and is derived from the Go struct `util.ConfigType`

@@ -1,5 +1,5 @@
 ---
-name: semaphore-cli-docs
+name: semaphore:cli-docs
 description: >
   Generate or update the CLI documentation under `docs/docs/reference/cli/` from the Cobra command code in
   `cli/`. Use this skill whenever the user asks to "update the CLI docs", "actualize/sync the CLI documentation",

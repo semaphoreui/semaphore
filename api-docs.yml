@@ -2179,6 +2179,28 @@ definitions:
         format: date-time
       root_task_id:
         type: integer
+      rerun_of_run_id:
+        type: integer
+        description: The run this one repeats. Absent for a run started the usual way.
+      rerun_mode:
+        type: string
+        enum: [all, failed]
+        description: >-
+          How the run repeats rerun_of_run_id: `all` runs every node again, `failed` runs the
+          failed nodes and everything after them again and carries the rest over.
+
+  WorkflowRerunRequest:
+    type: object
+    required:
+      - mode
+    properties:
+      mode:
+        type: string
+        enum: [all, failed]
+        description: >-
+          `all` runs every node again. `failed` runs the failed nodes and everything after them
+          again; nodes that succeeded are carried over, and an approval that stands before a
+          node that runs again is requested again.
 
   WorkflowApproval:
     type: object
@@ -2212,6 +2234,11 @@ definitions:
         $ref: "#/definitions/Task"
       approval:
         $ref: "#/definitions/WorkflowApproval"
+      carried_from_run_id:
+        type: integer
+        description: >-
+          Set for a node that a `failed` re-run did not execute again: the task or approval
+          shown is what the node came to in that earlier run.
 
   WorkflowRunDetails:
     type: object
@@ -4650,6 +4677,31 @@ paths:
       responses:
         200:
           description: workflow run stopped
+          schema:
+            $ref: "#/definitions/WorkflowRun"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/rerun:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    post:
+      tags:
+        - workflow
+      summary: Re-run workflow run
+      description: >-
+        Repeats a finished run as a new run of the same graph revision with the same survey
+        answers. The repeated run is not changed. A run that is still in progress, or a
+        `failed` re-run of a run with no failed nodes, is rejected with 400.
+      parameters:
+        - name: Re-run
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowRerunRequest"
+      responses:
+        201:
+          description: workflow run created
           schema:
             $ref: "#/definitions/WorkflowRun"
 

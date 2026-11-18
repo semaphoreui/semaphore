@@ -1,8 +1,8 @@
 ---
-name: semaphore-checkout
+name: semaphore:checkout
 description: >-
     Create and switch to a branch with the same name in both repos — the root repo and pro_impl. 
-    Usage: /semaphore-checkout <branch_name>
+    Usage: /semaphore:checkout <branch_name>
 ---
 
 Create a branch named `<branch_name>` in both repositories at once — the root repo
