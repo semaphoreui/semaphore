@@ -164,7 +164,7 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				InventoryID: res.ID,
 				Name:        "ith-" + uid + ".example.org",
 				Enabled:     true,
-			})
+			}, nil)
 			printError(err)
 			inventoryHostID = host.ID
 		case "environment":

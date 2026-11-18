@@ -796,7 +796,7 @@ func TestInventoryHostEvents_NeverCarryVariableValues(t *testing.T) {
 func TestInventoryHostEvents_EnabledIsRecordedOnce(t *testing.T) {
 	f := newResourceFixture(t)
 	inventory := newManagedInventory(t, f, "prod")
-	host, err := f.store.CreateInventoryHost(db.InventoryHost{InventoryID: inventory.ID, ProjectID: f.project.ID, Name: "web1", Enabled: true, Variables: "a: 1"})
+	host, err := f.store.CreateInventoryHost(db.InventoryHost{InventoryID: inventory.ID, ProjectID: f.project.ID, Name: "web1", Enabled: true, Variables: "a: 1"}, nil)
 	require.NoError(t, err)
 
 	w, rec := hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, host.ID, SetInventoryHostEnabled)
