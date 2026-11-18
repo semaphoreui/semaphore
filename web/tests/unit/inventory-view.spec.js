@@ -57,6 +57,15 @@ describe('InventoryView.vue', () => {
     expect(wrapper.find('[data-testid="inventoryView-page"]').attributes('data-state')).to.equal('ready');
   });
 
+  it('shows a question mark for variables that cannot be counted', async () => {
+    http = mockAxios();
+    http.respond(() => ({ id: 3, type: 'managed', variables: 'a: [1,\n' }));
+    const wrapper = mountView();
+    await flush();
+
+    expect(wrapper.find('[data-testid="inventoryView-variableCount"]').text()).to.equal('?');
+  });
+
   it('shows no number for an inventory without variables', async () => {
     http = mockAxios();
     http.respond(() => ({ id: 3, type: 'managed', variables: '' }));

@@ -36,12 +36,12 @@
       <v-tab data-testid="inventoryView-tab-variables" :to="`${listPath}/${inventoryId}/variables`">
         {{ $t('inventory_tab_variables') }}
         <v-chip
-          v-if="variableCount > 0"
+          v-if="variableCount !== 0"
           size="x-small"
           class="ml-2 font-weight-bold"
           style="cursor: inherit"
           data-testid="inventoryView-variableCount"
-        >{{ variableCount }}</v-chip>
+        >{{ variableCount ?? '?' }}</v-chip>
       </v-tab>
     </v-tabs>
 
@@ -85,7 +85,8 @@ export default {
     },
 
     variableCount() {
-      return (variableNames(this.inventory.variables) || []).length;
+      const names = variableNames(this.inventory.variables);
+      return names && names.length;
     },
 
     listPath() {
