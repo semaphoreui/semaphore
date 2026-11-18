@@ -9,6 +9,7 @@ describe('variableNames', () => {
     ['a blank line in a block scalar', 'banner: |+\n  \nport: 22\n', ['banner', 'port']],
     ['empty text', '', []],
     ['a list', '- 1', []],
+    ['broken text', 'a: [1,\n', null],
   ].forEach(([name, text, names]) => {
     it(`reads ${name}`, () => {
       expect(variableNames(text)).to.deep.equal(names);

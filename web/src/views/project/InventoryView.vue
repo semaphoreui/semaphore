@@ -86,7 +86,7 @@ export default {
     },
 
     variableCount() {
-      return variableNames(this.inventory.variables).length;
+      return (variableNames(this.inventory.variables) || []).length;
     },
 
     listPath() {

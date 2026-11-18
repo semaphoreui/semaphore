@@ -78,6 +78,18 @@ describe('InventoryHosts.vue', () => {
     expect(wrapper.find('[data-testid="inventoryHosts-details"]').text()).to.contain('a: !vault 1');
   });
 
+  it('opens variables that cannot be counted', async () => {
+    http.respond((c) => (c.method === 'get' ? [{ ...hosts[0], variables: 'a: [1,\n' }] : {}));
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+
+    const count = wrapper.find('[data-testid="inventoryHosts-variables"]');
+    expect(count.text()).to.equal('?');
+    await count.trigger('click');
+
+    expect(wrapper.find('[data-testid="inventoryHosts-details"]').text()).to.contain('a: [1,');
+  });
+
   it('opens the details by a click on the row but not on its controls', async () => {
     const wrapper = mountHosts({ isAdmin: true });
     await flush();

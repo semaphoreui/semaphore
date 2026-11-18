@@ -76,7 +76,7 @@
 
       <template v-slot:item.variables="{ item }">
         <v-btn
-          v-if="variableCounts[item.id] > 0"
+          v-if="hasDetails(item.id)"
           variant="text"
           density="compact"
           class="px-1"
@@ -84,12 +84,12 @@
           :aria-expanded="expanded.includes(item.id)"
           :aria-label="$t('inventory_hosts_variables_label', {
             name: item.name,
-            count: variableCounts[item.id],
+            count: variableCounts[item.id] ?? '?',
           })"
           data-testid="inventoryHosts-variables"
           @click.stop="toggleDetails(item)"
         >
-          {{ variableCounts[item.id] }}
+          {{ variableCounts[item.id] ?? '?' }}
           <v-icon end>
             {{ expanded.includes(item.id) ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
           </v-icon>
@@ -241,7 +241,10 @@ export default {
 
     variableCounts() {
       return Object.fromEntries(
-        (this.rows || []).map((host) => [host.id, variableNames(host.variables).length]),
+        (this.rows || []).map((host) => {
+          const names = variableNames(host.variables);
+          return [host.id, names && names.length];
+        }),
       );
     },
 
@@ -314,11 +317,17 @@ export default {
     },
 
     rowProps({ item }) {
-      return this.variableCounts[item.id] > 0 ? { style: 'cursor: pointer' } : {};
+      return this.hasDetails(item.id) ? { style: 'cursor: pointer' } : {};
+    },
+
+    // A host whose variables cannot be counted still opens
+    hasDetails(hostId) {
+      const count = this.variableCounts[hostId];
+      return count === null || count > 0;
     },
 
     toggleDetails(host) {
-      if (!this.variableCounts[host.id]) return;
+      if (!this.hasDetails(host.id)) return;
       this.expanded = this.expanded.includes(host.id)
         ? this.expanded.filter((id) => id !== host.id)
         : [...this.expanded, host.id];
@@ -354,7 +363,7 @@ export default {
           return;
         }
         this.rows = response.data;
-        this.expanded = this.expanded.filter((id) => this.variableCounts[id] > 0);
+        this.expanded = this.expanded.filter((id) => this.hasDetails(id));
         this.total = Number(response.headers['x-total-count']) || 0;
       } catch (err) {
         if (seq !== this.loadSeq) return;
