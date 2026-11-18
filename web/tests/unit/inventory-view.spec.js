@@ -10,20 +10,25 @@ async function flush() {
   await new Promise((resolve) => { setTimeout(resolve, 0); });
 }
 
+const wrappers = [];
+
 function mountView() {
-  return mount(InventoryView, {
+  const wrapper = mount(InventoryView, {
     props: { projectId: 7 },
     global: {
       mocks: { $t: (k) => k, $route: { params: { inventoryId: '3' } } },
       stubs: { RouterLink: true, RouterView: true },
     },
   });
+  wrappers.push(wrapper);
+  return wrapper;
 }
 
 describe('InventoryView.vue', () => {
   let http;
 
   afterEach(() => {
+    wrappers.splice(0).forEach((wrapper) => wrapper.unmount());
     http.restore();
   });
 
