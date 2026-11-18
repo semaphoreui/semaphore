@@ -19,6 +19,11 @@ vierkante haken of dubbele punten bevatten en is hooguit 250 tekens lang.
 Optioneel. Een notitie voor mensen, die in de lijst met hosts wordt getoond. Ansible krijgt deze
 niet.
 
+## Groups {#inventoryHostForm-groups}
+
+Optioneel. De groepen waarin deze host zit. Een host kan in meerdere groepen zitten. Groepen worden
+aangemaakt op het tabblad Groups.
+
 ## Variabelen {#inventoryHostForm-variables}
 
 Optioneel. Variabelen van deze host, geschreven als een YAML- of JSON-mapping:

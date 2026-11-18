@@ -18,6 +18,11 @@ de virgules, de crochets ni de deux-points, et compte au plus 250 caractères.
 
 Facultatif. Une note pour les personnes, affichée dans la liste des hôtes. Ansible ne la reçoit pas.
 
+## Groups {#inventoryHostForm-groups}
+
+Facultatif. Les groupes dont cet hôte fait partie. Un hôte peut faire partie de plusieurs groupes.
+Les groupes se créent dans l'onglet Groups.
+
 ## Variables {#inventoryHostForm-variables}
 
 Facultatif. Les variables de cet hôte, écrites sous forme de mapping YAML ou JSON :

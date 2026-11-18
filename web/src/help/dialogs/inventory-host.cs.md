@@ -18,6 +18,11 @@ nejvýše 250 znaků.
 
 Nepovinné. Poznámka pro lidi, zobrazuje se v seznamu hostů. Ansible ji nedostane.
 
+## Groups {#inventoryHostForm-groups}
+
+Nepovinné. Skupiny, ve kterých host je. Host může být v několika skupinách. Skupiny se vytvářejí na
+kartě Groups.
+
 ## Proměnné {#inventoryHostForm-variables}
 
 Nepovinné. Proměnné tohoto hosta zapsané jako mapování YAML nebo JSON:

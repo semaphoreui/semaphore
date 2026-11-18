@@ -14,6 +14,10 @@ Ansible이 호스트를 식별하는 이름이며, 변수에서 `ansible_host`�
 
 선택 사항입니다. 사람을 위한 메모이며 호스트 목록에 표시됩니다. Ansible에는 전달되지 않습니다.
 
+## Groups {#inventoryHostForm-groups}
+
+선택 사항입니다. 이 호스트가 속한 그룹입니다. 호스트는 여러 그룹에 속할 수 있습니다. 그룹은 Groups 탭에서 만듭니다.
+
 ## 변수 {#inventoryHostForm-variables}
 
 선택 사항입니다. 이 호스트의 변수를 YAML 또는 JSON 매핑으로 작성합니다.

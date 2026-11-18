@@ -18,6 +18,11 @@ is at most 250 characters long.
 
 Optional. A note for people, shown in the list of hosts. Ansible does not get it.
 
+## Groups {#inventoryHostForm-groups}
+
+Optional. The groups this host is in. A host can be in several groups. Groups are created on the
+Groups tab.
+
 ## Variables {#inventoryHostForm-variables}
 
 Optional. Variables of this host, written as a YAML or JSON mapping:

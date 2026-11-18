@@ -68,7 +68,19 @@
       </template>
 
       <template v-slot:item.name="{ item }">
-        <span data-testid="inventoryGroups-name">{{ item.name }}</span>
+        <span class="text-wrap" style="overflow-wrap: anywhere" data-testid="inventoryGroups-name">
+          {{ item.name }}
+        </span>
+      </template>
+
+      <template v-slot:item.description="{ item }">
+        <span
+          class="text-wrap"
+          style="overflow-wrap: anywhere"
+          data-testid="inventoryGroups-description"
+        >
+          {{ item.description }}
+        </span>
       </template>
 
       <template v-slot:item.host_count="{ item }">
@@ -87,13 +99,15 @@
       </template>
 
       <template v-slot:item.children="{ item }">
-        <v-chip
-          v-for="id in item.children"
-          :key="id"
-          size="small"
-          class="mr-1 my-1"
-          data-testid="inventoryGroups-child"
-        >{{ groupNames[id] }}</v-chip>
+        <div class="text-wrap">
+          <v-chip
+            v-for="id in item.children"
+            :key="id"
+            size="small"
+            class="InventoryGroups__chip mr-1 my-1"
+            data-testid="inventoryGroups-child"
+          >{{ groupNames[id] }}</v-chip>
+        </div>
       </template>
 
       <template v-slot:item.variables="{ item }">
@@ -126,6 +140,18 @@
     </v-data-table>
   </div>
 </template>
+
+<style>
+/* A long group name wraps inside its chip instead of widening the table */
+.v-chip.v-chip--size-small.InventoryGroups__chip {
+  height: auto;
+  min-height: var(--v-chip-height);
+  padding-top: 4px;
+  padding-bottom: 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+</style>
 
 <script>
 import axios from 'axios';
@@ -185,7 +211,7 @@ export default {
       return [
         { title: this.$t('name'), key: 'name', sortable: false },
         { title: this.$t('description'), key: 'description', sortable: false },
-        { title: this.$t('inventory_groups_hosts'), key: 'host_count', sortable: false },
+        { title: this.$t('inventory_tab_hosts'), key: 'host_count', sortable: false },
         { title: this.$t('inventory_groups_children'), key: 'children', sortable: false },
         { title: this.$t('inventory_tab_variables'), key: 'variables', sortable: false },
         ...(this.canManage ? [{
@@ -197,11 +223,11 @@ export default {
 
   watch: {
     inventoryId() {
-      this.load();
+      this.reload();
     },
 
     projectId() {
-      this.load();
+      this.reload();
     },
   },
 
@@ -241,6 +267,14 @@ export default {
       }
       await this.load();
       this.busyIds = this.busyIds.filter((busyId) => busyId !== id);
+    },
+
+    // Nothing of the previous inventory stays on the screen or in an open dialog
+    reload() {
+      this.groups = null;
+      this.editDialog = false;
+      this.deleteDialog = false;
+      this.load();
     },
 
     async load() {

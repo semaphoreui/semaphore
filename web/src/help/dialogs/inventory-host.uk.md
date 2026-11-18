@@ -18,6 +18,11 @@ form: src/components/InventoryHostForm.vue
 
 Необов’язкове поле. Нотатка для людей, її видно у списку хостів. Ansible її не отримує.
 
+## Groups {#inventoryHostForm-groups}
+
+Необов’язкове поле. Групи, до яких входить хост. Хост може входити до кількох груп. Групи
+створюються на вкладці Groups.
+
 ## Змінні {#inventoryHostForm-variables}
 
 Необов’язкове поле. Змінні цього хоста, записані як словник YAML або JSON:

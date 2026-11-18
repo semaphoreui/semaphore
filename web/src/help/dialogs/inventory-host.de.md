@@ -19,6 +19,11 @@ Zeichen lang.
 
 Optional. Eine Notiz für Menschen, die in der Hostliste angezeigt wird. Ansible erhält sie nicht.
 
+## Groups {#inventoryHostForm-groups}
+
+Optional. Die Gruppen, in denen dieser Host ist. Ein Host kann in mehreren Gruppen sein. Gruppen
+werden auf dem Tab Groups angelegt.
+
 ## Variablen {#inventoryHostForm-variables}
 
 Optional. Variablen dieses Hosts als YAML- oder JSON-Mapping:
