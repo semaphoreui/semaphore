@@ -32,6 +32,23 @@
     <v-tabs data-testid="inventoryView-tabs">
       <v-tab data-testid="inventoryView-tab-hosts" :to="`${listPath}/${inventoryId}/hosts`">
         {{ $t('inventory_tab_hosts') }}
+        <v-chip
+          v-if="hostCount !== 0"
+          size="x-small"
+          class="ml-2 font-weight-bold"
+          style="cursor: inherit"
+          data-testid="inventoryView-hostCount"
+        >{{ hostCount ?? '?' }}</v-chip>
+      </v-tab>
+      <v-tab data-testid="inventoryView-tab-groups" :to="`${listPath}/${inventoryId}/groups`">
+        {{ $t('inventory_tab_groups') }}
+        <v-chip
+          v-if="groupCount !== 0"
+          size="x-small"
+          class="ml-2 font-weight-bold"
+          style="cursor: inherit"
+          data-testid="inventoryView-groupCount"
+        >{{ groupCount ?? '?' }}</v-chip>
       </v-tab>
       <v-tab data-testid="inventoryView-tab-variables" :to="`${listPath}/${inventoryId}/variables`">
         {{ $t('inventory_tab_variables') }}
@@ -57,6 +74,7 @@
 </template>
 
 <script>
+import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import ProjectMixin from '@/components/ProjectMixin';
@@ -75,6 +93,9 @@ export default {
       state: 'loading',
       notFound: false,
       loadSeq: 0,
+      hostCount: 0,
+      groupCount: 0,
+      countSeq: 0,
     };
   },
 
@@ -99,11 +120,13 @@ export default {
 
   async created() {
     EventBus.$on('i-inventory-variables', this.onVariablesSaved);
+    EventBus.$on('i-inventory-counts', this.loadCounts);
     await this.load();
   },
 
   beforeUnmount() {
     EventBus.$off('i-inventory-variables', this.onVariablesSaved);
+    EventBus.$off('i-inventory-counts', this.loadCounts);
   },
 
   methods: {
@@ -122,6 +145,23 @@ export default {
       }
     },
 
+    async loadCounts() {
+      if (this.state !== 'ready') return;
+      this.countSeq += 1;
+      const seq = this.countSeq;
+      const url = `/api/project/${this.projectId}/inventory/${this.inventoryId}`;
+      const [hosts, groups] = await Promise.allSettled([
+        axios.get(`${url}/hosts`, { params: { count: 1 } }),
+        axios.get(`${url}/groups`),
+      ]);
+      if (seq !== this.countSeq) return;
+      const hostCount = hosts.status === 'fulfilled'
+        ? Number(hosts.value.headers['x-total-count'])
+        : NaN;
+      this.hostCount = Number.isFinite(hostCount) ? hostCount : null;
+      this.groupCount = groups.status === 'fulfilled' ? groups.value.data.length : null;
+    },
+
     showDrawer() {
       EventBus.$emit('i-show-drawer');
     },
@@ -131,6 +171,10 @@ export default {
       const seq = this.loadSeq;
       this.state = 'loading';
       this.notFound = false;
+      this.hostCount = 0;
+      this.groupCount = 0;
+      // Counts of the inventory shown before must not land on this one
+      this.countSeq += 1;
       try {
         const inventory = await this.loadProjectResource('inventory', this.inventoryId);
         if (seq !== this.loadSeq) return;
@@ -144,6 +188,7 @@ export default {
           EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
         }
       }
+      await this.loadCounts();
     },
   },
 };
