@@ -1305,3 +1305,139 @@ func TestRestore_ReadBitByFileVersion(t *testing.T) {
 		})
 	}
 }
+
+// viewBackupPayload is a backup file holding one view, written the way an
+// edited file reaches the restore: as JSON, not as Go values.
+func viewBackupPayload(t *testing.T, project string, view map[string]any) string {
+	t.Helper()
+
+	payload, err := json.Marshal(map[string]any{
+		"version": BackupFormatVersion,
+		"meta":    map[string]any{"name": project, "type": ""},
+		"views":   []any{view},
+	})
+	require.NoError(t, err)
+
+	return string(payload)
+}
+
+// A view filter in a hand-edited backup gets the checks the API applies, and
+// gets them in the preflight: Restore runs after the project exists.
+func TestRestore_RejectsInvalidViewFilter(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd:  "3412341234123",
+		User: db.User{Username: "badview", Name: "Bad View", Email: "badview@example.com", Admin: true},
+	})
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		view    map[string]any
+		wantErr string
+	}{
+		{
+			// 1000 characters fit the name, but not the column once encoded.
+			name:    "a name wider than the column",
+			view:    map[string]any{"title": "All", "type": "all", "filter": map[string]any{"name": strings.Repeat("a", 1000)}},
+			wantErr: "view filter is too long",
+		},
+		{
+			name:    "a key the backend does not apply",
+			view:    map[string]any{"title": "All", "type": "all", "filter": map[string]any{"app": "ansible"}},
+			wantErr: "unknown view filter: app",
+		},
+		{
+			name:    "a name that is not text",
+			view:    map[string]any{"title": "All", "type": "all", "filter": map[string]any{"name": 42}},
+			wantErr: "view filter name must be a string",
+		},
+		{
+			name:    "a view without a title",
+			view:    map[string]any{"title": "", "type": "all"},
+			wantErr: "title can not be empty",
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			projectName := fmt.Sprintf("bad view %d", i)
+			backup := &BackupFormat{}
+			require.NoError(t, backup.Unmarshal(viewBackupPayload(t, projectName, tt.view)))
+
+			err := backup.Verify()
+
+			assert.ErrorContains(t, err, "error at views[0]: "+tt.wantErr)
+
+			// A caller that skips the preflight is refused as well, and the
+			// project it started is removed again.
+			_, err = backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+			assert.ErrorContains(t, err, "error at views[0]: "+tt.wantErr)
+
+			projects, err := store.GetAllProjects()
+			require.NoError(t, err)
+			for _, p := range projects {
+				assert.NotEqual(t, projectName, p.Name)
+			}
+		})
+	}
+}
+
+// A filter saved through the API survives the round trip: it is written to the
+// backup, passes the preflight and is stored on the restored view.
+func TestRestore_KeepsViewFilter(t *testing.T) {
+	previousConfig := util.Config
+	t.Cleanup(func() { util.Config = previousConfig })
+	util.Config = &util.ConfigType{TmpPath: "/tmp"}
+	store := sql.InitConfigCreateTestStore()
+
+	user, err := store.CreateUser(db.UserWithPwd{
+		Pwd:  "3412341234123",
+		User: db.User{Username: "goodview", Name: "Good View", Email: "goodview@example.com", Admin: true},
+	})
+	require.NoError(t, err)
+
+	proj, err := store.CreateProject(db.Project{Name: "views source"})
+	require.NoError(t, err)
+
+	// The widest filter Validate lets through: 1000 bytes once encoded, the
+	// three characters json.Marshal escapes counted as six each.
+	name := "<prod & stage>" + strings.Repeat("a", 960)
+	views := []db.View{
+		{ProjectID: proj.ID, Title: "Filtered", Type: db.ViewTypeAll, Position: 1, Filter: &db.MapStringAnyField{db.ViewFilterName: name}},
+		{ProjectID: proj.ID, Title: "Cleared", Type: db.ViewTypeAll, Position: 2, Filter: &db.MapStringAnyField{}},
+		{ProjectID: proj.ID, Title: "Custom", Type: db.ViewTypeCustom, Position: 3},
+	}
+	for _, view := range views {
+		require.NoError(t, view.Validate())
+		_, err = store.CreateView(view)
+		require.NoError(t, err)
+	}
+
+	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+	payload, err := backup.Marshal()
+	require.NoError(t, err)
+
+	restoredBackup := &BackupFormat{}
+	require.NoError(t, restoredBackup.Unmarshal(payload))
+	restoredBackup.Meta.Name = "views restored"
+	require.NoError(t, restoredBackup.Verify())
+
+	restored, err := restoredBackup.Restore(user, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+
+	restoredViews, err := store.GetViews(restored.ID)
+	require.NoError(t, err)
+
+	filters := make(map[string]string, len(restoredViews))
+	for _, view := range restoredViews {
+		filters[view.Title] = view.NameFilter()
+	}
+	assert.Equal(t, map[string]string{"Filtered": name, "Cleared": "", "Custom": ""}, filters)
+}

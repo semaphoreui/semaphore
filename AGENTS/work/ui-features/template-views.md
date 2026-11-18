@@ -23,7 +23,7 @@ only, and the author has not asked for a search.
   both sides because `LIKE` is case-sensitive in
   PostgreSQL and not in SQLite or MySQL's default collation. Verified with the same results on
   SQLite, PostgreSQL and MySQL 8.4.
-- **`!` is the LIKE escape character** (`escapeLike` in `db/sql/user.go`). SQLite has no default
+- **`!` is the LIKE escape character** (`escapeLike` in `db/sql/SqlDb.go`). SQLite has no default
   escape, so the old backslash escape made `_` and `%` match nothing there — the users search was
   broken on SQLite for any term holding them. A backslash is also written differently in a MySQL
   and a PostgreSQL string literal; `!` is not. Every query using `escapeLike` must say
@@ -39,17 +39,24 @@ only, and the author has not asked for a search.
   the request body, so a member could move their view into another project. The handler now also
   takes the project from the loaded view.
 
+- **A project restore validates views like the API does.** `CreateView` writes the filter (it did
+  not before PROD-11), so restored "all" views keep theirs — and a backup is a user supplied file.
+  `BackupView.Verify` runs `View.Validate` in the preflight, because `Restore` runs after the
+  project exists: an oversized filter would fail that insert on PostgreSQL, an unknown key or a
+  non-text name would be stored and apply nothing. `BackupView.Restore` checks again for a caller
+  that skips `Verify`.
+
 ## Open, broken or deferred
 
 - ⚠️ 2026-10-28: SQLite's `LOWER` folds ASCII only, so on SQLite a filter does not match across the
   case of non-ASCII letters (`über` does not find `Über`). PostgreSQL and MySQL fold them.
-- A project restore goes through `CreateView`, which did not write the filter either; it does now,
-  so restored "all" views keep their filter.
 
 ## Key files and references
 
 - `db/View.go` (`Validate`, `NameFilter`, `ViewFilterName`), `db/sql/view.go`,
-  `db/sql/template.go` (`getTemplates`), `db/sql/user.go` (`escapeLike`)
+  `db/sql/template.go` (`getTemplates`), `db/sql/SqlDb.go` (`escapeLike`)
 - `api/projects/views.go` (`UpdateView`), `web/src/components/EditViewsForm.vue`
-- Tests: `db/View_test.go`, `db/sql/view_test.go`, `api/projects/views_test.go`
+- `services/project/restore.go` (`BackupView.Verify`, `BackupView.Restore`)
+- Tests: `db/View_test.go`, `db/sql/view_test.go`, `api/projects/views_test.go`,
+  `services/project/backup_test.go` (`TestRestore_RejectsInvalidViewFilter`, `TestRestore_KeepsViewFilter`)
 - Views were introduced in `5457cf33 feat(views): implement sql`, which left the "all" filter as a TODO

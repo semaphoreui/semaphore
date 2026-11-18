@@ -129,12 +129,28 @@ func (e BackupEnvironment) Restore(b *BackupDB) error {
 }
 
 func (e BackupView) Verify(backup *BackupFormat) error {
+	// A backup is a user supplied file, so a view from one passes the checks
+	// the API applies. Its filter is the reason they run here: Restore runs
+	// after the project exists, and a filter wider than its column fails that
+	// insert, while an unknown key or a name that is not text would be stored
+	// and silently apply nothing.
+	if err := e.View.Validate(); err != nil {
+		return err
+	}
+
 	return verifyDuplicate[BackupView](e.Title, backup.Views)
 }
 
 func (e BackupView) Restore(b *BackupDB) error {
 	v := e.View
 	v.ProjectID = b.meta.ID
+
+	// Checked again for a caller that restores without Verify: nothing below
+	// the store looks at the filter.
+	if err := v.Validate(); err != nil {
+		return err
+	}
+
 	newView, err := b.store.CreateView(v)
 	if err != nil {
 		return err
