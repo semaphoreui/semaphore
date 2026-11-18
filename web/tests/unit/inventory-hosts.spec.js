@@ -97,7 +97,9 @@ describe('InventoryHosts.vue', () => {
     const details = () => wrapper.find('[data-testid="inventoryHosts-details"]').exists();
 
     await wrapper.find('[data-testid="inventoryHosts-rowEdit"]').trigger('click');
-    await wrapper.find('[data-testid="inventoryHosts-enabled"]').trigger('click');
+    expect(details()).to.equal(false);
+
+    await wrapper.find('[data-testid="inventoryHosts-enabled"] input').trigger('click');
     expect(details()).to.equal(false);
 
     await wrapper.find('[data-testid="inventoryHosts-name"]').trigger('click');
