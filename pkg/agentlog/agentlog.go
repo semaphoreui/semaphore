@@ -163,19 +163,30 @@ func NewTool(id string, name string, input []byte, mask func(string) string) Eve
 // NewResult makes the event of a tool call's result, masked and cut. A result
 // that is JSON stays JSON: its strings are masked and cut one by one, so that
 // a client can still read it.
+//
+// mask is applied to whole values: to the strings of JSON as they are decoded,
+// to text before its line breaks are normalized. A secret JSON escapes, or one
+// with a line break, is not found in the text as it is written.
 func NewResult(id string, text string, failed bool, mask func(string) string) Event {
 	event := Event{Kind: KindResult, ID: mask(id), Error: failed}
-
-	text = strings.Trim(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
 
 	if trimmed := strings.TrimSpace(text); strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
 		if result, cut, ok := capJSON([]byte(trimmed), mask, MaxResultString, maxResult); ok {
 			event.Text, event.Truncated = string(result), cut
 			return event
 		}
+
+		// JSON too large even with short strings is cut as text: the text
+		// of the masked JSON.
+		masked, err := rewriteJSON([]byte(trimmed), func(s string, _ bool) string { return mask(s) })
+		if err == nil {
+			event.Text, event.Truncated = capString(string(masked), MaxResultText)
+			return event
+		}
 	}
 
-	event.Text, event.Truncated = capString(mask(text), MaxResultText)
+	text = strings.Trim(strings.ReplaceAll(mask(text), "\r\n", "\n"), "\n")
+	event.Text, event.Truncated = capString(text, MaxResultText)
 	return event
 }
 

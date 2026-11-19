@@ -207,6 +207,25 @@ func TestCodexJSONOutput_MasksSecrets(t *testing.T) {
 	}, plain(logged))
 }
 
+// A secret of several lines is masked whole in a message of the agent; none
+// of its lines is left in the log.
+func TestCodexJSONOutput_MasksMultilineSecrets(t *testing.T) {
+	const secret = "-----BEGIN KEY-----\nMIIEv9a1QxZ\n-----END KEY-----"
+
+	text, err := json.Marshal("The key is " + secret + "\nkeep it.")
+	require.NoError(t, err)
+
+	logged := feed(codexOutput(secret),
+		`{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":`+string(text)+`}}`,
+		`{"type":"item.completed","item":{"id":"item_1","type":"reasoning","text":`+string(text)+`}}`,
+	)
+
+	assert.Equal(t, []string{
+		"The key is " + maskedSecret, "keep it.",
+		"The key is " + maskedSecret, "keep it.",
+	}, plain(logged))
+}
+
 // What is not an event of the CLI stays in the log as it came.
 func TestCodexJSONOutput_OtherOutput(t *testing.T) {
 	lines := []string{

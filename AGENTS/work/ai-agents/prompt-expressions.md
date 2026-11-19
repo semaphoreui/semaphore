@@ -55,7 +55,9 @@ db_lib.NewAgentPromptValues    the values, from the Environment, the survey secr
   template's prompt: editing it there turns the expressions into text.
 - **A substituted secret is masked in the task log** like an MCP token: its value is added to
   `AgentLaunch.Secrets` before `NewOutput()` (local) and `AppPlan.setSecrets` (Pro), so both the
-  events and the plain lines carry `********`. Only the secrets the prompt uses are masked.
+  events and the plain lines carry `********`. A `var` secret is masked only when the prompt
+  uses it — the agent gets it no other way. Every `env` secret is masked whether the prompt uses
+  it or not (`db_lib.AgentEnvSecrets`): the agent gets it in its environment and can repeat it.
 - The prompt still goes to the CLI on stdin (local) or as a file under `/secrets/agent` (Pro),
   never in argv or the script.
 - ⚠️ 2026-11-12: a secret in the prompt is sent to the model provider, and the agent can do with

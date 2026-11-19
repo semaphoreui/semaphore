@@ -96,6 +96,18 @@ func NewAgentPromptValues(
 	return values, nil
 }
 
+// AgentEnvSecrets returns the values of the secret environment variables an
+// agent gets: the env secrets of the Variable Groups and the secret survey
+// variables delivered as environment variables. The agent can read and
+// repeat them, so they are masked in the task log like its tokens.
+func AgentEnvSecrets(values agentprompt.Values) []string {
+	secrets := make([]string, 0, len(values.EnvSecrets))
+	for _, value := range values.EnvSecrets {
+		secrets = append(secrets, value)
+	}
+	return secrets
+}
+
 // promptVarsFromJSON adds the members of a JSON object to vars, each as the
 // text a prompt gets: a string as it is, a number as it is written, a list or
 // an object as JSON.

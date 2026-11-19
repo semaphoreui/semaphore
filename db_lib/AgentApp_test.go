@@ -11,6 +11,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/agentlog"
+	"github.com/semaphoreui/semaphore/pkg/agentprompt"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -132,6 +133,55 @@ func TestAgentApp_RunPassesPromptOnStdinAndMasksTokens(t *testing.T) {
 			entries, err = os.ReadDir(util.Config.GetProjectTmpDir(1))
 			require.NoError(t, err)
 			assert.Empty(t, entries)
+		})
+	}
+}
+
+// A secret of the environment reaches the agent, which may repeat it: the
+// log masks it like a token. A plain variable stays as it is.
+func TestAgentApp_RunMasksEnvironmentSecrets(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh is not available")
+	}
+
+	const (
+		apiKey      = "ak-env-secret-7d1e"
+		surveyValue = "survey-secret-c04b"
+	)
+
+	for _, app := range []db.TemplateApp{db.AppClaude, db.AppCodex} {
+		t.Run(string(app), func(t *testing.T) {
+			script := filepath.Join(t.TempDir(), "agent")
+			require.NoError(t, os.WriteFile(script, []byte(`#!/bin/sh
+cat > /dev/null
+echo "api key: $ANTHROPIC_API_KEY"
+echo "survey: $DEPLOY_PASSWORD"
+echo "plain: $REGION"
+`), 0o755))
+			setupAgentConfig(t, map[string]util.App{string(app): {Active: true, AppPath: script}})
+
+			logger := &lineLogger{}
+			agent := newAgentApp(db.Template{
+				ID: 1, ProjectID: 1, App: app,
+				TaskParams: db.MapStringAnyField{"prompt": "deploy"},
+			}, db.Repository{ProjectID: 1, GitURL: t.TempDir()}, agentInventory(), logger)
+
+			err := agent.Run(LocalAppRunningArgs{
+				EnvironmentVars: []string{"ANTHROPIC_API_KEY=" + apiKey, "DEPLOY_PASSWORD=" + surveyValue, "REGION=eu-west-1"},
+				TaskParams:      &db.AgentTaskParams{},
+				AgentPromptValues: agentprompt.Values{
+					EnvVars:    map[string]string{"REGION": "eu-west-1"},
+					EnvSecrets: map[string]string{"ANTHROPIC_API_KEY": apiKey, "DEPLOY_PASSWORD": surveyValue},
+				},
+			})
+			require.NoError(t, err)
+
+			out := logger.text()
+			assert.NotContains(t, out, apiKey)
+			assert.NotContains(t, out, surveyValue)
+			assert.Contains(t, out, "api key: "+maskedSecret)
+			assert.Contains(t, out, "survey: "+maskedSecret)
+			assert.Contains(t, out, "plain: eu-west-1")
 		})
 	}
 }

@@ -203,10 +203,12 @@ func (o *codexJSONOutput) text(kind string, text string, completed bool) []strin
 		return nil
 	}
 
-	lines := splitAgentText(text)
+	// Masked whole before it is split: a secret of several lines is found
+	// only in the whole text.
+	lines := splitAgentText(o.mask(text))
 	events := make([]agentlog.Event, 0, len(lines))
 	for _, line := range lines {
-		events = append(events, agentlog.Event{Kind: kind, Text: o.mask(line)})
+		events = append(events, agentlog.Event{Kind: kind, Text: line})
 	}
 	return encodeAgentEvents(events)
 }

@@ -256,4 +256,19 @@ func TestNewResult(t *testing.T) {
 		event := NewResult("t1", string(result), false, mask)
 		assert.Equal(t, `{"env":"TOKEN=********"}`, event.Text)
 	})
+
+	t.Run("a secret JSON escapes is masked in JSON too large even with short strings", func(t *testing.T) {
+		const secret = `tok"<&>\x`
+		mask := strings.NewReplacer(secret, "********").Replace
+
+		// As a CLI writes it: < & > are not escaped.
+		result := "[" + strings.TrimSuffix(strings.Repeat(`"tok\"<&>\\x",`, 4000), ",") + "]"
+		require.True(t, json.Valid([]byte(result)))
+
+		event := NewResult("t1", result, false, mask)
+		assert.NotContains(t, event.Text, secret)
+		assert.NotContains(t, event.Text, `tok\"<&>\\x`, "the secret as JSON escapes it")
+		assert.True(t, strings.HasPrefix(event.Text, `["********","********",`), event.Text[:40])
+		assert.Equal(t, MaxResultText+len("..."), len(event.Text))
+	})
 }

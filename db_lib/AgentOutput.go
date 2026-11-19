@@ -1,7 +1,9 @@
 package db_lib
 
 import (
+	"cmp"
 	"encoding/json"
+	"slices"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/pkg/agentlog"
@@ -18,18 +20,83 @@ type AgentOutput interface {
 	Flush() []string
 }
 
-// newSecretMasker returns a function replacing every secret with maskedSecret.
-func newSecretMasker(secrets []string) func(string) string {
-	pairs := make([]string, 0, len(secrets)*2)
-	for _, s := range secrets {
-		if s != "" {
-			pairs = append(pairs, s, maskedSecret)
+// secretMask masks the secrets of a launch in what the agent prints.
+type secretMask struct {
+	// apply replaces every secret with maskedSecret.
+	apply func(string) string
+	// multiline are the secrets that span lines: a key, a certificate. Text
+	// is masked whole before it is split into lines, never line by line, or
+	// no line would match them.
+	multiline []string
+}
+
+// newSecretMask makes the mask of secrets. Where two secrets overlap the
+// longer one wins: a secret that is the first line of another must not leave
+// the rest of that one in the log.
+func newSecretMask(secrets []string) secretMask {
+	sorted := slices.Clone(secrets)
+	slices.SortStableFunc(sorted, func(a, b string) int { return cmp.Compare(len(b), len(a)) })
+
+	var m secretMask
+	pairs := make([]string, 0, len(sorted)*2)
+	for _, s := range sorted {
+		if s == "" {
+			continue
+		}
+		pairs = append(pairs, s, maskedSecret)
+		if strings.Contains(s, "\n") {
+			m.multiline = append(m.multiline, s)
 		}
 	}
+
 	if len(pairs) == 0 {
-		return func(s string) string { return s }
+		m.apply = func(s string) string { return s }
+	} else {
+		m.apply = strings.NewReplacer(pairs...).Replace
 	}
-	return strings.NewReplacer(pairs...).Replace
+	return m
+}
+
+// newSecretMasker returns a function replacing every secret with maskedSecret.
+func newSecretMasker(secrets []string) func(string) string {
+	return newSecretMask(secrets).apply
+}
+
+// lineCut returns where text that is still being streamed can be cut: the
+// lines before the cut can be masked and logged, the rest waits for more
+// text. It is the last line break no multiline secret spans — neither a
+// whole one nor one whose beginning ends the text, which may be completed by
+// what comes next. -1 when there is no such line break.
+func (m secretMask) lineCut(text string) int {
+	for cut := strings.LastIndexByte(text, '\n'); cut >= 0; cut = strings.LastIndexByte(text[:cut], '\n') {
+		if !m.spans(text, cut) {
+			return cut
+		}
+	}
+	return -1
+}
+
+// spans tells whether a multiline secret, or the beginning of one at the end
+// of text, covers the byte text[at].
+func (m secretMask) spans(text string, at int) bool {
+	for _, secret := range m.multiline {
+		for start := max(0, at-len(secret)+1); start <= at; start++ {
+			rest := text[start:]
+			if strings.HasPrefix(rest, secret) || strings.HasPrefix(secret, rest) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// maskedLines masks text whole and splits it into lines.
+func maskedLines(mask func(string) string, text string) []string {
+	lines := strings.Split(mask(text), "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, "\r")
+	}
+	return lines
 }
 
 // plainAgentOutput is the output of a CLI that reports its progress in plain
@@ -52,6 +119,8 @@ func (plainAgentOutput) Flush() []string              { return nil }
 // an event of the CLI goes to the log as it came.
 type claudeStreamOutput struct {
 	mask func(string) string
+	// cut is where the streamed text can be cut into lines (secretMask.lineCut).
+	cut func(string) int
 
 	// partial is the unfinished last line of the text being streamed.
 	partial string
@@ -186,23 +255,31 @@ func encodeAgentEvents(events []agentlog.Event) []string {
 	return lines
 }
 
-// textEvents makes an event of every line, with the secrets masked.
+// textEvents makes an event of every line. The lines are masked already: a
+// secret of several lines is found only in the text before it is split.
 func (o *claudeStreamOutput) textEvents(agent string, lines []string) []agentlog.Event {
 	events := make([]agentlog.Event, 0, len(lines))
 	for _, line := range lines {
-		events = append(events, agentlog.Event{Kind: agentlog.KindText, Agent: agent, Text: o.mask(line)})
+		events = append(events, agentlog.Event{Kind: agentlog.KindText, Agent: agent, Text: line})
 	}
 	return events
 }
 
-// endText returns the unfinished line of the streamed text, if any.
+// endText returns what is left of the streamed text, if any: the unfinished
+// last line, and the lines held back while they might begin a secret.
 func (o *claudeStreamOutput) endText() []agentlog.Event {
 	if o.partial == "" {
 		return nil
 	}
-	line := strings.TrimRight(o.partial, "\r")
+	text := o.partial
 	o.partial = ""
-	return o.textEvents("", []string{line})
+
+	lines := maskedLines(o.mask, text)
+	// A line break ends the line before it; it does not open an empty one.
+	if len(lines) > 1 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return o.textEvents("", lines)
 }
 
 func (o *claudeStreamOutput) system(subtype string, raw []byte) ([]agentlog.Event, error) {
@@ -275,16 +352,16 @@ func (o *claudeStreamOutput) streamEvent(raw []byte) ([]agentlog.Event, error) {
 	o.said = true
 	o.partial += event.Event.Delta.Text
 
-	var lines []string
-	for {
-		i := strings.IndexByte(o.partial, '\n')
-		if i < 0 {
-			break
-		}
-		lines = append(lines, strings.TrimRight(o.partial[:i], "\r"))
-		o.partial = o.partial[i+1:]
+	// The complete lines are logged, masked together: a line that may begin
+	// a secret of several lines waits until the secret is whole or is not
+	// one.
+	cut := o.cut(o.partial)
+	if cut < 0 {
+		return nil, nil
 	}
-	return o.textEvents("", lines), nil
+	text := o.partial[:cut]
+	o.partial = o.partial[cut+1:]
+	return o.textEvents("", maskedLines(o.mask, text)), nil
 }
 
 func (o *claudeStreamOutput) assistant(raw []byte) ([]agentlog.Event, error) {
@@ -303,7 +380,7 @@ func (o *claudeStreamOutput) assistant(raw []byte) ([]agentlog.Event, error) {
 			if streamed {
 				continue
 			}
-			if text := splitAgentText(block.Text); len(text) > 0 {
+			if text := splitAgentText(o.mask(block.Text)); len(text) > 0 {
 				events = append(events, o.textEvents(agent, text)...)
 				if agent == "" {
 					o.said = true
@@ -359,7 +436,7 @@ func (o *claudeStreamOutput) result(raw []byte) ([]agentlog.Event, error) {
 	// The result repeats the last message; it is the only text when the run
 	// printed nothing before it (the json output format, an early error).
 	if !o.said {
-		events = append(events, o.textEvents("", splitAgentText(event.Result))...)
+		events = append(events, o.textEvents("", splitAgentText(o.mask(event.Result)))...)
 	}
 
 	done := agentlog.Event{

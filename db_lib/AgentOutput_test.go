@@ -265,6 +265,87 @@ func TestClaudeStreamOutput_MasksSecrets(t *testing.T) {
 	}, plain(logged))
 }
 
+// A secret of several lines — a key, a certificate — is masked whole wherever
+// the agent writes it: in streamed text, even cut into pieces anywhere, in a
+// whole message and in the result of a run that printed nothing before it.
+// None of its lines is left in the log.
+func TestClaudeStreamOutput_MasksMultilineSecrets(t *testing.T) {
+	const secret = "-----BEGIN KEY-----\nMIIEv9a1QxZ\n-----END KEY-----"
+	secretLines := strings.Split(secret, "\n")
+
+	assertMasked := func(t *testing.T, logged []string) {
+		t.Helper()
+		for _, line := range plain(logged) {
+			for _, part := range secretLines {
+				assert.NotContains(t, line, part)
+			}
+		}
+	}
+
+	t.Run("streamed", func(t *testing.T) {
+		text := "The key is " + secret + "\nkeep it.\nDone."
+		for size := 1; size <= len(text); size++ {
+			lines := []string{claudeMessageStart}
+			for i := 0; i < len(text); i += size {
+				lines = append(lines, textDelta(t, text[i:min(i+size, len(text))]))
+			}
+			lines = append(lines, `{"type":"stream_event","event":{"type":"content_block_stop","index":0},"parent_tool_use_id":null}`)
+
+			logged := feed(claudeOutput(t, secret), lines...)
+			assertMasked(t, logged)
+			require.Equal(t, []string{"The key is " + maskedSecret, "keep it.", "Done."}, plain(logged), "pieces of %d", size)
+		}
+	})
+
+	t.Run("streamed, the start of the secret that never came", func(t *testing.T) {
+		logged := feed(claudeOutput(t, secret),
+			claudeMessageStart,
+			textDelta(t, "Header:\n-----BEGIN KEY-----\nnot the key\n"),
+		)
+		assert.Equal(t, []string{"Header:", "-----BEGIN KEY-----", "not the key"}, plain(logged))
+	})
+
+	t.Run("streamed, a held line comes out when the message ends", func(t *testing.T) {
+		output := claudeOutput(t, secret)
+		assert.Empty(t, output.Lines(claudeMessageStart))
+		assert.Equal(t, []string{"Header:"}, plain(output.Lines(textDelta(t, "Header:\n-----BEGIN KEY-----\n"))))
+		assert.Equal(t, []string{"-----BEGIN KEY-----"},
+			plain(output.Lines(`{"type":"stream_event","event":{"type":"content_block_stop","index":0},"parent_tool_use_id":null}`)))
+		assert.Empty(t, output.Flush())
+	})
+
+	t.Run("whole message", func(t *testing.T) {
+		message, err := json.Marshal("The key is " + secret + "\nkeep it.")
+		require.NoError(t, err)
+
+		logged := feed(claudeOutput(t, secret),
+			`{"type":"assistant","message":{"id":"msg_9","content":[{"type":"text","text":`+string(message)+`}]},"parent_tool_use_id":"toolu_1"}`,
+		)
+		assertMasked(t, logged)
+		assert.Equal(t, []string{"The key is " + maskedSecret, "keep it."}, plain(logged))
+	})
+
+	t.Run("result of a run that printed nothing", func(t *testing.T) {
+		result, err := json.Marshal(secret)
+		require.NoError(t, err)
+
+		logged := feed(claudeOutput(t, secret),
+			`{"type":"result","subtype":"success","is_error":false,"result":`+string(result)+`,"num_turns":1,"duration_ms":1000}`,
+		)
+		assertMasked(t, logged)
+		assert.Equal(t, []string{maskedSecret, "Agent finished: 1 turn(s), 1s"}, plain(logged))
+	})
+}
+
+// Where two secrets overlap the longer one is masked: a secret that is the
+// first line of another does not leave the rest of that one in the log.
+func TestNewSecretMask_LongerSecretWins(t *testing.T) {
+	mask := newSecretMask([]string{"first", "first\nsecond", ""})
+
+	assert.Equal(t, maskedSecret+" and "+maskedSecret, mask.apply("first\nsecond and first"))
+	assert.Equal(t, []string{"first\nsecond"}, mask.multiline)
+}
+
 // What is not an event of the CLI stays in the log as it came: an error of
 // the CLI, the text or json format set in the template's arguments, an event
 // of an unknown shape.

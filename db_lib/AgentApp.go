@@ -108,9 +108,10 @@ func (t *AgentApp) Run(args LocalAppRunningArgs) error {
 		return err
 	}
 
-	// A secret the prompt was given is masked like a token: the agent may
-	// repeat its prompt.
+	// A secret the prompt was given, and one of the environment, is masked
+	// like a token: the agent may repeat its prompt or what it read.
 	launch.Secrets = append(launch.Secrets, promptSecrets...)
+	launch.Secrets = append(launch.Secrets, AgentEnvSecrets(args.AgentPromptValues)...)
 
 	if err = writeAgentHome(home, launch); err != nil {
 		return err

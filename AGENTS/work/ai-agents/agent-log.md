@@ -69,6 +69,13 @@ Every event may carry `agent`: the id of the tool call that started the subagent
   and key of the arguments, every string of a JSON result), then the event is encoded: a secret
   with a character JSON escapes would not be found in the encoded line, and the client decodes
   the line. The executors' own masking of the finished line stays on top.
+- **Mask whole values, then split or cut.** A secret of several lines (a key) matches only the
+  whole text: a message is masked before `splitAgentText`, a JSON result too large even with
+  short strings is cut from its masked rewrite, not from the CLI's text. Streamed text is cut into
+  lines at `secretMask.lineCut` — the last line break no multiline secret, whole or begun at the
+  end of the buffer, spans — so a line that may start a secret waits for the next delta. Where two
+  secrets overlap the longer is masked (`newSecretMask` sorts by length). Lines of the CLI that
+  are not events are still masked one by one: a multiline secret printed there is not found.
 - **Cut strings, keep JSON.** Limits (`pkg/agentlog`): 4000 characters per string of the
   arguments, 2000 per string of a JSON result, 8000 for a text result; arguments over 32 KB or a
   result over 16 KB get their strings cut to 200. `truncated` counts what was left out. The JSON

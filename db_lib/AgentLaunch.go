@@ -41,7 +41,8 @@ type AgentLaunch struct {
 	// TokenEnv holds the MCP server tokens as NAME=VALUE. Secret: pass it in
 	// the process environment only, never in argv, a file or a log.
 	TokenEnv []string
-	// Secrets are the token values, to be masked in the task log.
+	// Secrets are the values to be masked in the task log: the tokens, and
+	// whatever secrets the caller adds (AgentEnvSecrets, the prompt's).
 	Secrets []string
 
 	// Dirs are created (0700) before Files are written (0600). Relative to home.
@@ -60,16 +61,16 @@ type AgentLaunch struct {
 
 	// output makes the reader of the CLI's output; nil for a CLI whose output
 	// is the task log as it is.
-	output func(mask func(string) string) AgentOutput
+	output func(mask secretMask) AgentOutput
 }
 
 // NewOutput returns the reader of this run's output: it makes task log lines,
 // with Secrets masked, of the lines the CLI prints. Whoever runs the CLI
 // passes every line of its stdout and stderr through one AgentOutput.
 func (l *AgentLaunch) NewOutput() AgentOutput {
-	mask := newSecretMasker(l.Secrets)
+	mask := newSecretMask(l.Secrets)
 	if l.output == nil {
-		return plainAgentOutput{mask: mask}
+		return plainAgentOutput{mask: mask.apply}
 	}
 	return l.output(mask)
 }
@@ -192,8 +193,8 @@ func (claudeCLI) launch(l *AgentLaunch, home string, servers []agentMcpServer) e
 	}
 	l.Env = []string{"CLAUDE_CONFIG_DIR=" + path.Join(home, "claude")}
 	l.APIKeyVars = []string{"ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"}
-	l.output = func(mask func(string) string) AgentOutput {
-		return &claudeStreamOutput{mask: mask}
+	l.output = func(mask secretMask) AgentOutput {
+		return &claudeStreamOutput{mask: mask.apply, cut: mask.lineCut}
 	}
 	return nil
 }
@@ -214,8 +215,8 @@ func (codexCLI) launch(l *AgentLaunch, home string, servers []agentMcpServer) er
 	// codex exec reads CODEX_API_KEY; users know the key as OPENAI_API_KEY.
 	l.APIKeyAlias = "CODEX_API_KEY"
 	l.APIKeyAliasOf = "OPENAI_API_KEY"
-	l.output = func(mask func(string) string) AgentOutput {
-		return &codexJSONOutput{mask: mask, now: time.Now}
+	l.output = func(mask secretMask) AgentOutput {
+		return &codexJSONOutput{mask: mask.apply, now: time.Now}
 	}
 	return nil
 }
