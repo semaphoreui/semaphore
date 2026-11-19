@@ -158,7 +158,7 @@ func (d *SqlDb) SetMcpServers(projectID int, inventoryID int, changes []db.McpSe
 	}
 
 	err = d.mcpTx(func(tx *gorp.Transaction) error {
-		if e := d.setMcpServers(tx, projectID, inventoryID, changes); e != nil {
+		if _, e := d.setMcpServers(tx, projectID, inventoryID, changes); e != nil {
 			return e
 		}
 		var e error
@@ -188,7 +188,7 @@ func (d *SqlDb) CreateMcpInventory(inventory db.Inventory, changes []db.McpServe
 		newInventory = inventory
 		newInventory.ID = id
 
-		if e = d.setMcpServers(tx, inventory.ProjectID, id, changes); e != nil {
+		if _, e = d.setMcpServers(tx, inventory.ProjectID, id, changes); e != nil {
 			return e
 		}
 
@@ -204,7 +204,7 @@ func (d *SqlDb) CreateMcpInventory(inventory db.Inventory, changes []db.McpServe
 	return
 }
 
-func (d *SqlDb) UpdateMcpInventory(inventory db.Inventory, changes []db.McpServerChange) (servers []db.McpServer, err error) {
+func (d *SqlDb) UpdateMcpInventory(inventory db.Inventory, changes []db.McpServerChange) (servers []db.McpServer, removedTokens int, err error) {
 	if inventory.Type != db.InventoryMcp {
 		err = common_errors.NewValidationError("inventory type must be mcp")
 		return
@@ -228,13 +228,17 @@ func (d *SqlDb) UpdateMcpInventory(inventory db.Inventory, changes []db.McpServe
 			return e
 		}
 
-		if e = d.setMcpServers(tx, inventory.ProjectID, inventory.ID, changes); e != nil {
+		if removedTokens, e = d.setMcpServers(tx, inventory.ProjectID, inventory.ID, changes); e != nil {
 			return e
 		}
 
 		servers, e = d.selectMcpServersTx(tx, inventory.ProjectID, inventory.ID)
 		return e
 	})
+
+	if err != nil {
+		return nil, 0, err
+	}
 
 	return
 }
@@ -282,20 +286,22 @@ func (d *SqlDb) selectMcpServersTx(tx *gorp.Transaction, projectID int, inventor
 	return servers, err
 }
 
-func (d *SqlDb) setMcpServers(tx *gorp.Transaction, projectID int, inventoryID int, changes []db.McpServerChange) error {
+// setMcpServers applies changes and returns the number of tokens deleted
+// together with the servers missing from the list.
+func (d *SqlDb) setMcpServers(tx *gorp.Transaction, projectID int, inventoryID int, changes []db.McpServerChange) (removedTokens int, err error) {
 	count, err := tx.SelectInt(
 		d.PrepareQuery("select count(*) from project__inventory where id = ? and project_id = ? and type = ?"),
 		inventoryID, projectID, db.InventoryMcp)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if count == 0 {
-		return db.ErrNotFound
+		return 0, db.ErrNotFound
 	}
 
 	var existing []db.McpServer
 	if _, err = tx.Select(&existing, d.PrepareQuery(mcpServerSelect), db.AccessKeyMcp, inventoryID, projectID); err != nil {
-		return err
+		return 0, err
 	}
 
 	existingByID := make(map[int]db.McpServer, len(existing))
@@ -309,10 +315,10 @@ func (d *SqlDb) setMcpServers(tx *gorp.Transaction, projectID int, inventoryID i
 			continue
 		}
 		if _, ok := existingByID[c.Server.ID]; !ok {
-			return common_errors.NewValidationError(fmt.Sprintf("mcp server %d does not belong to the inventory", c.Server.ID))
+			return 0, common_errors.NewValidationError(fmt.Sprintf("mcp server %d does not belong to the inventory", c.Server.ID))
 		}
 		if _, ok := kept[c.Server.ID]; ok {
-			return common_errors.NewValidationError(fmt.Sprintf("mcp server %d is listed twice", c.Server.ID))
+			return 0, common_errors.NewValidationError(fmt.Sprintf("mcp server %d is listed twice", c.Server.ID))
 		}
 		kept[c.Server.ID] = struct{}{}
 	}
@@ -325,10 +331,13 @@ func (d *SqlDb) setMcpServers(tx *gorp.Transaction, projectID int, inventoryID i
 			continue
 		}
 		if err = d.deleteMcpToken(tx, projectID, s.ID); err != nil {
-			return err
+			return 0, err
+		}
+		if s.HasToken {
+			removedTokens++
 		}
 		if _, err = d.execTx(tx, "delete from project__inventory_mcp where id = ?", s.ID); err != nil {
-			return err
+			return 0, err
 		}
 	}
 
@@ -341,7 +350,7 @@ func (d *SqlDb) setMcpServers(tx *gorp.Transaction, projectID int, inventoryID i
 		}
 		if _, err = d.execTx(tx, "update project__inventory_mcp set name = ? where id = ?",
 			"~"+strconv.Itoa(c.Server.ID), c.Server.ID); err != nil {
-			return err
+			return 0, err
 		}
 	}
 
@@ -354,20 +363,20 @@ func (d *SqlDb) setMcpServers(tx *gorp.Transaction, projectID int, inventoryID i
 				"insert into project__inventory_mcp (inventory_id, name, url, enabled) values (?, ?, ?, ?)",
 				inventoryID, c.Server.Name, c.Server.URL, c.Server.Enabled)
 			if err != nil {
-				return err
+				return 0, err
 			}
 		} else {
 			hasToken = existingByID[serverID].HasToken
 
 			if _, err = d.execTx(tx, "update project__inventory_mcp set name = ?, url = ?, enabled = ? where id = ?",
 				c.Server.Name, c.Server.URL, c.Server.Enabled, serverID); err != nil {
-				return err
+				return 0, err
 			}
 
 			// The key carries the server name to be recognisable in the audit log.
 			if _, err = d.execTx(tx, "update access_key set name = ? where mcp_id = ? and owner = ? and project_id = ?",
 				c.Server.Name, serverID, db.AccessKeyMcp, projectID); err != nil {
-				return err
+				return 0, err
 			}
 		}
 
@@ -376,11 +385,11 @@ func (d *SqlDb) setMcpServers(tx *gorp.Transaction, projectID int, inventoryID i
 		}
 
 		if err = d.applyMcpTokenChange(tx, projectID, serverID, c.Server.Name, hasToken, *c.Token); err != nil {
-			return err
+			return 0, err
 		}
 	}
 
-	return nil
+	return removedTokens, nil
 }
 
 func (d *SqlDb) applyMcpTokenChange(

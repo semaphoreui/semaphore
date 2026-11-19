@@ -450,13 +450,14 @@ func TestUpdateMcpInventory_UpdatesRowAndServers(t *testing.T) {
 	require.NoError(t, err)
 	github := serverByName(t, created, "github")
 
-	servers, err := store.UpdateMcpInventory(
+	servers, removedTokens, err := store.UpdateMcpInventory(
 		db.Inventory{ID: inventoryID, ProjectID: projectID, Name: "renamed", Type: db.InventoryMcp},
 		[]db.McpServerChange{
 			{Server: db.McpServer{ID: github.ID, Name: "github", URL: github.URL, Enabled: false},
 				Token: &db.McpTokenChange{Operation: db.McpTokenDelete}},
 		})
 	require.NoError(t, err)
+	assert.Equal(t, 0, removedTokens, "docs had no token; github's was deleted by its change, not with the server")
 	require.Len(t, servers, 1)
 	assert.False(t, servers[0].Enabled)
 	assert.False(t, servers[0].HasToken)
@@ -465,6 +466,35 @@ func TestUpdateMcpInventory_UpdatesRowAndServers(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "renamed", read.Name)
 	assert.Equal(t, int64(0), countAccessKeys(t, store, "owner = ? and project_id = ?", db.AccessKeyMcp, projectID))
+}
+
+// The servers left out of the list go with their tokens, and the store
+// counts those tokens: only the ones that existed.
+func TestUpdateMcpInventory_CountsTokensOfRemovedServers(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	projectID, inventoryID := newMcpTestInventory(t, store)
+
+	created, err := store.SetMcpServers(projectID, inventoryID, []db.McpServerChange{
+		{Server: db.McpServer{Name: "github", URL: "https://mcp.example.com/github", Enabled: true}, Token: mcpTokenCreate("enc-1")},
+		{Server: db.McpServer{Name: "jira", URL: "https://mcp.example.com/jira", Enabled: true}, Token: mcpTokenCreate("enc-2")},
+		{Server: db.McpServer{Name: "docs", URL: "https://mcp.example.com/docs", Enabled: true}},
+	})
+	require.NoError(t, err)
+	github := serverByName(t, created, "github")
+
+	servers, removedTokens, err := store.UpdateMcpInventory(
+		db.Inventory{ID: inventoryID, ProjectID: projectID, Name: "mcp", Type: db.InventoryMcp},
+		[]db.McpServerChange{{Server: github}})
+	require.NoError(t, err)
+	assert.Len(t, servers, 1)
+	assert.Equal(t, 1, removedTokens)
+
+	servers, removedTokens, err = store.UpdateMcpInventory(
+		db.Inventory{ID: inventoryID, ProjectID: projectID, Name: "mcp", Type: db.InventoryMcp}, nil)
+	require.NoError(t, err)
+	assert.Empty(t, servers)
+	assert.Equal(t, 1, removedTokens)
+	assert.Equal(t, int64(0), countAccessKeys(t, store, "owner = ?", db.AccessKeyMcp))
 }
 
 // An edit of a server or a token alone leaves the inventory row as it is.
@@ -482,7 +512,7 @@ func TestUpdateMcpInventory_UnchangedRowIsNotMissing(t *testing.T) {
 	unchanged, err := store.GetInventory(projectID, inventoryID)
 	require.NoError(t, err)
 
-	servers, err := store.UpdateMcpInventory(unchanged, []db.McpServerChange{
+	servers, _, err := store.UpdateMcpInventory(unchanged, []db.McpServerChange{
 		{Server: db.McpServer{ID: created[0].ID, Name: "github", URL: "https://mcp.example.com/v2", Enabled: true},
 			Token: &db.McpTokenChange{Operation: db.McpTokenUpdate, Key: db.AccessKey{Secret: mcpSecret("enc-2")}}},
 	})
@@ -501,7 +531,7 @@ func TestUpdateMcpInventory_MissingInventory(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	projectID, inventoryID := newMcpTestInventory(t, store)
 
-	_, err := store.UpdateMcpInventory(
+	_, _, err := store.UpdateMcpInventory(
 		db.Inventory{ID: inventoryID + 1000, ProjectID: projectID, Name: "ghost", Type: db.InventoryMcp},
 		[]db.McpServerChange{{Server: db.McpServer{Name: "docs", URL: "https://mcp.example.com/docs"}}})
 	assert.ErrorIs(t, err, db.ErrNotFound)
@@ -518,7 +548,7 @@ func TestUpdateMcpInventory_RollsBackOnFailure(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = store.UpdateMcpInventory(
+	_, _, err = store.UpdateMcpInventory(
 		db.Inventory{ID: inventoryID, ProjectID: projectID, Name: "renamed", Type: db.InventoryMcp},
 		[]db.McpServerChange{
 			{Server: db.McpServer{Name: "docs", URL: "https://mcp.example.com/docs"}, Token: mcpTokenCreate("enc-1")},
@@ -548,7 +578,7 @@ func TestUpdateMcpInventory_TypeAndProjectScoped(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("static inventory can not become mcp", func(t *testing.T) {
-		_, err := store.UpdateMcpInventory(db.Inventory{ID: static.ID, ProjectID: projectID, Name: "hosts", Type: db.InventoryMcp}, nil)
+		_, _, err := store.UpdateMcpInventory(db.Inventory{ID: static.ID, ProjectID: projectID, Name: "hosts", Type: db.InventoryMcp}, nil)
 		assert.ErrorIs(t, err, db.ErrNotFound)
 
 		read, err := store.GetInventory(projectID, static.ID)
@@ -557,7 +587,7 @@ func TestUpdateMcpInventory_TypeAndProjectScoped(t *testing.T) {
 	})
 
 	t.Run("inventory of another project", func(t *testing.T) {
-		_, err := store.UpdateMcpInventory(db.Inventory{ID: inventoryID, ProjectID: other.ID, Name: "stolen", Type: db.InventoryMcp}, nil)
+		_, _, err := store.UpdateMcpInventory(db.Inventory{ID: inventoryID, ProjectID: other.ID, Name: "stolen", Type: db.InventoryMcp}, nil)
 		assert.ErrorIs(t, err, db.ErrNotFound)
 
 		read, err := store.GetInventory(projectID, inventoryID)

@@ -172,6 +172,55 @@ func TestUpdateInventory_McpTokenAndServerChanges(t *testing.T) {
 	assert.Equal(t, audit.InventoryMetadata{Type: "mcp", McpServers: 2, TokensUpdated: 1, TokensDeleted: 1}, updated.Event.Metadata)
 }
 
+// A server left out of the list is deleted with its token: the audit event
+// counts that token as deleted, whether one server is left out or the whole
+// list is cleared.
+func TestUpdateInventory_McpRemovedServersCountTheirTokens(t *testing.T) {
+	const servers = `[
+		{"name":"github","url":"https://mcp.example.com/github","enabled":true,"token":{"operation":"create","secret":"a"}},
+		{"name":"docs","url":"https://mcp.example.com/docs","enabled":true,"token":{"operation":"create","secret":"b"}},
+		{"name":"jira","url":"https://mcp.example.com/jira","enabled":true}]`
+
+	t.Run("one server left out", func(t *testing.T) {
+		f := newResourceFixture(t)
+		w, inv := f.addMcpInventory(t, servers)
+		require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+		github := mcpServer(t, inv.McpServers, "github")
+		jira := mcpServer(t, inv.McpServers, "jira")
+
+		stored, err := f.store.GetInventory(f.project.ID, inv.ID)
+		require.NoError(t, err)
+		r, rec := f.request(http.MethodPut, mcpPutBody(f, inv, fmt.Sprintf(`[
+			{"id":%d,"name":"github","url":"https://mcp.example.com/github","enabled":true},
+			{"id":%d,"name":"jira","url":"https://mcp.example.com/jira","enabled":true}]`, github.ID, jira.ID)),
+			map[string]any{"inventory": stored}, nil)
+		w = httptest.NewRecorder()
+		f.inventoryController().UpdateInventory(w, r)
+		require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+
+		assert.Len(t, mcpTokens(t, f, inv.ID), 1)
+		updated := only(t, rec, audit.ResourceInventoryUpdate)
+		assert.Equal(t, audit.InventoryMetadata{Type: "mcp", McpServers: 2, TokensDeleted: 1}, updated.Event.Metadata)
+	})
+
+	t.Run("the list cleared", func(t *testing.T) {
+		f := newResourceFixture(t)
+		w, inv := f.addMcpInventory(t, servers)
+		require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+
+		stored, err := f.store.GetInventory(f.project.ID, inv.ID)
+		require.NoError(t, err)
+		r, rec := f.request(http.MethodPut, mcpPutBody(f, inv, `[]`), map[string]any{"inventory": stored}, nil)
+		w = httptest.NewRecorder()
+		f.inventoryController().UpdateInventory(w, r)
+		require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+
+		assert.Empty(t, mcpTokens(t, f, inv.ID))
+		updated := only(t, rec, audit.ResourceInventoryUpdate)
+		assert.Equal(t, audit.InventoryMetadata{Type: "mcp", TokensDeleted: 2}, updated.Event.Metadata)
+	})
+}
+
 func TestUpdateInventory_McpWithoutServersKeepsThem(t *testing.T) {
 	f := newResourceFixture(t)
 	w, inv := f.addMcpInventory(t, `[{"name":"github","url":"https://mcp.example.com/github","enabled":true,"token":{"operation":"create","secret":"x"}}]`)

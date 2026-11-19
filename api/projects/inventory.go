@@ -417,7 +417,7 @@ func (c *InventoryController) UpdateInventory(w http.ResponseWriter, r *http.Req
 			return
 		}
 
-		servers, err := helpers.Store(r).UpdateMcpInventory(inventory, changes)
+		servers, removedTokens, err := helpers.Store(r).UpdateMcpInventory(inventory, changes)
 		if err != nil {
 			helpers.WriteError(w, err)
 			return
@@ -425,6 +425,8 @@ func (c *InventoryController) UpdateInventory(w http.ResponseWriter, r *http.Req
 
 		meta = mcpMeta
 		meta.McpServers = len(servers)
+		// A server left out of the list was deleted with its token.
+		meta.TokensDeleted += removedTokens
 	} else if err := helpers.Store(r).UpdateInventory(inventory); err != nil {
 		helpers.WriteError(w, err)
 		return

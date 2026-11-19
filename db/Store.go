@@ -330,8 +330,10 @@ type McpServerManager interface {
 	CreateMcpInventory(inventory Inventory, changes []McpServerChange) (Inventory, []McpServer, error)
 	// UpdateMcpInventory updates an InventoryMcp inventory and replaces its
 	// servers in one transaction, like SetMcpServers. An inventory of another
-	// type is not found: the type can not be switched to mcp.
-	UpdateMcpInventory(inventory Inventory, changes []McpServerChange) ([]McpServer, error)
+	// type is not found: the type can not be switched to mcp. It returns the
+	// stored servers and the number of tokens deleted together with the
+	// servers missing from the list, counted in the same transaction.
+	UpdateMcpInventory(inventory Inventory, changes []McpServerChange) (servers []McpServer, removedTokens int, err error)
 }
 
 // InventoryHostListParams selects a page of the hosts of a managed inventory
