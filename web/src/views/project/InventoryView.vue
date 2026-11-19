@@ -35,6 +35,13 @@
       </v-tab>
       <v-tab data-testid="inventoryView-tab-variables" :to="`${listPath}/${inventoryId}/variables`">
         {{ $t('inventory_tab_variables') }}
+        <v-chip
+          v-if="variableCount !== 0"
+          size="x-small"
+          class="ml-2 font-weight-bold"
+          style="cursor: inherit"
+          data-testid="inventoryView-variableCount"
+        >{{ variableCount ?? '?' }}</v-chip>
       </v-tab>
     </v-tabs>
 
@@ -53,6 +60,7 @@
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import ProjectMixin from '@/components/ProjectMixin';
+import variableNames from '@/lib/inventoryVariables';
 
 export default {
   mixins: [ProjectMixin],
@@ -76,6 +84,11 @@ export default {
       return Number(this.$route.params.inventoryId);
     },
 
+    variableCount() {
+      const names = variableNames(this.inventory.variables);
+      return names && names.length;
+    },
+
     listPath() {
       return `/project/${this.projectId}/inventory`;
     },
@@ -91,10 +104,22 @@ export default {
   },
 
   async created() {
+    EventBus.$on('i-inventory-variables', this.onVariablesSaved);
     await this.load();
   },
 
+  beforeUnmount() {
+    EventBus.$off('i-inventory-variables', this.onVariablesSaved);
+  },
+
   methods: {
+    // The tab that saved may be gone by now, so the save comes over the bus
+    onVariablesSaved({ projectId, inventoryId, variables }) {
+      if (this.inventory && projectId === this.projectId && inventoryId === this.inventoryId) {
+        this.inventory.variables = variables;
+      }
+    },
+
     showDrawer() {
       EventBus.$emit('i-show-drawer');
     },

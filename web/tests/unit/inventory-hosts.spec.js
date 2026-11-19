@@ -12,7 +12,7 @@ async function flush() {
 
 const hosts = [
   {
-    id: 1, name: 'web1', description: 'frontend', enabled: true, variables: 'a: 1',
+    id: 1, name: 'web1', description: 'frontend', enabled: true, variables: 'a: !vault 1',
   },
   {
     id: 2, name: 'web2', description: '', enabled: false, variables: '',
@@ -63,6 +63,59 @@ describe('InventoryHosts.vue', () => {
       wrapper.find('[data-testid="inventoryHosts-rowEdit"]').attributes('aria-label'),
       wrapper.find('[data-testid="inventoryHosts-rowDelete"]').attributes('aria-label'),
     ]).to.deep.equal(['inventory_hosts_enabled_label', 'inventory_hosts_edit', 'inventory_hosts_delete']);
+  });
+
+  it('shows the number of variables and opens them under the row', async () => {
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+
+    const counts = wrapper.findAll('[data-testid="inventoryHosts-variables"]');
+    expect(counts.map((e) => e.text())).to.deep.equal(['1']);
+    expect(wrapper.findAll('[data-testid="inventoryHosts-noVariables"]')).to.have.length(1);
+    expect(wrapper.findAll('.v-data-table__tr--clickable')).to.have.length(1);
+
+    await counts[0].trigger('click');
+
+    expect(wrapper.find('[data-testid="inventoryHosts-details"]').text()).to.contain('a: !vault 1');
+  });
+
+  it('opens variables that cannot be counted', async () => {
+    http.respond((c) => (c.method === 'get' ? [{ ...hosts[0], variables: 'a: [1,\n' }] : {}));
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+
+    const count = wrapper.find('[data-testid="inventoryHosts-variables"]');
+    expect(count.text()).to.equal('?');
+    await count.trigger('click');
+
+    expect(wrapper.find('[data-testid="inventoryHosts-details"]').text()).to.contain('a: [1,');
+  });
+
+  it('opens the details by a click on the row but not on its controls', async () => {
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+    const details = () => wrapper.find('[data-testid="inventoryHosts-details"]').exists();
+
+    await wrapper.find('[data-testid="inventoryHosts-rowEdit"]').trigger('click');
+    expect(details()).to.equal(false);
+
+    await wrapper.find('[data-testid="inventoryHosts-enabled"] input').trigger('click');
+    expect(details()).to.equal(false);
+
+    await wrapper.find('[data-testid="inventoryHosts-name"]').trigger('click');
+    expect(details()).to.equal(true);
+  });
+
+  it('closes the details of a host that lost its variables', async () => {
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+    await wrapper.find('[data-testid="inventoryHosts-variables"]').trigger('click');
+
+    http.respond((c) => (c.method === 'get' ? hosts.map((h) => ({ ...h, variables: '' })) : {}));
+    await wrapper.vm.load();
+    await flush();
+
+    expect(wrapper.find('[data-testid="inventoryHosts-details"]').exists()).to.equal(false);
   });
 
   it('sends only enabled false when the switch is turned off', async () => {
