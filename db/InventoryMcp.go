@@ -29,11 +29,11 @@ type McpServer struct {
 	HasToken bool `db:"has_token" json:"has_token" backup:"-"`
 	// Token is the decrypted token, filled only for a task run
 	// (InventoryService) and never serialized: not to the API, not to a backup.
-	// A remote runner gets it as the access key TokenKeyID of the runner state.
+	// A remote runner gets it as the access key TokenKeyID of its job.
 	Token string `db:"-" json:"-" backup:"-"`
 	// TokenKeyID is the ID of the token's access key, filled only for a task
-	// run, so that a runner can find the token among the decrypted keys the
-	// server sends with the job.
+	// run, so that a runner can find the token among the decrypted keys of
+	// the job the server sends.
 	TokenKeyID *int `db:"-" json:"token_key_id,omitempty" backup:"-"`
 }
 

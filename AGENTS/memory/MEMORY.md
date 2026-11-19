@@ -139,6 +139,9 @@ only when the task touches that topic. Keep this file under 150 lines.
 - Two SELECTs, even in one transaction, are not one snapshot (PostgreSQL defaults to READ
   COMMITTED): data that must match — an MCP server URL and its token — is read by one statement
   (`GetMcpServersWithTokens`).
+- `RunnerState.AccessKeys` holds one value per key ID for all new jobs of a poll, so a secret that is
+  a per-task snapshot (an MCP token, read with its URL) goes in `JobData.AccessKeys` — an edit keeps
+  the key ID, and a shared map would hand one task's token to another task's URL.
 - A file or directory written for a child app must be handed to the process config user
   (`util.ChownDir` / `util.ChownTree`): with `process.user` or `process.uid`+`gid` the child is not
   the server user and cannot read a 0600/0700 tree the server created.

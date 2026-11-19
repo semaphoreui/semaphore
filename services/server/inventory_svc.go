@@ -89,7 +89,7 @@ func (s *InventoryServiceImpl) fillInventory(inventory *db.Inventory) (err error
 // fillMcpServers gives an mcp inventory its enabled servers, each with its
 // decrypted token. It runs on the server for a task about to start.
 // McpServer.Token is not serialized: a remote runner receives the token only
-// as a decrypted access key of the runner state (RunnerController).
+// as a decrypted access key of its own job (RunnerController).
 //
 // A server and its token come from one read: read apart, an inventory edit
 // in between would send the server's new token to its old URL.
