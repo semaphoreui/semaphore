@@ -42,4 +42,5 @@ maintained, not a full export of the MCP catalogue.
 | `RESEARCH@61d07ff4d6` | New Ansible features relevant to Semaphore (ANSIBLE_SECRETS_INPUT_FILES and later). |
 | `RESEARCH@84146f310f` | Overview of the separate `integration-tests` Java/Bookwright repo: libraries, layout, pipeline. |
 | `RESEARCH@037925c6fb` | Distributing the GPG signing key for release artifacts. |
+| `RESEARCH@0d78729623` | How other products keep a stored secret from being sent to a user-chosen URL (CI/CD credential stores, webhooks and data sources, MCP clients and gateways) — read before changing who may attach a Key Store secret to an MCP server or any other outbound URL (TASK@C315B29E9C). |
 | `RESEARCH@68b3ce04ef` | Best practices of CLI-clients (gh, glab, doctl, kubectl, aws, clig.dev): command tree, config, exit codes — based on `semaphore client` (TASK@F7CC584F59). |

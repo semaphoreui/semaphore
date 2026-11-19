@@ -318,6 +318,28 @@ Název souboru, do kterého Semaphore zapíše backend, například `semaphore_b
 Zvolte název, který nemá žádný soubor vašeho kódu: Semaphore tento soubor přepíše a po úloze ho
 odstraní.
 
+## Prompt {#templateForm-agentPrompt}
+
+Zobrazí se u šablon Claude Code a Codex.
+
+Co má agent udělat. Je povinný, pokud není zaškrtnuto **Prompt** v části parametrů agenta při
+spuštění.
+
+Prompt může odkazovat na hodnoty ze skupin proměnných šablony a na vstupní proměnné úlohy. Do
+promptu se dosadí při spuštění úlohy:
+
+- `${{ vars.extra.NAME }}`: doplňková proměnná nebo vstupní proměnná.
+- `${{ vars.env.NAME }}`: proměnná prostředí.
+- `${{ secrets.extra.NAME }}`: tajná doplňková proměnná nebo tajná vstupní proměnná.
+- `${{ secrets.env.NAME }}`: tajná proměnná prostředí.
+
+Úloha selže, když prompt odkazuje na proměnnou, která neexistuje. Šablona s chybně zapsaným výrazem,
+například `${{ vars.NAME }}`, se neuloží. Jakýkoli jiný výraz `${{ … }}`, například
+`${{ github.sha }}`, zůstane tak, jak je zapsán, a `$${{ … }}` dá doslovné `${{ … }}`.
+
+Hodnota tajemství dosazená do promptu je v logu úlohy maskována, ale spolu s promptem se odesílá
+modelu.
+
 ## Limit {#templateForm-allowOverrideLimit}
 
 V části **Parametry Ansible při spuštění**. Dovolí uživateli při spuštění úlohy nastavit hosty, na
@@ -356,6 +378,17 @@ V části parametrů Terraform, OpenTofu a Terragrunt při spuštění. Dovolí 
 úlohy zaškrtnout **Auto Approve**, aby se plán aplikoval bez potvrzení. Dialog úlohy tuto volbu
 nabízí v každém případě, ale bez tohoto políčka ji Semaphore ignoruje: úloha po plánu čeká na
 potvrzení, pokud není zaškrtnuto **Automaticky schválit** šablony.
+
+## Prompt {#templateForm-allowOverridePrompt}
+
+V části parametrů Claude Code a Codex při spuštění. Dovolí uživateli při spuštění úlohy zadat jiný
+prompt místo promptu šablony. Dialog úlohy je předvyplněn promptem šablony.
+
+Prompt zadaný úlohou dostane agent tak, jak je zapsán: jeho výrazy `${{ … }}` se nenahrazují
+hodnotami.
+
+Je-li políčko zaškrtnuto, může prompt šablony zůstat prázdný; úloha bez vlastního promptu je pak
+odmítnuta. Bez tohoto políčka je odmítnuta úloha, která přináší vlastní prompt.
 
 ## Galaxy install options {#templateForm-galaxy}
 

@@ -1,6 +1,8 @@
 package runners
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -129,4 +131,83 @@ func TestHydrateJobAccessKeys_WiresKeysIntoJobData(t *testing.T) {
 	require.NotNil(t, jobData.Template.Vaults[0].Vault)
 	assert.Equal(t, vaultKeyID, jobData.Template.Vaults[0].Vault.ID, "vault key wired")
 	assert.Equal(t, inventoryRepoSSHKeyID, jobData.Inventory.Repository.SSHKey.ID, "inventory repo SSH key wired")
+}
+
+// The runner gets the MCP server tokens back from the job's own access keys:
+// the inventory itself went over the wire without them.
+func TestHydrateJobAccessKeys_McpTokensAfterJSON(t *testing.T) {
+	keyID := 41
+	sent := JobData{
+		Inventory: db.Inventory{Type: db.InventoryMcp, McpServers: []db.McpServer{
+			{ID: 1, Name: "github", Enabled: true, HasToken: true, Token: "mcp-tok-8d2e41", TokenKeyID: &keyID},
+			{ID: 2, Name: "docs", Enabled: true},
+		}},
+		AccessKeys: map[int]db.AccessKey{keyID: {ID: keyID, Type: db.AccessKeyString, String: "mcp-tok-8d2e41"}},
+	}
+
+	body, err := json.Marshal(sent)
+	require.NoError(t, err)
+	assert.Equal(t, 1, strings.Count(string(body), "mcp-tok-8d2e41"), "the token travels once, as the job's key")
+
+	var jobData JobData
+	require.NoError(t, json.Unmarshal(body, &jobData))
+	assert.Empty(t, jobData.Inventory.McpServers[0].Token)
+
+	hydrateJobAccessKeys(&jobData, map[int]db.AccessKey{})
+
+	assert.Equal(t, "mcp-tok-8d2e41", jobData.Inventory.McpServers[0].Token)
+	assert.Empty(t, jobData.Inventory.McpServers[1].Token)
+}
+
+// Two jobs of one response hold different tokens under the same key ID (the
+// server was edited between the two tasks). Each job gets its own token.
+func TestHydrateJobAccessKeys_McpTokensOfTwoJobsStayApart(t *testing.T) {
+	keyID := 41
+	newJob := func(url, token string) JobData {
+		return JobData{
+			Inventory: db.Inventory{Type: db.InventoryMcp, McpServers: []db.McpServer{
+				{ID: 1, Name: "github", URL: url, Enabled: true, HasToken: true, TokenKeyID: &keyID},
+			}},
+			AccessKeys: map[int]db.AccessKey{keyID: {ID: keyID, Type: db.AccessKeyString, String: token}},
+		}
+	}
+
+	jobs := []JobData{
+		newJob("https://old.example.com/mcp", "mcp-tok-old-51c7"),
+		newJob("https://new.example.com/mcp", "mcp-tok-new-a94f"),
+	}
+	shared := map[int]db.AccessKey{}
+
+	for i := range jobs {
+		hydrateJobAccessKeys(&jobs[i], shared)
+	}
+
+	assert.Equal(t, "mcp-tok-old-51c7", jobs[0].Inventory.McpServers[0].Token)
+	assert.Equal(t, "mcp-tok-new-a94f", jobs[1].Inventory.McpServers[0].Token)
+}
+
+// A key of the shared runner state is never taken for an MCP token, even
+// under the right ID: it is not the snapshot of this job.
+func TestHydrateJobAccessKeys_McpTokenNotTakenFromSharedKeys(t *testing.T) {
+	keyID := 41
+	jobData := JobData{Inventory: db.Inventory{Type: db.InventoryMcp, McpServers: []db.McpServer{
+		{ID: 1, Name: "github", URL: "https://old.example.com/mcp", Enabled: true, HasToken: true, TokenKeyID: &keyID},
+	}}}
+
+	hydrateJobAccessKeys(&jobData, map[int]db.AccessKey{keyID: {ID: keyID, Type: db.AccessKeyString, String: "mcp-tok-new-a94f"}})
+
+	assert.Empty(t, jobData.Inventory.McpServers[0].Token)
+}
+
+// Without the key in the runner state the token stays empty, so AgentApp
+// refuses to start the agent rather than run it unauthenticated.
+func TestHydrateJobAccessKeys_McpTokenNotSent(t *testing.T) {
+	keyID := 41
+	jobData := JobData{Inventory: db.Inventory{Type: db.InventoryMcp, McpServers: []db.McpServer{
+		{ID: 1, Name: "github", Enabled: true, HasToken: true, TokenKeyID: &keyID},
+	}}}
+
+	hydrateJobAccessKeys(&jobData, map[int]db.AccessKey{})
+
+	assert.Empty(t, jobData.Inventory.McpServers[0].Token)
 }

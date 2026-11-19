@@ -104,6 +104,21 @@ func hydrateJobAccessKeys(jobData *JobData, accessKeys map[int]db.AccessKey) {
 		jobData.Template.Vaults = vaults
 	}
 
+	// The token of an MCP server comes only from the job's own keys, never
+	// from the keys the jobs of a response share: the server's URL and token
+	// were read together, and another job can hold a different token under the
+	// same key ID. A token the server did not send stays empty; AgentApp then
+	// refuses to run instead of starting the agent without it.
+	for i := range jobData.Inventory.McpServers {
+		server := &jobData.Inventory.McpServers[i]
+		if server.TokenKeyID == nil {
+			continue
+		}
+		if key, ok := jobData.AccessKeys[*server.TokenKeyID]; ok {
+			server.Token = key.String
+		}
+	}
+
 	if jobData.Inventory.RepositoryID != nil && jobData.Inventory.Repository != nil {
 		jobData.Inventory.Repository.SSHKey = accessKeys[jobData.Inventory.Repository.SSHKeyID]
 	}

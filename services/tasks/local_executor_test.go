@@ -696,3 +696,29 @@ func TestGetPlaybookArgs_StringKeyInInventoryIsRejected(t *testing.T) {
 		})
 	}
 }
+
+// An agent gets only the template and task arguments on its command line:
+// secrets and extra vars, which a script gets as arguments, would show in ps.
+func TestGetAgentArgs_NoSecretsOnCommandLine(t *testing.T) {
+	setupExecutorConfig(t)
+
+	templateArgs := `["--model","m1"]`
+	taskArgs := `["--verbose"]`
+	exec := &LocalExecutor{
+		Template: db.Template{
+			App:                     db.AppClaude,
+			Arguments:               &templateArgs,
+			AllowOverrideArgsInTask: true,
+		},
+		Task: db.Task{Arguments: &taskArgs},
+		Environment: db.Environment{
+			JSON:    `{"PLAIN_VAR":"hello"}`,
+			Secrets: []db.EnvironmentSecret{{Name: "API_TOKEN", Secret: "s3cr3t", Type: db.EnvironmentSecretVar}},
+		},
+		Secret: `{"SURVEY_SECRET":"x"}`,
+	}
+
+	args, err := exec.getAgentArgs()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"--model", "m1", "--verbose"}, args)
+}
