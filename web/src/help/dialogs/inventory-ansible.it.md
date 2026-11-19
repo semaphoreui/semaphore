@@ -16,8 +16,6 @@ modello di compito. Scegli un nome che distingua gli host, ad esempio `Productio
 
 ## Tag esecutore {#inventoryForm-runnerTag}
 
-Visibile quando sono disponibili esecutori del progetto.
-
 I compiti che usano questo inventario vengono eseguiti su un esecutore che ha questo tag. Un tag
 esecutore impostato sul modello di compito ha la precedenza sul tag dell'inventario. Lascia il campo
 vuoto per consentire a qualsiasi esecutore di prendere i compiti.

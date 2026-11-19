@@ -21,6 +21,13 @@ Het taaksjabloon dat het schema start. Het veld is verplicht. De taak draait als
 sjabloon is gestart, met de eigen inventaris, repository, variabele groep en andere instellingen
 van het sjabloon, en met de parameters hieronder waar het sjabloon een taak die laat wijzigen.
 
+## Workflow to run {#scheduleForm-workflowId}
+
+Wordt getoond wanneer het doel **Workflow** is. De workflow die het schema start; dit veld is
+verplicht. Workflows plannen vereist Semaphore Pro. Zonder deze functie is het veld uitgeschakeld
+en opent **Upgrade to PRO** het abonnementsvenster. Taakparameters zijn alleen beschikbaar voor
+sjablonen.
+
 ## Taakparameters {#scheduleForm-taskParams}
 
 Wordt getoond wanneer een sjabloon is geselecteerd.

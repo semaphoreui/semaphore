@@ -16,8 +16,6 @@ Zvolte název, který hosty od sebe odliší, například `Production web server
 
 ## Tag runneru {#inventoryForm-runnerTag}
 
-Zobrazí se, když jsou k dispozici runnery projektu.
-
 Úlohy, které používají tento inventář, běží na runneru s tímto tagem. Tag runneru nastavený
 v šabloně úlohy má přednost před tagem inventáře. Ponechte pole prázdné, aby úlohy mohl převzít
 kterýkoli runner.

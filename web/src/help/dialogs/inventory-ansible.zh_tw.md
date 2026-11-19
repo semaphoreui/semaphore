@@ -15,8 +15,6 @@ form: src/components/InventoryForm.vue
 
 ## 執行器標籤 {#inventoryForm-runnerTag}
 
-在專案有可用的執行器時顯示。
-
 使用此清單的任務會在帶有此標籤的執行器上執行。任務範本上設定的執行器標籤優先於清單的標籤。將此欄位留空，
 則任何執行器都可以接手這些任務。
 

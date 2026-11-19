@@ -21,6 +21,13 @@ form: src/components/ScheduleForm.vue, src/components/TaskParamsForm.vue, src/co
 другими настройками шаблона, а также с параметрами ниже там, где шаблон позволяет задаче их
 менять.
 
+## Workflow to run {#scheduleForm-workflowId}
+
+Показывается, когда целью запуска выбрано **Workflow**. Workflow, который запускает расписание;
+поле обязательное. Запуск workflow по расписанию требует Semaphore Pro. Без этой функции поле
+недоступно, а **Upgrade to PRO** открывает диалог подписки. Параметры задачи доступны только
+при запуске шаблона.
+
 ## Параметры задачи {#scheduleForm-taskParams}
 
 Показывается, когда выбран шаблон.

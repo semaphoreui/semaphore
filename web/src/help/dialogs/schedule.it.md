@@ -22,6 +22,13 @@ come se fosse stato avviato dal modello, con l'inventario, il repository, il gru
 le altre impostazioni del modello stesso, e con i parametri qui sotto dove il modello consente a un
 compito di cambiarli.
 
+## Workflow to run {#scheduleForm-workflowId}
+
+Mostrato quando la destinazione è **Workflow**. Il workflow avviato dalla pianificazione;
+il campo è obbligatorio. La pianificazione dei workflow richiede Semaphore Pro. Senza questa
+funzionalità, il campo è disabilitato e **Upgrade to PRO** apre la finestra di abbonamento.
+I parametri delle attività sono disponibili solo per i modelli.
+
 ## Task parameters {#scheduleForm-taskParams}
 
 Visibile quando è selezionato un modello.

@@ -22,6 +22,13 @@ wäre er aus der Vorlage gestartet worden, mit dem Inventory, dem Repository, de
 und den übrigen Einstellungen der Vorlage und mit den Parametern unten, wo die Vorlage einen Task
 sie ändern lässt.
 
+## Workflow to run {#scheduleForm-workflowId}
+
+Wird angezeigt, wenn als Ziel **Workflow** gewählt ist. Der Workflow, den der Zeitplan startet;
+dieses Feld ist erforderlich. Das Planen von Workflows erfordert Semaphore Pro. Ohne diese
+Funktion ist das Feld deaktiviert; **Upgrade to PRO** öffnet den Abonnementdialog. Task-Parameter
+sind nur für Vorlagen verfügbar.
+
 ## Task-Parameter {#scheduleForm-taskParams}
 
 Wird angezeigt, wenn eine Vorlage ausgewählt ist.

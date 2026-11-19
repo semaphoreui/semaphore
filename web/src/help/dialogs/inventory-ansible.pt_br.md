@@ -16,8 +16,6 @@ de tarefa. Escolha um nome que diferencie os hosts, por exemplo `Production web 
 
 ## Tag do Executor {#inventoryForm-runnerTag}
 
-Exibido quando há executores de projeto disponíveis.
-
 As tarefas que usam este inventário são executadas em um executor que tenha esta tag. Uma tag de
 executor definida no modelo de tarefa tem precedência sobre a tag do inventário. Deixe o campo
 vazio para que qualquer executor possa assumir as tarefas.

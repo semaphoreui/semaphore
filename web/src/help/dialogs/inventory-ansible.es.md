@@ -16,8 +16,6 @@ una plantilla de tarea. Elija un nombre que distinga los hosts, por ejemplo `Pro
 
 ## Etiqueta del ejecutor {#inventoryForm-runnerTag}
 
-Se muestra cuando hay ejecutores del proyecto disponibles.
-
 Las tareas que usan este inventario se ejecutan en un ejecutor que tiene esta etiqueta. Una etiqueta
 del ejecutor definida en la plantilla de tarea tiene prioridad sobre la etiqueta del inventario.
 Deje el campo vacío para que cualquier ejecutor pueda tomar las tareas.

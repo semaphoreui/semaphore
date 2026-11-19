@@ -22,6 +22,13 @@ sido iniciada a partir do modelo, com o inventário, o repositório, o grupo de 
 outras configurações do próprio modelo, e com os parâmetros abaixo onde o modelo permite que uma
 tarefa os altere.
 
+## Workflow to run {#scheduleForm-workflowId}
+
+Exibido quando o destino é **Workflow**. O workflow que o agendamento inicia; este campo
+é obrigatório. Agendar workflows requer Semaphore Pro. Sem esse recurso, o campo fica
+desativado e **Upgrade to PRO** abre a janela de assinatura. Os parâmetros da tarefa estão
+disponíveis apenas para modelos.
+
 ## Parâmetros da tarefa {#scheduleForm-taskParams}
 
 Exibido quando um modelo está selecionado.

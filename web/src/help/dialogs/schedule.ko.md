@@ -19,6 +19,12 @@ form: src/components/ScheduleForm.vue, src/components/TaskParamsForm.vue, src/co
 리포지토리, 변수 그룹 및 기타 설정으로 실행되며, 템플릿이 작업에서 변경을 허용하는 곳에는 아래의 매개변수가
 적용됩니다.
 
+## Workflow to run {#scheduleForm-workflowId}
+
+실행 대상이 **Workflow**일 때 표시됩니다. 일정이 시작할 워크플로를 선택하는 필수 필드입니다.
+워크플로 예약에는 Semaphore Pro가 필요합니다. 이 기능이 없으면 필드가 비활성화되고
+**Upgrade to PRO**를 누르면 구독 대화 상자가 열립니다. 작업 매개변수는 템플릿 대상에서만 사용할 수 있습니다.
+
 ## 작업 매개변수 {#scheduleForm-taskParams}
 
 템플릿을 선택했을 때 표시됩니다.
