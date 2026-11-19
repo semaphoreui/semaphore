@@ -154,7 +154,7 @@ const P = ids.project;
   out = await outputOf(task);
   assert.strictEqual(task.status, 'success', out);
   assert.ok(out.includes('prompt: Review the last commit and list risky changes.'), out);
-  assert.ok(/fake agent args: exec --skip-git-repo-check.* -$/m.test(out), out);
+  assert.ok(/fake agent args: exec --json --skip-git-repo-check.* -$/m.test(out), out);
   console.log('5 run with template prompt: ok, task', task.id);
 
   await page.goto(`/project/${P}/history?t=${task.id}`);
