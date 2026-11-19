@@ -363,6 +363,10 @@ export default {
   noProjectsText: '어떤 프로젝트에도 속해 있지 않습니다. Semaphore 관리자에게 프로젝트에 추가해 달라고 요청하세요.',
   signedInAs: '{username}({email})(으)로 로그인됨',
   signedInAsNoEmail: '{username}(으)로 로그인됨',
+  helpPanelOpen: '이 대화 상자 도움말',
+  helpPanelOpenPage: '이 페이지 도움말',
+  helpPanelClose: '도움말 닫기',
+  helpPanelFieldHidden: '현재 설정에서는 이 필드가 표시되지 않습니다.',
 
   // AI agents (Codex, Claude Code) and their MCP inventory
   agentPrompt: '프롬프트',

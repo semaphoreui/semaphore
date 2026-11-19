@@ -175,7 +175,7 @@ func (t *AgentApp) makeCmd(command string, args []string, environmentVars []stri
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = getEnvironmentVars()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", getHomeDir(t.Repository, t.Template.ID)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", GetHomeDir(t.Repository, t.Template.ID)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 	cmd.Env = append(cmd.Env, environmentVars...)
 

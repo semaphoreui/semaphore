@@ -12,6 +12,7 @@
       :title="`${aliasId === 'new' ? $t('nnew') : $t('edit')} Key`"
       :max-width="450"
       test-id="tfAliasDialog"
+      help-doc="terraform-alias"
       @save="loadAliases()"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -43,6 +44,7 @@
       :title="`${$t('nnew')} ${APP_INVENTORY_TITLE[template.app]}`"
       :max-width="450"
       test-id="tfWorkspaceDialog"
+      help-doc="terraform-workspace"
       @save="onNewInventory"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -68,6 +70,7 @@
       :max-width="450"
       title="Choose workspace to attach"
       test-id="tfWorkspaceAttachDialog"
+      help-doc="workspace-attach-inventory"
       @save="attachInventory($event.itemId)"
     >
       <template v-slot:form="{ onSave, needSave, needReset }">

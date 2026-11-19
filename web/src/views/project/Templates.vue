@@ -13,17 +13,25 @@
   >
     <!-- eager after the first opening: Vuetify 3 unmounts the content of a closed dialog, Vuetify 2
          kept it, so the form loads the views once and keeps its state between openings -->
-    <v-dialog
+    <HelpDialog
       v-model="editViewsDialog"
+      help-doc="template-views"
       :max-width="400"
       persistent
       :transition="false"
       :eager="editViewsDialog != null"
+      v-slot="{ docs }"
     >
       <v-card data-testid="templatesViewsDialog">
         <v-card-title class="d-flex align-center" data-testid="templatesViewsDialog-title">
           {{ $t('editViews') }}
           <v-spacer></v-spacer>
+          <HelpButton
+            v-if="docs.available"
+            :open="docs.open"
+            data-testid="templatesViewsDialog-docs"
+            @click="docs.toggle()"
+          />
           <v-btn
             icon
             variant="text"
@@ -33,11 +41,11 @@
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </v-card-title>
-        <v-card-text>
+        <v-card-text class="pt-3">
           <EditViewsForm :project-id="projectId"/>
         </v-card-text>
       </v-card>
-    </v-dialog>
+    </HelpDialog>
 
     <EditTemplateDialog
       v-model="editDialog"
@@ -153,6 +161,7 @@
         }"
         data-testid="templates-viewTab"
       >{{ view.title }}
+        <ViewTemplateStats v-if="view.show_template_stats" :stats="view.template_stats"/>
       </v-tab>
 
       <v-btn
@@ -365,16 +374,26 @@ import NewTaskDialog from '@/components/NewTaskDialog.vue';
 import { TEMPLATE_TYPE_ACTION_TITLES, TEMPLATE_TYPE_ICONS } from '@/lib/constants';
 import EditTemplateDialog from '@/components/EditTemplateDialog.vue';
 import AppsMixin from '@/components/AppsMixin';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpDialog from '@/components/HelpDialog.vue';
+import ViewTemplateStats from '@/components/ViewTemplateStats.vue';
+
+// Task events of a burst (a workflow, a schedule firing many templates) share one re-read of the
+// view counts.
+const VIEW_STATS_REFRESH_DELAY = 1000;
 
 export default {
   components: {
     EditTemplateDialog,
+    HelpButton,
+    HelpDialog,
     TableSettingsSheet,
     TaskStatus,
     TaskLink,
     TaskList,
     EditViewsForm,
     NewTaskDialog,
+    ViewTemplateStats,
   },
   props: {
     features: Object,
@@ -461,6 +480,7 @@ export default {
 
   beforeUnmount() {
     socket.removeListener(this.socketListenerId);
+    clearTimeout(this.viewStatsTimer);
   },
 
   methods: {
@@ -504,10 +524,16 @@ export default {
       return `/project/${this.projectId}/views/${viewId}/templates`;
     },
 
+    // The views; the ones that show the counts (`show_template_stats`) come with the counts of
+    // their templates by the status of the last task.
+    getViewsUrl() {
+      return `/api/project/${this.projectId}/views?include=template_stats`;
+    },
+
     async loadViews() {
       this.views = (await axios({
         method: 'get',
-        url: `/api/project/${this.projectId}/views`,
+        url: this.getViewsUrl(),
         responseType: 'json',
       })).data.filter((v) => !v.hidden || this.can(this.USER_PERMISSIONS.manageProjectResources));
       this.views.sort((v1, v2) => v1.position - v2.position);
@@ -515,6 +541,35 @@ export default {
       if (this.viewId != null && !this.views.some((v) => v.id === this.viewId)) {
         await this.$router.push({ path: `/project/${this.projectId}/templates` });
       }
+    },
+
+    // A task changed its status: the counts of the tabs are re-read from the server, because they
+    // cover templates of views this page has not loaded. A failed request is skipped, the next
+    // event repeats it. Nothing is asked when no view shows the counts.
+    scheduleViewStatsRefresh() {
+      if (this.viewStatsTimer != null
+        || !(this.views || []).some((view) => view.show_template_stats)) {
+        return;
+      }
+      this.viewStatsTimer = setTimeout(async () => {
+        this.viewStatsTimer = null;
+        await this.refreshViewStats().catch(() => null);
+      }, VIEW_STATS_REFRESH_DELAY);
+    },
+
+    async refreshViewStats() {
+      const views = (await axios({
+        method: 'get',
+        url: this.getViewsUrl(),
+        responseType: 'json',
+      })).data;
+
+      const stats = new Map(views.map((view) => [view.id, view.template_stats]));
+      (this.views || []).forEach((view) => {
+        if (stats.has(view.id)) {
+          Object.assign(view, { template_stats: stats.get(view.id) });
+        }
+      });
     },
 
     async closeEditViewDialog() {
@@ -526,6 +581,8 @@ export default {
       if (data.project_id !== this.projectId || data.type !== 'update') {
         return;
       }
+
+      this.scheduleViewStatsRefresh();
 
       const template = (this.items || []).find((item) => item.id === data.template_id);
 

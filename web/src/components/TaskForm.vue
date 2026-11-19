@@ -222,6 +222,7 @@
       :vars="args"
       title="CLI args"
       test-id="newTask-args"
+      data-testid="newTask-args"
       @change="setArgs"
     />
 

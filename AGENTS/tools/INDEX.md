@@ -25,6 +25,17 @@ Outputs and inputs section. Use it instead of
 hand-written curl polling whenever a change to the workflow engine or run view must be checked
 against a real run.
 
+### `help-stand/` — check the built-in help panel on a real binary
+
+`stand.sh` builds the community binary, starts it on `:3100` with a second instance under a
+sub-path on `:3102` and seeds inventories of every kind; four Playwright checks drive the help of
+the Ansible inventory dialog and of the project Settings page: requests to the server only and
+work with other hosts blocked, the panel following the focus, the field marked by the active
+section, disabled sections, the layout of a page next to the panel, and ten dialogs of every kind
+in any language. Use it after any change to
+`EditDialog.vue`, `HelpPage.vue`, `HelpPanel.vue`, `HelpDocsHost.js` or `web/vite/help` — unit
+tests run in jsdom, which lays nothing out and has no focus trap.
+
 ### `redis-sentinel-stand/` — prove HA failover on Redis Sentinel
 
 `stand.sh` builds the Pro binary for linux, brings up Redis master + replica + Sentinel, PostgreSQL

@@ -487,7 +487,24 @@ definitions:
               type: string
             type:
               type: string
-              enum: [static, static-yaml, file]
+              enum: [static, static-yaml, file, managed]
+            variables:
+              type: string
+              description: Variables of a managed inventory, a YAML or JSON mapping
+            hosts:
+              type: array
+              description: Hosts of a managed inventory
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  enabled:
+                    type: boolean
+                  variables:
+                    type: string
       environments:
         type: array
         items:
@@ -981,7 +998,7 @@ definitions:
         description: Repository holding the inventory file. Used only by a "file" inventory; for any other type it is dropped and stored as null.
       type:
         type: string
-        enum: [static, static-yaml, file, terraform-workspace, tofu-workspace, mcp]
+        enum: [static, static-yaml, file, terraform-workspace, tofu-workspace, managed, mcp]
         description: |
           An "mcp" inventory is a list of remote MCP servers for an AI agent template (apps "codex" and "claude").
           It has no "inventory" text, ssh/become keys or repository; its servers are given in "mcp_servers".
@@ -995,6 +1012,9 @@ definitions:
           is deleted with its token. On update, omit the field to keep the servers as they are.
         items:
           $ref: "#/definitions/McpServerRequest"
+      variables:
+        type: string
+        description: Group variables of a "managed" inventory as YAML or JSON mapping. Used on create only, an update leaves them as they are.
 
   Inventory:
     type: object
@@ -1021,12 +1041,16 @@ definitions:
         x-nullable: true
       type:
         type: string
-        enum: [static, static-yaml, file, terraform-workspace, tofu-workspace, mcp]
+        enum: [static, static-yaml, file, terraform-workspace, tofu-workspace, managed, mcp]
       mcp_servers:
         type: array
         description: Servers of an "mcp" inventory. Returned by GET of one inventory and by create; never in the list. Tokens are never returned, only "has_token".
         items:
           $ref: "#/definitions/McpServer"
+      variables:
+        type: string
+        description: Group variables of a "managed" inventory, null for any other type.
+        x-nullable: true
 
   McpServerRequest:
     type: object
@@ -1083,6 +1107,45 @@ definitions:
       has_token:
         type: boolean
         description: Whether the server has a token. The token itself is never returned.
+
+  InventoryHost:
+    type: object
+    properties:
+      id:
+        type: integer
+      inventory_id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+        example: web1
+      description:
+        type: string
+      enabled:
+        type: boolean
+      variables:
+        type: string
+        description: Host variables as YAML or JSON mapping
+      created:
+        type: string
+        format: date-time
+
+  InventoryHostRequest:
+    type: object
+    required: [name]
+    properties:
+      name:
+        type: string
+        example: web1
+      description:
+        type: string
+      enabled:
+        type: boolean
+        description: Used on create only, true when omitted. An update leaves it as it is.
+      variables:
+        type: string
+        description: Host variables as YAML or JSON mapping
 
   Integration:
     type: object
@@ -1298,6 +1361,111 @@ definitions:
         type: boolean
         description: Share one checkout of this repository between all templates instead of cloning it per template. Templates of a monorepo can not have a branch of their own or let tasks override the branch or commit.
         example: false
+
+  Host:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      display_name:
+        type: string
+      first_seen:
+        type: string
+      last_seen:
+        type: string
+      last_automated:
+        type: string
+        x-nullable: true
+      runs:
+        type: integer
+      last_status:
+        type: string
+      last_task_id:
+        type: integer
+        x-nullable: true
+      last_project_id:
+        type: integer
+        x-nullable: true
+      decommissioned:
+        type: string
+        x-nullable: true
+      counted:
+        type: boolean
+        description: Whether the host is in the license count, set in the global list and card only
+      last_template:
+        allOf:
+          - $ref: "#/definitions/HostTemplateRef"
+        x-nullable: true
+      templates:
+        type: array
+        items:
+          $ref: "#/definitions/HostTemplateRef"
+      projects:
+        type: array
+        items:
+          $ref: "#/definitions/HostProjectRef"
+
+  HostTemplateRef:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+
+  HostProjectRef:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+
+  HostDetails:
+    allOf:
+      - $ref: "#/definitions/Host"
+      - type: object
+        properties:
+          failed_in_last_10:
+            type: integer
+
+  HostTask:
+    type: object
+    properties:
+      task_id:
+        type: integer
+      project_id:
+        type: integer
+      project_name:
+        type: string
+      template_id:
+        type: integer
+      template_name:
+        type: string
+      status:
+        type: string
+      start:
+        type: string
+        x-nullable: true
+      user_name:
+        type: string
+        x-nullable: true
+      ok:
+        type: integer
+      changed:
+        type: integer
+      failed:
+        type: integer
+      unreachable:
+        type: integer
+      skipped:
+        type: integer
+      rescued:
+        type: integer
+      ignored:
+        type: integer
 
   Task:
     type: object
@@ -1646,6 +1814,12 @@ definitions:
         type: integer
       template_id:
         type: integer
+        x-nullable: true
+        description: The task template to start. Exactly one of template_id and workflow_id must be set.
+      workflow_id:
+        type: integer
+        x-nullable: true
+        description: The workflow to start instead of a template (Pro). task_params do not apply to a workflow and are dropped.
       name:
         type: string
       active:
@@ -1670,6 +1844,12 @@ definitions:
         type: integer
       template_id:
         type: integer
+        x-nullable: true
+        description: The task template the schedule starts. Exactly one of template_id and workflow_id is set.
+      workflow_id:
+        type: integer
+        x-nullable: true
+        description: The workflow the schedule starts instead of a template (Pro). The run starts with the workflow's survey defaults.
       name:
         type: string
       active:
@@ -1698,6 +1878,11 @@ definitions:
       position:
         type: integer
         minimum: 1
+      show_template_stats:
+        type: boolean
+        description: >
+          Show on the tab of the view the counts of its templates by the
+          status of their last task. Off when omitted.
   View:
     type: object
     properties:
@@ -1719,6 +1904,38 @@ definitions:
         enum: [name]
       sort_reverse:
         type: boolean
+      show_template_stats:
+        type: boolean
+        description: >
+          The tab of the view shows the counts of its templates by the
+          status of their last task. Off by default.
+      template_stats:
+        $ref: "#/definitions/ViewTemplateStats"
+
+  ViewTemplateStats:
+    type: object
+    description: >
+      Number of templates of a view by the status of their last task,
+      returned by the views list with `include=template_stats` for a view
+      that has `show_template_stats` on. A Custom
+      view counts the templates assigned to it, the "All" view every
+      template of the project. Every template is in exactly one count.
+    properties:
+      success:
+        type: integer
+        description: The last task succeeded.
+      failed:
+        type: integer
+        description: The last task failed.
+      stopped:
+        type: integer
+        description: The last task is stopped or being stopped, or the template was never launched.
+      confirming:
+        type: integer
+        description: The last task waits for a confirmation.
+      running:
+        type: integer
+        description: The last task is waiting in the queue, starting or running.
 
   Runner:
     type: object
@@ -2048,6 +2265,28 @@ definitions:
         format: date-time
       root_task_id:
         type: integer
+      rerun_of_run_id:
+        type: integer
+        description: The run this one repeats. Absent for a run started the usual way.
+      rerun_mode:
+        type: string
+        enum: [all, failed]
+        description: >-
+          How the run repeats rerun_of_run_id: `all` runs every node again, `failed` runs the
+          failed nodes and everything after them again and carries the rest over.
+
+  WorkflowRerunRequest:
+    type: object
+    required:
+      - mode
+    properties:
+      mode:
+        type: string
+        enum: [all, failed]
+        description: >-
+          `all` runs every node again. `failed` runs the failed nodes and everything after them
+          again; nodes that succeeded are carried over, and an approval that stands before a
+          node that runs again is requested again.
 
   WorkflowApproval:
     type: object
@@ -2081,6 +2320,11 @@ definitions:
         $ref: "#/definitions/Task"
       approval:
         $ref: "#/definitions/WorkflowApproval"
+      carried_from_run_id:
+        type: integer
+        description: >-
+          Set for a node that a `failed` re-run did not execute again: the task or approval
+          shown is what the node came to in that earlier run.
 
   WorkflowRunDetails:
     type: object
@@ -2235,6 +2479,20 @@ parameters:
     type: integer
     required: true
     x-example: 18
+  host_id:
+    name: host_id
+    description: Host ID
+    in: path
+    type: integer
+    required: true
+    x-example: 26
+  inventory_host_id:
+    name: inventory_host_id
+    description: host ID of a managed inventory
+    in: path
+    type: integer
+    required: true
+    x-example: 27
   perm_id:
     name: perm_id
     description: role grant ID
@@ -3880,6 +4138,149 @@ paths:
         204:
           description: inventory removed
 
+  /project/{project_id}/inventory/{inventory_id}/variables:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    put:
+      tags:
+        - inventory
+      summary: Replaces the variables of a managed inventory
+      parameters:
+        - name: variables
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [variables]
+            properties:
+              variables:
+                type: string
+                description: Group variables as YAML or JSON mapping
+                example: "http_port: 8080"
+      responses:
+        400:
+          description: Invalid variables or the inventory is not managed
+        204:
+          description: variables replaced
+
+  /project/{project_id}/inventory/{inventory_id}/hosts:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    get:
+      tags:
+        - inventory
+      summary: Get hosts of a managed inventory
+      parameters:
+        - name: search
+          in: query
+          required: false
+          type: string
+          description: Part of the host name, case-insensitive
+        - name: offset
+          in: query
+          required: false
+          type: integer
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 50 by default (also for 0), 1000 at most
+      responses:
+        400:
+          description: Invalid query parameter or the inventory is not managed
+        200:
+          description: Page of hosts, X-Total-Count header holds the total
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/InventoryHost"
+    post:
+      tags:
+        - inventory
+      summary: Add a host to a managed inventory
+      parameters:
+        - name: InventoryHost
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/InventoryHostRequest"
+      responses:
+        400:
+          description: Invalid host or the inventory is not managed
+        201:
+          description: host created
+          schema:
+            $ref: "#/definitions/InventoryHost"
+
+  /project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+      - $ref: "#/parameters/inventory_host_id"
+    get:
+      tags:
+        - inventory
+      summary: Get a host of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        200:
+          description: host object
+          schema:
+            $ref: "#/definitions/InventoryHost"
+    put:
+      tags:
+        - inventory
+      summary: Updates a host of a managed inventory
+      parameters:
+        - name: InventoryHost
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/InventoryHostRequest"
+      responses:
+        400:
+          description: Invalid host or the inventory is not managed
+        204:
+          description: host updated
+    delete:
+      tags:
+        - inventory
+      summary: Removes a host of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        204:
+          description: host removed
+
+  /project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id}/enabled:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+      - $ref: "#/parameters/inventory_host_id"
+    put:
+      tags:
+        - inventory
+      summary: Enables or disables a host of a managed inventory
+      parameters:
+        - name: enabled
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [enabled]
+            properties:
+              enabled:
+                type: boolean
+                example: false
+      responses:
+        400:
+          description: No enabled value or the inventory is not managed
+        204:
+          description: host enabled or disabled
+
   # project environment
   /project/{project_id}/environment:
     parameters:
@@ -4365,6 +4766,31 @@ paths:
           schema:
             $ref: "#/definitions/WorkflowRun"
 
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/rerun:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    post:
+      tags:
+        - workflow
+      summary: Re-run workflow run
+      description: >-
+        Repeats a finished run as a new run of the same graph revision with the same survey
+        answers. The repeated run is not changed. A run that is still in progress, or a
+        `failed` re-run of a run with no failed nodes, is rejected with 400.
+      parameters:
+        - name: Re-run
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowRerunRequest"
+      responses:
+        201:
+          description: workflow run created
+          schema:
+            $ref: "#/definitions/WorkflowRun"
+
   /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -4485,10 +4911,30 @@ paths:
     get:
       tags:
         - project
-      summary: Get view
+      summary: Get views
+      parameters:
+        - name: type
+          in: query
+          required: false
+          type: string
+          enum: [custom, all]
+          description: >
+            Return only the views of this type. `custom` selects the views
+            created by users (their `type` field is empty), `all` the
+            built-in "All" view. Every view is returned when omitted.
+        - name: include
+          in: query
+          required: false
+          type: string
+          enum: [template_stats]
+          description: >
+            `template_stats` adds the `template_stats` object to the views
+            that have `show_template_stats` on: the number of their templates
+            the caller may see, by the status of their last task. The other
+            views are returned without it and cost no counting.
       responses:
         200:
-          description: view
+          description: views
           schema:
             type: array
             items:
@@ -4696,6 +5142,185 @@ paths:
             content-type:
               type: string
               x-example: text/plain; charset=utf-8
+
+  /project/{project_id}/hosts:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get hosts of the project (PRO)
+      parameters:
+        - name: search
+          in: query
+          required: false
+          type: string
+          description: Part of the host name, case-insensitive
+        - name: status
+          in: query
+          required: false
+          type: string
+          enum: [failed, unreachable]
+          description: Only hosts whose last run ended with this status
+        - name: not_seen_days
+          in: query
+          required: false
+          type: integer
+          description: Only hosts no task reached for this many days
+        - name: template_id
+          in: query
+          required: false
+          type: integer
+          description: Only hosts the template ran on
+        - name: offset
+          in: query
+          required: false
+          type: integer
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 25 by default, 200 at most
+      responses:
+        400:
+          description: Invalid query parameter
+        200:
+          description: Page of hosts with the numbers of the project, X-Total-Count header holds the total
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Host"
+
+  /project/{project_id}/hosts/{host_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/host_id"
+    get:
+      tags:
+        - project
+      summary: Get a host of the project (PRO)
+      responses:
+        200:
+          description: Host, only projects of the user
+          schema:
+            $ref: "#/definitions/HostDetails"
+
+  /project/{project_id}/hosts/{host_id}/tasks:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/host_id"
+    get:
+      tags:
+        - project
+      summary: Get project tasks of the host (PRO)
+      parameters:
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 20 by default, 200 at most
+        - name: before
+          in: query
+          required: false
+          type: integer
+          description: Only tasks with an id below this one, for the next page
+      responses:
+        400:
+          description: Invalid query parameter
+        200:
+          description: Tasks newest first, X-Has-Next header says whether a next page exists
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/HostTask"
+
+  /hosts:
+    get:
+      summary: Get hosts of all projects (PRO)
+      parameters:
+        - name: search
+          in: query
+          required: false
+          type: string
+          description: Part of the host name, case-insensitive
+        - name: status
+          in: query
+          required: false
+          type: string
+          enum: [failed, unreachable]
+          description: Only hosts whose last run ended with this status
+        - name: not_seen_days
+          in: query
+          required: false
+          type: integer
+          description: Only hosts no task reached for this many days
+        - name: offset
+          in: query
+          required: false
+          type: integer
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 25 by default, 200 at most
+      responses:
+        400:
+          description: Invalid query parameter
+        200:
+          description: Page of hosts, X-Total-Count header holds the total
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Host"
+
+  /hosts/{host_id}:
+    parameters:
+      - $ref: "#/parameters/host_id"
+    get:
+      summary: Get a host (PRO)
+      responses:
+        200:
+          description: Host
+          schema:
+            $ref: "#/definitions/HostDetails"
+
+  /hosts/{host_id}/tasks:
+    parameters:
+      - $ref: "#/parameters/host_id"
+    get:
+      summary: Get tasks of the host (PRO)
+      parameters:
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 20 by default, 200 at most
+        - name: before
+          in: query
+          required: false
+          type: integer
+          description: Only tasks with an id below this one, for the next page
+      responses:
+        400:
+          description: Invalid query parameter
+        200:
+          description: Tasks newest first, X-Has-Next header says whether a next page exists
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/HostTask"
+
+  /hosts/{host_id}/decommission:
+    parameters:
+      - $ref: "#/parameters/host_id"
+    post:
+      summary: Decommission the host (PRO)
+      responses:
+        204:
+          description: Host is decommissioned, repeated call changes nothing
+        404:
+          description: Host not found
+
   /apps:
     get:
       summary: Get apps

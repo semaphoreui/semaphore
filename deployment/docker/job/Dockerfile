@@ -30,7 +30,7 @@ RUN pip3 install --no-cache-dir --break-system-packages \
         passlib
 
 RUN set -eux; \
-    for bin in sh cat chmod rm ls echo ssh ssh-agent ssh-add setsid git ansible-playbook python3; do \
+    for bin in sh cat chmod rm ls echo fold sed ssh ssh-agent ssh-add setsid git ansible-playbook python3; do \
         command -v "$bin" >/dev/null || { echo "missing: $bin"; exit 1; }; \
     done; \
     setsid -w true

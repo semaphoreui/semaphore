@@ -335,6 +335,8 @@ export default {
   status_success: 'Успех',
   status_failed: 'Неудача',
   status_stopped: 'Остановлено',
+  status_confirming: 'Ожидает подтверждения',
+  status_running: 'Выполняется',
 
   api_tokens: 'API токены',
 
@@ -372,6 +374,21 @@ export default {
   noProjectsText: 'Вы не состоите ни в одном проекте. Попросите администратора Semaphore добавить вас в проект.',
   signedInAs: 'Вы вошли как {username} ({email})',
   signedInAsNoEmail: 'Вы вошли как {username}',
+  helpPanelOpen: 'Справка по этому диалогу',
+  helpPanelOpenPage: 'Справка по этой странице',
+  helpPanelClose: 'Закрыть справку',
+  helpPanelFieldHidden: 'Это поле не показывается при текущих настройках.',
+  workflowRerun: 'Перезапустить',
+  workflowRerunAll: 'Весь workflow',
+  workflowRerunAllHint: 'Все ноды выполняются заново',
+  workflowRerunFailed: 'Только упавшие ноды',
+  workflowRerunFailedHint: 'Успешные ноды сохраняют свой результат',
+  workflowRerunNoFailed: 'В этом запуске нет упавших нод',
+  workflowRerunStarted: 'Перезапуск начат как #{id}',
+  workflowRerunOf: 'перезапуск #{id}',
+  workflowRerunOfHint: 'Этот запуск повторяет запуск #{id} на той же ревизии графа с теми же переменными.',
+  workflowNodeCarried: 'из запуска #{id}',
+  workflowNodeCarriedHint: 'Не выполнялась заново: результат перенесён из запуска #{id}.',
 
   // AI agents (Codex, Claude Code) and their MCP inventory
   agentPrompt: 'Промпт',

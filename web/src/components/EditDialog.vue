@@ -7,16 +7,13 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
   <v-dialog
     ref="dialog"
     v-model="dialog"
-    :max-width="width || maxWidth || 400"
+    :max-width="dialogMaxWidth"
     persistent
     :eager="booted"
     :close-on-back="false"
     :fullscreen="expandable && fullscreen"
     :transition="false"
-    :content-class="
-      `item-dialog ${ expandable ? 'item-dialog--expandable' : ''}
-      item-dialog--${position} ${contentClass || ''}`
-    "
+    :content-class="dialogContentClass"
   >
     <template v-if="resizable && !(expandable && fullscreen)">
       <div
@@ -34,7 +31,9 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
     </template>
 
     <v-card
+      ref="card"
       :data-testid="testId"
+      @focusin="onDocsHostFocusIn($event)"
       :data-state="needSave ? 'loading' : 'ready'"
     >
       <v-card-title data-testid="editDialog-title">
@@ -46,6 +45,14 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         <v-spacer></v-spacer>
 
         <div class="item-dialog__title-actions">
+          <HelpButton
+            v-if="hasDocs"
+            class="mr-3"
+            :open="docsOpen"
+            data-testid="editDialog-docs"
+            @click="toggleDocs()"
+          />
+
           <v-btn
             icon
             variant="text"
@@ -119,6 +126,14 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
         </v-btn>
       </v-card-actions>
     </v-card>
+
+    <HelpPanel
+      v-if="docsShown"
+      v-bind="docsPanelProps"
+      @close="closeDocs()"
+      @hover-field="docsHoverField = $event"
+      @focus-field="onDocsFocusField($event)"
+    />
   </v-dialog>
 </template>
 <style lang="scss">
@@ -177,11 +192,19 @@ Can use used in tandem with ItemFormBase.js. See KeyForm.vue for example.
 <script>
 
 import EventBus from '@/event-bus';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpDocsHost, { DIALOG_MIN_WIDTH } from '@/components/HelpDocsHost';
+import HelpPanel from '@/components/HelpPanel.vue';
 
 // The narrowest a dialog can be dragged to: the default width of a dialog.
-const MIN_WIDTH = 400;
+const MIN_WIDTH = DIALOG_MIN_WIDTH;
 
 export default {
+  components: { HelpButton, HelpPanel },
+
+  // The help panel of the dialog: its state and its tie to the fields of the form.
+  mixins: [HelpDocsHost],
+
   props: {
     testId: String,
     contentClass: String,
@@ -206,6 +229,9 @@ export default {
       default: 'Unnamed',
     },
     helpButton: Boolean,
+    // Key of the help document of the dialog (src/help/dialogs/<key>.md). The dialog gets a
+    // button that opens the document in a panel at the right edge of the window.
+    helpDoc: String,
     noBodyPaddings: Boolean,
     noEscape: Boolean,
   },
@@ -225,6 +251,28 @@ export default {
       // The width the user dragged a resizable dialog to; null until then (`maxWidth` applies).
       width: null,
     };
+  },
+
+  computed: {
+    // The key of the help document, for HelpDocsHost.
+    docsKey() {
+      return this.helpDoc;
+    },
+
+    // A dialog wider than what the help panel leaves of the window is narrowed to it.
+    dialogMaxWidth() {
+      return this.docsDialogMaxWidth(this.width || this.maxWidth || MIN_WIDTH);
+    },
+
+    dialogContentClass() {
+      return [
+        'item-dialog',
+        this.expandable ? 'item-dialog--expandable' : '',
+        `item-dialog--${this.position}`,
+        this.contentClass || '',
+        ...this.docsDialogClasses,
+      ].filter((name) => name !== '').join(' ');
+    },
   },
 
   watch: {
@@ -270,6 +318,16 @@ export default {
       this.needHelp = !this.needHelp;
     },
 
+    // The fields of the form are in the card, for HelpDocsHost.
+    docsRootElement() {
+      return this.$refs.card ? this.$refs.card.$el : null;
+    },
+
+    // A document that has loaded after the dialog was closed must not open its panel.
+    docsCanOpen() {
+      return this.dialog;
+    },
+
     onSave(e) {
       if (this.dontCloseOnSave) {
         this.clearFlags();
@@ -285,6 +343,7 @@ export default {
 
     close(e) {
       this.dialog = false;
+      this.closeDocs();
 
       this.clearFlags();
       if (e) {

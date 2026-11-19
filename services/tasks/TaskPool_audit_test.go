@@ -45,7 +45,7 @@ func TestAddTaskFrom_RecordsTheCallerActor(t *testing.T) {
 	fixture.pool.SetAuditRecorder(rec)
 	fixture.pool.register = make(chan *TaskRunner, 1)
 	ctx := audit.WithActor(context.Background(), audit.SystemActor(audit.ComponentScheduler))
-	schedule, err := fixture.store.CreateSchedule(db.Schedule{ProjectID: fixture.template.ProjectID, TemplateID: fixture.template.ID, CronFormat: "* * * * *"})
+	schedule, err := fixture.store.CreateSchedule(db.Schedule{ProjectID: fixture.template.ProjectID, TemplateID: &fixture.template.ID, CronFormat: "* * * * *"})
 	require.NoError(t, err)
 
 	task, err := fixture.pool.AddTaskFrom(ctx, audit.TriggerSchedule, db.Task{TemplateID: fixture.template.ID, ScheduleID: &schedule.ID}, nil, "", fixture.template.ProjectID, false)

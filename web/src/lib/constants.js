@@ -212,7 +212,7 @@ export const APP_INVENTORY_TITLE = {
 };
 
 export const APP_INVENTORY_TYPES = {
-  ansible: ['static', 'file', 'static-yaml'],
+  ansible: ['static', 'file', 'static-yaml', 'managed'],
   terraform: ['terraform-workspace'],
   tofu: ['tofu-workspace'],
   terragrunt: ['terragrunt-workspace'],

@@ -227,6 +227,7 @@ func runService() {
 	state := proTasks.NewTaskStateStore(haRedis)
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
+	hostRepo := proFactory.NewHostRepository(store)
 	workflowStore := proFactory.NewWorkflowStore(store)
 	globalRoleStore := proFactory.NewGlobalRoleStore(store)
 	roleMappingStore := proFactory.NewRoleMappingStore(store)
@@ -281,6 +282,8 @@ func runService() {
 		encryptionService,
 	)
 
+	schedulePool.SetWorkflowService(workflowStore, workflowService)
+
 	defer schedulePool.Destroy()
 	defer taskPool.Stop()
 
@@ -309,6 +312,10 @@ func runService() {
 		schedulePool.SetDeduplicator(dedup)
 		secretStorageSyncScheduler.SetTickDeduplicator(dedup)
 	}
+
+	// The runners the pool built at creation hold the pool as it was then,
+	// without the deduplicator and the workflow engine: rebuild them.
+	schedulePool.Refresh()
 
 	// Each process holds its own in-memory cron table. Schedule CRUD handlers only
 	// call Refresh on the node that served the HTTP request, so other HA nodes
@@ -373,6 +380,7 @@ func runService() {
 		workflowStore,
 		roleMappingStore,
 		ansibleTaskRepo,
+		hostRepo,
 		&taskPool,
 		projectService,
 		integrationService,

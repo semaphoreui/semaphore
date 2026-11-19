@@ -55,6 +55,7 @@ func truncateAll() {
 		"task",
 		"session",
 		"project__environment",
+		"project__inventory_host",
 		"project__inventory",
 		"project__repository",
 		"project__template",
@@ -282,8 +283,9 @@ func addInvite() *db.ProjectInvite {
 }
 
 func addSchedule() *db.Schedule {
+	tplID := int(templateID)
 	schedule, err := store.CreateSchedule(db.Schedule{
-		TemplateID: int(templateID),
+		TemplateID: &tplID,
 		CronFormat: "* * * 1 *",
 		ProjectID:  userProject.ID,
 	})
@@ -435,10 +437,14 @@ func addWorkflow() *db.WorkflowTemplate {
 }
 
 func addWorkflowRun() *db.WorkflowRun {
+	return addWorkflowRunWithStatus(db.WorkflowRunRunning)
+}
+
+func addWorkflowRunWithStatus(status db.WorkflowRunStatus) *db.WorkflowRun {
 	run, err := workflowStore.CreateWorkflowRun(db.WorkflowRun{
 		ProjectID:          userProject.ID,
 		WorkflowTemplateID: workflowID,
-		Status:             db.WorkflowRunRunning,
+		Status:             status,
 		Start:              new(tz.Now()),
 	})
 	if err != nil {
@@ -507,6 +513,12 @@ func globalRolesEnabled() bool {
 // implementation enables them only for an active Enterprise plan, which the Dredd stand does not have.
 func customRolesEnabled() bool {
 	return proFeatures.GetFeatures(&db.User{}, "").CustomRolesManagement
+}
+
+// hostsEnabled reports whether the server under test offers the hosts registry: the PRO implementation enables it
+// only for an active PRO plan, which the Dredd stand does not have.
+func hostsEnabled() bool {
+	return proFeatures.GetFeatures(&db.User{}, "").Hosts
 }
 
 // HELPERS

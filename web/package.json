@@ -26,7 +26,7 @@
     "cron-parser": "^5.3.0",
     "dayjs": "^1.11.13",
     "drawflow": "^0.0.60",
-    "js-yaml": "^5.0.0",
+    "js-yaml": "^5.4.3",
     "vue": "3.5.44",
     "vue-chartjs": "5.3.4",
     "vue-codemirror6": "1.7.0",

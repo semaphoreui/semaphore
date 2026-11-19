@@ -91,6 +91,7 @@ tasks:
       - package.json
       - package-lock.json
       - vite.config.mjs
+      - vite/**/*.*
     generates:
       - ../api/public/assets/*.*
       - ../api/public/index.html

@@ -40,8 +40,8 @@ const inventoryUpdateQuery = "update project__inventory set " +
 
 const inventoryInsertQuery = "insert into project__inventory (" +
 	"project_id, name, type, ssh_key_id, inventory, become_key_id, " +
-	"template_id, repository_id, runner_tag) values " +
-	"(?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	"template_id, repository_id, runner_tag, variables) values " +
+	"(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
 func inventoryUpdateArgs(inventory db.Inventory) []any {
 	return []any{
@@ -69,12 +69,19 @@ func inventoryInsertArgs(inventory db.Inventory) []any {
 		inventory.TemplateID,
 		inventory.RepositoryID,
 		inventory.RunnerTag,
+		inventory.Variables,
 	}
 }
 
 func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 	_, err := d.exec(inventoryUpdateQuery, inventoryUpdateArgs(inventory)...)
 
+	return err
+}
+
+func (d *SqlDb) SetInventoryVariables(projectID, inventoryID int, variables string) error {
+	_, err := d.exec("update project__inventory set variables=? where id=? and project_id=?",
+		variables, inventoryID, projectID)
 	return err
 }
 

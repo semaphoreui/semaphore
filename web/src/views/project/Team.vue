@@ -1,8 +1,10 @@
 <template>
-  <div
+  <HelpPage
     v-if="items != null && roles != null"
+    help-doc="project-team"
     data-testid="team-page"
     :data-state="items.length === 0 ? 'empty' : 'ready'"
+    v-slot="{ docs }"
   >
     <EditTeamMemberDialog
       v-model="editDialog"
@@ -46,6 +48,14 @@
         data-testid="team-new"
         >{{ $t('newTeamMember') }}
       </v-btn>
+      <HelpButton
+        v-if="docs.available"
+        page
+        class="ml-2"
+        :open="docs.open"
+        data-testid="team-docs"
+        @click="docs.toggle()"
+      />
     </v-toolbar>
 
     <TeamMenu v-if="isPro" :project-id="projectId" :system-info="systemInfo" />
@@ -128,7 +138,7 @@
         </v-btn-group>
       </template>
     </v-data-table>
-  </div>
+  </HelpPage>
 </template>
 <style lang="scss">
 // Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
@@ -225,11 +235,15 @@ import axios from 'axios';
 import { USER_PERMISSIONS } from '@/lib/constants';
 import groupRolesForSelect from '@/lib/roles';
 import TeamMenu from '@/components/TeamMenu.vue';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpPage from '@/components/HelpPage.vue';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 
 export default {
-  components: { TeamMenu, EditTeamMemberDialog },
+  components: {
+    TeamMenu, EditTeamMemberDialog, HelpButton, HelpPage,
+  },
   mixins: [ItemListPageBase],
 
   props: {

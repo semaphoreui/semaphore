@@ -1,17 +1,27 @@
 <template>
   <div class="pb-6" style="margin-top: -10px;" data-testid="surveyVars">
-    <v-dialog
+    <HelpDialog
       v-model="editDialog"
+      help-doc="survey-variable"
       :scrim="false"
       content-class="NestedDialog"
       width="440"
+      v-slot="{ docs }"
     >
       <v-card
         :style="{ backgroundColor: $vuetify.theme.current.dark ? '#212121' : '#fff' }"
         @keydown.enter.prevent
         data-testid="surveyVarDialog"
       >
-        <v-card-title data-testid="surveyVarDialog-heading"></v-card-title>
+        <v-card-title class="d-flex align-center" data-testid="surveyVarDialog-heading">
+          <v-spacer></v-spacer>
+          <HelpButton
+            v-if="docs.available"
+            :open="docs.open"
+            data-testid="surveyVarDialog-docs"
+            @click="docs.toggle()"
+          />
+        </v-card-title>
         <v-card-text class="pb-0">
           <v-form
             ref="form"
@@ -253,7 +263,7 @@
           </v-btn>
         </v-card-actions>
       </v-card>
-    </v-dialog>
+    </HelpDialog>
     <fieldset
       style="
         padding: 0 10px 2px 10px;
@@ -395,10 +405,14 @@
 </style>
 <script>
 import { VueDraggable as draggable } from 'vue-draggable-plus';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpDialog from '@/components/HelpDialog.vue';
 
 export default {
   components: {
     draggable,
+    HelpButton,
+    HelpDialog,
   },
   props: {
     vars: Array,

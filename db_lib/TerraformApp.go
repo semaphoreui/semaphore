@@ -99,7 +99,7 @@ func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []
 	cmd.Dir = t.GetFullPath()
 
 	cmd.Env = getEnvironmentVars()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", getHomeDir(t.Repository, t.Template.ID)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", GetHomeDir(t.Repository, t.Template.ID)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 
 	if environmentVars != nil {
@@ -402,6 +402,10 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 	if tplParams.AutoApprove || tplParams.AllowAutoApprove && params.AutoApprove {
 		t.Logger.SetStatus(task_logger.TaskRunningStatus)
 		return t.Apply(applyArgs, args.EnvironmentVars, args.Inputs, args.StopCh)
+	}
+
+	if params.AutoApprove {
+		t.Logger.Log("Auto approval was requested, but the template does not allow it. Enable Auto approve in the template's task prompts to allow tasks and workflows to skip confirmation.")
 	}
 
 	t.Logger.SetStatus(task_logger.TaskWaitingConfirmation)

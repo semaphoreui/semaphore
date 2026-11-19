@@ -7,6 +7,7 @@
     <EditDialog
       v-model="editDialog"
       test-id="hostConfigDialog"
+      help-doc="host-config"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="itemId === 'new' ? $t('addMapping') : $t('editMapping')"
       @save="loadItems()"

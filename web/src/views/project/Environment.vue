@@ -11,6 +11,7 @@
       :max-width="700"
       @save="loadItems"
       :help-button="true"
+      help-doc="variable-group"
       :no-escape="editNoEscape"
       test-id="varGroupDialog"
     >

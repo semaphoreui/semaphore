@@ -583,6 +583,7 @@
               @change="setArgs"
               title="CLI args"
               test-id="templateForm-args"
+              data-testid="templateForm-args"
             />
 
             <RichEditor
@@ -649,6 +650,7 @@
             :arg-title="$t('limit')"
             :add-arg-title="$t('addLimit')"
             test-id="templateForm-limit"
+            data-testid="templateForm-limit"
           />
 
           <ArgsPicker
@@ -659,6 +661,7 @@
             :arg-title="$t('tag')"
             :add-arg-title="$t('addTag')"
             test-id="templateForm-tags"
+            data-testid="templateForm-tags"
           />
 
           <ArgsPicker
@@ -669,6 +672,7 @@
             :arg-title="$t('tag')"
             :add-arg-title="$t('addSkippedTag')"
             test-id="templateForm-skipTags"
+            data-testid="templateForm-skipTags"
           />
 
           <TemplateVaults
@@ -828,6 +832,7 @@
             :title="$t('galaxyRoleArgs')"
             :arg-title="$t('arg')"
             test-id="templateForm-galaxyRoleArgs"
+            data-testid="templateForm-galaxyRoleArgs"
           />
 
           <ArgsPicker
@@ -837,6 +842,7 @@
             :title="$t('galaxyCollectionArgs')"
             :arg-title="$t('arg')"
             test-id="templateForm-galaxyCollectionArgs"
+            data-testid="templateForm-galaxyCollectionArgs"
           />
 
           <template v-if="needField('allow_override_skip_galaxy_install')">
@@ -1495,13 +1501,20 @@ export default {
         this.canRead ? this.loadProjectEndpoint(`/inventory?app=${this.app}&template_id=${this.itemId}`) : [],
         this.canRead ? this.loadProjectEndpoint(`/inventory?app=${this.app}`) : [],
         this.isNew || !this.canRead ? [] : this.loadProjectEndpoint(`/templates/${this.itemId}/schedules`),
-        this.loadProjectResources('views'),
+        // a template can be assigned to a Custom view only, so the rest is not loaded
+        this.loadProjectEndpoint('/views?type=custom'),
         this.canRead ? this.loadProjectResources('environment') : [],
         this.loadProjectResources('templates'),
         this.canRead ? this.loadProjectResources('runner_tags') : [],
       ]);
 
       this.inventory = [...inventory1, ...inventory2];
+
+      // A view of another type (the built-in "All") ignores the assignment, so a
+      // stale one is dropped instead of showing as a bare id in the select.
+      if (this.item.view_id != null && !this.views.some((v) => v.id === this.item.view_id)) {
+        this.item.view_id = null;
+      }
 
       const builds = [];
       const deploys = [];

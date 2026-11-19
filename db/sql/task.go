@@ -395,6 +395,17 @@ func (d *SqlDb) GetWorkflowRunTasks(projectID int, runID int, params db.Retrieve
 	return
 }
 
+// GetProjectTasksByIDs returns the project's tasks with the given ids, newest
+// first. An id of another project is not returned.
+func (d *SqlDb) GetProjectTasksByIDs(projectID int, taskIDs []int) (tasks []db.TaskWithTpl, err error) {
+	tasks = make([]db.TaskWithTpl, 0)
+	if len(taskIDs) == 0 {
+		return
+	}
+	err = d.getTasks(projectID, nil, nil, taskIDs, db.RetrieveQueryParams{}, &tasks)
+	return
+}
+
 func (d *SqlDb) DeleteTaskWithOutputs(projectID int, taskID int) (err error) {
 	// check if task exists in the project
 	_, err = d.GetTask(projectID, taskID)
@@ -454,10 +465,6 @@ func (d *SqlDb) GetTaskStageOutputs(projectID int, taskID int, stageID int) (out
 
 	_, err = d.selectAll(&output, query, args...)
 	return
-}
-
-func (d *SqlDb) GetNodeCount() (int, error) {
-	return 0, nil
 }
 
 func (d *SqlDb) GetUiCount() (int, error) {

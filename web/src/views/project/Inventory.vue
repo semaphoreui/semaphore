@@ -8,6 +8,7 @@
     <EditDialog
       v-model="attachInventoryDialog"
       test-id="inventoryAttachDialog"
+      help-doc="workspace-attach-template"
       :save-button-text="$t('Attach')"
       :icon="getAppIcon(itemApp)"
       :icon-color="getAppColor(itemApp)"
@@ -34,6 +35,7 @@
       :icon-color="kindColor(itemApp)"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${kindTitle(itemApp)}`"
       :max-width="itemApp === MCP_INVENTORY.type ? 760 : 450"
+      :help-doc="isAnsibleInventory ? 'inventory-ansible' : null"
       @save="loadItems"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
@@ -142,7 +144,12 @@
           {{ kindIcon(getAppByType(item.type)) }}
         </v-icon>
 
-        {{ item.name }}
+        <router-link
+          v-if="item.type === 'managed'"
+          :to="`/project/${projectId}/inventory/${item.id}`"
+          data-testid="inventory-rowLink"
+        >{{ item.name }}</router-link>
+        <template v-else>{{ item.name }}</template>
       </template>
 
       <template v-slot:item.type="{ item }">
@@ -226,6 +233,13 @@ export default {
         kinds.push(MCP_INVENTORY.type);
       }
       return kinds;
+    },
+
+    // The dialog also edits the workspaces of Terraform, OpenTofu and Terragrunt, which have no
+    // help document. A computed property, not a comparison in the template: the build takes
+    // every string literal of a `help-doc` expression for the key of a document (vite/help).
+    isAnsibleInventory() {
+      return this.itemApp === 'ansible';
     },
   },
   mixins: [ItemListPageBase, AppsMixin],

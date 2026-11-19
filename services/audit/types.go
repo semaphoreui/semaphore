@@ -98,6 +98,7 @@ const (
 	TargetLicense               = "license"
 	TargetProject               = "project"
 	TargetInventory             = "inventory"
+	TargetInventoryHost         = "inventory_host"
 	TargetRepository            = "repository"
 	TargetTemplate              = "template"
 	TargetSchedule              = "schedule"

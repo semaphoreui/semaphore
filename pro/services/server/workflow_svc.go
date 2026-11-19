@@ -40,6 +40,10 @@ func (s *workflowService) ResolveWorkflowApproval(projectID int, workflowID int,
 	return db.WorkflowApproval{}, nil
 }
 
+func (s *workflowService) RerunWorkflowRun(ctx context.Context, projectID int, workflowID int, runID int, mode db.WorkflowRerunMode, user *db.User) (db.WorkflowRun, error) {
+	return db.WorkflowRun{}, nil
+}
+
 func (s *workflowService) HandleWorkflowTaskCompletion(task db.Task) error {
 	return nil
 }

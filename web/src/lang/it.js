@@ -363,6 +363,10 @@ export default {
   noProjectsText: 'Non sei membro di alcun progetto. Chiedi al tuo amministratore Semaphore di aggiungerti a uno.',
   signedInAs: 'Accesso effettuato come {username} ({email})',
   signedInAsNoEmail: 'Accesso effettuato come {username}',
+  helpPanelOpen: 'Guida per questa finestra di dialogo',
+  helpPanelOpenPage: 'Guida per questa pagina',
+  helpPanelClose: 'Chiudi la guida',
+  helpPanelFieldHidden: 'Questo campo non è visibile con le impostazioni attuali.',
 
   // AI agents (Codex, Claude Code) and their MCP inventory
   agentPrompt: 'Prompt',

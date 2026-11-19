@@ -128,3 +128,36 @@ type brokenKeyService struct{ mockAccessKeyService }
 func (*brokenKeyService) Create(db.AccessKey) (db.AccessKey, error) {
 	return db.AccessKey{}, common_errors.NewValidationError("no keys today")
 }
+
+func TestBackupRestore_KeepsManagedInventoryHosts(t *testing.T) {
+	f := newResourceFixture(t)
+	inv, err := f.store.CreateInventory(db.Inventory{ProjectID: f.project.ID, Name: "managed", Type: db.InventoryManaged, Variables: new("a: 1")})
+	require.NoError(t, err)
+	_, err = f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inv.ID, Name: "web1", Enabled: true, Variables: "port: 80"})
+	require.NoError(t, err)
+	_, err = f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inv.ID, Name: "web2", Description: "spare"})
+	require.NoError(t, err)
+	controller := NewBackupController(proFactory.NewWorkflowStore(f.store), noLicense{})
+	backup := strings.Replace(f.backup(t, controller), `"name": "p"`, `"name": "copy"`, 1)
+
+	r, _ := f.request(http.MethodPost, backup, nil, nil)
+	w := httptest.NewRecorder()
+	controller.Restore(w, r)
+
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	var restored projectService.RestoredProject
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &restored))
+	invs, err := f.store.GetInventories(restored.ID, db.RetrieveQueryParams{}, []db.InventoryType{})
+	require.NoError(t, err)
+	require.Len(t, invs, 1)
+	assert.Equal(t, "a: 1", invs[0].VariablesText())
+	hosts, _, err := f.store.GetInventoryHosts(restored.ID, invs[0].ID, db.InventoryHostListParams{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+	assert.Equal(t, "web1", hosts[0].Name)
+	assert.True(t, hosts[0].Enabled)
+	assert.Equal(t, "port: 80", hosts[0].Variables)
+	assert.Equal(t, "web2", hosts[1].Name)
+	assert.False(t, hosts[1].Enabled)
+	assert.Equal(t, "spare", hosts[1].Description)
+}

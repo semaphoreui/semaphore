@@ -214,8 +214,11 @@ type TemplateInventoryMetadata struct {
 	InventoryID int `json:"inventory_id"`
 }
 
+// ScheduleMetadata names what the schedule starts: exactly one of
+// TemplateID and WorkflowID is set.
 type ScheduleMetadata struct {
-	TemplateID int `json:"template_id"`
+	TemplateID int `json:"template_id,omitempty"`
+	WorkflowID int `json:"workflow_id,omitempty"`
 }
 
 // IntegrationMetadata names what the integration starts: exactly one of
@@ -236,13 +239,17 @@ type HostConfigMetadata struct {
 
 // InventoryMetadata names the inventory type. For an mcp inventory it also
 // counts its MCP servers after the save and the token changes the save made;
-// never a URL or a token.
+// never a URL or a token. For a managed inventory it names the top-level
+// variable keys the save changed; never their values.
 type InventoryMetadata struct {
-	Type          string `json:"type"`
-	McpServers    int    `json:"mcp_servers,omitempty"`
-	TokensCreated int    `json:"tokens_created,omitempty"`
-	TokensUpdated int    `json:"tokens_updated,omitempty"`
-	TokensDeleted int    `json:"tokens_deleted,omitempty"`
+	Type             string   `json:"type"`
+	McpServers       int      `json:"mcp_servers,omitempty"`
+	TokensCreated    int      `json:"tokens_created,omitempty"`
+	TokensUpdated    int      `json:"tokens_updated,omitempty"`
+	TokensDeleted    int      `json:"tokens_deleted,omitempty"`
+	AddedVariables   []string `json:"added_variables,omitempty"`
+	RemovedVariables []string `json:"removed_variables,omitempty"`
+	ChangedVariables []string `json:"changed_variables,omitempty"`
 }
 
 type EnvironmentMetadata struct {
@@ -295,4 +302,23 @@ type WorkflowApprovalMetadata struct {
 
 type RunnerRegisterMetadata struct {
 	Token string `json:"token"`
+}
+
+// InventoryVariablesMetadata names the top-level variable keys that changed, never their values.
+// It is not the metadata of an event by itself: InventoryMetadata and InventoryHostMetadata carry its fields.
+type InventoryVariablesMetadata struct {
+	AddedVariables   []string `json:"added_variables,omitempty"`
+	RemovedVariables []string `json:"removed_variables,omitempty"`
+	ChangedVariables []string `json:"changed_variables,omitempty"`
+}
+
+type InventoryHostMetadata struct {
+	InventoryID   int    `json:"inventory_id"`
+	InventoryName string `json:"inventory_name"`
+	// Field names only: name, description, variables.
+	ChangedFields    []string `json:"changed_fields,omitempty"`
+	OldName          string   `json:"old_name,omitempty"`
+	AddedVariables   []string `json:"added_variables,omitempty"`
+	RemovedVariables []string `json:"removed_variables,omitempty"`
+	ChangedVariables []string `json:"changed_variables,omitempty"`
 }

@@ -470,6 +470,10 @@ export default {
   noProjectsText: 'Nejste členem žádného projektu. Požádejte správce Semaphore, aby vás do nějakého přidal.',
   signedInAs: 'Přihlášen jako {username} ({email})',
   signedInAsNoEmail: 'Přihlášen jako {username}',
+  helpPanelOpen: 'Nápověda k tomuto dialogu',
+  helpPanelOpenPage: 'Nápověda k této stránce',
+  helpPanelClose: 'Zavřít nápovědu',
+  helpPanelFieldHidden: 'Toto pole se při aktuálním nastavení nezobrazuje.',
 
   // AI agents (Codex, Claude Code) and their MCP inventory
   agentPrompt: 'Prompt',

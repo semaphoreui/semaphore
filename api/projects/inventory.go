@@ -192,6 +192,17 @@ func (c *InventoryController) mcpServerChanges(projectID int, servers []mcpServe
 	return changes, meta, nil
 }
 
+// inventoryMetadata is the audit metadata of an inventory that is not mcp: its
+// type and the variable keys a save of a managed inventory changed.
+func inventoryMetadata(inventoryType db.InventoryType, diff audit.InventoryVariablesMetadata) audit.InventoryMetadata {
+	return audit.InventoryMetadata{
+		Type:             string(inventoryType),
+		AddedVariables:   diff.AddedVariables,
+		RemovedVariables: diff.RemovedVariables,
+		ChangedVariables: diff.ChangedVariables,
+	}
+}
+
 // AddInventory creates an inventory in the database
 func (c *InventoryController) AddInventory(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
@@ -218,6 +229,7 @@ func (c *InventoryController) AddInventory(w http.ResponseWriter, r *http.Reques
 		db.InventoryFile,
 		db.InventoryTofuWorkspace,
 		db.InventoryTerraformWorkspace,
+		db.InventoryManaged,
 		db.InventoryMcp:
 		break
 	default:
@@ -237,6 +249,16 @@ func (c *InventoryController) AddInventory(w http.ResponseWriter, r *http.Reques
 			helpers.WriteError(w, err)
 			return
 		}
+	}
+
+	if inventory.Type == db.InventoryManaged {
+		if _, err := db.ParseInventoryVariables(inventory.VariablesText()); err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		inventory.Inventory = ""
+	} else {
+		inventory.Variables = nil
 	}
 
 	err := db.ValidateInventory(helpers.Store(r), &inventory)
@@ -265,6 +287,10 @@ func (c *InventoryController) AddInventory(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
+	}
+
+	if newInventory.Type == db.InventoryManaged {
+		meta = inventoryMetadata(newInventory.Type, diffVariables("", newInventory.VariablesText()))
 	}
 
 	helpers.EventLog(r, helpers.EventLogCreate, helpers.EventLogItem{
@@ -342,9 +368,19 @@ func (c *InventoryController) UpdateInventory(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	if inventory.Type != oldInventory.Type &&
+		(inventory.Type == db.InventoryManaged || oldInventory.Type == db.InventoryManaged) {
+		helpers.WriteErrorStatus(w,
+			"the type of a managed inventory can not be changed",
+			http.StatusBadRequest)
+		return
+	}
+
 	switch inventory.Type {
 	case db.InventoryTerraformWorkspace, db.InventoryTofuWorkspace:
 	case db.InventoryStatic, db.InventoryStaticYaml:
+	case db.InventoryManaged:
+		inventory.Inventory = ""
 	case db.InventoryMcp:
 		if err := validateMcpInventoryFields(inventory); err != nil {
 			helpers.WriteError(w, err)
@@ -407,6 +443,54 @@ func (c *InventoryController) UpdateInventory(w http.ResponseWriter, r *http.Req
 		Target:    audit.ResourceTarget(audit.TargetInventory, oldInventory.ID, inventory.Name),
 		ProjectID: oldInventory.ProjectID,
 		Metadata:  meta,
+	})
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// SetInventoryVariables replaces the variables of a managed inventory and leaves its other fields alone.
+func SetInventoryVariables(w http.ResponseWriter, r *http.Request) {
+	inventory, ok := managedInventory(w, r)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		Variables *string `json:"variables"`
+	}
+	if !helpers.Bind(w, r, &body) {
+		return
+	}
+
+	// An empty body would otherwise clear the variables
+	if body.Variables == nil {
+		helpers.WriteErrorStatus(w, "variables are required", http.StatusBadRequest)
+		return
+	}
+
+	if _, err := db.ParseInventoryVariables(*body.Variables); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	if err := helpers.Store(r).SetInventoryVariables(inventory.ProjectID, inventory.ID, *body.Variables); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	helpers.EventLog(r, helpers.EventLogUpdate, helpers.EventLogItem{
+		UserID:      helpers.UserFromContext(r).ID,
+		ProjectID:   inventory.ProjectID,
+		ObjectType:  db.EventInventory,
+		ObjectID:    inventory.ID,
+		Description: fmt.Sprintf("Inventory %s updated", inventory.Name),
+	})
+
+	helpers.Audit(r).Record(r.Context(), audit.Event{
+		Kind:      audit.ResourceInventoryUpdate,
+		Target:    audit.ResourceTarget(audit.TargetInventory, inventory.ID, inventory.Name),
+		ProjectID: inventory.ProjectID,
+		Metadata:  inventoryMetadata(inventory.Type, diffVariables(inventory.VariablesText(), *body.Variables)),
 	})
 
 	w.WriteHeader(http.StatusNoContent)

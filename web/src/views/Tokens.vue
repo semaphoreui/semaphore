@@ -4,13 +4,28 @@
     data-testid="tokens-page"
     :data-state="items.length === 0 ? 'empty' : 'ready'"
   >
-    <v-dialog v-model="newTokenDialog" max-width="480" persistent>
+    <HelpDialog
+      v-model="newTokenDialog"
+      help-doc="token-new"
+      :max-width="480"
+      persistent
+      v-slot="{ docs }"
+    >
       <v-card
         class="TokensNewDialog"
         data-testid="tokensNewDialog"
         :data-state="creatingToken ? 'loading' : 'ready'"
       >
-        <v-card-title data-testid="tokensNewDialog-title">{{ $t('New Token') }}</v-card-title>
+        <v-card-title class="d-flex align-center" data-testid="tokensNewDialog-title">
+          {{ $t('New Token') }}
+          <v-spacer></v-spacer>
+          <HelpButton
+            v-if="docs.available"
+            :open="docs.open"
+            data-testid="tokensNewDialog-docs"
+            @click="docs.toggle()"
+          />
+        </v-card-title>
         <v-card-text class="pb-0 pt-4">
           <v-text-field
             v-model="newTokenName"
@@ -61,7 +76,7 @@
           </v-btn>
         </v-card-actions>
       </v-card>
-    </v-dialog>
+    </HelpDialog>
 
     <v-toolbar flat>
       <v-btn icon variant="text" class="mr-4" @click="returnToProjects()" data-testid="tokens-back">
@@ -230,12 +245,16 @@ import EventBus from '@/event-bus';
 import ItemListPageBase from '@/components/ItemListPageBase';
 import axios from 'axios';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpDialog from '@/components/HelpDialog.vue';
 
 export default {
   mixins: [ItemListPageBase],
 
   components: {
     CopyClipboardButton,
+    HelpButton,
+    HelpDialog,
   },
 
   props: {

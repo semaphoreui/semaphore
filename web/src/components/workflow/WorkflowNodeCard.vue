@@ -54,7 +54,7 @@
       <div
         class="WorkflowNodeCard__sub"
         data-testid="workflowCanvas-nodeSub"
-        :title="subtitle"
+        :title="carriedHint || subtitle"
       >{{ subtitle }}</div>
 
       <div
@@ -263,6 +263,12 @@ export default {
         return this.run.message || this.$t('workflowApprovalPending');
       }
       const parts = [this.status];
+      if (this.carriedFromRunId) {
+        // Carried over by a failed-only re-run: where the result comes from
+        // says more than how long the node took back then.
+        parts.push(this.$t('workflowNodeCarried', { id: this.carriedFromRunId }));
+        return parts.join(' · ');
+      }
       if (this.run.start) {
         const end = this.run.end ? new Date(this.run.end).getTime() : this.now;
         parts.push(formatDurationLong(end - new Date(this.run.start).getTime()));
@@ -283,11 +289,22 @@ export default {
         return true;
       });
     },
+    // The run a failed-only re-run carried this node over from, or null when
+    // the node was executed by the run on screen.
+    carriedFromRunId() {
+      return this.run ? this.run.carriedFromRunId || null : null;
+    },
+    carriedHint() {
+      return this.carriedFromRunId
+        ? this.$t('workflowNodeCarriedHint', { id: this.carriedFromRunId })
+        : null;
+    },
     statusIcon() {
       if (!this.run) return null;
       if (this.kind === 'delay' && this.status === 'waiting') return 'mdi-timer-sand';
       switch (this.statusKind) {
-        case 'success': return 'mdi-check-circle';
+        // An outlined check: the node succeeded, but not in this run.
+        case 'success': return this.carriedFromRunId ? 'mdi-check-circle-outline' : 'mdi-check-circle';
         case 'error': return 'mdi-close-circle';
         case 'running': return 'spinner';
         case 'waiting': return this.status === 'waiting_confirmation' ? 'mdi-pause-circle' : 'mdi-clock-outline';
@@ -325,6 +342,7 @@ export default {
       return {
         'WorkflowNodeCard--running': this.isActive,
         'WorkflowNodeCard--pending': this.statusKind === 'pending',
+        'WorkflowNodeCard--carried': !!this.carriedFromRunId,
         'WorkflowNodeCard--dim': !!this.store.runs && Object.keys(this.store.runs).length > 0 && !this.run,
         'WorkflowNodeCard--clickable': this.clickable,
         'WorkflowNodeCard--problem': !!this.problem,
@@ -430,6 +448,12 @@ export default {
   &--pending {
     border-color: var(--wf-warning);
     animation: WorkflowNodeCardPulseAmber 1.6s ease-out infinite;
+  }
+
+  // Carried over by a failed-only re-run: the node succeeded, but in an
+  // earlier run. The dashed outline sets it apart from what this run executed.
+  &--carried {
+    border-style: dashed;
   }
 
   &__tile {

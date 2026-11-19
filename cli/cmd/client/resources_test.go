@@ -68,7 +68,7 @@ func (s *resourceServer) handler(t *testing.T) http.Handler {
 		case "/api/project/7/repositories/2":
 			enc(db.Repository{ID: 2, Name: "infra", GitURL: "git@x:y.git", GitBranch: "main", SSHKeyID: 6})
 		case "/api/project/7/schedules":
-			enc([]db.ScheduleWithTpl{{Schedule: db.Schedule{ID: 9, Name: "nightly", TemplateID: 3, CronFormat: "0 3 * * *", Active: true}, TemplateName: "Backup"}})
+			enc([]db.ScheduleWithTpl{{Schedule: db.Schedule{ID: 9, Name: "nightly", TemplateID: ref(3), CronFormat: "0 3 * * *", Active: true}, TemplateName: "Backup"}})
 		case "/api/project/7/views":
 			enc([]db.View{{ID: 11, Title: "Ops", Position: 1}})
 		case "/api/project/7/views/11":
@@ -243,7 +243,7 @@ func TestOtherResources(t *testing.T) {
 	}{
 		{[]string{"repository", "list"}, "ID\tNAME\tGIT URL\tGIT BRANCH\tSSH KEY ID\n2\tinfra\tgit@x:y.git\tmain\t6\n"},
 		{[]string{"repo", "get", "infra", "--fields", "id"}, "ID\t2\n"},
-		{[]string{"schedule", "list"}, "ID\tNAME\tTPL NAME\tCRON FORMAT\tACTIVE\n9\tnightly\tBackup\t0 3 * * *\ttrue\n"},
+		{[]string{"schedule", "list"}, "ID\tNAME\tTPL NAME\tWF NAME\tCRON FORMAT\tACTIVE\n9\tnightly\tBackup\t\t0 3 * * *\ttrue\n"},
 		{[]string{"view", "list"}, "ID\tTITLE\tPOSITION\n11\tOps\t1\n"},
 		{[]string{"view", "templates", "Ops", "-q"}, "1\n"},
 		{[]string{"template", "tasks", "Backup"}, "ID\tSTATUS\tTPL ALIAS\tUSER NAME\tCREATED\tSTART\tEND\n101\tsuccess\tBackup\tadmin\t0001-01-01T00:00:00Z\t\t\n"},
@@ -313,4 +313,9 @@ func TestPlural(t *testing.T) {
 	assert.Equal(t, "templates", plural("template"))
 	assert.Equal(t, "inventories", plural("inventory"))
 	assert.Equal(t, "repositories", plural("repository"))
+}
+
+// ref is a pointer to n, for optional ids in fixtures.
+func ref(n int) *int {
+	return &n
 }

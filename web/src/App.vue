@@ -19,6 +19,7 @@
     <EditDialog
       v-model="userDialog"
       test-id="appEditAccountDialog"
+      help-doc="user"
       save-button-text="Save"
       :title="$t('editUser')"
       v-if="user"
@@ -65,6 +66,7 @@
     <EditDialog
       v-model="newProjectDialog"
       test-id="appNewProjectDialog"
+      help-doc="project-new"
       save-button-text="Create"
       :title="$t('newProject')"
       event-name="i-project"
@@ -85,6 +87,7 @@
     <EditDialog
       v-model="subscriptionDialog"
       test-id="appSubscriptionDialog"
+      help-doc="subscription"
       hide-buttons
       v-if="user"
       event-name="i-user"
@@ -114,6 +117,7 @@
     <EditDialog
       v-model="restoreProjectDialog"
       test-id="appRestoreProjectDialog"
+      help-doc="project-restore"
       save-button-text="Restore"
       :title="$t('restoreProject')"
       event-name="i-project"
@@ -548,6 +552,20 @@
                   </template>
 
                   {{ $t('runners') }}
+                </v-list-item>
+
+                <v-list-item
+                  key="hosts"
+                  to="/hosts"
+                  :active="isRouteActive('/hosts')"
+                  v-if="isPro && canManageSystem"
+                  data-testid="sidebar-userMenu-hosts"
+                >
+                  <template v-slot:prepend>
+                    <v-icon>mdi-server</v-icon>
+                  </template>
+
+                  {{ $t('hosts') }}
                 </v-list-item>
 
                 <v-list-item
@@ -1597,6 +1615,13 @@ export default {
       }
 
       if (this.isPro && this.project.type === '' && canRead) {
+        items.push({
+          key: 'hosts',
+          icon: 'mdi-server',
+          title: this.$t('hosts'),
+          to: `${base}/hosts`,
+          testId: 'sidebar-hosts',
+        });
         items.push({
           key: 'runners',
           icon: 'mdi-cogs',

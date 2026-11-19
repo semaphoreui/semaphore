@@ -150,12 +150,28 @@ func (e BackupSchedule) Verify(backup *BackupFormat) error {
 func (e BackupSchedule) Restore(b *BackupDB) error {
 	v := e.Schedule
 	v.ProjectID = b.meta.ID
+	v.TemplateID = nil
+	v.WorkflowID = nil
 
-	tpl := findEntityByName[db.Template](&e.Template, b.templates)
-	if tpl == nil {
-		return fmt.Errorf("template does not exist in templates[].name")
+	switch {
+	case e.Template != nil && e.Workflow != nil:
+		return fmt.Errorf("schedule runs either a template or a workflow, not both")
+	case e.Template != nil:
+		tpl := findEntityByName[db.Template](e.Template, b.templates)
+		if tpl == nil {
+			return fmt.Errorf("template does not exist in templates[].name")
+		}
+		v.TemplateID = &tpl.ID
+	case e.Workflow != nil:
+		// Workflows are restored before schedules, so b.workflows is complete.
+		workflow := findEntityByName[db.WorkflowTemplate](e.Workflow, b.workflows)
+		if workflow == nil {
+			return fmt.Errorf("workflow does not exist in workflows[].name")
+		}
+		v.WorkflowID = &workflow.ID
+	default:
+		return fmt.Errorf("schedule has neither a template nor a workflow")
 	}
-	v.TemplateID = tpl.ID
 
 	if e.CheckableRepository != nil {
 		repo := findEntityByName[db.Repository](e.CheckableRepository, b.repositories)
@@ -225,6 +241,26 @@ func (e BackupInventory) Verify(backup *BackupFormat) error {
 	if e.BecomeKey != nil && getEntryByName[BackupAccessKey](e.BecomeKey, backup.Keys) == nil {
 		return fmt.Errorf("BecomeKey does not exist in keys[].Name")
 	}
+	if len(e.Hosts) > 0 && e.Type != db.InventoryManaged {
+		return fmt.Errorf("inventory %q is not managed but has hosts", e.Name)
+	}
+	if e.VariablesText() != "" && e.Type != db.InventoryManaged {
+		return fmt.Errorf("inventory %q is not managed but has variables", e.Name)
+	}
+	if _, err := db.ParseInventoryVariables(e.VariablesText()); err != nil {
+		return fmt.Errorf("variables of inventory %q: %w", e.Name, err)
+	}
+	names := make(map[string]bool)
+	for i, h := range e.Hosts {
+		if names[h.Name] {
+			return fmt.Errorf("host %q of inventory %q is duplicated", h.Name, e.Name)
+		}
+		names[h.Name] = true
+		host := db.InventoryHost{Name: h.Name, Variables: h.Variables}
+		if err := host.Validate(); err != nil {
+			return fmt.Errorf("host %q of inventory %q at hosts[%d]: %w", h.Name, e.Name, i, err)
+		}
+	}
 	return nil
 }
 
@@ -256,6 +292,20 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 		return err
 	}
 	b.inventories = append(b.inventories, newInventory)
+
+	for _, h := range e.Hosts {
+		_, err = b.store.CreateInventoryHost(db.InventoryHost{
+			ProjectID:   b.meta.ID,
+			InventoryID: newInventory.ID,
+			Name:        h.Name,
+			Description: h.Description,
+			Enabled:     h.Enabled,
+			Variables:   h.Variables,
+		})
+		if err != nil {
+			return fmt.Errorf("host %q of inventory %q: %w", h.Name, e.Name, err)
+		}
+	}
 	return nil
 }
 
@@ -910,28 +960,28 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		}
 	}
 
-	for i, o := range backup.Schedules {
-		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at schedules[%d]: %w", i, err)
-		}
-	}
-
 	for i, o := range backup.Runners {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at runners[%d]: %w", i, err)
 		}
 	}
 
-	// Workflows are restored last: their nodes reference templates, inventories
-	// and environments by name, all of which must already exist in the project.
+	// Workflows come after the templates, inventories and environments their
+	// nodes reference by name, all of which must already exist in the project.
 	for i, o := range backup.Workflows {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at workflows[%d]: %w", i, err)
 		}
 	}
 
-	// Integrations come after workflows: one may start a workflow, and nothing
-	// restored above refers to an integration.
+	// Schedules and integrations come after workflows: either may start a
+	// workflow, and nothing restored above refers to them.
+	for i, o := range backup.Schedules {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at schedules[%d]: %w", i, err)
+		}
+	}
+
 	for i, o := range backup.Integration {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at integrations[%d]: %w", i, err)

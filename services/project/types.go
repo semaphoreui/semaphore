@@ -7,15 +7,16 @@ import (
 )
 
 type BackupDB struct {
-	meta         db.Project
-	templates    []db.Template
-	repositories []db.Repository
-	hostConfigs  []db.HostConfig
-	keys         []db.AccessKey
-	views        []db.View
-	inventories  []db.Inventory
-	environments []db.Environment
-	schedules    []db.Schedule
+	meta           db.Project
+	templates      []db.Template
+	repositories   []db.Repository
+	hostConfigs    []db.HostConfig
+	keys           []db.AccessKey
+	views          []db.View
+	inventories    []db.Inventory
+	inventoryHosts map[int][]db.InventoryHost
+	environments   []db.Environment
+	schedules      []db.Schedule
 
 	integrationProjAliases   []db.IntegrationAlias
 	integrations             []db.Integration
@@ -128,9 +129,13 @@ type BackupAccessKey struct {
 	Storage       *string `backup:"storage"`
 }
 
+// BackupSchedule stores the schedule's target by name: exactly one of
+// Template and Workflow is set. Backups written before workflow targets
+// existed carry "template" only and restore unchanged.
 type BackupSchedule struct {
 	db.Schedule
-	Template            string  `backup:"template"`
+	Template            *string `backup:"template"`
+	Workflow            *string `backup:"workflow"`
 	CheckableRepository *string `backup:"checkable_repository"`
 }
 
@@ -140,8 +145,16 @@ type BackupView struct {
 
 type BackupInventory struct {
 	db.Inventory
-	SSHKey    *string `backup:"ssh_key"`
-	BecomeKey *string `backup:"become_key"`
+	SSHKey    *string               `backup:"ssh_key"`
+	BecomeKey *string               `backup:"become_key"`
+	Hosts     []BackupInventoryHost `backup:"hosts"`
+}
+
+type BackupInventoryHost struct {
+	Name        string `backup:"name"`
+	Description string `backup:"description"`
+	Enabled     bool   `backup:"enabled"`
+	Variables   string `backup:"variables"`
 }
 
 type BackupRepository struct {
