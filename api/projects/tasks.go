@@ -567,6 +567,39 @@ func (c *TaskController) RemoveTask(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// RemoveTemplateTasks deletes the finished tasks of a template. Whether a task is finished comes
+// from the database, so a task queued or running on any node or runner stays.
+func (c *TaskController) RemoveTemplateTasks(w http.ResponseWriter, r *http.Request) {
+	editor := helpers.GetFromContext(r, "user").(*db.User)
+	project := helpers.GetFromContext(r, "project").(db.Project)
+	tpl := helpers.GetFromContext(r, "template").(db.Template)
+
+	if !editor.Admin {
+		log.Warn(editor.Username + " is not permitted to delete task logs")
+		helpers.RecordDenied(r, "admin", project.ID)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	deleted, err := c.store.DeleteTemplateTasks(project.ID, tpl.ID)
+
+	if deleted > 0 || err == nil {
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:      audit.TaskHistoryDeleteAll,
+			Target:    audit.ResourceTarget(audit.TargetTemplate, tpl.ID, tpl.Name),
+			ProjectID: project.ID,
+			Metadata:  audit.TaskHistoryDeleteAllMetadata{Deleted: deleted, Partial: err != nil},
+		})
+	}
+
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (c *TaskController) GetTaskStats(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
