@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
-    "@vitejs/plugin-vue": "6.0.10",
+    "@vitejs/plugin-vue": "6.0.11",
     "@vue/test-utils": "2.5.1",
     "chai": "^6.0.0",
     "dotenv": "^18.0.0",
