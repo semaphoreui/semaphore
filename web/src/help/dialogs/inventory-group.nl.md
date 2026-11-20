@@ -14,7 +14,9 @@ De naam waaronder Ansible de groep kent, bijvoorbeeld in `hosts: web` van een pl
 verplicht. Een naam is uniek binnen zijn inventaris en is hoofdlettergevoelig: `web` en `Web` zijn
 twee groepen. De naam mag geen spaties, komma's, vierkante haken of dubbele punten bevatten, is
 hooguit 250 tekens lang en mag niet `all` of `ungrouped` zijn. Ansible waarschuwt voor namen met
-andere tekens dan letters, cijfers en underscores, zoals `web-eu`, maar de naam werkt toch.
+andere tekens dan letters, cijfers en underscores, zoals `web-eu`, maar de naam werkt toch. De
+tekens `*`, `?`, `!`, `&`, `~` en `@` zijn ook niet toegestaan, omdat Ansible ze als een patroon
+leest.
 
 ## Beschrijving {#inventoryGroupForm-description}
 

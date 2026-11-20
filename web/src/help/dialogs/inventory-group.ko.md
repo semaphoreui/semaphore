@@ -8,7 +8,7 @@ form: src/components/InventoryGroupForm.vue
 
 ## 이름 {#inventoryGroupForm-name}
 
-Ansible이 그룹을 식별하는 이름이며, 예를 들어 플레이북의 `hosts: web`에 쓰입니다. 이 필드는 필수입니다. 이름은 인벤토리 안에서 고유하고 대소문자를 구분합니다. `web`과 `Web`은 서로 다른 그룹입니다. 공백, 쉼표, 대괄호, 콜론은 쓸 수 없고 길이는 최대 250자이며 `all`과 `ungrouped`는 쓸 수 없습니다. 문자, 숫자, 밑줄 이외의 문자가 있는 이름(예: `web-eu`)에 대해 Ansible이 경고하지만 이름은 그대로 동작합니다.
+Ansible이 그룹을 식별하는 이름이며, 예를 들어 플레이북의 `hosts: web`에 쓰입니다. 이 필드는 필수입니다. 이름은 인벤토리 안에서 고유하고 대소문자를 구분합니다. `web`과 `Web`은 서로 다른 그룹입니다. 공백, 쉼표, 대괄호, 콜론은 쓸 수 없고 길이는 최대 250자이며 `all`과 `ungrouped`는 쓸 수 없습니다. 문자, 숫자, 밑줄 이외의 문자가 있는 이름(예: `web-eu`)에 대해 Ansible이 경고하지만 이름은 그대로 동작합니다. `*`, `?`, `!`, `&`, `~`, `@` 문자도 쓸 수 없습니다. Ansible이 이를 패턴으로 읽기 때문입니다.
 
 ## 설명 {#inventoryGroupForm-description}
 

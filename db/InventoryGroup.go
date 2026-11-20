@@ -39,8 +39,8 @@ func (g InventoryGroup) Validate() error {
 		return common_errors.NewValidationError("group name must not be empty")
 	}
 
-	if strings.ContainsFunc(g.Name, unicode.IsSpace) || strings.ContainsAny(g.Name, ",[]:") {
-		return common_errors.NewValidationError("group name must not contain spaces, commas, brackets or colons")
+	if strings.ContainsFunc(g.Name, unicode.IsSpace) || strings.ContainsAny(g.Name, ",[]:*?!&~@") {
+		return common_errors.NewValidationError("group name must not contain spaces, commas, brackets, colons or the pattern characters * ? ! & ~ @")
 	}
 
 	if utf8.RuneCountInString(g.Name) > inventoryGroupNameMaxLength {

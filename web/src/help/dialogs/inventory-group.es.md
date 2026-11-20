@@ -15,7 +15,8 @@ es obligatorio. Un nombre es único dentro de su inventario y distingue mayúscu
 `web` y `Web` son dos grupos. No puede contener espacios, comas, corchetes ni dos puntos, tiene como
 máximo 250 caracteres y no puede ser `all` ni `ungrouped`. Ansible avisa de los nombres con
 caracteres distintos de letras, dígitos y guiones bajos, como `web-eu`, pero el nombre funciona
-igualmente.
+igualmente. Tampoco se permiten los caracteres `*`, `?`, `!`, `&`, `~` y `@`, porque Ansible los lee
+como un patrón.
 
 ## Descripción {#inventoryGroupForm-description}
 

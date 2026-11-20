@@ -14,7 +14,8 @@ Nazwa, pod którą Ansible zna grupę, na przykład w `hosts: web` playbooka. Po
 jest unikalna w obrębie inwentarza, a wielkość liter ma znaczenie: `web` i `Web` to dwie grupy.
 Nazwa nie może zawierać spacji, przecinków, nawiasów kwadratowych ani dwukropków, ma najwyżej 250
 znaków i nie może być `all` ani `ungrouped`. Ansible ostrzega przed nazwami ze znakami innymi niż
-litery, cyfry i podkreślenia, na przykład `web-eu`, ale taka nazwa nadal działa.
+litery, cyfry i podkreślenia, na przykład `web-eu`, ale taka nazwa nadal działa. Niedozwolone są też
+znaki `*`, `?`, `!`, `&`, `~` i `@`, ponieważ Ansible czyta je jako wzorzec.
 
 ## Opis {#inventoryGroupForm-description}
 

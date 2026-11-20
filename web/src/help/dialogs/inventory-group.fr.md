@@ -16,7 +16,8 @@ est obligatoire. Un nom est unique dans son inventaire et la casse compte : `web
 groupes. Il ne peut pas contenir d'espaces, de virgules, de crochets ni de deux-points, compte au
 plus 250 caractères et ne peut pas être `all` ni `ungrouped`. Ansible avertit pour les noms qui
 contiennent d'autres caractères que des lettres, des chiffres et des tirets bas, comme `web-eu`,
-mais le nom fonctionne quand même.
+mais le nom fonctionne quand même. Les caractères `*`, `?`, `!`, `&`, `~` et `@` ne sont pas
+autorisés non plus, car Ansible les lit comme un motif.
 
 ## Description {#inventoryGroupForm-description}
 

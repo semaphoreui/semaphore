@@ -8,7 +8,7 @@ form: src/components/InventoryGroupForm.vue
 
 ## 名前 {#inventoryGroupForm-name}
 
-Ansible がグループを識別する名前で、例えば Playbook の `hosts: web` で使います。このフィールドは必須です。名前はインベントリ内で一意で、大文字と小文字は区別されます。`web` と `Web` は別のグループです。空白、カンマ、角括弧、コロンは使えず、長さは 250 文字までで、`all` と `ungrouped` は使えません。文字、数字、アンダースコア以外の文字を含む名前 (`web-eu` など) には Ansible が警告を出しますが、名前はそのまま使えます。
+Ansible がグループを識別する名前で、例えば Playbook の `hosts: web` で使います。このフィールドは必須です。名前はインベントリ内で一意で、大文字と小文字は区別されます。`web` と `Web` は別のグループです。空白、カンマ、角括弧、コロンは使えず、長さは 250 文字までで、`all` と `ungrouped` は使えません。文字、数字、アンダースコア以外の文字を含む名前 (`web-eu` など) には Ansible が警告を出しますが、名前はそのまま使えます。`*`, `?`, `!`, `&`, `~`、`@` も使えません。Ansible がパターンとして読むためです。
 
 ## 説明 {#inventoryGroupForm-description}
 
