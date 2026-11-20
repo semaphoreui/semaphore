@@ -36,12 +36,12 @@
       <v-tab data-testid="inventoryView-tab-variables" :to="`${listPath}/${inventoryId}/variables`">
         {{ $t('inventory_tab_variables') }}
         <v-chip
-          v-if="variableCount !== 0"
+          v-if="inventory.variable_count"
           size="x-small"
           class="ml-2 font-weight-bold"
           style="cursor: inherit"
           data-testid="inventoryView-variableCount"
-        >{{ variableCount ?? '?' }}</v-chip>
+        >{{ inventory.variable_count }}</v-chip>
       </v-tab>
     </v-tabs>
 
@@ -60,7 +60,6 @@
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import ProjectMixin from '@/components/ProjectMixin';
-import variableNames from '@/lib/inventoryVariables';
 
 export default {
   mixins: [ProjectMixin],
@@ -82,11 +81,6 @@ export default {
   computed: {
     inventoryId() {
       return Number(this.$route.params.inventoryId);
-    },
-
-    variableCount() {
-      const names = variableNames(this.inventory.variables);
-      return names && names.length;
     },
 
     listPath() {
@@ -114,9 +108,17 @@ export default {
 
   methods: {
     // The tab that saved may be gone by now, so the save comes over the bus
-    onVariablesSaved({ projectId, inventoryId, variables }) {
-      if (this.inventory && projectId === this.projectId && inventoryId === this.inventoryId) {
-        this.inventory.variables = variables;
+    async onVariablesSaved({ projectId, inventoryId }) {
+      if (this.state !== 'ready' || projectId !== this.projectId || inventoryId !== this.inventoryId) {
+        return;
+      }
+      this.loadSeq += 1;
+      const seq = this.loadSeq;
+      try {
+        const inventory = await this.loadProjectResource('inventory', this.inventoryId);
+        if (seq === this.loadSeq) this.inventory = inventory;
+      } catch {
+        // The number stays as it was until the page is opened again
       }
     },
 
