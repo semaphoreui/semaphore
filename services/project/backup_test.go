@@ -387,6 +387,21 @@ func TestRestore_InventoryFromBackupBeforeGroups(t *testing.T) {
 	assert.Empty(t, groups)
 }
 
+func TestBackup_SkipsAChildGroupWithoutAName(t *testing.T) {
+	b := BackupDB{
+		inventories: []db.Inventory{{ID: 1, Name: "inv", Type: db.InventoryManaged}},
+		inventoryGroups: map[int][]db.InventoryGroup{1: {
+			{ID: 1, Name: "web", Children: []int{2, 3}},
+			{ID: 2, Name: "edge"},
+		}},
+	}
+
+	backup, err := b.format()
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"edge"}, backup.Inventories[0].Groups[0].Children)
+}
+
 func TestVerify_RejectsBrokenInventoryGroups(t *testing.T) {
 	tests := []struct {
 		name    string
