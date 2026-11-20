@@ -616,7 +616,7 @@ func TestGetSecretsPath_Default(t *testing.T) {
 	loadConfigDefaults()
 	assert.Equal(t, "/tmp/semaphore", Config.GetSecretsPath())
 	require.NotNil(t, Config.Dirs)
-	assert.Equal(t, "/tmp/semaphore", Config.Dirs.SSHAgentSockets)
+	assert.Equal(t, "", Config.Dirs.SSHAgentSockets)
 }
 
 func TestGetSecretsPath_Env(t *testing.T) {
@@ -843,6 +843,39 @@ func TestListenPort_Addr(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(string(tt.port), func(t *testing.T) {
 			assert.Equal(t, tt.expected, tt.port.Addr())
+		})
+	}
+}
+
+func TestConfig_GetSSHAgentSocketsDir(t *testing.T) {
+	projectID := 7
+	// A configured value goes through filepath.Abs, so build the expected
+	// paths the same way (they differ on Windows).
+	abs := func(p string) string {
+		a, err := filepath.Abs(p)
+		require.NoError(t, err)
+		return a
+	}
+
+	tests := []struct {
+		name      string
+		dirs      *ConfigDirs
+		projectID *int
+		want      string
+	}{
+		{"nil dirs, project key", nil, &projectID, "/data/tmp/project_7"},
+		{"explicit /tmp/semaphore, project key", &ConfigDirs{SSHAgentSockets: "/tmp/semaphore"}, &projectID, filepath.Join(abs("/tmp/semaphore"), "project_7")},
+		{"empty value, project key", &ConfigDirs{}, &projectID, "/data/tmp/project_7"},
+		{"explicit /tmp/semaphore, key outside a project", &ConfigDirs{SSHAgentSockets: "/tmp/semaphore"}, nil, abs("/tmp/semaphore")},
+		{"custom value, project key", &ConfigDirs{SSHAgentSockets: "/run/sockets"}, &projectID, filepath.Join(abs("/run/sockets"), "project_7")},
+		{"custom value, key outside a project", &ConfigDirs{SSHAgentSockets: "/run/sockets"}, nil, abs("/run/sockets")},
+		{"relative value, project key", &ConfigDirs{SSHAgentSockets: "sockets"}, &projectID, filepath.Join(abs("sockets"), "project_7")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conf := &ConfigType{TmpPath: "/data/tmp", Dirs: tt.dirs}
+			assert.Equal(t, tt.want, conf.GetSSHAgentSocketsDir(tt.projectID))
 		})
 	}
 }
