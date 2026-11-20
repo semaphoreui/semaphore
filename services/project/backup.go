@@ -395,7 +395,10 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		for _, g := range b.inventoryGroups[o.ID] {
 			var children []string
 			for _, c := range g.Children {
-				children = append(children, groupNames[c])
+				// A child created after the groups were read has no name here
+				if name, ok := groupNames[c]; ok {
+					children = append(children, name)
+				}
 			}
 			groups = append(groups, BackupInventoryGroup{Name: g.Name, Description: g.Description, Variables: g.Variables, Hosts: groupHosts[g.ID], Children: children})
 		}
