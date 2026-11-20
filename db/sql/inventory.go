@@ -58,33 +58,34 @@ func (d *SqlDb) UpdateInventory(inventory db.Inventory) error {
 }
 
 func (d *SqlDb) SetInventoryVariables(projectID, inventoryID int, variables string) error {
-	_, err := d.exec("update project__inventory set variables=? where id=? and project_id=?",
-		variables, inventoryID, projectID)
+	_, err := d.exec("update project__inventory set variables=?, variable_count=? where id=? and project_id=?",
+		variables, db.CountInventoryVariables(variables), inventoryID, projectID)
 	return err
 }
 
 func (d *SqlDb) CreateInventory(inventory db.Inventory) (newInventory db.Inventory, err error) {
-	insertID, err := d.insert(
-		"id",
-		"insert into project__inventory ("+
-			"project_id, name, type, "+
-			"ssh_key_id, inventory, become_key_id, "+
-			"template_id, repository_id, runner_tag, variables) values "+
-			"(?, ?, ?, "+
-			"?, ?, ?, "+
-			"?, ?, ?, ?)",
-		inventory.ProjectID,
-		inventory.Name,
-		inventory.Type,
-		inventory.SSHKeyID,
-		inventory.Inventory,
-		inventory.BecomeKeyID,
-		inventory.TemplateID,
-		inventory.RepositoryID,
-		inventory.RunnerTag,
-		inventory.Variables,
-	)
+	inventory.VariableCount = db.CountInventoryVariables(inventory.VariablesText())
 
+	query, args, err := squirrel.Insert("project__inventory").
+		SetMap(map[string]any{
+			"project_id":     inventory.ProjectID,
+			"name":           inventory.Name,
+			"type":           inventory.Type,
+			"ssh_key_id":     inventory.SSHKeyID,
+			"inventory":      inventory.Inventory,
+			"become_key_id":  inventory.BecomeKeyID,
+			"template_id":    inventory.TemplateID,
+			"repository_id":  inventory.RepositoryID,
+			"runner_tag":     inventory.RunnerTag,
+			"variables":      inventory.Variables,
+			"variable_count": inventory.VariableCount,
+		}).
+		ToSql()
+	if err != nil {
+		return
+	}
+
+	insertID, err := d.insert("id", query, args...)
 	if err != nil {
 		return
 	}

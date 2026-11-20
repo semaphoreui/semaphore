@@ -72,7 +72,16 @@ func GetInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, inventories)
+	// The nil field hides the variables text, a list row carries only the count
+	rows := make([]struct {
+		db.Inventory
+		Variables *string `json:"variables,omitempty"`
+	}, len(inventories))
+	for i, inventory := range inventories {
+		rows[i].Inventory = inventory
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, rows)
 }
 
 // AddInventory creates an inventory in the database

@@ -208,3 +208,67 @@ func TestInventory_VariablesRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "b: 2", got.VariablesText())
 }
+
+func TestInventoryHosts_StoreTheVariableCount(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "test project"})
+	require.NoError(t, err)
+	inventory, err := store.CreateInventory(db.Inventory{ProjectID: project.ID, Name: "managed", Type: db.InventoryManaged})
+	require.NoError(t, err)
+
+	host, err := store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "web1", Variables: "a: 1\nb: 2"})
+	require.NoError(t, err)
+	assert.Equal(t, 2, host.VariableCount)
+	hosts, _, err := store.GetInventoryHosts(project.ID, inventory.ID, db.InventoryHostListParams{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	assert.Equal(t, 2, hosts[0].VariableCount)
+
+	host.Variables = "a: 1"
+	require.NoError(t, store.UpdateInventoryHost(host))
+	got, err := store.GetInventoryHost(project.ID, inventory.ID, host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.VariableCount)
+
+	host.Variables = ""
+	require.NoError(t, store.UpdateInventoryHost(host))
+	got, err = store.GetInventoryHost(project.ID, inventory.ID, host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, got.VariableCount)
+
+	other, err := store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "web2", VariableCount: 99})
+	require.NoError(t, err)
+	assert.Equal(t, 0, other.VariableCount)
+	got, err = store.GetInventoryHost(project.ID, inventory.ID, other.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, got.VariableCount)
+}
+
+func TestInventory_StoresTheVariableCount(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "test project"})
+	require.NoError(t, err)
+
+	inventory, err := store.CreateInventory(db.Inventory{ProjectID: project.ID, Name: "managed", Type: db.InventoryManaged, Variables: new("a: 1\nb: 2")})
+	require.NoError(t, err)
+	assert.Equal(t, 2, inventory.VariableCount)
+	inventories, err := store.GetInventories(project.ID, db.RetrieveQueryParams{}, nil)
+	require.NoError(t, err)
+	require.Len(t, inventories, 1)
+	assert.Equal(t, 2, inventories[0].VariableCount)
+
+	require.NoError(t, store.SetInventoryVariables(project.ID, inventory.ID, "a: 1"))
+	got, err := store.GetInventory(project.ID, inventory.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.VariableCount)
+
+	got.Name = "renamed"
+	require.NoError(t, store.UpdateInventory(got))
+	got, err = store.GetInventory(project.ID, inventory.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.VariableCount)
+
+	static, err := store.CreateInventory(db.Inventory{ProjectID: project.ID, Name: "static", Type: db.InventoryStatic, Inventory: "localhost"})
+	require.NoError(t, err)
+	assert.Equal(t, 0, static.VariableCount)
+}

@@ -94,16 +94,18 @@ func (d *SqlDb) CreateInventoryHost(host db.InventoryHost) (db.InventoryHost, er
 	}
 
 	host.Created = tz.Now()
+	host.VariableCount = db.CountInventoryVariables(host.Variables)
 
 	query, args, err := sq.Insert("project__inventory_host").
 		SetMap(map[string]any{
-			"inventory_id": host.InventoryID,
-			"project_id":   host.ProjectID,
-			"name":         host.Name,
-			"description":  host.Description,
-			"enabled":      host.Enabled,
-			"variables":    host.Variables,
-			"created":      host.Created,
+			"inventory_id":   host.InventoryID,
+			"project_id":     host.ProjectID,
+			"name":           host.Name,
+			"description":    host.Description,
+			"enabled":        host.Enabled,
+			"variables":      host.Variables,
+			"variable_count": host.VariableCount,
+			"created":        host.Created,
 		}).
 		ToSql()
 	if err != nil {
@@ -134,9 +136,10 @@ func (d *SqlDb) UpdateInventoryHost(host db.InventoryHost) error {
 
 	query, args, err := sq.Update("project__inventory_host").
 		SetMap(map[string]any{
-			"name":        host.Name,
-			"description": host.Description,
-			"variables":   host.Variables,
+			"name":           host.Name,
+			"description":    host.Description,
+			"variables":      host.Variables,
+			"variable_count": db.CountInventoryVariables(host.Variables),
 		}).
 		Where(sq.Eq{"id": host.ID, "inventory_id": host.InventoryID, "project_id": host.ProjectID}).
 		ToSql()

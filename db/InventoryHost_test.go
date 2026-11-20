@@ -79,3 +79,22 @@ func TestParseInventoryVariables(t *testing.T) {
 		})
 	}
 }
+
+func TestCountInventoryVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		expected int
+	}{
+		{"empty", "", 0},
+		{"yaml", "a: 1\nb: {c: 2}", 2},
+		{"json", `{"a":1}`, 1},
+		{"not a mapping", "- x", 0},
+		{"tagged value", "a: !vault |\n  secret", 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, CountInventoryVariables(tt.text))
+		})
+	}
+}
