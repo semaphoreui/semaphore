@@ -36,6 +36,7 @@ var repoID int
 var hostConfigID int
 var inventoryID int
 var inventoryHostID int
+var inventoryGroupID int
 var environmentID int
 var templateID int
 var integrationID int
@@ -54,6 +55,7 @@ var capabilities = map[string][]string{
 	"host_config":             {"access_key"},
 	"inventory":               {"repository"},
 	"inventory_host":          {"repository"},
+	"inventory_group":         {"inventory_host"},
 	"environment":             {"repository"},
 	"template":                {"repository", "inventory", "environment", "view"},
 	"task":                    {"template"},
@@ -164,9 +166,17 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				InventoryID: res.ID,
 				Name:        "ith-" + uid + ".example.org",
 				Enabled:     true,
-			})
+			}, nil)
 			printError(err)
 			inventoryHostID = host.ID
+		case "inventory_group":
+			group, err := store.CreateInventoryGroup(db.InventoryGroup{
+				ProjectID:   userProject.ID,
+				InventoryID: inventoryID,
+				Name:        "itg_" + uid,
+			}, nil)
+			printError(err)
+			inventoryGroupID = group.ID
 		case "environment":
 			pwd := "test-pass"
 			env := "{}"
@@ -327,9 +337,10 @@ var pathSubPatterns = []func() string{
 		}
 		return strconv.Itoa(globalRole.ID)
 	}, // global role_id, x-example: 24
-	func() string { return strconv.Itoa(permID) },          // perm_id, x-example: 25
-	func() string { return "0" },                           // host_id, x-example: 26, the stand has no hosts
-	func() string { return strconv.Itoa(inventoryHostID) }, // inventory_host_id, x-example: 27
+	func() string { return strconv.Itoa(permID) },           // perm_id, x-example: 25
+	func() string { return "0" },                            // host_id, x-example: 26, the stand has no hosts
+	func() string { return strconv.Itoa(inventoryHostID) },  // inventory_host_id, x-example: 27
+	func() string { return strconv.Itoa(inventoryGroupID) }, // inventory_group_id, x-example: 28
 }
 
 // alterRequestPath with the above slice of functions

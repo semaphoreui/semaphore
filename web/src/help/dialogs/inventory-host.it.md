@@ -18,6 +18,11 @@ quadre o due punti, ed è lungo al massimo 250 caratteri.
 
 Facoltativo. Una nota per le persone, mostrata nell'elenco degli host. Ansible non la riceve.
 
+## Groups {#inventoryHostForm-groups}
+
+Facoltativo. I gruppi di cui questo host fa parte. Un host può far parte di più gruppi. I gruppi si
+creano nella scheda Groups.
+
 ## Variabili {#inventoryHostForm-variables}
 
 Facoltativo. Le variabili di questo host, scritte come mapping YAML o JSON:

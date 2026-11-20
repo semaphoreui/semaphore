@@ -25,6 +25,10 @@ type InventoryHost struct {
 	Enabled     bool      `db:"enabled" json:"enabled"`
 	Variables   string    `db:"variables" json:"variables"`
 	Created     time.Time `db:"created" json:"created" backup:"-"`
+	Groups      []int     `db:"-" json:"groups" backup:"-"`
+
+	// VariableCount is the number of top-level variables, set when the host is saved
+	VariableCount int `db:"variable_count" json:"variable_count" backup:"-"`
 }
 
 // ParseInventoryVariables parses YAML or JSON text into a mapping
@@ -62,6 +66,12 @@ func ParseInventoryVariables(text string) (map[string]any, error) {
 	}
 
 	return vars, nil
+}
+
+// CountInventoryVariables is the number of top-level variables in the text
+func CountInventoryVariables(text string) int {
+	vars, _ := ParseInventoryVariables(text)
+	return len(vars)
 }
 
 func usesAnchors(node *yaml.Node) bool {

@@ -14,6 +14,10 @@ Ansible 用来识别主机的名称；如果变量中没有设置 `ansible_host`
 
 可选。给人看的备注，显示在主机列表中。Ansible 不会收到它。
 
+## Groups {#inventoryHostForm-groups}
+
+可选。此主机所在的组。一台主机可以属于多个组。组在 Groups 标签页中创建。
+
 ## 变量 {#inventoryHostForm-variables}
 
 可选。此主机的变量，以 YAML 或 JSON 映射的形式书写：

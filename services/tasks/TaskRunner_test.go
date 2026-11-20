@@ -941,9 +941,9 @@ func TestPopulateDetails_ManagedInventory(t *testing.T) {
 	require.NoError(t, err)
 	inv, err := store.CreateInventory(db.Inventory{ProjectID: proj.ID, Name: "managed", Type: db.InventoryManaged})
 	require.NoError(t, err)
-	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: proj.ID, InventoryID: inv.ID, Name: "web-on", Enabled: true})
+	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: proj.ID, InventoryID: inv.ID, Name: "web-on", Enabled: true}, nil)
 	require.NoError(t, err)
-	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: proj.ID, InventoryID: inv.ID, Name: "web-off", Enabled: false})
+	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: proj.ID, InventoryID: inv.ID, Name: "web-off", Enabled: false}, nil)
 	require.NoError(t, err)
 	tpl, err := store.CreateTemplate(db.Template{
 		Name:         "Test",

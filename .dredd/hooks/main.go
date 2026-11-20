@@ -136,6 +136,21 @@ func main() {
 	})
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id}/enabled > Enables or disables a host of a managed inventory > 204 > application/json", capabilityWrapper("inventory_host"))
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id} > Removes a host of a managed inventory > 204 > application/json", capabilityWrapper("inventory_host"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/host_groups > Adds hosts of a managed inventory to groups and removes them from groups > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"inventory_group"})
+		t.Request.Body = "{\"hosts\":[" + strconv.Itoa(inventoryHostID) + "],\"add\":[" + strconv.Itoa(inventoryGroupID) + "]}"
+	})
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/groups > Get groups of a managed inventory > 200 > application/json", capabilityWrapper("inventory_group"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/groups > Add a group to a managed inventory > 201 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"inventory_host"})
+		t.Request.Body = "{\"name\":\"dredd_" + getUUID() + "\"}"
+	})
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/groups/{inventory_group_id} > Get a group of a managed inventory > 200 > application/json", capabilityWrapper("inventory_group"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/groups/{inventory_group_id} > Updates a group of a managed inventory > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"inventory_group"})
+		t.Request.Body = "{\"name\":\"dredd_" + getUUID() + "\"}"
+	})
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/groups/{inventory_group_id} > Removes a group of a managed inventory > 204 > application/json", capabilityWrapper("inventory_group"))
 
 	h.Before("variable-group > /api/project/{project_id}/environment > Add environment > 201 > application/json", capabilityWrapper("environment"))
 	h.Before("variable-group > /api/project/{project_id}/environment/{environment_id} > Get environment > 200 > application/json", capabilityWrapper("environment"))

@@ -1,4 +1,5 @@
 alter table `project__inventory` add `variables` {{if .Mysql}}longtext{{else}}text{{end}} null;
+alter table `project__inventory` add `variable_count` int not null default 0;
 
 create table `project__inventory_host`
 (
@@ -9,6 +10,7 @@ create table `project__inventory_host`
     `description`  {{if .Mysql}}longtext not null{{else}}text not null default ''{{end}},
     `enabled`      bool not null default true,
     `variables`    {{if .Mysql}}longtext not null{{else}}text not null default ''{{end}},
+    `variable_count` int not null default 0,
     `created`      datetime not null,
 
     unique (`inventory_id`, `name`),

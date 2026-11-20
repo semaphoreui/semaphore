@@ -24,8 +24,9 @@ func TestInventoryHosts_CRUD(t *testing.T) {
 
 	created, err := store.CreateInventoryHost(db.InventoryHost{
 		ProjectID: project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true,
-	})
+	}, nil)
 	require.NoError(t, err)
+	assert.Equal(t, []int{}, created.Groups)
 	got, err := store.GetInventoryHost(project.ID, inventory.ID, created.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "web1", got.Name)
@@ -35,7 +36,8 @@ func TestInventoryHosts_CRUD(t *testing.T) {
 	got.Description = "second"
 	got.Enabled = false
 	got.Variables = "ansible_port: 2222"
-	require.NoError(t, store.UpdateInventoryHost(got))
+	_, _, err = store.UpdateInventoryHost(got, nil, nil)
+	require.NoError(t, err)
 	updated, err := store.GetInventoryHost(project.ID, inventory.ID, created.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "web2", updated.Name)
@@ -66,7 +68,7 @@ func TestInventoryHosts_NameIsUniqueWithinTheInventory(t *testing.T) {
 	first := createTestManagedInventory(t, store, project.ID, "first")
 	second := createTestManagedInventory(t, store, project.ID, "second")
 	newHost := func(inventoryID int, name string) (db.InventoryHost, error) {
-		return store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventoryID, Name: name, Enabled: true})
+		return store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventoryID, Name: name, Enabled: true}, nil)
 	}
 
 	_, err = newHost(first.ID, "web1")
@@ -83,7 +85,7 @@ func TestInventoryHosts_NameIsUniqueWithinTheInventory(t *testing.T) {
 	web2, err := newHost(first.ID, "web2")
 	require.NoError(t, err)
 	web2.Name = "web1"
-	err = store.UpdateInventoryHost(web2)
+	_, _, err = store.UpdateInventoryHost(web2, nil, nil)
 	require.ErrorAs(t, err, &validationErr)
 }
 
@@ -93,7 +95,7 @@ func TestInventoryHosts_ListPagesAndSearch(t *testing.T) {
 	require.NoError(t, err)
 	inventory := createTestManagedInventory(t, store, project.ID, "managed")
 	for _, name := range []string{"web1", "db1", "cache1", "app1", "mq1"} {
-		_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: name, Enabled: true})
+		_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: name, Enabled: true}, nil)
 		require.NoError(t, err)
 	}
 
@@ -119,7 +121,7 @@ func TestInventoryHosts_AreScopedToTheInventory(t *testing.T) {
 	require.NoError(t, err)
 	inventory := createTestManagedInventory(t, store, project.ID, "managed")
 	otherInventory := createTestManagedInventory(t, store, project.ID, "other")
-	host, err := store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true})
+	host, err := store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true}, nil)
 	require.NoError(t, err)
 
 	_, err = store.GetInventoryHost(project.ID, otherInventory.ID, host.ID)
@@ -136,7 +138,7 @@ func TestInventoryHosts_UpdateMissingIsNotFound(t *testing.T) {
 	require.NoError(t, err)
 	inventory := createTestManagedInventory(t, store, project.ID, "managed")
 	otherInventory := createTestManagedInventory(t, store, project.ID, "other")
-	host, err := store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true})
+	host, err := store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true}, nil)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -148,7 +150,8 @@ func TestInventoryHosts_UpdateMissingIsNotFound(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.ErrorIs(t, store.UpdateInventoryHost(tt.host), db.ErrNotFound)
+			_, _, err := store.UpdateInventoryHost(tt.host, nil, nil)
+			assert.ErrorIs(t, err, db.ErrNotFound)
 		})
 	}
 }
@@ -158,9 +161,9 @@ func TestGetEnabledInventoryHosts(t *testing.T) {
 	project, err := store.CreateProject(db.Project{Name: "test project"})
 	require.NoError(t, err)
 	inventory := createTestManagedInventory(t, store, project.ID, "managed")
-	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "on", Enabled: true})
+	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "on", Enabled: true}, nil)
 	require.NoError(t, err)
-	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "off", Enabled: false})
+	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "off", Enabled: false}, nil)
 	require.NoError(t, err)
 
 	hosts, err := store.GetEnabledInventoryHosts(project.ID, inventory.ID)
@@ -175,7 +178,7 @@ func TestDeleteInventory_DeletesItsHosts(t *testing.T) {
 	project, err := store.CreateProject(db.Project{Name: "test project"})
 	require.NoError(t, err)
 	inventory := createTestManagedInventory(t, store, project.ID, "managed")
-	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true})
+	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true}, nil)
 	require.NoError(t, err)
 
 	require.NoError(t, store.DeleteInventory(project.ID, inventory.ID))
@@ -207,4 +210,70 @@ func TestInventory_VariablesRoundTrip(t *testing.T) {
 	got, err = store.GetInventory(project.ID, inventory.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "b: 2", got.VariablesText())
+}
+
+func TestInventoryHosts_StoreTheVariableCount(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "test project"})
+	require.NoError(t, err)
+	inventory, err := store.CreateInventory(db.Inventory{ProjectID: project.ID, Name: "managed", Type: db.InventoryManaged})
+	require.NoError(t, err)
+
+	host, err := store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "web1", Variables: "a: 1\nb: 2"}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 2, host.VariableCount)
+	hosts, _, err := store.GetInventoryHosts(project.ID, inventory.ID, db.InventoryHostListParams{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	assert.Equal(t, 2, hosts[0].VariableCount)
+
+	host.Variables = "a: 1"
+	_, _, err = store.UpdateInventoryHost(host, nil, nil)
+	require.NoError(t, err)
+	got, err := store.GetInventoryHost(project.ID, inventory.ID, host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.VariableCount)
+
+	host.Variables = ""
+	_, _, err = store.UpdateInventoryHost(host, nil, nil)
+	require.NoError(t, err)
+	got, err = store.GetInventoryHost(project.ID, inventory.ID, host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, got.VariableCount)
+
+	other, err := store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "web2", VariableCount: 99}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 0, other.VariableCount)
+	got, err = store.GetInventoryHost(project.ID, inventory.ID, other.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, got.VariableCount)
+}
+
+func TestInventory_StoresTheVariableCount(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "test project"})
+	require.NoError(t, err)
+
+	inventory, err := store.CreateInventory(db.Inventory{ProjectID: project.ID, Name: "managed", Type: db.InventoryManaged, Variables: new("a: 1\nb: 2")})
+	require.NoError(t, err)
+	assert.Equal(t, 2, inventory.VariableCount)
+	inventories, err := store.GetInventories(project.ID, db.RetrieveQueryParams{}, nil)
+	require.NoError(t, err)
+	require.Len(t, inventories, 1)
+	assert.Equal(t, 2, inventories[0].VariableCount)
+
+	require.NoError(t, store.SetInventoryVariables(project.ID, inventory.ID, "a: 1"))
+	got, err := store.GetInventory(project.ID, inventory.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.VariableCount)
+
+	got.Name = "renamed"
+	require.NoError(t, store.UpdateInventory(got))
+	got, err = store.GetInventory(project.ID, inventory.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.VariableCount)
+
+	static, err := store.CreateInventory(db.Inventory{ProjectID: project.ID, Name: "static", Type: db.InventoryStatic, Inventory: "localhost"})
+	require.NoError(t, err)
+	assert.Equal(t, 0, static.VariableCount)
 }

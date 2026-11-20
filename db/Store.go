@@ -306,9 +306,12 @@ type InventoryManager interface {
 
 // InventoryHostListParams selects a page of the hosts of a managed inventory
 type InventoryHostListParams struct {
-	Search string
-	Offset int
-	Count  int // 0 means no limit
+	Search    string
+	Offset    int
+	Count     int // 0 means no limit
+	GroupID   int // hosts of the group and of its descendants
+	Ungrouped bool
+	IDs       []int // only these hosts, nil means any
 }
 
 // InventoryHostManager handles hosts of managed inventories
@@ -316,12 +319,25 @@ type InventoryHostManager interface {
 	GetInventoryHosts(projectID, inventoryID int, params InventoryHostListParams) (hosts []InventoryHost, total int, err error)
 	GetInventoryHost(projectID, inventoryID, hostID int) (InventoryHost, error)
 	GetEnabledInventoryHosts(projectID, inventoryID int) ([]InventoryHost, error)
-	CreateInventoryHost(host InventoryHost) (InventoryHost, error)
-	// UpdateInventoryHost leaves the enabled flag as it is
-	UpdateInventoryHost(host InventoryHost) error
+	CreateInventoryHost(host InventoryHost, addGroups []int) (InventoryHost, error)
+	// UpdateInventoryHost leaves the enabled flag as it is and reports the groups whose link changed
+	UpdateInventoryHost(host InventoryHost, addGroups, removeGroups []int) (added, removed []int, err error)
 	// SetInventoryHostEnabled reports whether the flag was different before
 	SetInventoryHostEnabled(projectID, inventoryID, hostID int, enabled bool) (changed bool, err error)
 	DeleteInventoryHost(projectID, inventoryID, hostID int) error
+}
+
+// InventoryGroupManager handles groups of managed inventories, every change of links is applied whole or not at all, an unknown id to remove is ignored
+type InventoryGroupManager interface {
+	GetInventoryGroups(projectID, inventoryID int) ([]InventoryGroup, error)
+	GetInventoryGroup(projectID, inventoryID, groupID int) (InventoryGroup, error)
+	CreateInventoryGroup(group InventoryGroup, addChildren []int) (InventoryGroup, error)
+	// UpdateInventoryGroup reports the child groups whose link changed
+	UpdateInventoryGroup(group InventoryGroup, addChildren, removeChildren []int) (added, removed []int, err error)
+	DeleteInventoryGroup(projectID, inventoryID, groupID int) error
+	// ChangeInventoryHostGroups reports by group the hosts whose link changed
+	ChangeInventoryHostGroups(projectID, inventoryID int, hostIDs, add, remove []int) (added, removed map[int][]int, err error)
+	GetInventoryGroupHosts(projectID, inventoryID int) ([]InventoryGroupHost, error)
 }
 
 // RepositoryManager handles repository-related operations
@@ -671,6 +687,7 @@ type Store interface {
 	WorkflowRoleManager
 	InventoryManager
 	InventoryHostManager
+	InventoryGroupManager
 	RepositoryManager
 	HostConfigManager
 	EnvironmentManager

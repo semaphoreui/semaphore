@@ -229,3 +229,11 @@ func TestCatalogInventoryHostKinds(t *testing.T) {
 		assert.Equal(t, InventoryHostMetadata{}, entry.Metadata, kind)
 	}
 }
+
+func TestCatalogInventoryGroupKinds(t *testing.T) {
+	for _, kind := range []Kind{ResourceInventoryGroupCreate, ResourceInventoryGroupUpdate, ResourceInventoryGroupDelete, ResourceInventoryGroupHostAdd, ResourceInventoryGroupHostRemove, ResourceInventoryGroupChildAdd, ResourceInventoryGroupChildRemove} {
+		entry, ok := Lookup(kind)
+		require.True(t, ok, kind)
+		assert.Equal(t, InventoryGroupMetadata{}, entry.Metadata, kind)
+	}
+}

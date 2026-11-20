@@ -1031,8 +1031,11 @@ definitions:
         enum: [static, static-yaml, file, terraform-workspace, managed]
       variables:
         type: string
-        description: Group variables of a "managed" inventory, null for any other type.
+        description: Group variables of a "managed" inventory, null for any other type. Absent in the list of inventories.
         x-nullable: true
+      variable_count:
+        type: integer
+        description: Number of top-level variables, set by the server
 
   InventoryHost:
     type: object
@@ -1052,10 +1055,18 @@ definitions:
         type: boolean
       variables:
         type: string
-        description: Host variables as YAML or JSON mapping
+        description: Host variables as YAML or JSON mapping. Absent in the list of hosts.
+      variable_count:
+        type: integer
+        description: Number of top-level variables, set by the server
       created:
         type: string
         format: date-time
+      groups:
+        type: array
+        description: IDs of the groups the host is a direct member of
+        items:
+          type: integer
 
   InventoryHostRequest:
     type: object
@@ -1072,6 +1083,75 @@ definitions:
       variables:
         type: string
         description: Host variables as YAML or JSON mapping
+      add_groups:
+        type: array
+        description: IDs of groups of the inventory to add the host to. Together with remove_groups at most 100.
+        maxItems: 100
+        items:
+          type: integer
+      remove_groups:
+        type: array
+        description: IDs of groups to remove the host from. Ignored on create. Together with add_groups at most 100.
+        maxItems: 100
+        items:
+          type: integer
+
+  InventoryGroup:
+    type: object
+    properties:
+      id:
+        type: integer
+      inventory_id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+        example: webservers
+      description:
+        type: string
+      variables:
+        type: string
+        description: Group variables as YAML or JSON mapping. Absent in the list of groups.
+      variable_count:
+        type: integer
+        description: Number of top-level variables, set by the server
+      created:
+        type: string
+        format: date-time
+      children:
+        type: array
+        description: IDs of the direct child groups
+        items:
+          type: integer
+      host_count:
+        type: integer
+        description: Number of hosts of the group and of its child groups at any depth, each counted once
+
+  InventoryGroupRequest:
+    type: object
+    required: [name]
+    properties:
+      name:
+        type: string
+        example: webservers
+      description:
+        type: string
+      variables:
+        type: string
+        description: Group variables as YAML or JSON mapping
+      add_children:
+        type: array
+        description: IDs of groups of the inventory to add as direct child groups
+        maxItems: 1000
+        items:
+          type: integer
+      remove_children:
+        type: array
+        description: IDs of direct child groups to remove. Ignored on create.
+        maxItems: 1000
+        items:
+          type: integer
 
   Integration:
     type: object
@@ -2419,6 +2499,13 @@ parameters:
     type: integer
     required: true
     x-example: 27
+  inventory_group_id:
+    name: inventory_group_id
+    description: group ID of a managed inventory
+    in: path
+    type: integer
+    required: true
+    x-example: 28
   perm_id:
     name: perm_id
     description: role grant ID
@@ -4113,9 +4200,21 @@ paths:
           required: false
           type: integer
           description: Page size, 50 by default (also for 0), 1000 at most
+        - name: group
+          in: query
+          required: false
+          type: integer
+          description: Only hosts of this group and of its descendants
+        - name: ungrouped
+          in: query
+          required: false
+          type: boolean
+          description: Only hosts without a group, can not be used together with group
       responses:
         400:
           description: Invalid query parameter or the inventory is not managed
+        404:
+          description: The group is not in the inventory
         200:
           description: Page of hosts, X-Total-Count header holds the total
           schema:
@@ -4134,7 +4233,9 @@ paths:
             $ref: "#/definitions/InventoryHostRequest"
       responses:
         400:
-          description: Invalid host or the inventory is not managed
+          description: >-
+            Invalid host, too many groups, a group to add that is not in this inventory, or the
+            inventory is not managed
         201:
           description: host created
           schema:
@@ -4168,7 +4269,9 @@ paths:
             $ref: "#/definitions/InventoryHostRequest"
       responses:
         400:
-          description: Invalid host or the inventory is not managed
+          description: >-
+            Invalid host, too many groups, an ID both added and removed, a group to add that is not
+            in this inventory, or the inventory is not managed
         204:
           description: host updated
     delete:
@@ -4206,6 +4309,133 @@ paths:
           description: No enabled value or the inventory is not managed
         204:
           description: host enabled or disabled
+
+  /project/{project_id}/inventory/{inventory_id}/host_groups:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    put:
+      tags:
+        - inventory
+      summary: Adds hosts of a managed inventory to groups and removes them from groups
+      parameters:
+        - name: changes
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [hosts]
+            properties:
+              hosts:
+                type: array
+                description: IDs of hosts of the inventory
+                minItems: 1
+                maxItems: 1000
+                items:
+                  type: integer
+              add:
+                type: array
+                description: IDs of groups to add the hosts to. Together with remove at most 100.
+                maxItems: 100
+                items:
+                  type: integer
+              remove:
+                type: array
+                description: IDs of groups to remove the hosts from. Together with add at most 100.
+                maxItems: 100
+                items:
+                  type: integer
+      responses:
+        400:
+          description: >-
+            No hosts, nothing to add or remove, too many hosts or groups, an ID both added and removed,
+            a host or a group to add that is not in this inventory, or the inventory is not managed
+        404:
+          description: The inventory does not exist
+        204:
+          description: groups of the hosts changed or were already as asked
+
+  /project/{project_id}/inventory/{inventory_id}/groups:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    get:
+      tags:
+        - inventory
+      summary: Get groups of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        200:
+          description: All groups of the inventory
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/InventoryGroup"
+    post:
+      tags:
+        - inventory
+      summary: Add a group to a managed inventory
+      parameters:
+        - name: InventoryGroup
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/InventoryGroupRequest"
+      responses:
+        400:
+          description: Invalid group or the inventory is not managed
+        201:
+          description: group created
+          schema:
+            $ref: "#/definitions/InventoryGroup"
+
+  /project/{project_id}/inventory/{inventory_id}/groups/{inventory_group_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+      - $ref: "#/parameters/inventory_group_id"
+    get:
+      tags:
+        - inventory
+      summary: Get a group of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        404:
+          description: The group is not in the inventory
+        200:
+          description: group object
+          schema:
+            $ref: "#/definitions/InventoryGroup"
+    put:
+      tags:
+        - inventory
+      summary: Updates a group of a managed inventory
+      parameters:
+        - name: InventoryGroup
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/InventoryGroupRequest"
+      responses:
+        400:
+          description: Invalid group, a cycle of groups, or the inventory is not managed
+        404:
+          description: The group is not in the inventory
+        204:
+          description: group updated
+    delete:
+      tags:
+        - inventory
+      summary: Removes a group of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        404:
+          description: The group is not in the inventory
+        204:
+          description: group removed
 
   # project environment
   /project/{project_id}/environment:

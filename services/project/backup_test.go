@@ -361,6 +361,80 @@ func TestRestore_InventoryFromBackupBeforeHosts(t *testing.T) {
 	assert.Equal(t, 0, total)
 }
 
+func TestRestore_InventoryFromBackupBeforeGroups(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "u", Name: "U", Email: "u@example.com", Admin: true}})
+	require.NoError(t, err)
+	backup := &BackupFormat{}
+	require.NoError(t, backup.Unmarshal(`{
+  "meta": {"name": "Old Project"},
+  "inventories": [{"name": "old", "type": "managed", "hosts": [{"name": "web1", "enabled": true}]}]
+}`))
+
+	require.NoError(t, backup.Verify())
+	restored, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+	require.NoError(t, err)
+	invs, err := store.GetInventories(restored.ID, db.RetrieveQueryParams{}, []db.InventoryType{})
+	require.NoError(t, err)
+	require.Len(t, invs, 1)
+	hosts, _, err := store.GetInventoryHosts(restored.ID, invs[0].ID, db.InventoryHostListParams{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	assert.Empty(t, hosts[0].Groups)
+	groups, err := store.GetInventoryGroups(restored.ID, invs[0].ID)
+	require.NoError(t, err)
+	assert.Empty(t, groups)
+}
+
+func TestBackup_SkipsAChildGroupWithoutAName(t *testing.T) {
+	b := BackupDB{
+		inventories: []db.Inventory{{ID: 1, Name: "inv", Type: db.InventoryManaged}},
+		inventoryGroups: map[int][]db.InventoryGroup{1: {
+			{ID: 1, Name: "web", Children: []int{2, 3}},
+			{ID: 2, Name: "edge"},
+		}},
+	}
+
+	backup, err := b.format()
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"edge"}, backup.Inventories[0].Groups[0].Children)
+}
+
+func TestVerify_RejectsBrokenInventoryGroups(t *testing.T) {
+	tests := []struct {
+		name    string
+		invType db.InventoryType
+		hosts   []BackupInventoryHost
+		groups  []BackupInventoryGroup
+		wantErr string
+	}{
+		{"not managed", db.InventoryStatic, nil, []BackupInventoryGroup{{Name: "web"}}, `inventory "inv" is not managed but has groups`},
+		{"duplicated", db.InventoryManaged, nil, []BackupInventoryGroup{{Name: "web"}, {Name: "web"}}, `group "web" of inventory "inv" is duplicated`},
+		{"invalid", db.InventoryManaged, nil, []BackupInventoryGroup{{Name: "all"}}, `group "all" of inventory "inv" at groups[0]`},
+		{"unknown host", db.InventoryManaged, nil, []BackupInventoryGroup{{Name: "web", Hosts: []string{"db1"}}}, `group "web" of inventory "inv" names unknown host "db1"`},
+		{"unknown child", db.InventoryManaged, nil, []BackupInventoryGroup{{Name: "web", Children: []string{"edge"}}}, `group "web" of inventory "inv" names unknown child group "edge"`},
+		{"host listed twice", db.InventoryManaged, []BackupInventoryHost{{Name: "web1"}}, []BackupInventoryGroup{{Name: "web", Hosts: []string{"web1", "web1"}}}, `group "web" of inventory "inv" lists host "web1" twice`},
+		{"child listed twice", db.InventoryManaged, nil, []BackupInventoryGroup{{Name: "web", Children: []string{"edge", "edge"}}, {Name: "edge"}}, `group "web" of inventory "inv" lists child group "edge" twice`},
+		{"cycle", db.InventoryManaged, nil, []BackupInventoryGroup{{Name: "web", Children: []string{"edge"}}, {Name: "edge", Children: []string{"web"}}}, `group "web" of inventory "inv" is its own ancestor`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backup := &BackupFormat{
+				Meta: BackupMeta{Project: db.Project{Name: "p"}},
+				Inventories: []BackupInventory{{
+					Inventory: db.Inventory{Name: "inv", Type: tt.invType},
+					Hosts:     tt.hosts,
+					Groups:    tt.groups,
+				}},
+			}
+
+			assert.ErrorContains(t, backup.Verify(), tt.wantErr)
+		})
+	}
+}
+
 // TestBackup_Workflow moved to pro_impl/db/sql/backup_workflow_test.go because
 // workflow persistence is a Pro feature requiring the real workflow store
 // (the open-source build only has the no-op stub).
