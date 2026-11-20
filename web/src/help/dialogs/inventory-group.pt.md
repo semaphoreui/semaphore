@@ -14,7 +14,9 @@ O nome pelo qual o Ansible conhece o grupo, por exemplo em `hosts: web` de um pl
 obrigatório. Um nome é único no seu inventário e distingue maiúsculas de minúsculas: `web` e `Web`
 são dois grupos. Não pode conter espaços, vírgulas, parênteses retos nem dois pontos, tem no máximo
 250 caracteres e não pode ser `all` nem `ungrouped`. O Ansible avisa sobre nomes com caracteres que
-não sejam letras, algarismos e sublinhados, como `web-eu`, mas o nome funciona na mesma.
+não sejam letras, algarismos e sublinhados, como `web-eu`, mas o nome funciona na mesma. Os
+caracteres `*`, `?`, `!`, `&`, `~` e `@` também não são permitidos, porque o Ansible os lê como um
+padrão.
 
 ## Descrição {#inventoryGroupForm-description}
 

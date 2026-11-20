@@ -14,7 +14,8 @@ Název, pod kterým Ansible skupinu zná, například v `hosts: web` playbooku. 
 v rámci inventáře jedinečný a záleží na velikosti písmen: `web` a `Web` jsou dvě skupiny. Nesmí
 obsahovat mezery, čárky, hranaté závorky ani dvojtečky, má nejvýše 250 znaků a nesmí být `all` ani
 `ungrouped`. Ansible varuje před názvy se znaky jinými než písmena, číslice a podtržítka, například
-`web-eu`, takový název ale přesto funguje.
+`web-eu`, takový název ale přesto funguje. Zakázané jsou také znaky `*`, `?`, `!`, `&`, `~` a `@`,
+protože je Ansible čte jako vzor.
 
 ## Popis {#inventoryGroupForm-description}
 

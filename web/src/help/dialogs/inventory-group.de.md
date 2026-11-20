@@ -15,7 +15,8 @@ ist erforderlich. Ein Name ist innerhalb seines Inventorys eindeutig, Groß- und
 zählt: `web` und `Web` sind zwei Gruppen. Er darf keine Leerzeichen, Kommas, eckigen Klammern oder
 Doppelpunkte enthalten, ist höchstens 250 Zeichen lang und darf nicht `all` oder `ungrouped` sein.
 Ansible warnt bei Namen mit anderen Zeichen als Buchstaben, Ziffern und Unterstrichen, etwa
-`web-eu`, der Name funktioniert aber trotzdem.
+`web-eu`, der Name funktioniert aber trotzdem. Die Zeichen `*`, `?`, `!`, `&`, `~` und `@` sind
+ebenfalls nicht erlaubt, weil Ansible sie als Muster liest.
 
 ## Beschreibung {#inventoryGroupForm-description}
 

@@ -8,7 +8,7 @@ form: src/components/InventoryGroupForm.vue
 
 ## 名称 {#inventoryGroupForm-name}
 
-Ansible 用来识别组的名称，例如 Playbook 中的 `hosts: web`。此字段为必填项。名称在库存内唯一，并且区分大小写：`web` 和 `Web` 是两个组。名称不能包含空格、逗号、方括号或冒号，长度最多为 250 个字符，并且不能是 `all` 或 `ungrouped`。对于包含字母、数字和下划线以外字符的名称（例如 `web-eu`），Ansible 会发出警告，但名称仍然可用。
+Ansible 用来识别组的名称，例如 Playbook 中的 `hosts: web`。此字段为必填项。名称在库存内唯一，并且区分大小写：`web` 和 `Web` 是两个组。名称不能包含空格、逗号、方括号或冒号，长度最多为 250 个字符，并且不能是 `all` 或 `ungrouped`。对于包含字母、数字和下划线以外字符的名称（例如 `web-eu`），Ansible 会发出警告，但名称仍然可用。也不能使用 `*`, `?`, `!`, `&`, `~` 和 `@`，因为 Ansible 会把它们当作模式。
 
 ## 描述 {#inventoryGroupForm-description}
 

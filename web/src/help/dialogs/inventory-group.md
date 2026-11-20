@@ -14,7 +14,8 @@ The name Ansible knows the group by, for example in `hosts: web` of a playbook. 
 required. A name is unique in its inventory, and letter case matters: `web` and `Web` are two
 groups. It can not contain spaces, commas, square brackets or colons, is at most 250 characters
 long, and can not be `all` or `ungrouped`. Ansible warns about names with characters other than
-letters, digits and underscores, such as `web-eu`, but the name still works.
+letters, digits and underscores, such as `web-eu`, but the name still works. The characters `*`,
+`?`, `!`, `&`, `~` and `@` are not allowed either, because Ansible reads them as a pattern.
 
 ## Description {#inventoryGroupForm-description}
 
