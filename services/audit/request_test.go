@@ -54,7 +54,7 @@ func TestClientIP(t *testing.T) {
 			if tt.realIP != "" {
 				header.Set("X-Real-IP", tt.realIP)
 			}
-			assert.Equal(t, tt.want, clientIP(tt.remoteAddr, header, trusted))
+			assert.Equal(t, tt.want, ClientIP(tt.remoteAddr, header, trusted))
 		})
 	}
 }
@@ -65,11 +65,11 @@ func TestClientIP_RepeatedRealIP(t *testing.T) {
 	header.Add("X-Real-IP", "198.51.100.66")
 	header.Add("X-Real-IP", "203.0.113.9")
 
-	assert.Equal(t, "10.0.0.1", clientIP("10.0.0.1:80", header, trusted))
+	assert.Equal(t, "10.0.0.1", ClientIP("10.0.0.1:80", header, trusted))
 }
 
 func TestClientIP_NoTrustedProxies(t *testing.T) {
-	assert.Equal(t, "10.0.0.1", clientIP("10.0.0.1:80", http.Header{"X-Forwarded-For": {"1.2.3.4"}}, nil))
+	assert.Equal(t, "10.0.0.1", ClientIP("10.0.0.1:80", http.Header{"X-Forwarded-For": {"1.2.3.4"}}, nil))
 }
 
 func TestRequestMiddleware_UserAgent(t *testing.T) {
