@@ -203,6 +203,14 @@
                   <td><b>Dry run</b> <code>--check</code></td>
                   <td data-testid="taskDetails-dryRun">{{ item.params.dry_run ? 'Yes' : 'No' }}</td>
                 </tr>
+                <!-- An agent task's own prompt; without one it ran with the template's. -->
+                <tr v-if="item.params.prompt">
+                  <td><b>{{ $t('agentPrompt') }}</b></td>
+                  <td
+                    class="TaskDetails__prompt"
+                    data-testid="taskDetails-prompt"
+                  >{{ item.params.prompt }}</td>
+                </tr>
                 <tr>
                   <td><b>Environment</b></td>
                   <td data-testid="taskDetails-environment">
@@ -309,6 +317,12 @@
       text-decoration-line: underline;
     }
   }
+}
+
+// A prompt wraps and keeps its line breaks, against the nowrap App.vue gives every table cell.
+.TaskDetails__table .v-table__wrapper .TaskDetails__prompt {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 // The hint icon in the icon colour of Vuetify 2 (`.theme--light.v-icon`: .54, white in the dark

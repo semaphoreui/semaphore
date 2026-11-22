@@ -331,6 +331,28 @@ valeur par défaut est `backend.tf`. Le nom doit se terminer par `.tf` et ne con
 lettres, des chiffres, `_`, `-` et `.`. Choisissez un nom qu'aucun fichier de votre code ne porte :
 Semaphore écrase ce fichier et le supprime après la tâche.
 
+## Prompt {#templateForm-agentPrompt}
+
+Affiché pour les modèles Claude Code et Codex.
+
+Ce qui est demandé à l'agent. Il est obligatoire, sauf si **Prompt** sous les invites de l'agent est
+coché.
+
+Le prompt peut nommer des valeurs des groupes de variables du modèle et des variables d'enquête de
+la tâche. Elles sont insérées dans le prompt au lancement d'une tâche :
+
+- `${{ vars.extra.NAME }}` : une variable supplémentaire ou une variable d'enquête.
+- `${{ vars.env.NAME }}` : une variable d'environnement.
+- `${{ secrets.extra.NAME }}` : une variable supplémentaire secrète ou une variable d'enquête secrète.
+- `${{ secrets.env.NAME }}` : une variable d'environnement secrète.
+
+Une tâche échoue lorsque le prompt nomme une variable qui n'existe pas. Un modèle contenant une
+expression mal formée, comme `${{ vars.NAME }}`, n'est pas enregistré. Tout autre `${{ … }}`, comme
+`${{ github.sha }}`, reste tel qu'il est écrit, et `$${{ … }}` donne un `${{ … }}` littéral.
+
+La valeur d'un secret inséré dans le prompt est masquée dans le journal de la tâche, mais elle est
+envoyée au modèle d'IA avec le prompt.
+
 ## Limite {#templateForm-allowOverrideLimit}
 
 Sous **Invites Ansible**. Permet à l'utilisateur de définir les hôtes sur lesquels exécuter le
@@ -370,6 +392,18 @@ Approve** au lancement d'une tâche, pour appliquer le plan sans confirmation. L
 de la tâche propose cette option dans tous les cas, mais sans cette case Semaphore l'ignore : la
 tâche attend une confirmation après le plan, sauf si **Approbation automatique** du modèle est
 cochée.
+
+## Prompt {#templateForm-allowOverridePrompt}
+
+Sous les invites de Claude Code et Codex. Permet à l'utilisateur de donner un autre prompt au
+lancement d'une tâche, à la place du prompt du modèle. La boîte de dialogue de la tâche est
+préremplie avec le prompt du modèle.
+
+Un prompt donné par une tâche est transmis à l'agent tel qu'il est écrit : ses expressions
+`${{ … }}` ne sont pas remplacées par des valeurs.
+
+Lorsque la case est cochée, le prompt du modèle peut rester vide ; une tâche sans prompt propre est
+alors refusée. Sans la case, une tâche qui apporte son propre prompt est refusée.
 
 ## Galaxy install options {#templateForm-galaxy}
 

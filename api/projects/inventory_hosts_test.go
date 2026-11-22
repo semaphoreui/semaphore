@@ -202,7 +202,7 @@ func TestInventory_ManagedVariablesAreValidated(t *testing.T) {
 			r, _ := f.request(http.MethodPost, string(body), nil, nil)
 			w := httptest.NewRecorder()
 
-			AddInventory(w, r)
+			f.inventoryController().AddInventory(w, r)
 
 			assert.Equal(t, tt.code, w.Code, w.Body.String())
 			inventories, err := f.store.GetInventories(f.project.ID, db.RetrieveQueryParams{}, nil)
@@ -232,7 +232,7 @@ func TestInventory_ManagedTypeCanNotChange(t *testing.T) {
 			r, _ := f.request(http.MethodPut, string(body), map[string]any{"inventory": inventory}, nil)
 			w := httptest.NewRecorder()
 
-			UpdateInventory(w, r)
+			f.inventoryController().UpdateInventory(w, r)
 
 			assert.Equal(t, http.StatusBadRequest, w.Code)
 			assert.Contains(t, w.Body.String(), "the type of a managed inventory can not be changed")
@@ -341,7 +341,7 @@ func TestUpdateInventory_KeepsVariables(t *testing.T) {
 	r, _ := f.request(http.MethodPut, string(body), map[string]any{"inventory": inventory}, nil)
 	w := httptest.NewRecorder()
 
-	UpdateInventory(w, r)
+	f.inventoryController().UpdateInventory(w, r)
 
 	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
 	got, err := f.store.GetInventory(f.project.ID, inventory.ID)

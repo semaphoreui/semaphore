@@ -324,6 +324,29 @@ domyślna to `backend.tf`. Nazwa musi kończyć się na `.tf` i zawierać tylko 
 i `.`. Wybierz nazwę, której nie ma żaden plik twojego kodu: Semaphore nadpisuje ten plik i usuwa
 go po zadaniu.
 
+## Prompt {#templateForm-agentPrompt}
+
+Wyświetlane dla szablonów Claude Code i Codex.
+
+To, o co prosi się agenta. Jest wymagany, chyba że zaznaczono **Prompt** w sekcji podpowiedzi
+agenta.
+
+Prompt może odwoływać się do wartości z grup zmiennych szablonu i do zmiennych ankiety zadania. Są
+one wstawiane do promptu przy uruchamianiu zadania:
+
+- `${{ vars.extra.NAME }}`: dodatkowa zmienna lub zmienna ankiety.
+- `${{ vars.env.NAME }}`: zmienna środowiskowa.
+- `${{ secrets.extra.NAME }}`: tajna dodatkowa zmienna lub tajna zmienna ankiety.
+- `${{ secrets.env.NAME }}`: tajna zmienna środowiskowa.
+
+Zadanie kończy się błędem, gdy prompt odwołuje się do zmiennej, która nie istnieje. Szablon z
+niepoprawnym wyrażeniem, takim jak `${{ vars.NAME }}`, nie zostanie zapisany. Każde inne `${{ … }}`,
+na przykład `${{ github.sha }}`, pozostaje tak, jak zostało zapisane, a `$${{ … }}` daje dosłowne
+`${{ … }}`.
+
+Wartość sekretu wstawiona do promptu jest maskowana w logu zadania, ale jest wysyłana do modelu
+razem z promptem.
+
 ## Limit {#templateForm-allowOverrideLimit}
 
 W sekcji **Ansible podpowiedzi**. Pozwala użytkownikowi ustawić hosty przy uruchamianiu zadania
@@ -362,6 +385,17 @@ W sekcji podpowiedzi Terraform, OpenTofu i Terragrunt. Pozwala użytkownikowi za
 **Auto Approve** przy uruchamianiu zadania, aby zastosować plan bez potwierdzenia. Okno dialogowe
 zadania oferuje tę opcję w każdym przypadku, ale bez tego pola Semaphore ją ignoruje: zadanie czeka
 na potwierdzenie po planie, chyba że zaznaczono **Automatyczne zatwierdzenie** szablonu.
+
+## Prompt {#templateForm-allowOverridePrompt}
+
+W sekcji podpowiedzi Claude Code i Codex. Pozwala użytkownikowi podać inny prompt przy uruchamianiu
+zadania zamiast promptu szablonu. Okno dialogowe zadania jest wstępnie wypełnione promptem szablonu.
+
+Prompt podany przez zadanie trafia do agenta tak, jak został zapisany: jego wyrażenia `${{ … }}` nie
+są zastępowane wartościami.
+
+Gdy pole jest zaznaczone, prompt szablonu może pozostać pusty; zadanie bez własnego promptu jest
+wtedy odrzucane. Bez tego pola odrzucane jest zadanie, które przynosi własny prompt.
 
 ## Galaxy install options {#templateForm-galaxy}
 

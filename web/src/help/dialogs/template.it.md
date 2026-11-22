@@ -324,6 +324,28 @@ predefinito è `backend.tf`. Il nome deve terminare con `.tf` e contenere solo l
 `-` e `.`. Scegli un nome che nessun file del tuo codice ha: Semaphore sovrascrive quel file e lo
 elimina dopo il compito.
 
+## Prompt {#templateForm-agentPrompt}
+
+Visibile per i modelli Claude Code e Codex.
+
+Ciò che viene chiesto all'agente. È obbligatorio, a meno che **Prompt** sotto le richieste
+dell'agente non sia selezionato.
+
+Il prompt può richiamare i valori dei gruppi di variabili del modello e le variabili del sondaggio
+del compito. Vengono inseriti nel prompt all'avvio di un compito:
+
+- `${{ vars.extra.NAME }}`: una variabile extra o una variabile del sondaggio.
+- `${{ vars.env.NAME }}`: una variabile di ambiente.
+- `${{ secrets.extra.NAME }}`: una variabile extra segreta o una variabile del sondaggio segreta.
+- `${{ secrets.env.NAME }}`: una variabile di ambiente segreta.
+
+Un compito fallisce quando il prompt richiama una variabile che non esiste. Un modello con
+un'espressione non valida, come `${{ vars.NAME }}`, non viene salvato. Qualsiasi altro `${{ … }}`,
+come `${{ github.sha }}`, resta così com'è scritto, e `$${{ … }}` produce un `${{ … }}` letterale.
+
+Il valore di un segreto inserito nel prompt viene mascherato nel log del compito, ma viene inviato
+al modello di IA insieme al prompt.
+
 ## Limite {#templateForm-allowOverrideLimit}
 
 Sotto **Richieste Ansible**. Consente all'utente di impostare gli host su cui eseguire all'avvio di
@@ -363,6 +385,19 @@ Approve** all'avvio di un compito, per applicare il piano senza conferma. La fin
 compito offre quell'opzione in ogni caso, ma senza questa casella Semaphore la ignora: il compito
 attende una conferma dopo il piano, a meno che **Approvazione automatica** del modello non sia
 selezionata.
+
+## Prompt {#templateForm-allowOverridePrompt}
+
+Sotto le richieste di Claude Code e Codex. Consente all'utente di indicare un altro prompt all'avvio
+di un compito, al posto del prompt del modello. La finestra di dialogo del compito parte dal prompt
+del modello.
+
+Un prompt indicato da un compito arriva all'agente così com'è scritto: le sue espressioni `${{ … }}`
+non vengono sostituite con i valori.
+
+Con la casella selezionata il prompt del modello può restare vuoto; un compito senza un proprio
+prompt viene allora rifiutato. Senza la casella viene rifiutato un compito che porta un proprio
+prompt.
 
 ## Galaxy install options {#templateForm-galaxy}
 

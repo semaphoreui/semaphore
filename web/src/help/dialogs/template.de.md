@@ -338,6 +338,29 @@ Der Standardwert ist `backend.tf`. Der Name muss auf `.tf` enden und darf nur Bu
 `_`, `-` und `.` enthalten. Wählen Sie einen Namen, den keine Datei Ihres Codes hat: Semaphore
 überschreibt diese Datei und löscht sie nach dem Task.
 
+## Prompt {#templateForm-agentPrompt}
+
+Wird bei Claude-Code- und Codex-Vorlagen angezeigt.
+
+Was der Agent tun soll. Er ist erforderlich, es sei denn, **Prompt** unter den Prompts des Agenten
+ist angehakt.
+
+Der Prompt kann Werte der Variablengruppen der Vorlage und Survey-Variablen des Tasks nennen. Sie
+werden beim Start eines Tasks in den Prompt eingesetzt:
+
+- `${{ vars.extra.NAME }}`: eine zusätzliche Variable oder eine Survey-Variable.
+- `${{ vars.env.NAME }}`: eine Umgebungsvariable.
+- `${{ secrets.extra.NAME }}`: eine geheime zusätzliche Variable oder eine geheime Survey-Variable.
+- `${{ secrets.env.NAME }}`: eine geheime Umgebungsvariable.
+
+Ein Task schlägt fehl, wenn der Prompt eine Variable nennt, die es nicht gibt. Eine Vorlage mit
+einem fehlerhaften Ausdruck wie `${{ vars.NAME }}` wird nicht gespeichert. Jedes andere `${{ … }}`,
+etwa `${{ github.sha }}`, bleibt so, wie es geschrieben ist, und `$${{ … }}` ergibt ein wörtliches
+`${{ … }}`.
+
+Der Wert eines Geheimnisses, das in den Prompt eingesetzt wird, wird im Task-Log maskiert, aber
+zusammen mit dem Prompt an das Modell gesendet.
+
 ## Limit {#templateForm-allowOverrideLimit}
 
 Unter **Ansible-Prompts**. Lässt den Benutzer beim Start eines Tasks die Hosts festlegen, auf
@@ -376,6 +399,18 @@ Unter den Prompts von Terraform, OpenTofu und Terragrunt. Lässt den Benutzer be
 Tasks **Auto Approve** anhaken, um den Plan ohne Bestätigung anzuwenden. Der Task-Dialog bietet
 diese Option in jedem Fall an, aber ohne dieses Kästchen ignoriert Semaphore sie: Der Task wartet
 nach dem Plan auf eine Bestätigung, es sei denn, **Auto-Akzeptieren** der Vorlage ist angehakt.
+
+## Prompt {#templateForm-allowOverridePrompt}
+
+Unter den Prompts von Claude Code und Codex. Lässt den Benutzer beim Start eines Tasks einen anderen
+Prompt angeben statt des Prompts der Vorlage. Der Task-Dialog ist mit dem Prompt der Vorlage
+vorausgefüllt.
+
+Ein vom Task angegebener Prompt geht so an den Agenten, wie er geschrieben ist: Seine Ausdrücke
+`${{ … }}` werden nicht durch Werte ersetzt.
+
+Ist das Kästchen angehakt, darf der Prompt der Vorlage leer bleiben; ein Task ohne eigenen Prompt
+wird dann abgelehnt. Ohne das Kästchen wird ein Task abgelehnt, der einen eigenen Prompt mitbringt.
 
 ## Galaxy install options {#templateForm-galaxy}
 

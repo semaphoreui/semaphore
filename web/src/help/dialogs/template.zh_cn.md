@@ -259,6 +259,23 @@ terraform {
 Semaphore 写入后端设置的文件名，例如 `semaphore_backend.tf`。默认值为 `backend.tf`。名称必须以 `.tf`
 结尾，并且只能包含字母、数字、`_`、`-` 和 `.`。请选择一个您的代码中没有的文件名：Semaphore 会覆盖该文件，并在任务结束后删除它。
 
+## 提示词 {#templateForm-agentPrompt}
+
+对于 Claude Code 和 Codex 模板显示。
+
+要求智能体完成的内容。除非勾选了智能体提示下的**提示词**，否则为必填。
+
+提示词可以引用模板的变量组中的值以及任务的调查变量。它们会在启动任务时填入提示词：
+
+- `${{ vars.extra.NAME }}`：额外变量或调查变量。
+- `${{ vars.env.NAME }}`：环境变量。
+- `${{ secrets.extra.NAME }}`：机密额外变量或机密调查变量。
+- `${{ secrets.env.NAME }}`：机密环境变量。
+
+当提示词引用不存在的变量时，任务会失败。包含格式错误的表达式（例如 `${{ vars.NAME }}`）的模板不会被保存。其他任何 `${{ … }}`（例如 `${{ github.sha }}`）都会保持原样，而 `$${{ … }}` 会得到字面的 `${{ … }}`。
+
+填入提示词的机密值会在任务日志中被屏蔽，但会随提示词一起发送给模型。
+
 ## 限制 {#templateForm-allowOverrideLimit}
 
 位于 **Ansible 提示**下。允许用户在启动任务时设置要运行的主机，以替代模板的**限制**。
@@ -290,6 +307,14 @@ Semaphore 写入后端设置的文件名，例如 `semaphore_backend.tf`。默�
 位于 Terraform、OpenTofu 和 Terragrunt 的提示下。允许用户在启动任务时勾选 **Auto Approve**，以便在无需确认的情况下应用
 plan。任务对话框无论如何都会提供该选项，但没有勾选此框时 Semaphore 会忽略它：除非勾选了模板的**自动批准**，否则任务会在
 plan 之后等待确认。
+
+## 提示词 {#templateForm-allowOverridePrompt}
+
+位于 Claude Code 和 Codex 的提示下。允许用户在启动任务时提供另一个提示词，以替代模板的提示词。任务对话框初始显示模板的提示词。
+
+任务提供的提示词会原样传给智能体：其中的 `${{ … }}` 表达式不会被替换为值。
+
+勾选此框时，模板的提示词可以留空；此时没有自己提示词的任务会被拒绝。不勾选时，带有自己提示词的任务会被拒绝。
 
 ## Galaxy install options {#templateForm-galaxy}
 

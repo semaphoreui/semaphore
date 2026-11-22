@@ -104,3 +104,78 @@ describe('TaskLogView.vue websocket handling', () => {
     expect(wrapper.vm.item.status).to.equal('running');
   });
 });
+
+describe('TaskLogView.vue agent log', () => {
+  let http;
+  let wrapper;
+
+  const event = (output, time) => ({ time, output: JSON.stringify(output) });
+
+  afterEach(() => {
+    wrapper.unmount();
+    http.restore();
+  });
+
+  it('folds the events of the stored log into rows', async () => {
+    http = mockAxios();
+    http.respond((config) => (config.url.endsWith('/output') ? [
+      { time: 't1', output: 'Running claude with 1 MCP server(s)' },
+      event({
+        '@agent': 'tool', id: 'c1', name: 'Bash', input: { command: 'ls' },
+      }, 't2'),
+      event({ '@agent': 'result', id: 'c1', text: 'a.txt' }, 't3'),
+      event({ '@agent': 'text', text: 'One file.' }, 't4'),
+    ] : {}));
+    wrapper = mountView({ id: 42, status: 'success' });
+    await flush();
+
+    const rows = wrapper.vm.output;
+    expect(rows).to.have.lengthOf(3);
+    expect(rows[0]).to.include({ output: 'Running claude with 1 MCP server(s)' });
+    expect(rows[0].agent).to.equal(undefined);
+    expect(rows[1].agent).to.include({ kind: 'tool', state: 'done', result: 'a.txt' });
+    expect(rows[2].agent).to.include({ kind: 'text', text: 'One file.' });
+  });
+
+  it('adds the result that comes later to the row of its call, and opens a call', async () => {
+    http = mockAxios();
+    http.respond((config) => (config.url.endsWith('/output') ? [
+      event({ '@agent': 'tool', id: 'c1', name: 'Bash' }, 't1'),
+    ] : {}));
+    wrapper = mountView({ id: 42, status: 'running' });
+    await flush();
+
+    expect(wrapper.vm.output[0].agent.state).to.equal('running');
+
+    wrapper.vm.addRecords([{ id: 'x', ...event({ '@agent': 'result', id: 'c1', text: 'ok' }, 't2') }]);
+    expect(wrapper.vm.output).to.have.lengthOf(1);
+    expect(wrapper.vm.output[0].agent).to.include({ state: 'done', result: 'ok', open: false });
+
+    wrapper.vm.toggleRecord(0);
+    expect(wrapper.vm.output[0].agent.open).to.equal(true);
+    wrapper.vm.toggleRecord(0);
+    expect(wrapper.vm.output[0].agent.open).to.equal(false);
+    wrapper.vm.toggleRecord(5);
+  });
+
+  it('starts the folding anew for another task', async () => {
+    http = mockAxios();
+    http.respond((config) => {
+      if (config.url.endsWith('/tasks/42/output')) {
+        return [event({ '@agent': 'tool', id: 'c1', name: 'Bash' }, 't1')];
+      }
+      if (config.url.endsWith('/tasks/43/output')) {
+        return [event({ '@agent': 'result', id: 'c1', text: 'of another task' }, 't1')];
+      }
+      return {};
+    });
+    wrapper = mountView({ id: 42, status: 'success' });
+    await flush();
+
+    await wrapper.setProps({ item: { id: 43, status: 'success' } });
+    await flush();
+
+    expect(wrapper.vm.output).to.have.lengthOf(1);
+    expect(wrapper.vm.output[0].agent).to.include({ kind: 'result', text: 'of another task' });
+  });
+});

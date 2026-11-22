@@ -19,6 +19,10 @@ const LABELS = {
   'project-settings': {
     'newProject-name': { key: 'projectName' },
   },
+  template: {
+    'templateForm-agentPrompt': { key: 'agentPrompt' },
+    'templateForm-allowOverridePrompt': { key: 'agentPrompt' },
+  },
 };
 
 // The title of a document is the title of its dialog in that language, where the dialog builds

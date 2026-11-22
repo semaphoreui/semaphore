@@ -328,6 +328,28 @@ valor predeterminado es `backend.tf`. El nombre debe terminar en `.tf` y contene
 dígitos, `_`, `-` y `.`. Elija un nombre que no tenga ningún archivo de su código: Semaphore
 sobrescribe ese archivo y lo elimina después de la tarea.
 
+## Prompt {#templateForm-agentPrompt}
+
+Se muestra para las plantillas de Claude Code y Codex.
+
+Lo que se le pide al agente. Es obligatorio, salvo que **Prompt** en las solicitudes del agente esté
+marcado.
+
+El prompt puede nombrar valores de los Grupos de Variables de la plantilla y variables de encuesta
+de la tarea. Se insertan en el prompt cuando se inicia una tarea:
+
+- `${{ vars.extra.NAME }}`: una variable adicional o una variable de encuesta.
+- `${{ vars.env.NAME }}`: una variable de entorno.
+- `${{ secrets.extra.NAME }}`: una variable adicional secreta o una variable de encuesta secreta.
+- `${{ secrets.env.NAME }}`: una variable de entorno secreta.
+
+Una tarea falla cuando el prompt nombra una variable que no existe. Una plantilla con una expresión
+mal formada, como `${{ vars.NAME }}`, no se guarda. Cualquier otro `${{ … }}`, como
+`${{ github.sha }}`, se queda tal como está escrito, y `$${{ … }}` da un `${{ … }}` literal.
+
+El valor de un secreto insertado en el prompt se enmascara en el registro de la tarea, pero se envía
+al modelo junto con el prompt.
+
 ## Límite {#templateForm-allowOverrideLimit}
 
 En **Solicitudes de Ansible**. Permite al usuario definir los hosts sobre los que ejecutar cuando se
@@ -366,6 +388,18 @@ En las solicitudes de Terraform, OpenTofu y Terragrunt. Permite al usuario marca
 cuando se inicia una tarea, para aplicar el plan sin confirmación. El diálogo de la tarea ofrece
 esa opción en cualquier caso, pero sin esta casilla Semaphore la ignora: la tarea espera una
 confirmación después del plan, salvo que **Aprobación automática** de la plantilla esté marcado.
+
+## Prompt {#templateForm-allowOverridePrompt}
+
+En las solicitudes de Claude Code y Codex. Permite al usuario dar otro prompt cuando se inicia una
+tarea, en lugar del prompt de la plantilla. El diálogo de la tarea empieza con el prompt de la
+plantilla.
+
+Un prompt dado por una tarea llega al agente tal como está escrito: sus expresiones `${{ … }}` no se
+sustituyen por valores.
+
+Con la casilla marcada, el prompt de la plantilla puede quedar vacío; una tarea sin prompt propio se
+rechaza entonces. Sin la casilla, se rechaza una tarea que trae su propio prompt.
 
 ## Galaxy install options {#templateForm-galaxy}
 

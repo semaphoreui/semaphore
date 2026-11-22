@@ -2,6 +2,7 @@ package runners
 
 import (
 	"errors"
+	"fmt"
 	"maps"
 	"net/http"
 	"strings"
@@ -266,7 +267,11 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 	// aborting the poll for the whole runner, and none of its keys
 	// leak into the response of a job that is not dispatched.
 	taskKeys := make(map[int]db.AccessKey)
-	if kerr := c.collectTaskAccessKeys(tsk, runner.ID, taskKeys); kerr != nil {
+	kerr := c.collectTaskAccessKeys(tsk, runner.ID, taskKeys)
+	if kerr == nil {
+		jobData.AccessKeys, kerr = c.collectMcpTokenKeys(tsk, runner.ID)
+	}
+	if kerr != nil {
 		tsk.Log("Failed to decrypt access keys of the task. More details in the server logs.")
 		tsk.FailDispatch()
 		c.taskPool.FinalizeRemoteTask(tsk, runner)
@@ -376,6 +381,47 @@ func (c *RunnerController) collectTaskAccessKeys(tsk *tasks.TaskRunner, runnerID
 	keys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
 
 	return nil
+}
+
+// collectMcpTokenKeys returns the tokens of the task's MCP servers as access
+// keys, by key ID. They go into the task's own job and never into the keys the
+// jobs of a response share: a token is a snapshot taken with the server's URL
+// when the task was loaded (InventoryService), and editing a server changes
+// its URL and token but keeps the key ID. In a shared map the token of one
+// task would replace the token of another and be sent to that task's URL.
+//
+// The tokens are already decrypted; they never travel in the serialized
+// inventory (McpServer.Token is json:"-").
+func (c *RunnerController) collectMcpTokenKeys(tsk *tasks.TaskRunner, runnerID int) (map[int]db.AccessKey, error) {
+	var keys map[int]db.AccessKey
+
+	for _, server := range tsk.Inventory.McpServers {
+		if server.TokenKeyID == nil {
+			continue
+		}
+		if server.Token == "" {
+			log.WithFields(log.Fields{
+				"runner_id":     runnerID,
+				"task_id":       tsk.Task.ID,
+				"inventory_id":  tsk.Inventory.ID,
+				"access_key_id": *server.TokenKeyID,
+				"context":       "runner",
+			}).Error("MCP server token is not decrypted")
+			return nil, fmt.Errorf("the token of mcp server %s is not decrypted", server.Name)
+		}
+		if keys == nil {
+			keys = make(map[int]db.AccessKey)
+		}
+		keys[*server.TokenKeyID] = db.AccessKey{
+			ID:        *server.TokenKeyID,
+			ProjectID: &tsk.Inventory.ProjectID,
+			Type:      db.AccessKeyString,
+			Owner:     db.AccessKeyMcp,
+			String:    server.Token,
+		}
+	}
+
+	return keys, nil
 }
 
 func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) {
