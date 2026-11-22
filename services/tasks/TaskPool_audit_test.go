@@ -237,3 +237,34 @@ func TestRecordComplete_EndReasonSetByTheTimeoutTimer(t *testing.T) {
 	assert.Contains(t, []string{"", audit.EndReasonTimeout}, got.Event.Metadata.(audit.TaskCompleteMetadata).EndReason)
 	assert.Equal(t, audit.EndReasonTimeout, tr.endReason.Load())
 }
+
+// Deleting the task history of a build template keeps its newest task, so the numbering goes on.
+func TestAddTaskFrom_BuildVersionContinuesAfterHistoryIsDeleted(t *testing.T) {
+	fixture := newTaskRunnerRunFixture(t)
+	fixture.pool.register = make(chan *TaskRunner, 4)
+	build := fixture.template
+	build.ID = 0
+	build.Name = "build"
+	build.Type = db.TemplateBuild
+	build.StartVersion = new("1.0.0")
+	build, err := fixture.store.CreateTemplate(build)
+	require.NoError(t, err)
+
+	addBuild := func() db.Task {
+		t.Helper()
+		task, err := fixture.pool.AddTaskFrom(context.Background(), audit.TriggerAPI, db.Task{TemplateID: build.ID}, nil, "", build.ProjectID, false)
+		require.NoError(t, err)
+		task.Status = task_logger.TaskSuccessStatus
+		require.NoError(t, fixture.store.UpdateTask(task))
+		return task
+	}
+	for _, want := range []string{"1.0.0", "1.0.1", "1.0.2"} {
+		assert.Equal(t, want, *addBuild().Version)
+	}
+
+	deleted, err := fixture.store.DeleteTemplateTasks(build.ProjectID, build.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, deleted)
+
+	assert.Equal(t, "1.0.3", *addBuild().Version)
+}

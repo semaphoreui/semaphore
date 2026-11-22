@@ -2,6 +2,7 @@ package task_logger
 
 import (
 	"os/exec"
+	"slices"
 	"time"
 )
 
@@ -32,9 +33,9 @@ func UnfinishedTaskStatuses() []TaskStatus {
 	}
 }
 
-func (s TaskStatus) IsValid() bool {
-	switch s {
-	case TaskWaitingStatus,
+func allTaskStatuses() []TaskStatus {
+	return []TaskStatus{
+		TaskWaitingStatus,
 		TaskStartingStatus,
 		TaskWaitingConfirmation,
 		TaskConfirmed,
@@ -43,10 +44,23 @@ func (s TaskStatus) IsValid() bool {
 		TaskStoppingStatus,
 		TaskStoppedStatus,
 		TaskSuccessStatus,
-		TaskFailStatus:
-		return true
+		TaskFailStatus,
 	}
-	return false
+}
+
+// FinishedTaskStatuses lists the statuses a task never leaves, the ones IsFinished accepts.
+func FinishedTaskStatuses() []TaskStatus {
+	var res []TaskStatus
+	for _, s := range allTaskStatuses() {
+		if s.IsFinished() {
+			res = append(res, s)
+		}
+	}
+	return res
+}
+
+func (s TaskStatus) IsValid() bool {
+	return slices.Contains(allTaskStatuses(), s)
 }
 
 func (s TaskStatus) IsNotifiable() bool {
