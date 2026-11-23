@@ -331,6 +331,244 @@ func TestJobPool_CheckNewJobsKillsJobStoppedByServer(t *testing.T) {
 	})
 }
 
+// gateExecutor blocks in Run until release is closed. Kill can finish the job
+// on the poll goroutine, which is the cancellation race in checkNewJobs.
+type gateExecutor struct {
+	started      chan struct{}
+	release      chan struct{}
+	runErr       error
+	onKill       func()
+	statusAtKill task_logger.TaskStatus
+	killed       atomic.Bool
+}
+
+func (e *gateExecutor) Run(string, *string, string) error {
+	if e.started != nil {
+		close(e.started)
+	}
+	if e.release != nil {
+		<-e.release
+	}
+	return e.runErr
+}
+
+func (e *gateExecutor) Kill() {
+	e.killed.Store(true)
+	if e.onKill != nil {
+		e.onKill()
+	}
+}
+
+func (e *gateExecutor) IsKilled() bool { return e.killed.Load() }
+
+func (e *gateExecutor) Async() bool { return false }
+
+func (e *gateExecutor) Prepare(string, *string, string) error { return nil }
+
+func (e *gateExecutor) Cleanup() {}
+
+func (e *gateExecutor) SetLogger(task_logger.Logger) {}
+
+func (e *gateExecutor) SetStatus(task_logger.TaskStatus) {}
+
+// The job reaches a finished result inside Kill, before the poll applies the
+// server status. That result must stay, and the stop must already be recorded
+// when Kill runs, or the job is left on stopping with nothing to move it on.
+func TestJobPool_CheckNewJobsKeepsFinishedResultDuringCancel(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		require.NoError(t, json.NewEncoder(w).Encode(RunnerState{
+			CurrentJobs: []JobState{{ID: 1, Status: task_logger.TaskStoppingStatus}},
+		}))
+	}))
+	t.Cleanup(server.Close)
+
+	prev := util.Config
+	t.Cleanup(func() { util.Config = prev })
+	util.Config = &util.ConfigType{
+		WebHost: server.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "test-token",
+			Connection: &util.RunnerConnectionConfig{},
+		},
+	}
+
+	p := &JobPool{
+		runningJobs: map[int]*runningJob{},
+		queue:       []*job{},
+		startedAt:   time.Now(),
+		client:      newHTTPClient(),
+	}
+
+	ex := &gateExecutor{}
+	rj := &runningJob{job: ex, taskID: 1, status: task_logger.TaskRunningStatus}
+	ex.onKill = func() {
+		ex.statusAtKill = rj.getStatus()
+		rj.finish(task_logger.TaskSuccessStatus, nil)
+	}
+	p.addRunningJob(1, rj)
+
+	p.checkNewJobs()
+
+	assert.True(t, ex.IsKilled())
+	assert.Equal(t, task_logger.TaskStoppingStatus, ex.statusAtKill)
+	assert.Equal(t, task_logger.TaskSuccessStatus, rj.getStatus())
+}
+
+// A server stop must not publish a terminal status or drop the job while Run
+// is still unwinding. The job leaves the pool only after Run returns.
+func TestJobPool_StoppingJobStaysUntilRunReturns(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		runErr error
+	}{
+		{name: "run succeeds", runErr: nil},
+		{name: "run returns error", runErr: errors.New("killed")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			release := make(chan struct{})
+			var releaseOnce sync.Once
+			releaseRun := func() { releaseOnce.Do(func() { close(release) }) }
+			t.Cleanup(releaseRun)
+
+			var mu sync.Mutex
+			var reports []RunnerProgress
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method {
+				case http.MethodGet:
+					require.NoError(t, json.NewEncoder(w).Encode(RunnerState{
+						CurrentJobs: []JobState{{ID: 1, Status: task_logger.TaskStoppedStatus}},
+					}))
+				case http.MethodPut:
+					var body RunnerProgress
+					require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+					mu.Lock()
+					reports = append(reports, body)
+					mu.Unlock()
+					_, _ = w.Write([]byte(`{"terminated_jobs":[1]}`))
+				default:
+					w.WriteHeader(http.StatusMethodNotAllowed)
+				}
+			}))
+			t.Cleanup(server.Close)
+
+			prev := util.Config
+			t.Cleanup(func() { util.Config = prev })
+			util.Config = &util.ConfigType{
+				WebHost: server.URL,
+				Runner: &util.RunnerConfig{
+					Token:      "test-token",
+					Connection: &util.RunnerConnectionConfig{},
+				},
+			}
+
+			p := &JobPool{
+				runningJobs: map[int]*runningJob{},
+				queue:       []*job{},
+				startedAt:   time.Now(),
+				client:      newHTTPClient(),
+			}
+
+			ex := &gateExecutor{
+				started: make(chan struct{}),
+				release: release,
+				runErr:  tc.runErr,
+			}
+			rj := &runningJob{job: ex, taskID: 1, status: task_logger.TaskStartingStatus}
+			p.addRunningJob(1, rj)
+
+			done := make(chan struct{})
+			go func() {
+				p.runJob(&job{job: ex, taskID: 1}, rj)
+				close(done)
+			}()
+
+			select {
+			case <-ex.started:
+			case <-time.After(5 * time.Second):
+				require.Fail(t, "run did not start")
+			}
+
+			p.checkNewJobs()
+
+			assert.True(t, ex.IsKilled())
+			assert.Equal(t, task_logger.TaskStoppingStatus, rj.getStatus())
+			require.True(t, p.sendProgress())
+
+			mu.Lock()
+			require.Len(t, reports, 1)
+			require.Len(t, reports[0].Jobs, 1)
+			assert.Equal(t, task_logger.TaskStoppingStatus, reports[0].Jobs[0].Status)
+			assert.False(t, reports[0].Jobs[0].Status.IsFinished())
+			mu.Unlock()
+			assert.NotNil(t, p.getRunningJob(1))
+
+			releaseRun()
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				require.Fail(t, "run did not return")
+			}
+
+			assert.Equal(t, task_logger.TaskStoppedStatus, rj.getStatus())
+			require.True(t, p.sendProgress())
+
+			mu.Lock()
+			require.Len(t, reports, 2)
+			require.Len(t, reports[1].Jobs, 1)
+			assert.Equal(t, task_logger.TaskStoppedStatus, reports[1].Jobs[0].Status)
+			mu.Unlock()
+			assert.Nil(t, p.getRunningJob(1))
+		})
+	}
+}
+
+// Run's error branch must not replace a stop with failure. stopping and
+// stopped both mean the job was cancelled.
+func TestJobPool_RunErrorPreservesStopStatus(t *testing.T) {
+	for _, status := range []task_logger.TaskStatus{
+		task_logger.TaskStoppingStatus,
+		task_logger.TaskStoppedStatus,
+	} {
+		t.Run(string(status), func(t *testing.T) {
+			release := make(chan struct{})
+			var releaseOnce sync.Once
+			releaseRun := func() { releaseOnce.Do(func() { close(release) }) }
+			t.Cleanup(releaseRun)
+
+			ex := &gateExecutor{
+				started: make(chan struct{}),
+				release: release,
+				runErr:  errors.New("killed"),
+			}
+			rj := &runningJob{job: ex, taskID: 1, status: task_logger.TaskStartingStatus}
+			p := &JobPool{}
+
+			done := make(chan struct{})
+			go func() {
+				p.runJob(&job{job: ex, taskID: 1}, rj)
+				close(done)
+			}()
+
+			select {
+			case <-ex.started:
+			case <-time.After(5 * time.Second):
+				require.Fail(t, "run did not start")
+			}
+
+			rj.SetStatus(status)
+			releaseRun()
+
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				require.Fail(t, "run did not return")
+			}
+
+			assert.Equal(t, task_logger.TaskStoppedStatus, rj.getStatus())
+		})
+	}
+}
+
 // TestJobPool_ConcurrentAccess models the three actors that touch the pool
 // concurrently in production: the Run loop (dequeue + addRunningJob), the poll
 // goroutine (snapshot + delete + enqueue) and status readers. Run with -race to
