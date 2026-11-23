@@ -797,7 +797,7 @@ func TestInventoryHostEvents_NeverCarryVariableValues(t *testing.T) {
 func TestInventoryHostEvents_EnabledIsRecordedOnce(t *testing.T) {
 	f := newResourceFixture(t)
 	inventory := newManagedInventory(t, f, "prod")
-	host, err := f.store.CreateInventoryHost(db.InventoryHost{InventoryID: inventory.ID, ProjectID: f.project.ID, Name: "web1", Enabled: true, Variables: "a: 1"})
+	host, err := f.store.CreateInventoryHost(db.InventoryHost{InventoryID: inventory.ID, ProjectID: f.project.ID, Name: "web1", Enabled: true, Variables: "a: 1"}, nil)
 	require.NoError(t, err)
 
 	w, rec := hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, host.ID, SetInventoryHostEnabled)
@@ -837,4 +837,148 @@ func TestInventoryEvents_ManagedVariablesOnCreate(t *testing.T) {
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	created := only(t, rec, audit.ResourceInventoryCreate)
 	assert.Equal(t, audit.InventoryMetadata{Type: "managed", AddedVariables: []string{"a", "b"}}, created.Event.Metadata)
+}
+
+func TestInventoryGroupEvents_CreateNamesVariablesOnly(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	body := `{"name":"web","description":"note-text","variables":"ansible_user: d3ploy\nansible_password: s3cret"}`
+	r, rec := f.request(http.MethodPost, body, map[string]any{"inventory": inventory}, map[string]string{"inventory_id": strconv.Itoa(inventory.ID)})
+	w := httptest.NewRecorder()
+
+	AddInventoryGroup(w, r)
+
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	created := only(t, rec, audit.ResourceInventoryGroupCreate)
+	groupID := mustAtoi(t, created.Event.Target.ID)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetInventoryGroup, groupID, "web"), created.Event.Target)
+	assert.Equal(t, audit.InventoryGroupMetadata{InventoryID: inventory.ID, InventoryName: "prod", AddedVariables: []string{"ansible_password", "ansible_user"}}, created.Event.Metadata)
+
+	events, err := f.store.GetEvents(f.project.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, db.EventInventoryGroup, *events[0].ObjectType)
+	assert.Equal(t, "Group web created in inventory prod", *events[0].Description)
+
+	raw, err := json.Marshal(rec.All())
+	require.NoError(t, err)
+	for _, secret := range []string{"d3ploy", "s3cret", "note-text"} {
+		assert.NotContains(t, string(raw), secret)
+	}
+}
+
+func TestInventoryGroupEvents_HostGroupsRecordsOnePerGroup(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	web := newInventoryGroup(t, f, inventory, "web")
+	eu := newInventoryGroup(t, f, inventory, "eu")
+	web1 := newInventoryHost(t, f, inventory, "web1")
+	web2 := newInventoryHost(t, f, inventory, "web2")
+	body, err := json.Marshal(map[string]any{"hosts": []int{web1.ID, web2.ID}, "add": []int{web.ID, eu.ID}})
+	require.NoError(t, err)
+
+	w, rec := hostCall(f, inventory, http.MethodPut, string(body), 0, SetInventoryHostGroups)
+
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	kinds, err := rec.Kinds()
+	require.NoError(t, err)
+	assert.Equal(t, []audit.Kind{audit.ResourceInventoryGroupHostAdd, audit.ResourceInventoryGroupHostAdd}, kinds)
+	targets := []*audit.Target{}
+	for _, recorded := range rec.All() {
+		targets = append(targets, recorded.Event.Target)
+		assert.Equal(t, audit.InventoryGroupMetadata{InventoryID: inventory.ID, InventoryName: "prod", Hosts: []string{"web1", "web2"}}, recorded.Event.Metadata)
+	}
+	assert.ElementsMatch(t, []*audit.Target{
+		audit.ResourceTarget(audit.TargetInventoryGroup, web.ID, "web"),
+		audit.ResourceTarget(audit.TargetInventoryGroup, eu.ID, "eu"),
+	}, targets)
+
+	w, rec = hostCall(f, inventory, http.MethodPut, string(body), 0, SetInventoryHostGroups)
+
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	assert.Empty(t, rec.All())
+}
+
+func TestInventoryHostEvents_DeleteNamesItsGroups(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	web := newInventoryGroup(t, f, inventory, "web")
+	eu := newInventoryGroup(t, f, inventory, "eu")
+	host := newInventoryHost(t, f, inventory, "web1", web.ID, eu.ID)
+
+	w, rec := hostCall(f, inventory, http.MethodDelete, "", host.ID, RemoveInventoryHost)
+
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	deleted := only(t, rec, audit.ResourceInventoryHostDelete)
+	assert.Equal(t, audit.InventoryHostMetadata{InventoryID: inventory.ID, InventoryName: "prod", Groups: []string{"web", "eu"}}, deleted.Event.Metadata)
+}
+
+func TestInventoryGroupEvents_DeleteNamesParentsAndChildren(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	child := newInventoryGroup(t, f, inventory, "eu-1")
+	eu := newInventoryGroup(t, f, inventory, "eu", child.ID)
+	newInventoryGroup(t, f, inventory, "web", eu.ID)
+	newInventoryHost(t, f, inventory, "web1", eu.ID)
+
+	vars := map[string]string{"inventory_id": strconv.Itoa(inventory.ID), "inventory_group_id": strconv.Itoa(eu.ID)}
+	r, rec := f.request(http.MethodDelete, "", map[string]any{"inventory": inventory}, vars)
+	w := httptest.NewRecorder()
+
+	RemoveInventoryGroup(w, r)
+
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	deleted := only(t, rec, audit.ResourceInventoryGroupDelete)
+	assert.Equal(t, audit.InventoryGroupMetadata{
+		InventoryID: inventory.ID, InventoryName: "prod", Children: []string{"eu-1"}, Parents: []string{"web"}, HostCount: 1,
+	}, deleted.Event.Metadata)
+}
+
+func TestInventoryGroupEvents_MissingNamesAreIDs(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	r, rec := f.request(http.MethodPut, "", nil, nil)
+
+	recordInventoryGroupLinks(r, inventory, audit.ResourceInventoryGroupHostAdd, "had hosts added", map[int]string{}, map[int][]int{5: {7, 8}}, map[int]string{8: "web8"})
+
+	added := only(t, rec, audit.ResourceInventoryGroupHostAdd)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetInventoryGroup, 5, "#5"), added.Event.Target)
+	assert.Equal(t, audit.InventoryGroupMetadata{InventoryID: inventory.ID, InventoryName: "prod", Hosts: []string{"#7", "web8"}}, added.Event.Metadata)
+}
+
+func TestInventoryGroupEvents_LongHostListIsSplit(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	web := newInventoryGroup(t, f, inventory, "web")
+	ids, names := []int{}, []string{}
+	for i := range 100 {
+		host := newInventoryHost(t, f, inventory, fmt.Sprintf("%03d", i)+strings.Repeat("h", 197))
+		ids = append(ids, host.ID)
+		names = append(names, host.Name)
+	}
+	body, err := json.Marshal(map[string]any{"hosts": ids, "add": []int{web.ID}})
+	require.NoError(t, err)
+
+	w, rec := hostCall(f, inventory, http.MethodPut, string(body), 0, SetInventoryHostGroups)
+
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	all := rec.All()
+	require.Greater(t, len(all), 1)
+	recorded := []string{}
+	for i, part := range all {
+		assert.Equal(t, audit.ResourceInventoryGroupHostAdd, part.Event.Kind)
+		raw, err := json.Marshal(part.Event.Metadata)
+		require.NoError(t, err)
+		assert.LessOrEqual(t, len(raw), audit.MaxMetadataBytes)
+		metadata := part.Event.Metadata.(audit.InventoryGroupMetadata)
+		assert.Equal(t, inventory.ID, metadata.InventoryID)
+		assert.Equal(t, i+1, metadata.Part)
+		assert.Equal(t, len(all), metadata.Parts)
+		recorded = append(recorded, metadata.Hosts...)
+	}
+	assert.ElementsMatch(t, names, recorded)
+
+	events, err := f.store.GetEvents(f.project.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	assert.Len(t, events, 1)
 }

@@ -33,6 +33,21 @@
         data-testid="inventoryHostForm-description"
       ></v-text-field>
 
+      <v-autocomplete
+        v-model="item.groups"
+        :items="groups"
+        item-title="name"
+        item-value="id"
+        :label="$t('inventory_tab_groups')"
+        multiple
+        chips
+        closable-chips
+        :disabled="formSaving"
+        variant="outlined"
+        density="compact"
+        data-testid="inventoryHostForm-groups"
+      ></v-autocomplete>
+
       <div class="mt-2 mb-1 text-medium-emphasis">{{ $t('inventory_hosts_variables') }}</div>
       <CodeMirror
         class="InventoryHostForm__editor"
@@ -67,10 +82,14 @@ export default {
 
   props: {
     inventoryId: [Number, String],
+    groups: Array,
   },
+
+  emits: ['error'],
 
   data() {
     return {
+      initialGroups: [],
       cmExtensions: markRaw([
         ...codeEditorExtensions({ language: 'yaml', tab: 'spaces' }),
         CODEMIRROR5_LOOK,
@@ -79,9 +98,27 @@ export default {
   },
 
   methods: {
+    afterLoadData() {
+      this.item.groups = this.item.groups || [];
+      this.initialGroups = [...this.item.groups];
+    },
+
+    save() {
+      // Save pressed before the item loaded
+      if (this.item == null) {
+        this.$emit('error', {});
+        return null;
+      }
+      return ItemFormBase.methods.save.call(this, {
+        groups: undefined,
+        add_groups: this.item.groups.filter((id) => !this.initialGroups.includes(id)),
+        remove_groups: this.initialGroups.filter((id) => !this.item.groups.includes(id)),
+      });
+    },
+
     getNewItem() {
       return {
-        name: '', description: '', enabled: true, variables: '',
+        name: '', description: '', enabled: true, variables: '', groups: [],
       };
     },
 

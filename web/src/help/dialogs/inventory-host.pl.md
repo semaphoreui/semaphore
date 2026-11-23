@@ -18,6 +18,11 @@ kwadratowych ani dwukropków i ma najwyżej 250 znaków.
 
 Opcjonalne. Notatka dla ludzi, widoczna na liście hostów. Ansible jej nie otrzymuje.
 
+## Groups {#inventoryHostForm-groups}
+
+Opcjonalne. Grupy, do których należy ten host. Host może należeć do kilku grup. Grupy tworzy się na
+karcie Groups.
+
 ## Zmienne {#inventoryHostForm-variables}
 
 Opcjonalne. Zmienne tego hosta zapisane jako mapowanie YAML lub JSON:

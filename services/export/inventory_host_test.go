@@ -15,9 +15,9 @@ func TestExportKeepsInventoryHosts(t *testing.T) {
 	require.NoError(t, err)
 	inv, err := src.CreateInventory(db.Inventory{ProjectID: proj.ID, Name: "managed", Type: db.InventoryManaged, Variables: new("a: 1")})
 	require.NoError(t, err)
-	_, err = src.CreateInventoryHost(db.InventoryHost{ProjectID: proj.ID, InventoryID: inv.ID, Name: "web1", Enabled: true, Variables: "port: 80"})
+	_, err = src.CreateInventoryHost(db.InventoryHost{ProjectID: proj.ID, InventoryID: inv.ID, Name: "web1", Enabled: true, Variables: "port: 80"}, nil)
 	require.NoError(t, err)
-	_, err = src.CreateInventoryHost(db.InventoryHost{ProjectID: proj.ID, InventoryID: inv.ID, Name: "web2", Description: "spare"})
+	_, err = src.CreateInventoryHost(db.InventoryHost{ProjectID: proj.ID, InventoryID: inv.ID, Name: "web2", Description: "spare"}, nil)
 	require.NoError(t, err)
 
 	dst := sql.InitConfigCreateTestStore()

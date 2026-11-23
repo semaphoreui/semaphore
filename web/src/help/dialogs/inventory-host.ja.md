@@ -14,6 +14,10 @@ Ansible がホストを識別する名前です。変数で `ansible_host` を�
 
 任意です。人のためのメモで、ホスト一覧に表示されます。Ansible には渡されません。
 
+## Groups {#inventoryHostForm-groups}
+
+任意です。このホストが属するグループです。ホストは複数のグループに属することができます。グループは Groups タブで作成します。
+
 ## 変数 {#inventoryHostForm-variables}
 
 任意です。このホストの変数を YAML または JSON のマッピングとして記述します。

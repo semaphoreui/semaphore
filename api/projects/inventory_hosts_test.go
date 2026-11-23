@@ -100,9 +100,9 @@ func TestInventoryHosts_CreateDefaultsToEnabled(t *testing.T) {
 func TestInventoryHosts_RejectDuplicateAndInvalid(t *testing.T) {
 	f := newResourceFixture(t)
 	inventory := newManagedInventory(t, f, "managed")
-	web1, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true})
+	web1, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true}, nil)
 	require.NoError(t, err)
-	web2, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web2", Enabled: true})
+	web2, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web2", Enabled: true}, nil)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -135,7 +135,7 @@ func TestInventoryHosts_OtherInventoryIs404(t *testing.T) {
 	f := newResourceFixture(t)
 	a := newManagedInventory(t, f, "a")
 	b := newManagedInventory(t, f, "b")
-	host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: a.ID, Name: "web1", Enabled: true})
+	host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: a.ID, Name: "web1", Enabled: true}, nil)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -247,7 +247,7 @@ func TestInventoryHosts_ListPageSize(t *testing.T) {
 	f := newResourceFixture(t)
 	inventory := newManagedInventory(t, f, "managed")
 	for i := 0; i < 60; i++ {
-		_, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web" + strconv.Itoa(i), Enabled: true})
+		_, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web" + strconv.Itoa(i), Enabled: true}, nil)
 		require.NoError(t, err)
 	}
 
@@ -355,7 +355,7 @@ func TestSetInventoryHostEnabled_NeedsTheValue(t *testing.T) {
 		t.Run(body, func(t *testing.T) {
 			f := newResourceFixture(t)
 			inventory := newManagedInventory(t, f, "managed")
-			host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true})
+			host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true}, nil)
 			require.NoError(t, err)
 
 			w, _ := hostCall(f, inventory, http.MethodPut, body, host.ID, SetInventoryHostEnabled)
@@ -371,7 +371,7 @@ func TestSetInventoryHostEnabled_NeedsTheValue(t *testing.T) {
 func TestGetInventoryHosts_LeavesVariablesOut(t *testing.T) {
 	f := newResourceFixture(t)
 	inventory := newManagedInventory(t, f, "managed")
-	host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1", Variables: "a: 1"})
+	host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1", Variables: "a: 1"}, nil)
 	require.NoError(t, err)
 
 	w, _ := hostCall(f, inventory, http.MethodGet, "", 0, GetInventoryHosts)
@@ -396,7 +396,7 @@ func TestGetInventoryHosts_LeavesVariablesOut(t *testing.T) {
 func TestUpdateInventoryHost_IgnoresVariableCountOfTheBody(t *testing.T) {
 	f := newResourceFixture(t)
 	inventory := newManagedInventory(t, f, "managed")
-	host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1"})
+	host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1"}, nil)
 	require.NoError(t, err)
 
 	w, _ := hostCall(f, inventory, http.MethodPut, `{"name":"web1","variables":"a: 1","variable_count":99}`, host.ID, UpdateInventoryHost)

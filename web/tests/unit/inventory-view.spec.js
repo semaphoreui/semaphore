@@ -1,9 +1,10 @@
 import './setup';
 import { expect } from 'chai';
 import { mount } from '@vue/test-utils';
+import axios from 'axios';
 import InventoryView from '@/views/project/InventoryView.vue';
 import EventBus from '@/event-bus';
-import mockAxios from './helpers/axiosMock';
+import mockAxios, { httpError } from './helpers/axiosMock';
 
 async function flush() {
   await new Promise((resolve) => { setTimeout(resolve, 0); });
@@ -49,10 +50,11 @@ describe('InventoryView.vue', () => {
     const chip = () => wrapper.find('[data-testid="inventoryView-variableCount"]');
 
     http.respond(() => ({ id: 3, type: 'managed', variable_count: 2 }));
+    const loaded = http.requests.length;
     EventBus.$emit('i-inventory-variables', { projectId: 7, inventoryId: 4 });
     await flush();
     expect(chip().text()).to.equal('1');
-    expect(http.requests).to.have.length(1);
+    expect(http.requests).to.have.length(loaded);
 
     EventBus.$emit('i-inventory-variables', { projectId: 7, inventoryId: 3 });
     await flush();
@@ -91,5 +93,99 @@ describe('InventoryView.vue', () => {
     await flush();
 
     expect(wrapper.find('[data-testid="inventoryView-variableCount"]').exists()).to.equal(false);
+  });
+
+  describe('the numbers of hosts and groups', () => {
+    let hostTotal;
+    let groupList;
+
+    beforeEach(() => {
+      hostTotal = '137';
+      groupList = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }];
+      http = mockAxios();
+      const adapter = axios.defaults.adapter;
+      axios.defaults.adapter = async (config) => {
+        const response = await adapter(config);
+        return config.url.endsWith('/hosts')
+          ? { ...response, headers: { 'x-total-count': hostTotal } }
+          : response;
+      };
+      http.respond((c) => {
+        if (c.url.endsWith('/hosts')) return [];
+        if (c.url.endsWith('/groups')) return groupList;
+        return { id: 3, type: 'managed', variable_count: 3 };
+      });
+    });
+
+    const text = (wrapper, id) => wrapper.find(`[data-testid="inventoryView-${id}"]`).text();
+
+    it('shows the numbers of hosts, groups and variables on the tabs', async () => {
+      const wrapper = mountView();
+      await flush();
+
+      const hostsRequest = http.requests.find((r) => r.url.endsWith('/hosts'));
+      expect(hostsRequest.params).to.deep.equal({ count: 1 });
+      expect(text(wrapper, 'hostCount')).to.equal('137');
+      expect(text(wrapper, 'groupCount')).to.equal('4');
+      expect(text(wrapper, 'variableCount')).to.equal('3');
+      expect(wrapper.find('[data-testid="inventoryView-tab-groups"]').exists()).to.equal(true);
+    });
+
+    it('counts again when a tab asks for it', async () => {
+      const wrapper = mountView();
+      await flush();
+
+      hostTotal = '0';
+      groupList = [{ id: 1 }];
+      EventBus.$emit('i-inventory-counts');
+      await flush();
+
+      expect(wrapper.find('[data-testid="inventoryView-hostCount"]').exists()).to.equal(false);
+      expect(text(wrapper, 'groupCount')).to.equal('1');
+
+      hostTotal = undefined;
+      EventBus.$emit('i-inventory-counts');
+      await flush();
+
+      expect(text(wrapper, 'hostCount')).to.equal('?');
+    });
+
+    it('shows a question mark for a number that could not be loaded', async () => {
+      http.respond((c) => {
+        if (c.url.endsWith('/hosts')) throw httpError(500, { error: 'boom' });
+        if (c.url.endsWith('/groups')) return groupList;
+        return { id: 3, type: 'managed', variables: '' };
+      });
+      const wrapper = mountView();
+      await flush();
+
+      expect(text(wrapper, 'hostCount')).to.equal('?');
+      expect(text(wrapper, 'groupCount')).to.equal('4');
+    });
+
+    it('keeps the later numbers when an earlier answer comes last', async () => {
+      const wrapper = mountView();
+      await flush();
+      const releases = [];
+      http.respond((c) => new Promise((resolve) => {
+        const data = c.url.endsWith('/groups') ? groupList : [];
+        releases.push(() => resolve(data));
+      }));
+
+      groupList = [{ id: 1 }, { id: 2 }];
+      EventBus.$emit('i-inventory-counts');
+      await flush();
+      groupList = [{ id: 1 }];
+      EventBus.$emit('i-inventory-counts');
+      await flush();
+      releases[2]();
+      releases[3]();
+      await flush();
+      releases[0]();
+      releases[1]();
+      await flush();
+
+      expect(text(wrapper, 'groupCount')).to.equal('1');
+    });
   });
 });

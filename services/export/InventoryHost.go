@@ -59,7 +59,7 @@ func (e *InventoryHostExporter) restoreValue(val EntityObject[db.InventoryHost],
 		return err
 	}
 
-	newObj, err := store.CreateInventoryHost(old)
+	newObj, err := store.CreateInventoryHost(old, nil)
 	if err != nil {
 		return err
 	}

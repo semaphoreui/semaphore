@@ -193,11 +193,16 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 	}
 
 	b.inventoryHosts = make(map[int][]db.InventoryHost)
+	b.inventoryGroups = make(map[int][]db.InventoryGroup)
 	for _, inv := range b.inventories {
 		if inv.Type != db.InventoryManaged {
 			continue
 		}
 		b.inventoryHosts[inv.ID], _, err = store.GetInventoryHosts(projectID, inv.ID, db.InventoryHostListParams{Count: 0})
+		if err != nil {
+			return
+		}
+		b.inventoryGroups[inv.ID], err = store.GetInventoryGroups(projectID, inv.ID)
 		if err != nil {
 			return
 		}
@@ -377,14 +382,34 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			BecomeKey, _ = findNameByID[db.AccessKey](*o.BecomeKeyID, b.keys)
 		}
 		var hosts []BackupInventoryHost
+		groupHosts := make(map[int][]string)
 		for _, h := range b.inventoryHosts[o.ID] {
 			hosts = append(hosts, BackupInventoryHost{Name: h.Name, Description: h.Description, Enabled: h.Enabled, Variables: h.Variables})
+			for _, g := range h.Groups {
+				groupHosts[g] = append(groupHosts[g], h.Name)
+			}
+		}
+		groupNames := make(map[int]string)
+		for _, g := range b.inventoryGroups[o.ID] {
+			groupNames[g.ID] = g.Name
+		}
+		var groups []BackupInventoryGroup
+		for _, g := range b.inventoryGroups[o.ID] {
+			var children []string
+			for _, c := range g.Children {
+				// A child created after the groups were read has no name here
+				if name, ok := groupNames[c]; ok {
+					children = append(children, name)
+				}
+			}
+			groups = append(groups, BackupInventoryGroup{Name: g.Name, Description: g.Description, Variables: g.Variables, Hosts: groupHosts[g.ID], Children: children})
 		}
 		inventories[i] = BackupInventory{
 			Inventory: o,
 			SSHKey:    SSHKey,
 			BecomeKey: BecomeKey,
 			Hosts:     hosts,
+			Groups:    groups,
 		}
 	}
 
