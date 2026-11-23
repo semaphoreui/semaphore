@@ -106,6 +106,8 @@ type Task struct {
 	Version *string `db:"version" json:"version,omitempty"`
 
 	InventoryID *int `db:"inventory_id" json:"inventory_id,omitempty"`
+	// EffectiveInventoryID is the inventory the run was handed to execution with.
+	EffectiveInventoryID *int `db:"effective_inventory_id" json:"-"`
 
 	Params MapStringAnyField `db:"params" json:"params,omitempty"`
 

@@ -536,6 +536,7 @@ type TaskManager interface {
 	CreateTask(task Task, maxTasks int) (Task, error)
 	UpdateTask(task Task) error
 	UpdateTaskArtifacts(projectID int, taskID int, artifacts *string) error
+	UpdateTaskEffectiveInventory(projectID int, taskID int, inventoryID *int) error
 	SetWaitingTasksToStopped(projectID int, templateID int) error
 	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
@@ -559,7 +560,8 @@ type AnsibleTaskRepository interface {
 	GetAnsibleTaskHosts(projectID int, taskID int) ([]AnsibleTaskHost, error)
 	GetAnsibleTaskErrors(projectID int, taskID int) ([]AnsibleTaskError, error)
 	// ReplaceAnsibleTaskHosts clears the task's rows and inserts the given ones, an empty slice only clears.
-	ReplaceAnsibleTaskHosts(projectID int, taskID int, hosts []AnsibleTaskHost) error
+	// A nil inventoryID means the task has no inventory.
+	ReplaceAnsibleTaskHosts(projectID int, taskID int, inventoryID *int, hosts []AnsibleTaskHost) error
 }
 
 // ScheduleManager handles schedule-related operations

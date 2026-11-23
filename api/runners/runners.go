@@ -280,6 +280,9 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 
 	maps.Copy(data.AccessKeys, taskKeys)
 	data.NewJobs = append(data.NewJobs, jobData)
+
+	// The job comes from this node's copy of the task, so record what it sends.
+	tsk.RecordInventory()
 }
 
 // collectTaskAccessKeys decrypts every access key the dispatched task needs

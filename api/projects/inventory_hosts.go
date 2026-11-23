@@ -204,6 +204,7 @@ func AddInventoryHost(w http.ResponseWriter, r *http.Request) {
 	host.ID = 0
 	host.InventoryID = inventory.ID
 	host.ProjectID = inventory.ProjectID
+	host.LastStatus, host.LastRun, host.LastTaskID, host.HostID = nil, nil, nil, nil
 
 	newHost, err := helpers.Store(r).CreateInventoryHost(host, body.AddGroups)
 	if err != nil {

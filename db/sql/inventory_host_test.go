@@ -2,6 +2,7 @@ package sql
 
 import (
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
@@ -276,4 +277,39 @@ func TestInventory_StoresTheVariableCount(t *testing.T) {
 	static, err := store.CreateInventory(db.Inventory{ProjectID: project.ID, Name: "static", Type: db.InventoryStatic, Inventory: "localhost"})
 	require.NoError(t, err)
 	assert.Equal(t, 0, static.VariableCount)
+}
+
+func TestUpdateInventoryHost_KeepsLastRun(t *testing.T) {
+	store := InitConfigCreateTestStore()
+	project, err := store.CreateProject(db.Project{Name: "test project"})
+	require.NoError(t, err)
+	inventory := createTestManagedInventory(t, store, project.ID, "managed")
+	host, err := store.CreateInventoryHost(db.InventoryHost{
+		ProjectID: project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true,
+	}, nil)
+	require.NoError(t, err)
+	lastRun := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	_, err = store.Sql().Exec(
+		"update project__inventory_host set last_status = ?, last_run = ?, last_task_id = ?, host_id = ? where id = ?",
+		"ok", lastRun, 9, 7, host.ID)
+	require.NoError(t, err)
+
+	host.Name = "web2"
+	host.Variables = "a: 1"
+	_, _, err = store.UpdateInventoryHost(host, nil, nil)
+	require.NoError(t, err)
+	_, err = store.SetInventoryHostEnabled(project.ID, inventory.ID, host.ID, false)
+	require.NoError(t, err)
+
+	got, err := store.GetInventoryHost(project.ID, inventory.ID, host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "web2", got.Name)
+	require.NotNil(t, got.LastStatus)
+	assert.Equal(t, "ok", *got.LastStatus)
+	require.NotNil(t, got.LastRun)
+	assert.True(t, lastRun.Equal(*got.LastRun))
+	require.NotNil(t, got.LastTaskID)
+	assert.Equal(t, 9, *got.LastTaskID)
+	require.NotNil(t, got.HostID)
+	assert.Equal(t, 7, *got.HostID)
 }

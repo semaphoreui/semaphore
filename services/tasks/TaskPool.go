@@ -610,6 +610,7 @@ func applyDBPersistedTaskSnapshot(dst *db.Task, src db.Task) {
 	dst.CommitHash = src.CommitHash
 	dst.CommitMessage = src.CommitMessage
 	dst.Artifacts = src.Artifacts
+	dst.EffectiveInventoryID = src.EffectiveInventoryID
 }
 
 // StoreRemoteTaskOutputs validates and persists the outputs document a runner
@@ -651,7 +652,13 @@ func (p *TaskPool) StoreTaskHosts(tsk *TaskRunner, document string) error {
 		return err
 	}
 
-	return p.ansibleTaskRepo.ReplaceAnsibleTaskHosts(tsk.Task.ProjectID, tsk.Task.ID, hosts)
+	// A task started before the inventory was recorded falls back to the current one.
+	inventoryID := tsk.Task.EffectiveInventoryID
+	if inventoryID == nil && tsk.Inventory.ID != 0 {
+		inventoryID = &tsk.Inventory.ID
+	}
+
+	return p.ansibleTaskRepo.ReplaceAnsibleTaskHosts(tsk.Task.ProjectID, tsk.Task.ID, inventoryID, hosts)
 }
 
 // refreshTaskStatusFromDB updates tsk with the persisted task row. In HA mode

@@ -17,6 +17,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/runners"
+	"github.com/semaphoreui/semaphore/services/server"
 	"github.com/semaphoreui/semaphore/services/tasks"
 	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
@@ -314,7 +315,7 @@ type ansibleTaskRepoFake struct {
 	taskID    int
 }
 
-func (f *ansibleTaskRepoFake) ReplaceAnsibleTaskHosts(projectID int, taskID int, hosts []db.AnsibleTaskHost) error {
+func (f *ansibleTaskRepoFake) ReplaceAnsibleTaskHosts(projectID int, taskID int, inventoryID *int, hosts []db.AnsibleTaskHost) error {
 	f.calls++
 	f.projectID = projectID
 	f.taskID = taskID
@@ -588,4 +589,62 @@ func TestUpdateRunner_InvalidHostsKeepStatus(t *testing.T) {
 	persisted, err := fixture.store.GetTaskByID(fixture.task.Task.ID)
 	require.NoError(t, err)
 	assert.Equal(t, task_logger.TaskSuccessStatus, persisted.Status)
+}
+
+type pollEncryptionFake struct {
+	server.AccessKeyEncryptionService
+}
+
+func (pollEncryptionFake) GetTaskSurveySecrets(int, int) (string, error) { return "", nil }
+func (pollEncryptionFake) DeserializeSecret(*db.AccessKey) error         { return nil }
+
+// The runner gets the poll node's copy of the task, which may resolve another
+// inventory than the one recorded, for example after the template was switched
+// while the task waited.
+func TestGetRunner_RecordsInventoryOfSentJob(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+	store := sql.InitConfigCreateTestStore()
+	pool := tasks.CreateTaskPool(store, tasks.NewMemoryTaskStateStore(), nil, nil, nil, nil, nil, nil, nil)
+	proj, err := store.CreateProject(db.Project{})
+	require.NoError(t, err)
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Type: db.AccessKeyNone})
+	require.NoError(t, err)
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID, SSHKeyID: key.ID, Name: "Test", GitURL: "git@example.com:test/test", GitBranch: "master",
+	})
+	require.NoError(t, err)
+	recordedInventory, err := store.CreateInventory(db.Inventory{ProjectID: proj.ID})
+	require.NoError(t, err)
+	sentInventory, err := store.CreateInventory(db.Inventory{ProjectID: proj.ID})
+	require.NoError(t, err)
+	tpl, err := store.CreateTemplate(db.Template{
+		Name: "Test", Playbook: "test.yml", ProjectID: proj.ID, RepositoryID: repo.ID, InventoryID: &sentInventory.ID,
+	})
+	require.NoError(t, err)
+	task, err := store.CreateTask(db.Task{ProjectID: proj.ID, TemplateID: tpl.ID, EffectiveInventoryID: &recordedInventory.ID}, 0)
+	require.NoError(t, err)
+	runner := db.Runner{ID: 1}
+	tr := tasks.NewTaskRunner(task, &pool, "", nil)
+	tr.Task.RunnerID = &runner.ID
+	tr.Task.Status = task_logger.TaskStartingStatus
+	tr.Inventory = db.Inventory{ID: sentInventory.ID, ProjectID: proj.ID}
+	pool.StateStore().SetRunning(tr)
+	ctrl := NewRunnerController(&countingTouchRepo{RunnerManager: store}, &pool, pollEncryptionFake{}, nil)
+	r := helpers.SetContextValue(httptest.NewRequest(http.MethodGet, "/api/internal/runners", nil), "runner", runner)
+	w := httptest.NewRecorder()
+
+	ctrl.GetRunner(w, r)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var state runners.RunnerState
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &state))
+	require.Len(t, state.NewJobs, 1)
+	assert.Equal(t, sentInventory.ID, state.NewJobs[0].Inventory.ID)
+	persisted, err := store.GetTaskByID(task.ID)
+	require.NoError(t, err)
+	require.NotNil(t, persisted.EffectiveInventoryID)
+	assert.Equal(t, sentInventory.ID, *persisted.EffectiveInventoryID)
+	require.NotNil(t, tr.Task.EffectiveInventoryID)
+	assert.Equal(t, sentInventory.ID, *tr.Task.EffectiveInventoryID)
 }

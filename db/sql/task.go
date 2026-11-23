@@ -226,6 +226,11 @@ func (d *SqlDb) UpdateTaskArtifacts(projectID int, taskID int, artifacts *string
 	return err
 }
 
+func (d *SqlDb) UpdateTaskEffectiveInventory(projectID int, taskID int, inventoryID *int) error {
+	_, err := d.exec("update task set effective_inventory_id=? where id=? and project_id=?", inventoryID, taskID, projectID)
+	return err
+}
+
 func (d *SqlDb) SetWaitingTasksToStopped(projectID int, templateID int) error {
 	_, err := d.exec(
 		"update task set status=?, `end`=? where template_id=? and project_id=? and status=?",

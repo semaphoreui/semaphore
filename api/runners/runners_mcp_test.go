@@ -91,9 +91,10 @@ func TestPrepareRemoteJob_McpTokensOfTwoJobsStayApart(t *testing.T) {
 
 	runner := db.Runner{ID: 1}
 	state := runners.RunnerState{AccessKeys: make(map[int]db.AccessKey)}
+	pool := tasks.CreateTaskPool(store, tasks.NewMemoryTaskStateStore(), nil, nil, nil, nil, nil, nil, nil)
 
 	for _, q := range queued {
-		tr := tasks.NewTaskRunner(db.Task{ID: q.taskID, ProjectID: 3}, nil, "", nil)
+		tr := tasks.NewTaskRunner(db.Task{ID: q.taskID, ProjectID: 3}, &pool, "", nil)
 		tr.Inventory = db.Inventory{ID: 9, ProjectID: 3, Type: db.InventoryMcp, McpServers: []db.McpServer{
 			{ID: 1, Name: "github", URL: q.url, Enabled: true, HasToken: true, Token: q.token, TokenKeyID: &keyID},
 		}}

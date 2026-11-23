@@ -2,6 +2,7 @@ package sql
 
 import (
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/stretchr/testify/assert"
@@ -28,9 +29,10 @@ func TestMigration_2_21_3(t *testing.T) {
 	require.NoError(t, err)
 	oldID := int(scheduleID)
 
-	task, err := store.CreateTask(db.Task{
-		ProjectID: project.ID, TemplateID: template.ID, ScheduleID: &oldID, Status: "success",
-	}, 0)
+	// SqlDb.CreateTask writes effective_inventory_id, which appears only in 2.21.8.
+	taskID, err := store.insert("id",
+		"insert into task (template_id, project_id, schedule_id, status, playbook, environment, created) values (?, ?, ?, 'success', '', '', ?)",
+		template.ID, project.ID, oldID, time.Now())
 	require.NoError(t, err)
 
 	require.NoError(t, db.Migrate(store, nil))
@@ -43,7 +45,7 @@ func TestMigration_2_21_3(t *testing.T) {
 	assert.Equal(t, "old schedule", migrated.Name)
 	assert.True(t, migrated.Active)
 
-	migratedTask, err := store.GetTask(project.ID, task.ID)
+	migratedTask, err := store.GetTask(project.ID, taskID)
 	require.NoError(t, err)
 	require.NotNil(t, migratedTask.ScheduleID)
 	assert.Equal(t, oldID, *migratedTask.ScheduleID)
@@ -58,7 +60,7 @@ func TestMigration_2_21_3(t *testing.T) {
 	// The foreign key on schedule_id still sets null: deleting the schedule
 	// leaves its tasks behind, as before the rebuild.
 	require.NoError(t, store.DeleteSchedule(project.ID, oldID))
-	orphanedTask, err := store.GetTask(project.ID, task.ID)
+	orphanedTask, err := store.GetTask(project.ID, taskID)
 	require.NoError(t, err)
 	assert.Nil(t, orphanedTask.ScheduleID, "task.schedule_id must be set null, not cascade-deleted")
 }
