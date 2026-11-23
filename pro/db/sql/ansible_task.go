@@ -24,6 +24,6 @@ func (d *AnsibleTaskStoreImpl) GetAnsibleTaskErrors(projectID int, taskID int) (
 	return
 }
 
-func (d *AnsibleTaskStoreImpl) ReplaceAnsibleTaskHosts(projectID int, taskID int, hosts []db.AnsibleTaskHost) error {
+func (d *AnsibleTaskStoreImpl) ReplaceAnsibleTaskHosts(projectID int, taskID int, inventoryID *int, hosts []db.AnsibleTaskHost) error {
 	return nil
 }

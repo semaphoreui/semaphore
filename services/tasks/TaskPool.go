@@ -651,7 +651,12 @@ func (p *TaskPool) StoreTaskHosts(tsk *TaskRunner, document string) error {
 		return err
 	}
 
-	return p.ansibleTaskRepo.ReplaceAnsibleTaskHosts(tsk.Task.ProjectID, tsk.Task.ID, hosts)
+	var inventoryID *int
+	if tsk.Inventory.ID != 0 {
+		inventoryID = &tsk.Inventory.ID
+	}
+
+	return p.ansibleTaskRepo.ReplaceAnsibleTaskHosts(tsk.Task.ProjectID, tsk.Task.ID, inventoryID, hosts)
 }
 
 // refreshTaskStatusFromDB updates tsk with the persisted task row. In HA mode

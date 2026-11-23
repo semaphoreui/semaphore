@@ -559,7 +559,8 @@ type AnsibleTaskRepository interface {
 	GetAnsibleTaskHosts(projectID int, taskID int) ([]AnsibleTaskHost, error)
 	GetAnsibleTaskErrors(projectID int, taskID int) ([]AnsibleTaskError, error)
 	// ReplaceAnsibleTaskHosts clears the task's rows and inserts the given ones, an empty slice only clears.
-	ReplaceAnsibleTaskHosts(projectID int, taskID int, hosts []AnsibleTaskHost) error
+	// A nil inventoryID means the task has no inventory.
+	ReplaceAnsibleTaskHosts(projectID int, taskID int, inventoryID *int, hosts []AnsibleTaskHost) error
 }
 
 // ScheduleManager handles schedule-related operations

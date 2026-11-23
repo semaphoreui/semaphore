@@ -314,7 +314,7 @@ type ansibleTaskRepoFake struct {
 	taskID    int
 }
 
-func (f *ansibleTaskRepoFake) ReplaceAnsibleTaskHosts(projectID int, taskID int, hosts []db.AnsibleTaskHost) error {
+func (f *ansibleTaskRepoFake) ReplaceAnsibleTaskHosts(projectID int, taskID int, inventoryID *int, hosts []db.AnsibleTaskHost) error {
 	f.calls++
 	f.projectID = projectID
 	f.taskID = taskID
