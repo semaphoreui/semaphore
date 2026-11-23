@@ -196,7 +196,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
     }
   ],
   "templates": [],
-  "version": 4,
+  "version": 5,
   "views": [],
   "workflows": []
 }`, str)
@@ -1177,7 +1177,7 @@ func TestVerify_RefusesOtherFormatVersions(t *testing.T) {
 	}{
 		{"no version with roles", BackupFormat{Roles: []BackupRole{{Role: db.Role{Slug: "ops", Name: "Ops"}}}}, "older version of Semaphore"},
 		{"no version with a grant", BackupFormat{Templates: []BackupTemplate{{Template: db.Template{Name: "t"}, Roles: grant}}}, "older version of Semaphore"},
-		{"newer", BackupFormat{Version: 5}, "newer version of Semaphore"},
+		{"newer", BackupFormat{Version: BackupFormatVersion + 1}, "newer version of Semaphore"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -44,9 +44,10 @@ type BackupDB struct {
 	workflowStore db.WorkflowManager
 }
 
-// BackupFormatVersion is 4: version 2 gave roles slugs, 3 added the workflow verbs and grants on workflows,
-// 4 writes read_project, so a role or a grant without it is meant that way.
-const BackupFormatVersion = 4
+// BackupFormatVersion is 5: version 2 gave roles slugs, 3 added the workflow verbs and grants on workflows,
+// 4 writes read_project, so a role or a grant without it is meant that way, 5 carries the hosts and groups
+// of a managed inventory, which an older server would drop without a word.
+const BackupFormatVersion = 5
 
 // CleanupError says the project stayed behind after a failed restore.
 type CleanupError struct {
