@@ -1049,8 +1049,11 @@ definitions:
           $ref: "#/definitions/McpServer"
       variables:
         type: string
-        description: Group variables of a "managed" inventory, null for any other type.
+        description: Group variables of a "managed" inventory, null for any other type. Absent in the list of inventories.
         x-nullable: true
+      variable_count:
+        type: integer
+        description: Number of top-level variables, set by the server
 
   McpServerRequest:
     type: object
@@ -1126,7 +1129,10 @@ definitions:
         type: boolean
       variables:
         type: string
-        description: Host variables as YAML or JSON mapping
+        description: Host variables as YAML or JSON mapping. Absent in the list of hosts.
+      variable_count:
+        type: integer
+        description: Number of top-level variables, set by the server
       created:
         type: string
         format: date-time

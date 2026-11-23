@@ -410,7 +410,6 @@ export default {
   inventory_hosts_search: 'Search hosts',
   inventory_hosts_add: 'Add host',
   inventory_hosts_enabled_label: 'Enable host {name}',
-  inventory_hosts_variables_label: 'Variables of host {name}: {count}',
   inventory_hosts_edit: 'Edit host',
   inventory_hosts_delete: 'Delete host',
   inventory_hosts_delete_confirm: 'Delete host {name}?',

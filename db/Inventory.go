@@ -32,6 +32,8 @@ type Inventory struct {
 
 	// Variables are the group variables of a managed inventory, YAML or JSON
 	Variables *string `db:"variables" json:"variables"`
+	// VariableCount is the number of top-level variables, set when they are saved
+	VariableCount int `db:"variable_count" json:"variable_count" backup:"-"`
 
 	// accesses hosts in inventory
 	SSHKeyID *int      `db:"ssh_key_id" json:"ssh_key_id" backup:"-"`

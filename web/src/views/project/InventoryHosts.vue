@@ -53,9 +53,6 @@
     </div>
 
     <v-data-table
-      v-model:expanded="expanded"
-      item-value="id"
-      :row-props="rowProps"
       :headers="headers"
       :items="rows || []"
       :items-per-page="-1"
@@ -74,56 +71,27 @@
       </template>
 
       <template v-slot:item.variables="{ item }">
-        <v-btn
-          v-if="hasDetails(item.id)"
-          variant="text"
-          density="compact"
-          class="px-1"
-          style="min-width: 0"
-          :aria-expanded="expanded.includes(item.id)"
-          :aria-label="$t('inventory_hosts_variables_label', {
-            name: item.name,
-            count: variableCounts[item.id] ?? '?',
-          })"
-          data-testid="inventoryHosts-variables"
-          @click.stop="toggleDetails(item)"
-        >
-          {{ variableCounts[item.id] ?? '?' }}
-          <v-icon end>
-            {{ expanded.includes(item.id) ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
-          </v-icon>
-        </v-btn>
+        <span v-if="item.variable_count" data-testid="inventoryHosts-variables">
+          {{ item.variable_count }}
+        </span>
         <span v-else data-testid="inventoryHosts-noVariables">&mdash;</span>
       </template>
 
-      <template v-slot:expanded-row="{ columns, item }">
-        <tr data-testid="inventoryHosts-details">
-          <td :colspan="columns.length" class="py-3">
-            <div class="text-body-small text-medium-emphasis">
-              {{ $t('inventory_tab_variables') }}
-            </div>
-            <pre style="white-space: pre-wrap; overflow-wrap: anywhere">{{ item.variables }}</pre>
-          </td>
-        </tr>
-      </template>
-
       <template v-slot:item.enabled="{ item }">
-        <div class="d-inline-flex" @click.stop>
-          <v-switch
-            :model-value="item.enabled"
-            :disabled="!canManage || loading || busyIds.includes(item.id)"
-            color="primary"
-            hide-details
-            density="compact"
-            :aria-label="$t('inventory_hosts_enabled_label', { name: item.name })"
-            data-testid="inventoryHosts-enabled"
-            @update:model-value="setEnabled(item, $event)"
-          />
-        </div>
+        <v-switch
+          :model-value="item.enabled"
+          :disabled="!canManage || loading || busyIds.includes(item.id)"
+          color="primary"
+          hide-details
+          density="compact"
+          :aria-label="$t('inventory_hosts_enabled_label', { name: item.name })"
+          data-testid="inventoryHosts-enabled"
+          @update:model-value="setEnabled(item, $event)"
+        />
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-group density="compact" data-testid="inventoryHosts-rowActions" @click.stop>
+        <v-btn-group density="compact" data-testid="inventoryHosts-rowActions">
           <v-btn
             :aria-label="$t('inventory_hosts_delete')"
             data-testid="inventoryHosts-rowDelete"
@@ -185,7 +153,6 @@ import ProjectMixin from '@/components/ProjectMixin';
 import EditDialog from '@/components/EditDialog.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import InventoryHostForm from '@/components/InventoryHostForm.vue';
-import variableNames from '@/lib/inventoryVariables';
 
 export default {
   mixins: [PermissionsCheck, ProjectMixin],
@@ -212,7 +179,6 @@ export default {
       deleteHostId: null,
       deleteName: '',
       busyIds: [],
-      expanded: [],
     };
   },
 
@@ -236,15 +202,6 @@ export default {
     state() {
       if (this.loading || this.rows == null) return 'loading';
       return this.rows.length === 0 ? 'empty' : 'ready';
-    },
-
-    variableCounts() {
-      return Object.fromEntries(
-        (this.rows || []).map((host) => {
-          const names = variableNames(host.variables);
-          return [host.id, names && names.length];
-        }),
-      );
     },
 
     headers() {
@@ -315,23 +272,6 @@ export default {
       await this.load();
     },
 
-    rowProps({ item }) {
-      return this.hasDetails(item.id) ? { onClick: () => this.toggleDetails(item) } : {};
-    },
-
-    // A host whose variables cannot be counted still opens
-    hasDetails(hostId) {
-      const count = this.variableCounts[hostId];
-      return count === null || count > 0;
-    },
-
-    toggleDetails(host) {
-      if (!this.hasDetails(host.id)) return;
-      this.expanded = this.expanded.includes(host.id)
-        ? this.expanded.filter((id) => id !== host.id)
-        : [...this.expanded, host.id];
-    },
-
     async setEnabled(host, enabled) {
       this.busyIds.push(host.id);
       try {
@@ -362,7 +302,6 @@ export default {
           return;
         }
         this.rows = response.data;
-        this.expanded = this.expanded.filter((id) => this.hasDetails(id));
         this.total = Number(response.headers['x-total-count']) || 0;
       } catch (err) {
         if (seq !== this.loadSeq) return;

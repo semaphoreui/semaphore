@@ -367,3 +367,68 @@ func TestSetInventoryHostEnabled_NeedsTheValue(t *testing.T) {
 		})
 	}
 }
+
+func TestGetInventoryHosts_LeavesVariablesOut(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "managed")
+	host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1", Variables: "a: 1"})
+	require.NoError(t, err)
+
+	w, _ := hostCall(f, inventory, http.MethodGet, "", 0, GetInventoryHosts)
+	require.Equal(t, http.StatusOK, w.Code)
+	var hosts []map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &hosts))
+	require.Len(t, hosts, 1)
+	assert.Equal(t, "web1", hosts[0]["name"])
+	assert.EqualValues(t, 1, hosts[0]["variable_count"])
+	assert.NotContains(t, hosts[0], "variables")
+
+	inventory, err = f.store.GetInventory(f.project.ID, inventory.ID)
+	require.NoError(t, err)
+	w, _ = hostCall(f, inventory, http.MethodGet, "", host.ID, GetInventoryHost)
+	require.Equal(t, http.StatusOK, w.Code)
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	assert.Equal(t, "a: 1", got["variables"])
+	assert.EqualValues(t, 1, got["variable_count"])
+}
+
+func TestUpdateInventoryHost_IgnoresVariableCountOfTheBody(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "managed")
+	host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1"})
+	require.NoError(t, err)
+
+	w, _ := hostCall(f, inventory, http.MethodPut, `{"name":"web1","variables":"a: 1","variable_count":99}`, host.ID, UpdateInventoryHost)
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+
+	got, err := f.store.GetInventoryHost(f.project.ID, inventory.ID, host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.VariableCount)
+}
+
+func TestGetInventories_LeavesVariablesOut(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory, err := f.store.CreateInventory(db.Inventory{ProjectID: f.project.ID, Name: "managed", Type: db.InventoryManaged, Inventory: "kept", Variables: new("a: 1")})
+	require.NoError(t, err)
+
+	r, _ := f.request(http.MethodGet, "", nil, nil)
+	w := httptest.NewRecorder()
+	f.inventoryController().GetInventory(w, r)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	var inventories []map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &inventories))
+	require.Len(t, inventories, 1)
+	assert.EqualValues(t, 1, inventories[0]["variable_count"])
+	assert.NotContains(t, inventories[0], "variables")
+	assert.Equal(t, "kept", inventories[0]["inventory"])
+
+	r, _ = f.request(http.MethodGet, "", map[string]any{"inventory": inventory}, nil)
+	w = httptest.NewRecorder()
+	f.inventoryController().GetInventory(w, r)
+	require.Equal(t, http.StatusOK, w.Code)
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	assert.Equal(t, "a: 1", got["variables"])
+	assert.EqualValues(t, 1, got["variable_count"])
+}

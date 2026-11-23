@@ -120,7 +120,16 @@ func (c *InventoryController) GetInventory(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, inventories)
+	// The nil field hides the variables text, a list row carries only the count
+	rows := make([]struct {
+		db.Inventory
+		Variables *string `json:"variables,omitempty"`
+	}, len(inventories))
+	for i, inventory := range inventories {
+		rows[i].Inventory = inventory
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, rows)
 }
 
 // validateMcpInventoryFields rejects the fields that make no sense for an mcp

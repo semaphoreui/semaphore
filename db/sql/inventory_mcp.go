@@ -179,8 +179,14 @@ func (d *SqlDb) CreateMcpInventory(inventory db.Inventory, changes []db.McpServe
 		return
 	}
 
+	inventory.VariableCount = db.CountInventoryVariables(inventory.VariablesText())
+
 	err = d.mcpTx(func(tx *gorp.Transaction) error {
-		id, e := d.connection.InsertTx(tx, "id", inventoryInsertQuery, inventoryInsertArgs(inventory)...)
+		query, args, e := inventoryInsert(inventory)
+		if e != nil {
+			return e
+		}
+		id, e := d.connection.InsertTx(tx, "id", query, args...)
 		if e != nil {
 			return e
 		}

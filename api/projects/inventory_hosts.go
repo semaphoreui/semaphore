@@ -129,8 +129,17 @@ func GetInventoryHosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The nil field hides the variables text, a list row carries only the count
+	rows := make([]struct {
+		db.InventoryHost
+		Variables *string `json:"variables,omitempty"`
+	}, len(hosts))
+	for i, host := range hosts {
+		rows[i].InventoryHost = host
+	}
+
 	w.Header().Set("X-Total-Count", strconv.Itoa(total))
-	helpers.WriteJSON(w, http.StatusOK, hosts)
+	helpers.WriteJSON(w, http.StatusOK, rows)
 }
 
 // AddInventoryHost creates a host in a managed inventory

@@ -34,46 +34,59 @@ describe('InventoryView.vue', () => {
 
   it('shows the number of inventory variables on the tab', async () => {
     http = mockAxios();
-    http.respond(() => ({ id: 3, type: 'managed', variables: 'a: 1\nb: 2' }));
+    http.respond(() => ({ id: 3, type: 'managed', variable_count: 2 }));
     const wrapper = mountView();
     await flush();
 
     expect(wrapper.find('[data-testid="inventoryView-variableCount"]').text()).to.equal('2');
   });
 
-  it('follows the variables saved for this inventory', async () => {
+  it('reads the number again when the variables of this inventory are saved', async () => {
     http = mockAxios();
-    http.respond(() => ({ id: 3, type: 'managed', variables: 'a: 1' }));
+    http.respond(() => ({ id: 3, type: 'managed', variable_count: 1 }));
     const wrapper = mountView();
     await flush();
     const chip = () => wrapper.find('[data-testid="inventoryView-variableCount"]');
 
-    EventBus.$emit('i-inventory-variables', { projectId: 7, inventoryId: 4, variables: '' });
+    http.respond(() => ({ id: 3, type: 'managed', variable_count: 2 }));
+    EventBus.$emit('i-inventory-variables', { projectId: 7, inventoryId: 4 });
     await flush();
     expect(chip().text()).to.equal('1');
+    expect(http.requests).to.have.length(1);
 
-    EventBus.$emit('i-inventory-variables', { projectId: 7, inventoryId: 3, variables: 'a: 1\nb: 2' });
+    EventBus.$emit('i-inventory-variables', { projectId: 7, inventoryId: 3 });
     await flush();
     expect(chip().text()).to.equal('2');
 
-    EventBus.$emit('i-inventory-variables', { projectId: 7, inventoryId: 3, variables: '' });
+    http.respond(() => ({ id: 3, type: 'managed', variable_count: 0 }));
+    EventBus.$emit('i-inventory-variables', { projectId: 7, inventoryId: 3 });
     await flush();
     expect(chip().exists()).to.equal(false);
     expect(wrapper.find('[data-testid="inventoryView-page"]').attributes('data-state')).to.equal('ready');
   });
 
-  it('shows a question mark for variables that cannot be counted', async () => {
+  it('keeps the number of the last save when an older answer comes late', async () => {
     http = mockAxios();
-    http.respond(() => ({ id: 3, type: 'managed', variables: 'a: [1,\n' }));
+    http.respond(() => ({ id: 3, type: 'managed', variable_count: 0 }));
     const wrapper = mountView();
     await flush();
 
-    expect(wrapper.find('[data-testid="inventoryView-variableCount"]').text()).to.equal('?');
+    let answerFirst;
+    http.respond(() => new Promise((resolve) => { answerFirst = resolve; }));
+    EventBus.$emit('i-inventory-variables', { projectId: 7, inventoryId: 3 });
+    await flush();
+    http.respond(() => ({ id: 3, type: 'managed', variable_count: 2 }));
+    EventBus.$emit('i-inventory-variables', { projectId: 7, inventoryId: 3 });
+    await flush();
+    answerFirst({ id: 3, type: 'managed', variable_count: 1 });
+    await flush();
+
+    expect(wrapper.find('[data-testid="inventoryView-variableCount"]').text()).to.equal('2');
   });
 
   it('shows no number for an inventory without variables', async () => {
     http = mockAxios();
-    http.respond(() => ({ id: 3, type: 'managed', variables: '' }));
+    http.respond(() => ({ id: 3, type: 'managed', variable_count: 0 }));
     const wrapper = mountView();
     await flush();
 
