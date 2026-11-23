@@ -432,3 +432,43 @@ func TestGetInventories_LeavesVariablesOut(t *testing.T) {
 	assert.Equal(t, "a: 1", got["variables"])
 	assert.EqualValues(t, 1, got["variable_count"])
 }
+
+func TestInventoryHost_BodyCannotSetLastRun(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "managed")
+	body := `{"name":"web1","last_status":"ok","host_id":7,"last_task_id":9}`
+
+	w, _ := hostCall(f, inventory, http.MethodPost, body, 0, AddInventoryHost)
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	var created db.InventoryHost
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
+	assert.Nil(t, created.LastStatus)
+	assert.Nil(t, created.HostID)
+	assert.Nil(t, created.LastTaskID)
+
+	w, _ = hostCall(f, inventory, http.MethodPut, body, created.ID, UpdateInventoryHost)
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	got, err := f.store.GetInventoryHost(f.project.ID, inventory.ID, created.ID)
+	require.NoError(t, err)
+	assert.Nil(t, got.LastStatus)
+	assert.Nil(t, got.LastRun)
+	assert.Nil(t, got.LastTaskID)
+	assert.Nil(t, got.HostID)
+}
+
+func TestGetInventoryHosts_ReturnsLastRun(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "managed")
+	_, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1"}, nil)
+	require.NoError(t, err)
+
+	w, _ := hostCall(f, inventory, http.MethodGet, "", 0, GetInventoryHosts)
+	require.Equal(t, http.StatusOK, w.Code)
+	var hosts []map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &hosts))
+	require.Len(t, hosts, 1)
+	for _, field := range []string{"last_status", "last_run", "last_task_id", "host_id"} {
+		assert.Contains(t, hosts[0], field)
+		assert.Nil(t, hosts[0][field])
+	}
+}

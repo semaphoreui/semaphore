@@ -29,6 +29,12 @@ type InventoryHost struct {
 
 	// VariableCount is the number of top-level variables, set when the host is saved
 	VariableCount int `db:"variable_count" json:"variable_count" backup:"-"`
+
+	// The last run of the host, set by the server and never by a request
+	LastStatus *string    `db:"last_status" json:"last_status" backup:"-"`
+	LastRun    *time.Time `db:"last_run" json:"last_run" backup:"-"`
+	LastTaskID *int       `db:"last_task_id" json:"last_task_id" backup:"-"`
+	HostID     *int       `db:"host_id" json:"host_id" backup:"-"`
 }
 
 // ParseInventoryVariables parses YAML or JSON text into a mapping

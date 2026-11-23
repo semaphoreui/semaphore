@@ -1141,6 +1141,23 @@ definitions:
         description: IDs of the groups the host is a direct member of
         items:
           type: integer
+      last_status:
+        type: string
+        x-nullable: true
+        description: Status of the last run on the host, set by the server
+      last_run:
+        type: string
+        format: date-time
+        x-nullable: true
+        description: Time of the last run on the host, set by the server
+      last_task_id:
+        type: integer
+        x-nullable: true
+        description: Task of the last run on the host, set by the server
+      host_id:
+        type: integer
+        x-nullable: true
+        description: Host of the hosts registry this host is matched to, set by the server
 
   InventoryHostRequest:
     type: object
@@ -1486,6 +1503,18 @@ definitions:
         type: array
         items:
           $ref: "#/definitions/HostProjectRef"
+      inventories:
+        type: array
+        items:
+          $ref: "#/definitions/HostInventoryRef"
+
+  HostInventoryRef:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
 
   HostTemplateRef:
     type: object

@@ -11,22 +11,23 @@ const (
 
 // Host is a row of the hosts list and the identity of the card, within a project the counters are those of the project.
 type Host struct {
-	ID                int               `db:"id" json:"id"`
-	Name              string            `db:"name" json:"name"`
-	DisplayName       string            `db:"display_name" json:"display_name"`
-	FirstSeen         time.Time         `db:"first_seen" json:"first_seen"`
-	LastSeen          time.Time         `db:"last_seen" json:"last_seen"`
-	LastAutomated     *time.Time        `db:"last_automated" json:"last_automated"`
-	Runs              int               `db:"runs" json:"runs"`
-	LastStatus        string            `db:"last_status" json:"last_status"`
-	LastTaskID        *int              `db:"last_task_id" json:"last_task_id"`
-	LastProjectID     *int              `db:"last_project_id" json:"last_project_id"`
-	Decommissioned    *time.Time        `db:"decommissioned" json:"decommissioned"`
-	DecommissionCount int               `db:"decommission_count" json:"-"`
-	Counted           bool              `db:"-" json:"counted"` // in the license count, set in the global list and card only
-	LastTemplate      *HostTemplateRef  `db:"-" json:"last_template"`
-	Templates         []HostTemplateRef `db:"-" json:"templates"`
-	Projects          []HostProjectRef  `db:"-" json:"projects"`
+	ID                int                `db:"id" json:"id"`
+	Name              string             `db:"name" json:"name"`
+	DisplayName       string             `db:"display_name" json:"display_name"`
+	FirstSeen         time.Time          `db:"first_seen" json:"first_seen"`
+	LastSeen          time.Time          `db:"last_seen" json:"last_seen"`
+	LastAutomated     *time.Time         `db:"last_automated" json:"last_automated"`
+	Runs              int                `db:"runs" json:"runs"`
+	LastStatus        string             `db:"last_status" json:"last_status"`
+	LastTaskID        *int               `db:"last_task_id" json:"last_task_id"`
+	LastProjectID     *int               `db:"last_project_id" json:"last_project_id"`
+	Decommissioned    *time.Time         `db:"decommissioned" json:"decommissioned"`
+	DecommissionCount int                `db:"decommission_count" json:"-"`
+	Counted           bool               `db:"-" json:"counted"` // in the license count, set in the global list and card only
+	LastTemplate      *HostTemplateRef   `db:"-" json:"last_template"`
+	Templates         []HostTemplateRef  `db:"-" json:"templates"`
+	Projects          []HostProjectRef   `db:"-" json:"projects"`
+	Inventories       []HostInventoryRef `db:"-" json:"inventories"`
 }
 
 type HostTemplateRef struct {
@@ -35,6 +36,11 @@ type HostTemplateRef struct {
 }
 
 type HostProjectRef struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type HostInventoryRef struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
