@@ -14,16 +14,18 @@ func TestMigration_2_20_19_BackfillsRegistry(t *testing.T) {
 	store := InitConfigCreateTestStoreAt(&before)
 	project, template := createTestTemplate(t, store)
 	created := time.Now().UTC()
-	first, err := store.CreateTask(db.Task{ProjectID: project.ID, TemplateID: template.ID, Status: "success", Created: created.Add(-time.Hour)}, 0)
+	// SqlDb.CreateTask writes effective_inventory_id, which appears only in 2.21.8.
+	insertTask := "insert into task (template_id, project_id, status, playbook, environment, created) values (?, ?, ?, '', '', ?)"
+	firstID, err := store.insert("id", insertTask, template.ID, project.ID, "success", created.Add(-time.Hour))
 	require.NoError(t, err)
-	second, err := store.CreateTask(db.Task{ProjectID: project.ID, TemplateID: template.ID, Status: "error", Created: created}, 0)
+	secondID, err := store.insert("id", insertTask, template.ID, project.ID, "error", created)
 	require.NoError(t, err)
 	for _, row := range []db.AnsibleTaskHost{
-		{TaskID: first.ID, Host: "Edge-01", Ok: 1},
-		{TaskID: first.ID, Host: "edge-02", Failed: 1},
-		{TaskID: first.ID, Host: "localhost", Ok: 1},
-		{TaskID: second.ID, Host: "edge-01", Unreachable: 1},
-		{TaskID: second.ID, Host: "edge-03", Unreachable: 1},
+		{TaskID: firstID, Host: "Edge-01", Ok: 1},
+		{TaskID: firstID, Host: "edge-02", Failed: 1},
+		{TaskID: firstID, Host: "localhost", Ok: 1},
+		{TaskID: secondID, Host: "edge-01", Unreachable: 1},
+		{TaskID: secondID, Host: "edge-03", Unreachable: 1},
 	} {
 		_, err = store.exec("insert into task__ansible_host (task_id, project_id, host, failed, ignored, changed, ok, rescued, skipped, unreachable) values (?, ?, ?, ?, 0, 0, ?, 0, 0, ?)",
 			row.TaskID, project.ID, row.Host, row.Failed, row.Ok, row.Unreachable)
@@ -48,11 +50,11 @@ func TestMigration_2_20_19_BackfillsRegistry(t *testing.T) {
 	assert.Equal(t, "Edge-01", edge.DisplayName)
 	assert.Equal(t, 2, edge.Runs)
 	assert.Equal(t, "unreachable", edge.LastStatus)
-	assert.Equal(t, second.ID, edge.LastTaskID)
+	assert.Equal(t, secondID, edge.LastTaskID)
 	var firstTask struct {
 		Created time.Time `db:"created"`
 	}
-	require.NoError(t, store.Sql().SelectOne(&firstTask, "select created from task where id = ?", first.ID))
+	require.NoError(t, store.Sql().SelectOne(&firstTask, "select created from task where id = ?", firstID))
 	require.NotNil(t, edge.LastAutomated)
 	assert.Equal(t, firstTask.Created, *edge.LastAutomated)
 	unreachableOnly, err := store.Sql().SelectInt("select count(*) from host where name = 'edge-03' and last_automated is null")

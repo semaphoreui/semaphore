@@ -317,6 +317,8 @@ func (t *TaskRunner) run() {
 		}
 	}
 
+	t.RecordInventory()
+
 	err = t.job.Run(username, incomingVersion, t.Alias)
 
 	// Remote jobs only dispatch the task to a runner; their completion is
@@ -370,6 +372,30 @@ func (t *TaskRunner) run() {
 	}
 
 	t.startAutorunTasks()
+}
+
+// RecordInventory stores the inventory this copy of the task hands to execution, the template may change later.
+func (t *TaskRunner) RecordInventory() {
+	var inventoryID *int
+	if t.Inventory.ID != 0 {
+		id := t.Inventory.ID
+		inventoryID = &id
+	}
+
+	recorded := t.Task.EffectiveInventoryID
+	if recorded == nil && inventoryID == nil {
+		return
+	}
+	if recorded != nil && inventoryID != nil && *recorded == *inventoryID {
+		return
+	}
+
+	if err := t.pool.store.UpdateTaskEffectiveInventory(t.Task.ProjectID, t.Task.ID, inventoryID); err != nil {
+		log.WithError(err).WithField("task_id", t.Task.ID).Error("failed to record the task inventory")
+		return
+	}
+
+	t.Task.EffectiveInventoryID = inventoryID
 }
 
 // saveOutputs stores the outputs of a locally run workflow task on its row.

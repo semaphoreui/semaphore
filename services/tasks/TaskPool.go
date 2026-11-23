@@ -610,6 +610,7 @@ func applyDBPersistedTaskSnapshot(dst *db.Task, src db.Task) {
 	dst.CommitHash = src.CommitHash
 	dst.CommitMessage = src.CommitMessage
 	dst.Artifacts = src.Artifacts
+	dst.EffectiveInventoryID = src.EffectiveInventoryID
 }
 
 // StoreRemoteTaskOutputs validates and persists the outputs document a runner
@@ -651,8 +652,9 @@ func (p *TaskPool) StoreTaskHosts(tsk *TaskRunner, document string) error {
 		return err
 	}
 
-	var inventoryID *int
-	if tsk.Inventory.ID != 0 {
+	// A task started before the inventory was recorded falls back to the current one.
+	inventoryID := tsk.Task.EffectiveInventoryID
+	if inventoryID == nil && tsk.Inventory.ID != 0 {
 		inventoryID = &tsk.Inventory.ID
 	}
 

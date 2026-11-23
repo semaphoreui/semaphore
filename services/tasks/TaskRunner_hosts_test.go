@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,12 +15,13 @@ import (
 type hostsJob struct {
 	run   func() error
 	hosts *string
+	async bool
 }
 
 func (j *hostsJob) Run(string, *string, string) error { return j.run() }
 func (j *hostsJob) Kill()                             {}
 func (j *hostsJob) IsKilled() bool                    { return false }
-func (j *hostsJob) Async() bool                       { return false }
+func (j *hostsJob) Async() bool                       { return j.async }
 func (j *hostsJob) Hosts() *string                    { return j.hosts }
 
 func TestTaskRunner_SavesHostsOfFailedTask(t *testing.T) {
@@ -78,4 +80,45 @@ func TestTaskRunner_InvalidHostsDoNotChangeStatus(t *testing.T) {
 	assert.Equal(t, task_logger.TaskSuccessStatus, taskRunner.Task.Status)
 	assert.Equal(t, 0, repo.calls)
 	assert.Contains(t, output.String(), "Host stats were not saved")
+}
+
+func TestTaskRunnerRun_RecordsInventoryBeforeJobRuns(t *testing.T) {
+	tests := []struct {
+		name  string
+		async bool
+	}{
+		{"local job", false},
+		{"remote job", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fixture := newTaskRunnerRunFixture(t)
+			inventoryID := *fixture.template.InventoryID
+			taskRunner := TaskRunner{
+				Task:         fixture.task,
+				Template:     fixture.template,
+				Inventory:    db.Inventory{ID: inventoryID},
+				pool:         &fixture.pool,
+				keyInstaller: fixture.keyInstaller,
+			}
+			var recordedAtRun *int
+			taskRunner.job = &hostsJob{
+				run: func() error {
+					persisted, err := fixture.store.GetTaskByID(fixture.task.ID)
+					require.NoError(t, err)
+					recordedAtRun = persisted.EffectiveInventoryID
+					taskRunner.SetStatus(task_logger.TaskRunningStatus)
+					return nil
+				},
+				async: tt.async,
+			}
+
+			taskRunner.run()
+
+			require.NotNil(t, recordedAtRun)
+			assert.Equal(t, inventoryID, *recordedAtRun)
+			require.NotNil(t, taskRunner.Task.EffectiveInventoryID)
+			assert.Equal(t, inventoryID, *taskRunner.Task.EffectiveInventoryID)
+		})
+	}
 }

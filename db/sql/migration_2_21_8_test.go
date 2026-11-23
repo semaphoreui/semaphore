@@ -26,9 +26,13 @@ func TestMigration_2_21_8_AddsLastRunOfInventoryHost(t *testing.T) {
 		"select count(*) from project__inventory_host where last_status is null and last_run is null and last_task_id is null and host_id is null")
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), count)
+	_, err = store.Sql().SelectInt("select count(effective_inventory_id) from task")
+	require.NoError(t, err)
 
 	require.NoError(t, db.Rollback(store, "2.21.7"))
 
 	_, err = store.Sql().SelectInt("select count(last_status) from project__inventory_host")
+	assert.Error(t, err)
+	_, err = store.Sql().SelectInt("select count(effective_inventory_id) from task")
 	assert.Error(t, err)
 }
