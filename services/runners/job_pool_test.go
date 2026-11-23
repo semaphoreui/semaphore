@@ -243,6 +243,94 @@ func TestJobPool_CheckNewJobsExecutorErrorUsesTaskProjectID(t *testing.T) {
 	assert.Equal(t, 0, p.queueLen())
 }
 
+func TestJobPool_CheckNewJobsKillsJobStoppedByServer(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status task_logger.TaskStatus
+	}{
+		{name: "stopped", status: task_logger.TaskStoppedStatus},
+		{name: "stopping", status: task_logger.TaskStoppingStatus},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				err := json.NewEncoder(w).Encode(RunnerState{
+					CurrentJobs: []JobState{{ID: 1, Status: tc.status}},
+				})
+				require.NoError(t, err)
+			}))
+			defer server.Close()
+
+			previousConfig := util.Config
+			util.Config = &util.ConfigType{
+				WebHost: server.URL,
+				Runner: &util.RunnerConfig{
+					Token:      "test-token",
+					Connection: &util.RunnerConnectionConfig{},
+				},
+			}
+			defer func() {
+				util.Config = previousConfig
+			}()
+
+			p := &JobPool{
+				runningJobs: map[int]*runningJob{},
+				queue:       []*job{},
+				startedAt:   time.Now(),
+				client:      newHTTPClient(),
+			}
+
+			lj := &tasks.LocalExecutor{Task: db.Task{ID: 1}}
+			rj := &runningJob{job: lj, status: task_logger.TaskRunningStatus}
+			lj.Logger = rj
+			p.addRunningJob(1, rj)
+
+			p.checkNewJobs()
+
+			assert.True(t, lj.IsKilled())
+			assert.Equal(t, tc.status, rj.getStatus())
+		})
+	}
+
+	t.Run("locally succeeded", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			err := json.NewEncoder(w).Encode(RunnerState{
+				CurrentJobs: []JobState{{ID: 1, Status: task_logger.TaskStoppedStatus}},
+			})
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		previousConfig := util.Config
+		util.Config = &util.ConfigType{
+			WebHost: server.URL,
+			Runner: &util.RunnerConfig{
+				Token:      "test-token",
+				Connection: &util.RunnerConnectionConfig{},
+			},
+		}
+		defer func() {
+			util.Config = previousConfig
+		}()
+
+		p := &JobPool{
+			runningJobs: map[int]*runningJob{},
+			queue:       []*job{},
+			startedAt:   time.Now(),
+			client:      newHTTPClient(),
+		}
+
+		lj := &tasks.LocalExecutor{Task: db.Task{ID: 1}}
+		rj := &runningJob{job: lj, status: task_logger.TaskSuccessStatus}
+		lj.Logger = rj
+		p.addRunningJob(1, rj)
+
+		p.checkNewJobs()
+
+		assert.False(t, lj.IsKilled())
+		assert.Equal(t, task_logger.TaskSuccessStatus, rj.getStatus())
+	})
+}
+
 // TestJobPool_ConcurrentAccess models the three actors that touch the pool
 // concurrently in production: the Run loop (dequeue + addRunningJob), the poll
 // goroutine (snapshot + delete + enqueue) and status readers. Run with -race to

@@ -818,8 +818,12 @@ func (p *JobPool) checkNewJobs() {
 
 		status := runJob.getStatus()
 
-		if status == task_logger.TaskStoppingStatus || status == task_logger.TaskStoppedStatus {
-			log.WithFields(log.Fields{"context": "checking_new_jobs", "task_id": currJob.ID, "status": string(status)}).Debug("Killing job because it is stopping or stopped")
+		localStopping := status == task_logger.TaskStoppingStatus || status == task_logger.TaskStoppedStatus
+		serverStopping := !status.IsFinished() &&
+			(currJob.Status == task_logger.TaskStoppingStatus || currJob.Status == task_logger.TaskStoppedStatus)
+
+		if localStopping || serverStopping {
+			log.WithFields(log.Fields{"context": "checking_new_jobs", "task_id": currJob.ID, "status": string(status), "server_status": string(currJob.Status)}).Debug("Killing job because it is stopping or stopped")
 			runJob.job.Kill()
 		}
 
