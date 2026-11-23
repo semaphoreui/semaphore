@@ -331,6 +331,29 @@ De standaard is `backend.tf`. De naam moet eindigen op `.tf` en mag alleen lette
 `-` en `.` bevatten. Kies een naam die geen bestand van uw code heeft: Semaphore overschrijft dat
 bestand en verwijdert het na de taak.
 
+## Prompt {#templateForm-agentPrompt}
+
+Wordt getoond voor Claude Code- en Codex-sjablonen.
+
+Wat de agent wordt gevraagd te doen. Hij is verplicht, tenzij **Prompt** onder de vragen van de
+agent is aangevinkt.
+
+De prompt kan waarden van de Variabele Groepen van het sjabloon en enquêtevariabelen van de taak
+noemen. Ze worden in de prompt gezet wanneer een taak start:
+
+- `${{ vars.extra.NAME }}`: een extra variabele of een enquêtevariabele.
+- `${{ vars.env.NAME }}`: een omgevingsvariabele.
+- `${{ secrets.extra.NAME }}`: een geheime extra variabele of een geheime enquêtevariabele.
+- `${{ secrets.env.NAME }}`: een geheime omgevingsvariabele.
+
+Een taak mislukt wanneer de prompt een variabele noemt die niet bestaat. Een sjabloon met een
+onjuist gevormde expressie, zoals `${{ vars.NAME }}`, wordt niet opgeslagen. Elke andere `${{ … }}`,
+zoals `${{ github.sha }}`, blijft staan zoals hij is geschreven, en `$${{ … }}` geeft een
+letterlijke `${{ … }}`.
+
+De waarde van een geheim dat in de prompt wordt gezet, wordt in het taaklog gemaskeerd, maar wordt
+samen met de prompt naar het model gestuurd.
+
 ## Limiet {#templateForm-allowOverrideLimit}
 
 Onder **Ansible vragen**. Laat de gebruiker de hosts instellen waarop wordt gedraaid wanneer een
@@ -370,6 +393,18 @@ aanvinken wanneer een taak start, om het plan zonder bevestiging toe te passen. 
 taakdialoogvenster biedt die optie in elk geval aan, maar zonder dit vakje negeert Semaphore haar:
 de taak wacht na het plan op een bevestiging, tenzij **Automatisch goedkeuren** van het sjabloon is
 aangevinkt.
+
+## Prompt {#templateForm-allowOverridePrompt}
+
+Onder de vragen van Claude Code en Codex. Laat de gebruiker een andere prompt opgeven wanneer een
+taak start, in plaats van de prompt van het sjabloon. Het taakdialoogvenster begint met de prompt
+van het sjabloon.
+
+Een prompt die een taak opgeeft, gaat naar de agent zoals hij is geschreven: de expressies
+`${{ … }}` erin worden niet door waarden vervangen.
+
+Met het vakje aangevinkt mag de prompt van het sjabloon leeg blijven; een taak zonder eigen prompt
+wordt dan geweigerd. Zonder het vakje wordt een taak die een eigen prompt meebrengt geweigerd.
 
 ## Galaxy install options {#templateForm-galaxy}
 

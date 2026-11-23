@@ -216,9 +216,10 @@ func TestInventoryEvents(t *testing.T) {
 
 	r, rec := f.request(http.MethodPost, body, nil, nil)
 	w := httptest.NewRecorder()
-	AddInventory(w, r)
+	f.inventoryController().AddInventory(w, r)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	created := only(t, rec, audit.ResourceInventoryCreate)
+	assert.Equal(t, audit.InventoryMetadata{Type: "static"}, created.Event.Metadata)
 	assert.Equal(t, "prod", created.Event.Target.Name)
 	assert.Equal(t, f.project.ID, created.Event.ProjectID)
 
@@ -226,7 +227,7 @@ func TestInventoryEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	r, rec = f.request(http.MethodPut, `{"id":`+strconv.Itoa(inventory.ID)+`,"name":"prod2","project_id":`+strconv.Itoa(f.project.ID)+`,"type":"static","inventory":"[all]"}`, map[string]any{"inventory": inventory}, nil)
-	UpdateInventory(httptest.NewRecorder(), r)
+	f.inventoryController().UpdateInventory(httptest.NewRecorder(), r)
 	assert.Equal(t, audit.ResourceTarget(audit.TargetInventory, inventory.ID, "prod2"), only(t, rec, audit.ResourceInventoryUpdate).Event.Target)
 
 	r, rec = f.request(http.MethodDelete, "", map[string]any{"inventory": inventory}, nil)
@@ -822,7 +823,7 @@ func TestInventoryEvents_ManagedVariables(t *testing.T) {
 	assert.Equal(t, "a: 5\nc: 3", stored.VariablesText())
 
 	updated := only(t, rec, audit.ResourceInventoryUpdate)
-	assert.Equal(t, audit.InventoryVariablesMetadata{AddedVariables: []string{"c"}, RemovedVariables: []string{"b"}, ChangedVariables: []string{"a"}}, updated.Event.Metadata)
+	assert.Equal(t, audit.InventoryMetadata{Type: "managed", AddedVariables: []string{"c"}, RemovedVariables: []string{"b"}, ChangedVariables: []string{"a"}}, updated.Event.Metadata)
 }
 
 func TestInventoryEvents_ManagedVariablesOnCreate(t *testing.T) {
@@ -831,9 +832,9 @@ func TestInventoryEvents_ManagedVariablesOnCreate(t *testing.T) {
 	r, rec := f.request(http.MethodPost, body, nil, nil)
 	w := httptest.NewRecorder()
 
-	AddInventory(w, r)
+	f.inventoryController().AddInventory(w, r)
 
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	created := only(t, rec, audit.ResourceInventoryCreate)
-	assert.Equal(t, audit.InventoryVariablesMetadata{AddedVariables: []string{"a", "b"}}, created.Event.Metadata)
+	assert.Equal(t, audit.InventoryMetadata{Type: "managed", AddedVariables: []string{"a", "b"}}, created.Event.Metadata)
 }

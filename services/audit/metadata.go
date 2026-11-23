@@ -237,6 +237,21 @@ type HostConfigMetadata struct {
 	Type string `json:"type"`
 }
 
+// InventoryMetadata names the inventory type. For an mcp inventory it also
+// counts its MCP servers after the save and the token changes the save made;
+// never a URL or a token. For a managed inventory it names the top-level
+// variable keys the save changed; never their values.
+type InventoryMetadata struct {
+	Type             string   `json:"type"`
+	McpServers       int      `json:"mcp_servers,omitempty"`
+	TokensCreated    int      `json:"tokens_created,omitempty"`
+	TokensUpdated    int      `json:"tokens_updated,omitempty"`
+	TokensDeleted    int      `json:"tokens_deleted,omitempty"`
+	AddedVariables   []string `json:"added_variables,omitempty"`
+	RemovedVariables []string `json:"removed_variables,omitempty"`
+	ChangedVariables []string `json:"changed_variables,omitempty"`
+}
+
 type EnvironmentMetadata struct {
 	SecretsCreated int  `json:"secrets_created"`
 	SecretsUpdated int  `json:"secrets_updated"`
@@ -290,6 +305,7 @@ type RunnerRegisterMetadata struct {
 }
 
 // InventoryVariablesMetadata names the top-level variable keys that changed, never their values.
+// It is not the metadata of an event by itself: InventoryMetadata and InventoryHostMetadata carry its fields.
 type InventoryVariablesMetadata struct {
 	AddedVariables   []string `json:"added_variables,omitempty"`
 	RemovedVariables []string `json:"removed_variables,omitempty"`

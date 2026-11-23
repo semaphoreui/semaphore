@@ -84,7 +84,12 @@
               transform: `translateY(${row.start}px)`,
             }"
           >
-            <TaskLogViewRecord :index="row.index" :source="output[row.index]" />
+            <TaskLogViewRecord
+              :index="row.index"
+              :source="output[row.index]"
+              :running="!isTaskStopped"
+              @toggle="toggleRecord(row.index)"
+            />
           </div>
         </div>
       </div>
@@ -290,6 +295,7 @@ import TaskLogViewRecord from '@/components/TaskLogViewRecord.vue';
 import ProjectMixin from '@/components/ProjectMixin';
 import AnsibleStageView from '@/components/AnsibleStageView.vue';
 import TaskDetails from '@/components/TaskDetails.vue';
+import AgentLog from '@/lib/agentLog';
 
 const LOG_KEEPS = 100;
 const LOG_BUFFER = Math.round(LOG_KEEPS / 3);
@@ -311,6 +317,10 @@ export default {
 
   // The log is a virtual list: a window of LOG_KEEPS records around the view is rendered,
   // a third of it above the first visible record (as vue-virtual-scroll-list with keeps="100").
+  //
+  // `output` holds the rows of the list, not the records as they come: AgentLog makes the rows
+  // of the records, folding the events of an AI agent (a tool call and its result are one row).
+  // A record of any other task is its own row.
   setup() {
     const output = ref([]);
     const records = ref(null);
@@ -406,6 +416,7 @@ export default {
   },
 
   async created() {
+    this.setRecords([]);
     this.outputInterval = setInterval(() => {
       this.$nextTick(() => {
         const len = this.outputBuffer.length;
@@ -422,8 +433,8 @@ export default {
         const currentScrollTop = scrollContainer.scrollTop;
         const maxScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight;
 
-        // Add a new item to the list
-        this.output.push(...this.outputBuffer.splice(0, len));
+        // Add the new records to the list
+        this.addRecords(this.outputBuffer.splice(0, len));
 
         // If the user is already at the bottom, keep it scrolled to the bottom
         // Otherwise, maintain the current scroll position
@@ -477,8 +488,28 @@ export default {
       });
     },
 
-    reset() {
+    // setRecords replaces the rows of the log with those of the records.
+    setRecords(records) {
       this.output = [];
+      // Not reactive itself: it changes the rows through the reactive `output`.
+      this.agentLog = new AgentLog(this.output);
+      this.addRecords(records);
+    },
+
+    addRecords(records) {
+      records.forEach((record) => this.agentLog.push(record));
+    },
+
+    // Opens or closes the details of a tool call of an AI agent.
+    toggleRecord(index) {
+      const { agent } = this.output[index] || {};
+      if (agent) {
+        agent.open = !agent.open;
+      }
+    },
+
+    reset() {
+      this.setRecords([]);
       this.outputBuffer = [];
       this.outputInterval = null;
       this.user = {};
@@ -565,7 +596,7 @@ export default {
         return;
       }
 
-      this.output = output;
+      this.setRecords(output);
       this.user = user;
       this.schedule = schedule;
       this.integration = integration;

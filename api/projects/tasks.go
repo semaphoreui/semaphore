@@ -11,6 +11,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/agentlog"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/tasks"
@@ -105,6 +106,12 @@ func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 
 	if errors.Is(err, common_errors.ErrInvalidSubscription) {
 		helpers.WriteErrorStatus(w, "No active subscription available.", http.StatusForbidden)
+		return
+	}
+
+	var validationErr *common_errors.ValidationError
+	if errors.As(err, &validationErr) {
+		helpers.WriteErrorStatus(w, validationErr.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -374,12 +381,15 @@ func (c *TaskController) GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, output)
 }
 
+// outputToBytes makes the plain text of the log lines: without ANSI codes,
+// and with an agent's events (see agentlog) as the text they stand for.
 func outputToBytes(lines []db.TaskOutput) []byte {
 	var buffer bytes.Buffer
 	for _, line := range lines {
-		output := util.ClearFromAnsiCodes(line.Output)
-		buffer.WriteString(output)
-		buffer.WriteByte('\n')
+		for _, text := range agentlog.Lines(line.Output) {
+			buffer.WriteString(util.ClearFromAnsiCodes(text))
+			buffer.WriteByte('\n')
+		}
 	}
 	return buffer.Bytes()
 }

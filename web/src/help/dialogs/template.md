@@ -314,6 +314,28 @@ default is `backend.tf`. The name must end with `.tf` and hold letters, digits, 
 only. Pick a name no file of your code has: Semaphore overwrites that file and deletes it after
 the task.
 
+## Prompt {#templateForm-agentPrompt}
+
+Shown for Claude Code and Codex templates.
+
+What the agent is asked to do. It is required, unless **Prompt** under the prompts of the agent
+is ticked.
+
+The prompt can name values of the Variable Groups of the template and survey variables of the
+task. They are put into the prompt when a task starts:
+
+- `${{ vars.extra.NAME }}`: an extra variable, or a survey variable.
+- `${{ vars.env.NAME }}`: an environment variable.
+- `${{ secrets.extra.NAME }}`: a secret extra variable, or a secret survey variable.
+- `${{ secrets.env.NAME }}`: a secret environment variable.
+
+A task fails when the prompt names a variable that does not exist. A template with a malformed
+expression, such as `${{ vars.NAME }}`, is not saved. Any other `${{ … }}`, such as
+`${{ github.sha }}`, stays as it is written, and `$${{ … }}` gives a literal `${{ … }}`.
+
+The value of a secret put into the prompt is masked in the task log, but it is sent to the model
+together with the prompt.
+
 ## Limit {#templateForm-allowOverrideLimit}
 
 Under **Ansible prompts**. Lets the user set the hosts to run on when a task starts, instead of
@@ -352,6 +374,17 @@ Under the prompts of Terraform, OpenTofu and Terragrunt. Lets the user tick **Au
 a task starts, to apply the plan without a confirmation. The task dialog offers that option in
 any case, but without this box Semaphore ignores it: the task waits for a confirmation after the
 plan, unless **Auto approve** of the template is ticked.
+
+## Prompt {#templateForm-allowOverridePrompt}
+
+Under the prompts of Claude Code and Codex. Lets the user give another prompt when a task starts,
+instead of the prompt of the template. The task dialog starts with the prompt of the template.
+
+A prompt given by a task goes to the agent as it is written: its `${{ … }}` expressions are not
+replaced by values.
+
+With the box ticked the prompt of the template may be left empty; a task without a prompt of its
+own is then refused. Without the box a task that brings its own prompt is refused.
 
 ## Galaxy install options {#templateForm-galaxy}
 

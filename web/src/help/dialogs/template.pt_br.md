@@ -321,6 +321,28 @@ O nome do arquivo em que o Semaphore grava o backend, por exemplo `semaphore_bac
 Escolha um nome que nenhum arquivo do seu código tenha: o Semaphore sobrescreve esse arquivo e o
 exclui depois da tarefa.
 
+## Prompt {#templateForm-agentPrompt}
+
+Exibido para modelos de Claude Code e Codex.
+
+O que é pedido ao agente. É obrigatório, a menos que **Prompt** nas solicitações do agente esteja
+marcado.
+
+O prompt pode citar valores dos Grupos de Variáveis do modelo e variáveis de pesquisa da tarefa.
+Eles são inseridos no prompt quando uma tarefa é iniciada:
+
+- `${{ vars.extra.NAME }}`: uma variável extra ou uma variável de pesquisa.
+- `${{ vars.env.NAME }}`: uma variável de ambiente.
+- `${{ secrets.extra.NAME }}`: uma variável extra secreta ou uma variável de pesquisa secreta.
+- `${{ secrets.env.NAME }}`: uma variável de ambiente secreta.
+
+Uma tarefa falha quando o prompt cita uma variável que não existe. Um modelo com uma expressão
+malformada, como `${{ vars.NAME }}`, não é salvo. Qualquer outro `${{ … }}`, como
+`${{ github.sha }}`, permanece como está escrito, e `$${{ … }}` resulta em um `${{ … }}` literal.
+
+O valor de um segredo inserido no prompt é mascarado no log da tarefa, mas é enviado ao modelo de IA
+junto com o prompt.
+
 ## Limite {#templateForm-allowOverrideLimit}
 
 Em **Solicitações de Ansible**. Permite que o usuário defina os hosts em que executar quando uma
@@ -359,6 +381,18 @@ Nas solicitações de Terraform, OpenTofu e Terragrunt. Permite que o usuário m
 quando uma tarefa é iniciada, para aplicar o plano sem confirmação. A caixa de diálogo da tarefa
 oferece essa opção de qualquer forma, mas sem esta caixa o Semaphore a ignora: a tarefa aguarda uma
 confirmação depois do plano, a menos que a **Aprovação automática** do modelo esteja marcada.
+
+## Prompt {#templateForm-allowOverridePrompt}
+
+Nas solicitações de Claude Code e Codex. Permite que o usuário informe outro prompt quando uma
+tarefa é iniciada, em vez do prompt do modelo. A caixa de diálogo da tarefa começa com o prompt do
+modelo.
+
+Um prompt informado por uma tarefa chega ao agente como está escrito: suas expressões `${{ … }}` não
+são substituídas por valores.
+
+Com a caixa marcada, o prompt do modelo pode ficar vazio; uma tarefa sem prompt próprio é então
+recusada. Sem a caixa, é recusada uma tarefa que traz seu próprio prompt.
 
 ## Galaxy install options {#templateForm-galaxy}
 
