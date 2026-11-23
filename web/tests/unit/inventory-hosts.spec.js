@@ -4,6 +4,7 @@ import { reactive } from 'vue';
 import { mount } from '@vue/test-utils';
 import axios from 'axios';
 import InventoryHosts from '@/views/project/InventoryHosts.vue';
+import HostStatus from '@/components/HostStatus.vue';
 import InventoryHostForm from '@/components/InventoryHostForm.vue';
 import EventBus from '@/event-bus';
 import mockAxios, { httpError } from './helpers/axiosMock';
@@ -51,6 +52,8 @@ function mountHosts(props) {
       stubs: {
         EditDialog: true,
         YesNoDialog: true,
+        RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+        TaskLink: { props: ['taskId', 'label'], template: '<a data-testid="taskLink">{{ taskId }} {{ label }}</a>' },
         VDialog: { props: ['modelValue'], template: '<div v-if="modelValue"><slot /></div>' },
       },
     },
@@ -448,6 +451,72 @@ describe('InventoryHosts.vue', () => {
     await flush();
     expect(wrapper.find('[data-testid="inventoryHosts-enabled"] input').element.disabled)
       .to.equal(false);
+  });
+
+  describe('with the hosts feature', () => {
+    const runHosts = [
+      {
+        id: 1,
+        name: 'web1',
+        description: '',
+        enabled: true,
+        variable_count: 0,
+        groups: [],
+        host_id: 12,
+        last_status: 'failed',
+        last_run: '2026-11-20T10:00:00Z',
+        last_task_id: 9,
+      },
+      {
+        id: 2,
+        name: 'web2',
+        description: '',
+        enabled: true,
+        variable_count: 0,
+        groups: [],
+        host_id: null,
+        last_status: null,
+        last_run: null,
+        last_task_id: null,
+      },
+    ];
+
+    beforeEach(() => {
+      http.respond((c) => {
+        if (c.method !== 'get') return {};
+        return c.url.endsWith('/groups') ? groups : runHosts;
+      });
+    });
+
+    it('hides the last run and the name link without the feature', async () => {
+      const wrapper = mountHosts({ isAdmin: true });
+      await flush();
+
+      expect(wrapper.find('[data-testid="inventoryHosts-lastRun"]').exists()).to.equal(false);
+      expect(wrapper.find('[data-testid="inventoryHosts-neverRun"]').exists()).to.equal(false);
+      expect(wrapper.find('[data-testid="inventoryHosts-name"] a').exists()).to.equal(false);
+    });
+
+    it('shows the status and the task link of the last run', async () => {
+      const wrapper = mountHosts({ isAdmin: true, systemInfo: { features: { hosts: true } } });
+      await flush();
+
+      const cell = wrapper.get('[data-testid="inventoryHosts-lastRun"]');
+      expect(cell.findComponent(HostStatus).props('status')).to.equal('failed');
+      expect(cell.get('[data-testid="taskLink"]').text()).to.match(/^9 /);
+      expect(wrapper.findAll('[data-testid="inventoryHosts-neverRun"]')).to.have.length(1);
+      expect(wrapper.get('[data-testid="inventoryHosts-neverRun"]').text())
+        .to.equal('inventory_hosts_never_run');
+    });
+
+    it('links the name to the project host when it has one', async () => {
+      const wrapper = mountHosts({ isAdmin: true, systemInfo: { features: { hosts: true } } });
+      await flush();
+
+      const names = wrapper.findAll('[data-testid="inventoryHosts-name"]');
+      expect(names[0].get('a').attributes('href')).to.equal('/project/7/hosts/12');
+      expect(names[1].find('a').exists()).to.equal(false);
+    });
   });
 });
 

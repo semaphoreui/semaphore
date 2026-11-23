@@ -190,7 +190,24 @@
 
       <template v-slot:item.name="{ item }">
         <span class="text-wrap" style="overflow-wrap: anywhere" data-testid="inventoryHosts-name">
-          {{ item.name }}
+          <router-link
+            v-if="features.hosts && item.host_id"
+            :to="`/project/${projectId}/hosts/${item.host_id}`"
+          >{{ item.name }}</router-link>
+          <template v-else>{{ item.name }}</template>
+        </span>
+      </template>
+      <template v-slot:item.last_run="{ item }">
+        <span v-if="item.last_status" data-testid="inventoryHosts-lastRun">
+          <HostStatus :status="item.last_status" />
+          <TaskLink
+            :task-id="item.last_task_id"
+            :label="$filters.formatDate(item.last_run)"
+            class="ml-2"
+          />
+        </span>
+        <span v-else class="text-medium-emphasis" data-testid="inventoryHosts-neverRun">
+          {{ $t('inventory_hosts_never_run') }}
         </span>
       </template>
 
@@ -308,14 +325,19 @@ import { getErrorMessage } from '@/lib/error';
 import { USER_PERMISSIONS } from '@/lib/constants';
 import PermissionsCheck from '@/components/PermissionsCheck';
 import ProjectMixin from '@/components/ProjectMixin';
+import PageMixin from '@/components/PageMixin';
+import HostStatus from '@/components/HostStatus.vue';
+import TaskLink from '@/components/TaskLink.vue';
 import EditDialog from '@/components/EditDialog.vue';
 import YesNoDialog from '@/components/YesNoDialog.vue';
 import InventoryHostForm from '@/components/InventoryHostForm.vue';
 
 export default {
-  mixins: [PermissionsCheck, ProjectMixin],
+  mixins: [PermissionsCheck, ProjectMixin, PageMixin],
 
-  components: { EditDialog, YesNoDialog, InventoryHostForm },
+  components: {
+    EditDialog, YesNoDialog, InventoryHostForm, HostStatus, TaskLink,
+  },
 
   props: {
     inventoryId: Number,
@@ -418,6 +440,9 @@ export default {
     headers() {
       return [
         { title: this.$t('name'), key: 'name', sortable: false },
+        ...(this.features.hosts
+          ? [{ title: this.$t('inventory_hosts_last_run'), key: 'last_run', sortable: false }]
+          : []),
         { title: this.$t('description'), key: 'description', sortable: false },
         { title: this.$t('inventory_tab_groups'), key: 'groups', sortable: false },
         { title: this.$t('inventory_tab_variables'), key: 'variables', sortable: false },

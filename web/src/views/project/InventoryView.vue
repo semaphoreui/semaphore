@@ -69,6 +69,7 @@
       :inventory-id="inventoryId"
       :user-permissions="userPermissions"
       :is-admin="isAdmin"
+      :system-info="systemInfo"
     ></router-view>
   </div>
 </template>
@@ -78,9 +79,10 @@ import axios from 'axios';
 import EventBus from '@/event-bus';
 import { getErrorMessage } from '@/lib/error';
 import ProjectMixin from '@/components/ProjectMixin';
+import PageMixin from '@/components/PageMixin';
 
 export default {
-  mixins: [ProjectMixin],
+  mixins: [ProjectMixin, PageMixin],
 
   props: {
     userPermissions: Number,

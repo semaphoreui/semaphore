@@ -179,6 +179,18 @@
           </span>
         </template>
 
+        <template v-slot:item.inventories="{ item }">
+          <span data-testid="hosts-rowInventories">
+            <template v-for="(inv, i) in item.inventories" :key="inv.id">
+              <span v-if="i > 0">, </span>
+              <router-link :to="`/project/${projectId}/inventory/${inv.id}/hosts`">
+                {{ inv.name }}
+              </router-link>
+            </template>
+            <span v-if="!item.inventories?.length">&mdash;</span>
+          </span>
+        </template>
+
         <template v-slot:item.projects="{ item }">
           <span data-testid="hosts-rowProjects">
             <template v-for="(p, i) in item.projects" :key="p.id">
@@ -356,7 +368,10 @@ export default {
         { title: this.$t('hosts_col_last_run'), key: 'last_seen', sortable: false },
         { title: this.$t('hosts_col_runs'), key: 'runs', sortable: false },
         ...(this.projectId
-          ? [{ title: this.$t('hosts_col_templates'), key: 'templates', sortable: false }]
+          ? [
+            { title: this.$t('hosts_col_templates'), key: 'templates', sortable: false },
+            { title: this.$t('hosts_col_inventories'), key: 'inventories', sortable: false },
+          ]
           : [{ title: this.$t('hosts_col_projects'), key: 'projects', sortable: false }]),
         ...(this.projectId ? [] : [{
           title: '', key: 'actions', sortable: false, align: 'end',
