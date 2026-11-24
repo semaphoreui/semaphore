@@ -31,6 +31,21 @@ variables to the [Task][gotask] command:
 * `DOCKER_RUNNER`: Define a different name for the runner image, defaults to `runner`
 * `DOCKER_CMD`: Use another command to build the image, defaults to `docker`
 
+## Customizing Version Information
+
+If you are building downstream Docker images based on Semaphore and want to display your own version string in the Semaphore UI, you can use the `SEMAPHORE_BUILD_INFO` environment variable:
+
+```console
+# Set custom version info at runtime
+docker run -e SEMAPHORE_BUILD_INFO="v2.14.9-mycompany-1.0.0" semaphoreui/semaphore:v2.14.9
+
+# Or set it when building your own image
+FROM semaphoreui/semaphore:v2.14.9
+ENV SEMAPHORE_BUILD_INFO="v2.14.9-downstream-custom"
+```
+
+When `SEMAPHORE_BUILD_INFO` is set, it will override the default version display format (`{version}-{commit}-{date}`) in both the CLI and web UI. This is useful for downstream distributions that want to show their own version information to users.
+
 ## Test
 
 We defined tasks to handle some linting and to verify the images contain the
