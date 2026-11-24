@@ -81,6 +81,18 @@
   (Build → Test → Approval → Deploy A / Deploy B → Notify) and 2 "Fan out"; `wf-repo/flaky.sh`
   fails while `/tmp/semaphore-stand-rerun/fail-flag` exists, so a node can fail, be "fixed" and be
   re-run. The `:3100` stand belongs to other branches — do not rebuild or migrate it from here.
+- Release-page stand (2026-11-24): `AGENTS/tmp/release-221-stand`, `127.0.0.1:3104`, Pro build of
+  `develop` (commits in `built-from.txt`), `admin`/`admin123`, project 1 "Production" with the managed
+  inventory "Production servers" (`seed.py`, `shoot.cjs`); `seed-hosts.py` makes the inventory run
+  locally and fills the hosts registry with ok / changed / failed / unreachable hosts,
+  `shoot-hosts.cjs` shoots the Hosts page once the stand has a license. Group membership goes in
+  `add_groups` / `add_children`, not `groups` / `children` (ignored silently). The owner pulls
+  `develop` during a session: compare `git rev-parse HEAD` with the commit a stand was built from
+  before trusting its screenshots. The marketing website is the separate checkout
+  `~/src/semaphore/content/website`; release screenshots are staged in its gitignored `uploads/vX.Y/`.
+- The Hosts page and the task Summary tab need a Pro plan (`pro_impl/pkg/features`), and the plan
+  comes only from a signed license key: a stand without a key shows the "only for PRO" alert, so
+  these pages cannot be shot there.
 - macOS has no `timeout`; wait for a server with a `for` loop around `curl -sf …/api/ping` and
   `python3 -c 'import time; time.sleep(0.5)'`.
 - Admin pages (`/users`, `/roles`, `/runners`…) render without the navigation drawer; the

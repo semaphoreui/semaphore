@@ -87,12 +87,12 @@
     </v-dialog>
 
     <div
-      style="display: grid; z-index: 2"
+      class="PagePanel"
       :style="hasSelection ? { position: 'sticky', top: 0 } : {}"
     >
       <div
-        class="d-flex flex-wrap align-center px-4 pt-4"
-        style="gap: 16px; grid-area: 1 / 1"
+        class="PagePanel__main"
+        style="grid-area: 1 / 1"
         :style="hasSelection ? { visibility: 'hidden' } : {}"
         :inert="hasSelection || undefined"
         data-testid="inventoryHosts-toolbar"
@@ -131,25 +131,30 @@
 
       <div
         v-if="hasSelection"
-        class="d-flex flex-wrap align-center align-content-center px-4 py-2 bg-surface-variant"
-        style="gap: 8px; grid-area: 1 / 1"
+        class="PagePanel__multiselect"
+        style="grid-area: 1 / 1"
         data-testid="inventoryHosts-selectionBar"
       >
+
         <span class="font-weight-medium flex-grow-1" role="status">
           {{ $t('inventory_hosts_selected', { count: selected.length }, selected.length) }}
         </span>
+
         <v-btn
           color="primary"
           variant="elevated"
           data-testid="inventoryHosts-addToGroups"
           @click="openGroupsDialog(true)"
         >{{ $t('inventory_hosts_add_to_groups') }}</v-btn>
+
         <v-btn
           variant="text"
           data-testid="inventoryHosts-removeFromGroups"
           @click="openGroupsDialog(false)"
         >{{ $t('inventory_hosts_remove_from_groups') }}</v-btn>
+
         <v-btn
+          color="white"
           icon
           variant="text"
           density="compact"
@@ -161,6 +166,8 @@
         </v-btn>
       </div>
     </div>
+
+    <v-divider />
 
     <v-data-table
       v-model="selected"

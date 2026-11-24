@@ -31,27 +31,31 @@
       @yes="deleteGroup()"
     />
 
-    <div class="d-flex flex-wrap align-center px-4 pt-4" style="gap: 16px">
-      <v-text-field
-        v-model="searchText"
-        :label="$t('inventory_groups_search')"
-        prepend-inner-icon="mdi-magnify"
-        density="compact"
-        variant="outlined"
-        hide-details
-        clearable
-        style="max-width: 320px"
-        data-testid="inventoryGroups-search"
-      />
-      <v-spacer></v-spacer>
-      <v-btn
-        v-if="canManage"
-        color="primary"
-        variant="elevated"
-        data-testid="inventoryGroups-add"
-        @click="editGroup('new')"
-      >{{ $t('inventory_groups_add') }}</v-btn>
+    <div class="PagePanel">
+      <div class="PagePanel__main">
+        <v-text-field
+            v-model="searchText"
+            :label="$t('inventory_groups_search')"
+            prepend-inner-icon="mdi-magnify"
+            density="compact"
+            variant="outlined"
+            hide-details
+            clearable
+            style="max-width: 320px"
+            data-testid="inventoryGroups-search"
+        />
+        <v-spacer></v-spacer>
+        <v-btn
+            v-if="canManage"
+            color="primary"
+            variant="elevated"
+            data-testid="inventoryGroups-add"
+            @click="editGroup('new')"
+        >{{ $t('inventory_groups_add') }}</v-btn>
+      </div>
     </div>
+
+    <v-divider />
 
     <v-data-table
       :headers="headers"
