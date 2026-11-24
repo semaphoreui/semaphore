@@ -97,8 +97,9 @@ Status (2026-10-21): implemented on branch `prod-10-logs-for-intergrations`, not
   cannot decide which response is current.
 - The ngrok reference also shows Path and Host. Path is `/api/integrations/<alias>`, which the
   alias column already carries; Host is not stored.
-- The user docs (`docs/` submodule) are not checked out in this workspace, so the History tab is
-  undocumented for end users.
+- 2026-10-31: the History tab is documented for end users in the `docs/` submodule —
+  `docs/docs/user-guide/integrations.md` (section `#call-history`, plus a troubleshooting table
+  keyed on the four outcomes) and its ten locale copies.
 
 ## Key files and references
 

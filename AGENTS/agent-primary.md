@@ -88,6 +88,21 @@ mcp__workbench__workspace_use(workspace_code="WORKSPACE@16484A7F90")
 ## Research
 
 - Do and store all research in the `research` MCP — the repo keeps only the code shortlist.
+- Similar open source products which can be used as reference for research of best practices, security practices, etc:
+  - AWX
+  - Runeck
+  - Jenkins
+  - Kestra OSS
+  - Windmill
+  - Apache Airflow
+  - Argo CD
+  - Gitea
+  - GitLab CE
+  - Grafana OSS
+  - Zabbix
+  - Portainer CE
+  - NetBox
+  - OpenBao
 
 ## Temporary files
 
