@@ -103,51 +103,52 @@ func sourceIP(r *http.Request) string {
 
 // verifyIntegrationAuth checks the request against the integration's auth
 // method and returns why it was rejected, empty when it passed.
-func verifyIntegrationAuth(integration db.Integration, r *http.Request, payload []byte) string {
+func verifyIntegrationAuth(integration db.Integration, r *http.Request, payload []byte) (bool, string) {
 	// A key that cannot provide the shared secret refuses the request here,
 	// before the method-specific check.
-	secret, ok := integration.VerificationSecret()
-	if !ok {
-		return "Auth secret is empty or its key type does not fit the auth method"
+	token, ok := integration.AuthSecret.VerificationToken()
+
+	if !ok && integration.AuthMethod.UsesVerificationToken() {
+		return false, "Auth key type does not fit the auth method"
 	}
 
 	switch integration.AuthMethod {
 	case db.IntegrationAuthGitHub:
-		if !isValidHmacPayload(secret, r.Header.Get("X-Hub-Signature-256"), payload, "sha256=", sha256.New) {
-			return "Invalid GitHub/HMAC signature"
+		if !isValidHmacPayload(token, r.Header.Get("X-Hub-Signature-256"), payload, "sha256=", sha256.New) {
+			return false, "Invalid GitHub/HMAC signature"
 		}
 	case db.IntegrationAuthBitbucket:
-		if !isValidHmacPayload(secret, r.Header.Get("x-hub-signature"), payload, "sha256=", sha256.New) {
-			return "Invalid Bitbucket/HMAC signature"
+		if !isValidHmacPayload(token, r.Header.Get("x-hub-signature"), payload, "sha256=", sha256.New) {
+			return false, "Invalid Bitbucket/HMAC signature"
 		}
 	case db.IntegrationAuthHmac:
-		if !isValidHmacPayload(secret, r.Header.Get(integration.AuthHeader), payload, "", sha256.New) {
-			return "Invalid HMAC signature"
+		if !isValidHmacPayload(token, r.Header.Get(integration.AuthHeader), payload, "", sha256.New) {
+			return false, "Invalid HMAC signature"
 		}
 	case db.IntegrationAuthHmacSha512:
-		if !isValidHmacPayload(secret, r.Header.Get(integration.AuthHeader), payload, "", sha512.New) {
-			return "Invalid HMAC-SHA512 signature"
+		if !isValidHmacPayload(token, r.Header.Get(integration.AuthHeader), payload, "", sha512.New) {
+			return false, "Invalid HMAC-SHA512 signature"
 		}
 	case db.IntegrationAuthToken:
-		if secret != r.Header.Get(integration.AuthHeader) {
-			return "Invalid verification token"
+		if token != r.Header.Get(integration.AuthHeader) {
+			return false, "Invalid verification token"
 		}
 	case db.IntegrationAuthBasic:
 		if integration.AuthSecret.Type != db.AccessKeyLoginPassword {
-			return "BasicAuth needs a login/password credential"
+			return false, "BasicAuth needs a login/password credential"
 		}
 		creds := integration.AuthSecret.LoginPassword
 		login, password, ok := r.BasicAuth()
 		if !ok || creds.Password != password || creds.Login != login {
-			return "Invalid BasicAuth: incorrect login or password"
+			return false, "Invalid BasicAuth: incorrect login or password"
 		}
 	case db.IntegrationAuthNone:
 		// Do nothing
 	default:
-		return "Unknown verification method: " + string(integration.AuthMethod)
+		return false, "Unknown verification method: " + string(integration.AuthMethod)
 	}
 
-	return ""
+	return true, ""
 }
 
 // recordCall stores one call in the project's integration history. A failure to
@@ -170,9 +171,9 @@ func (c *IntegrationController) recordCall(
 
 func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
-	integrationAlias, ok := helpers.GetStrParamOrAbort("integration_alias", w, r)
+	integrationAlias, aliasOk := helpers.GetStrParamOrAbort("integration_alias", w, r)
 
-	if !ok {
+	if !aliasOk {
 		return
 	}
 
@@ -233,8 +234,8 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 		call.IntegrationID = &integration.ID
 		call.IntegrationName = integration.Name
 
-		project, ok := projects[integration.ProjectID]
-		if !ok {
+		project, projectOk := projects[integration.ProjectID]
+		if !projectOk {
 			project, err = c.store.GetProject(integration.ProjectID)
 			if err != nil {
 				logger.WithError(err).Error("Could not retrieve the project")
@@ -257,7 +258,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 			continue
 		}
 
-		if reason := verifyIntegrationAuth(integration, r, payload); reason != "" {
+		if ok, reason := verifyIntegrationAuth(integration, r, payload); !ok {
 			logger.Error(reason)
 			// Anyone who knows the URL can fail auth, so such a body is not kept.
 			call.RequestBody = nil
