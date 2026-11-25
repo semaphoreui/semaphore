@@ -3,10 +3,12 @@
 package db_lib
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
@@ -44,6 +46,58 @@ func (l *terraformApprovalLogger) SetStatus(status task_logger.TaskStatus) {
 		status = task_logger.TaskRejected
 	}
 	l.listener(status)
+}
+
+// TestTerraformReader_ReadReleasesOnStoppingStatus guards against hanging when a
+// force-stop moves the task to stopping during terraform init's backend migration
+// prompt. TaskStoppingStatus is not finished; without this break, Read blocks forever
+// and Run never returns on the runner.
+func TestTerraformReader_ReadReleasesOnStoppingStatus(t *testing.T) {
+	reader := &terraformReader{
+		logger: &task_logger.NopLogger{},
+		status: task_logger.TaskWaitingConfirmation,
+	}
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		reader.status = task_logger.TaskStoppingStatus
+	}()
+
+	buf := make([]byte, 8)
+	done := make(chan struct{})
+	var n int
+	var err error
+	go func() {
+		n, err = reader.Read(buf)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(12 * time.Second):
+		t.Fatal("terraformReader.Read hung after task entered stopping status")
+	}
+
+	require.NoError(t, err)
+	assert.True(t, reader.EOF)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, byte('\n'), buf[0])
+}
+
+func TestTerraformReader_ReadEOFAfterStop(t *testing.T) {
+	reader := &terraformReader{
+		logger: &task_logger.NopLogger{},
+		status: task_logger.TaskWaitingConfirmation,
+	}
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		reader.status = task_logger.TaskStoppedStatus
+	}()
+	buf := make([]byte, 8)
+	n, err := reader.Read(buf)
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+	_, err = reader.Read(buf)
+	require.ErrorIs(t, err, io.EOF)
 }
 
 func TestTerraformApp_RunAutoApprove(t *testing.T) {

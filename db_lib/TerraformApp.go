@@ -48,7 +48,8 @@ func (r *terraformReader) Read(p []byte) (n int, err error) {
 		time.Sleep(time.Second * 3)
 		if r.status.IsFinished() ||
 			r.status == task_logger.TaskConfirmed ||
-			r.status == task_logger.TaskRejected {
+			r.status == task_logger.TaskRejected ||
+			r.status == task_logger.TaskStoppingStatus {
 			break
 		}
 	}
