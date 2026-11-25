@@ -694,11 +694,14 @@ func (t *LocalExecutor) resolvePlaybookFile() string {
 func (t *LocalExecutor) resolveInventoryFile() (string, error) {
 	switch t.Inventory.Type {
 	case db.InventoryFile:
-		root := t.Repository.GetFullPath(t.Template.ID)
+		file := t.Inventory.GetFilename()
 		if t.Inventory.RepositoryID != nil {
-			root = t.tmpInventoryFullPath()
+			return filepath.Join(t.tmpInventoryFullPath(), file), nil
 		}
-		return filepath.Join(root, t.Inventory.GetFilename()), nil
+		if filepath.IsAbs(file) {
+			return file, nil
+		}
+		return filepath.Join(t.Repository.GetFullPath(t.Template.ID), file), nil
 	case db.InventoryStatic, db.InventoryStaticYaml:
 		return t.tmpInventoryFullPath(), nil
 	default:

@@ -47,6 +47,25 @@ func TestGetPlaybookArgs_UsesRepositoryRootedPaths(t *testing.T) {
 	assert.Equal(t, filepath.Join(repoRoot, "playbooks", "site.yml"), args[len(args)-1])
 }
 
+func TestGetPlaybookArgs_KeepsAbsoluteInventoryPath(t *testing.T) {
+	setupExecutorConfig(t)
+
+	inventoryFile := filepath.Join(t.TempDir(), "hosts")
+	executor := LocalExecutor{
+		Template: db.Template{Playbook: "site.yml"},
+		Inventory: db.Inventory{
+			Type:      db.InventoryFile,
+			Inventory: inventoryFile,
+		},
+		Repository: db.Repository{GitURL: t.TempDir()},
+	}
+
+	args, _, err := executor.getPlaybookArgs("", nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, inventoryFile, args[1])
+}
+
 // TestGetShellArgs_PassesSurveySecretVar verifies that Survey variables of type
 // "Secret" (delivered via LocalExecutor.Secret) are passed to Bash/Shell tasks,
 // alongside plain survey vars that arrive in Environment.JSON.
