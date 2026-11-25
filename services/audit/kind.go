@@ -64,6 +64,9 @@ const (
 	IAMTemplatePermissionCreate    Kind = "iam.template_permission/create"
 	IAMTemplatePermissionUpdate    Kind = "iam.template_permission/update"
 	IAMTemplatePermissionDelete    Kind = "iam.template_permission/delete"
+	IAMWorkflowPermissionCreate    Kind = "iam.workflow_permission/create"
+	IAMWorkflowPermissionUpdate    Kind = "iam.workflow_permission/update"
+	IAMWorkflowPermissionDelete    Kind = "iam.workflow_permission/delete"
 
 	SystemSettingsUpdate  Kind = "system.settings/update"
 	SystemLicenseActivate Kind = "system.license/activate"
@@ -130,9 +133,12 @@ const (
 	TaskApprovalApprove   Kind = "task.approval/approve"
 	TaskApprovalReject    Kind = "task.approval/reject"
 	TaskControlStop       Kind = "task.control/stop"
-	TaskControlForceStop  Kind = "task.control/force_stop"
-	TaskControlStopAll    Kind = "task.control/stop_all"
-	TaskHistoryDelete     Kind = "task.history/delete"
+
+	WorkflowApprovalApprove Kind = "workflow.approval/approve"
+	WorkflowApprovalReject  Kind = "workflow.approval/reject"
+	TaskControlForceStop    Kind = "task.control/force_stop"
+	TaskControlStopAll      Kind = "task.control/stop_all"
+	TaskHistoryDelete       Kind = "task.history/delete"
 
 	RunnerLifecycleCreate     Kind = "runner.lifecycle/create"
 	RunnerLifecycleUpdate     Kind = "runner.lifecycle/update"

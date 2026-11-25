@@ -26,6 +26,20 @@ const (
 	AccessKeyTaskSecret AccessKeyOwner = "task"
 	AccessKeyShared     AccessKeyOwner = ""
 )
+
+// IsValid reports whether t is one of the known key types. The API checks it
+// on create and on update, so an unknown type never reaches the database:
+// the serializer would store nothing for it and every consumer would reject it
+// only at task run time, far from the request that created it.
+func (t AccessKeyType) IsValid() bool {
+	switch t {
+	case AccessKeySSH, AccessKeyNone, AccessKeyLoginPassword, AccessKeyString:
+		return true
+	default:
+		return false
+	}
+}
+
 const (
 	AccessKeySourceStorageVault AccessKeySourceStorageType = "vault"
 	AccessKeySourceStorageEnv   AccessKeySourceStorageType = "env"
@@ -36,7 +50,7 @@ const (
 type AccessKey struct {
 	ID   int    `db:"id" json:"id" backup:"-"`
 	Name string `db:"name" json:"name" binding:"required"`
-	// 'ssh/login_password/none'
+	// 'ssh/login_password/none/string', see AccessKeyType.IsValid.
 	Type AccessKeyType `db:"type" json:"type" binding:"required"`
 
 	ProjectID *int `db:"project_id" json:"project_id" backup:"-"`

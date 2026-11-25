@@ -4,6 +4,8 @@
     v-if="isAppsLoaded"
     :max-width="dialogWidth"
     v-model="dialog"
+    :test-id="testId"
+    help-doc="template"
     :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
     :icon="getAppIcon(itemApp)"
     :icon-color="getAppColor(itemApp)"
@@ -29,6 +31,7 @@
         :features="features"
         :task-type="taskType"
         :jwt="jwt"
+        :can-read="canRead"
       />
     </template>
   </EditDialog>
@@ -50,7 +53,7 @@ export default {
   mixins: [AppsMixin],
 
   props: {
-    value: Boolean,
+    modelValue: Boolean,
     itemApp: String,
     projectId: Number,
     itemId: [String, Number],
@@ -58,7 +61,15 @@ export default {
     features: Object,
     taskType: String,
     jwt: Object,
+    canRead: {
+      type: Boolean,
+      default: true,
+    },
+    // Builds data-testid of the dialog card only, no behaviour.
+    testId: { type: String, default: 'templateDialog' },
   },
+
+  emits: ['update:modelValue', 'save'],
 
   data() {
     return {
@@ -79,10 +90,10 @@ export default {
 
   watch: {
     async dialog(val) {
-      this.$emit('input', val);
+      this.$emit('update:modelValue', val);
     },
 
-    async value(val) {
+    async modelValue(val) {
       this.dialog = val;
     },
   },

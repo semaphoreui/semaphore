@@ -4,10 +4,20 @@
     <textarea
       style="position: absolute; left: -9999px; top: -9999px"
       ref="copy_to_clipboard_textarea"
+      :data-testid="`${testId}-buffer`"
     ></textarea>
 
-    <v-btn icon @click="copy()" :large="large">
-      <v-icon :color="color">mdi-content-copy</v-icon>
+    <!-- variant text: `icon` of Vuetify 2 was a flat button; the elevated default of Vuetify 3
+         puts a white circle under the icon (a white icon disappears on it) -->
+    <v-btn
+      icon
+      variant="text"
+      @click="copy()"
+      :size="large ? 'large' : undefined"
+      :data-testid="testId"
+    >
+      <!-- a large icon button of Vuetify 2: a 28 px icon (`.v-btn--icon.v-size--large .v-icon`) -->
+      <v-icon :color="color" :size="large ? 28 : undefined">mdi-content-copy</v-icon>
     </v-btn>
   </span>
 </template>
@@ -24,6 +34,10 @@ export default {
     },
     large: Boolean,
     color: String,
+    testId: {
+      type: String,
+      default: 'copyButton',
+    },
   },
   methods: {
     copy() {

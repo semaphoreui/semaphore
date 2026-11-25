@@ -1,7 +1,7 @@
 import './setup';
 import { expect } from 'chai';
-import { shallowMount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { h } from 'vue';
+import { shallowMount } from '@vue/test-utils';
 import AppsMixin from '@/components/AppsMixin';
 
 const backendApps = [
@@ -13,15 +13,14 @@ const backendApps = [
 ];
 
 function mountHost(apps = backendApps) {
-  const localVue = createLocalVue();
   const Host = {
     mixins: [AppsMixin],
     methods: {
       loadAppsDataFromBackend: async () => apps,
     },
-    render: (h) => h('div'),
+    render: () => h('div'),
   };
-  return shallowMount(Host, { localVue, vuetify: new Vuetify() });
+  return shallowMount(Host);
 }
 
 async function mountLoaded(apps) {
@@ -88,9 +87,9 @@ describe('AppsMixin', () => {
 
     it('depends on the theme for built-in apps', async () => {
       const wrapper = await mountLoaded();
-      wrapper.vm.$vuetify.theme.dark = false;
+      wrapper.vm.$vuetify.theme.change('light');
       expect(wrapper.vm.getAppColor('ansible')).to.equal('black');
-      wrapper.vm.$vuetify.theme.dark = true;
+      wrapper.vm.$vuetify.theme.change('dark');
       expect(wrapper.vm.getAppColor('ansible')).to.equal('white');
     });
 

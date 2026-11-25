@@ -31,6 +31,29 @@ describe('EditRoleForm', () => {
     });
   });
 
+  it('packs the eight checkboxes into the mask', () => {
+    const form = { item: { permissions: 0 }, permissions: {} };
+    EditRoleForm.watch.permissions.handler.call(form, {
+      128: true, 1: true, 16: true, 32: true, 64: true,
+    });
+    expect(form.item.permissions).to.equal(241);
+
+    EditRoleForm.watch['item.permissions'].handler.call(form, 241);
+    expect(form.permissions).to.deep.equal({
+      128: true, 1: true, 2: false, 4: false, 8: false, 16: true, 32: true, 64: true,
+    });
+  });
+
+  it('keeps bits the form does not know', () => {
+    const form = { item: { permissions: 1024 | 1 }, permissions: {} };
+    EditRoleForm.watch.permissions.handler.call(form, { 1: false });
+    expect(form.item.permissions).to.equal(1024);
+
+    form.permissions = { 8: true };
+    EditRoleForm.methods.beforeSave.call(form);
+    expect(form.item.permissions).to.equal(1032);
+  });
+
   it('starts a new role without permissions', () => {
     expect(EditRoleForm.methods.getNewItem.call({ projectId: null })).to.deep.equal({ name: '', slug: '', permissions: 0 });
     expect(EditRoleForm.methods.getNewItem.call({ projectId: 7 })).to.deep.equal({ name: '', slug: '', permissions: 0 });

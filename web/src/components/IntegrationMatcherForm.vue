@@ -1,24 +1,27 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item"
+    data-testid="integrationMatcherForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
+      data-testid="integrationMatcherForm-error"
     >{{ formError }}
     </v-alert>
     <v-text-field
       v-model="item.name"
+      data-testid="integrationMatcherForm-name"
       label="Name"
       :rules="[v => !!v || 'Name is required']"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <v-divider class="mb-5" />
@@ -26,56 +29,61 @@
     <div>
       <v-select
         v-model="item.match_type"
+        data-testid="integrationMatcherForm-matchType"
         label="Match on *"
         :items="matchTypes"
         item-value="id"
-        item-text="text"
+        item-title="text"
         :rules="[v => !!v || 'Match source is required']"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         required
         :disabled="formSaving"
       ></v-select>
       <v-select
         v-model="item.body_data_type"
+        data-testid="integrationMatcherForm-bodyDataType"
         v-if="item.match_type == 'body'"
         label="Body Data Format *"
         :items="bodyDataFormats"
         item-value="id"
-        item-text="text"
+        item-title="text"
         :rules="[v => !!v || 'Body Data Format is required']"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         required
         :disabled="formSaving"
       ></v-select>
       <v-text-field
         v-model="item.key"
+        data-testid="integrationMatcherForm-key"
         label="Key *"
         :rules="[v => !!v || 'Key is required']"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         required
         :disabled="formSaving"
       ></v-text-field>
       <v-select
         v-model="item.method"
+        data-testid="integrationMatcherForm-method"
         label="Comparison Method *"
         :items="methods"
         item-value="id"
-        item-text="text"
+        item-title="text"
         :rules="[v => !!v || 'Comparison Method is required']"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         required
         :disabled="formSaving"
       ></v-select>
       <v-text-field
         v-model="item.value"
+        data-testid="integrationMatcherForm-value"
         label="Value *"
         :rules="[v => !!v || 'Value is required']"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         required
         :disabled="formSaving"
       ></v-text-field>

@@ -17,7 +17,9 @@ describe('groupRolesForSelect', () => {
         slug: 'local', name: 'Local', builtin: false, project_id: 1,
       },
     ], t);
-    expect(items.filter((i) => i.header).map((i) => i.header)).to.deep.equal(['Project', 'Shared', 'Built-in']);
+    expect(items.filter((i) => i.type === 'subheader').map((i) => i.name))
+      .to.deep.equal(['Project', 'Shared', 'Built-in']);
+    expect(items.filter((i) => i.type === 'divider')).to.have.length(2);
     expect(items.filter((i) => i.slug).map((i) => i.slug)).to.deep.equal(['local', 'deployer', 'owner']);
   });
 

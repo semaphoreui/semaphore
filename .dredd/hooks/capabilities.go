@@ -44,6 +44,7 @@ var integrationAliasID int
 var workflowID int
 var workflowRunID int
 var workflowNodeID int
+var permID int
 
 var capabilities = map[string][]string{
 	"user":                    {},
@@ -67,6 +68,8 @@ var capabilities = map[string][]string{
 	"workflow":                {"template"},
 	"workflow_run":            {"workflow"},
 	"workflow_approval":       {"workflow_run"},
+	"template_perm":           {"template"},
+	"workflow_perm":           {"workflow"},
 	"global_role":             {"user"},
 }
 
@@ -223,6 +226,10 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "workflow_approval":
 			workflowApproval = addWorkflowApproval()
 			workflowNodeID = workflowApproval.WorkflowNodeID
+		case "template_perm":
+			permID = addTemplatePerm()
+		case "workflow_perm":
+			permID = addWorkflowPerm()
 		case "global_role":
 			globalRole = addGlobalRole()
 			globalRoleAssignment = addGlobalRoleAssignment(userPathTestUser.ID, globalRole.ID)
@@ -298,6 +305,7 @@ var pathSubPatterns = []func() string{
 		}
 		return strconv.Itoa(globalRole.ID)
 	}, // global role_id, x-example: 24
+	func() string { return strconv.Itoa(permID) }, // perm_id, x-example: 25
 }
 
 // alterRequestPath with the above slice of functions

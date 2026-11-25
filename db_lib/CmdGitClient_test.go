@@ -108,7 +108,6 @@ func TestCmdGitClient_AppliesHostConfigs(t *testing.T) {
 	t.Cleanup(func() { util.Config = original })
 	util.Config = &util.ConfigType{
 		TmpPath: tmp,
-		Process: &util.ConfigProcess{},
 		Ssh:     &util.SshConfig{StrictHostKeyChecking: util.SshStrictHostKeyCheckingNo},
 	}
 

@@ -191,6 +191,40 @@ func addUser() *db.User {
 }
 
 // addGlobalRole creates a global role that grants the audit log, so that it can be assigned to a user.
+func addTemplatePerm() int {
+	role, err := store.GetSharedRoleBySlug("task_runner")
+	if err != nil {
+		panic(err)
+	}
+	perm, err := store.CreateTemplateRole(db.TemplateRolePerm{
+		ProjectID:   userProject.ID,
+		TemplateID:  templateID,
+		RoleID:      role.ID,
+		Permissions: db.CanRunProjectTasks,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return perm.ID
+}
+
+func addWorkflowPerm() int {
+	role, err := store.GetSharedRoleBySlug("task_runner")
+	if err != nil {
+		panic(err)
+	}
+	perm, err := store.CreateWorkflowRole(db.WorkflowRolePerm{
+		ProjectID:   userProject.ID,
+		WorkflowID:  workflowID,
+		RoleID:      role.ID,
+		Permissions: db.CanRunWorkflows,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return perm.ID
+}
+
 func addGlobalRole() *db.GlobalRole {
 	uid := getUUID()
 	role, err := globalRoleStore.CreateGlobalRole(db.GlobalRole{
@@ -467,6 +501,12 @@ func isProBuild() bool {
 // implementation enables them only for an active PRO plan, which the Dredd stand does not have.
 func globalRolesEnabled() bool {
 	return proFeatures.GetFeatures(&db.User{}, "").GlobalRolesManagement
+}
+
+// customRolesEnabled reports whether the server under test lets the test user write object grants: the PRO
+// implementation enables them only for an active Enterprise plan, which the Dredd stand does not have.
+func customRolesEnabled() bool {
+	return proFeatures.GetFeatures(&db.User{}, "").CustomRolesManagement
 }
 
 // HELPERS

@@ -25,7 +25,7 @@ All Go types live in the `util` package. Read these files **in full** before wri
 
 | File | What's in it |
 |------|--------------|
-| `util/config.go` | `ConfigType` (root) + most nested types: `DbConfig`, `TLSConfig`, `RunnerConfig`, `TotpConfig`, `EventLogType`, `TaskLogType`, `ConfigLog`, `SyslogConfig`, `ConfigProcess`, `ConfigAppNamespaces`, `ScheduleConfig`, `DebuggingConfig`, `HAConfig`, `HARedisConfig`, `TeamsConfig`, `ConfigDirs`, `SubscriptionConfig`, `LdapMappings`, `oidcEndpoint` |
+| `util/config.go` | `ConfigType` (root) + most nested types: `DbConfig`, `TLSConfig`, `RunnerConfig`, `TotpConfig`, `EventLogType`, `TaskLogType`, `ConfigLog`, `SyslogConfig`, `ScheduleConfig`, `DebuggingConfig`, `HAConfig`, `HARedisConfig`, `TeamsConfig`, `ConfigDirs`, `SubscriptionConfig`, `LdapMappings`, `oidcEndpoint` |
 | `util/config_auth.go` | `MultifactorAuthConfig`, `EmailAuthConfig`, `TotpConfig`, `RecaptchaConfig` |
 | `util/App.go` | `App` |
 | `util/OdbcProvider.go` | `OidcProvider` (note: filename is `Odbc...`, typo'd — don't "fix" it) |

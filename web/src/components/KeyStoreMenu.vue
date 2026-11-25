@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div data-testid="keystore-menu">
     <v-tabs class="pl-4">
       <v-tab
         key="keys"
