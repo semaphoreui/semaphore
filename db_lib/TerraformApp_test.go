@@ -59,7 +59,7 @@ func TestTerraformReader_ReadReleasesOnStoppingStatus(t *testing.T) {
 	}
 	go func() {
 		time.Sleep(50 * time.Millisecond)
-		reader.status = task_logger.TaskStoppingStatus
+		reader.setStatus(task_logger.TaskStoppingStatus)
 	}()
 
 	buf := make([]byte, 8)
@@ -90,7 +90,7 @@ func TestTerraformReader_ReadEOFAfterStop(t *testing.T) {
 	}
 	go func() {
 		time.Sleep(20 * time.Millisecond)
-		reader.status = task_logger.TaskStoppedStatus
+		reader.setStatus(task_logger.TaskStoppedStatus)
 	}()
 	buf := make([]byte, 8)
 	n, err := reader.Read(buf)

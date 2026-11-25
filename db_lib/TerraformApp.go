@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -30,8 +31,21 @@ type TerraformApp struct {
 
 type terraformReader struct {
 	EOF    bool
+	mu     sync.Mutex
 	status task_logger.TaskStatus
 	logger task_logger.Logger
+}
+
+func (r *terraformReader) setStatus(status task_logger.TaskStatus) {
+	r.mu.Lock()
+	r.status = status
+	r.mu.Unlock()
+}
+
+func (r *terraformReader) getStatus() task_logger.TaskStatus {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.status
 }
 
 func (r *terraformReader) Read(p []byte) (n int, err error) {
@@ -39,24 +53,25 @@ func (r *terraformReader) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 
-	if r.status != task_logger.TaskWaitingConfirmation {
+	if r.getStatus() != task_logger.TaskWaitingConfirmation {
 		time.Sleep(time.Second * 3)
 		return 0, nil
 	}
 
 	for {
 		time.Sleep(time.Second * 3)
-		if r.status.IsFinished() ||
-			r.status == task_logger.TaskConfirmed ||
-			r.status == task_logger.TaskRejected ||
-			r.status == task_logger.TaskStoppingStatus {
+		status := r.getStatus()
+		if status.IsFinished() ||
+			status == task_logger.TaskConfirmed ||
+			status == task_logger.TaskRejected ||
+			status == task_logger.TaskStoppingStatus {
 			break
 		}
 	}
 
 	r.EOF = true
 
-	switch r.status {
+	switch r.getStatus() {
 	case task_logger.TaskConfirmed:
 		copy(p, "yes\n")
 		r.logger.SetStatus(task_logger.TaskRunningStatus)
@@ -125,7 +140,7 @@ func (t *TerraformApp) GetFullPath() string {
 
 func (t *TerraformApp) SetLogger(logger task_logger.Logger) task_logger.Logger {
 	logger.AddStatusListener(func(status task_logger.TaskStatus) {
-		t.reader.status = status
+		t.reader.setStatus(status)
 	})
 
 	t.reader.logger = logger
@@ -413,15 +428,16 @@ func (t *TerraformApp) Run(args LocalAppRunningArgs) error {
 
 	for {
 		time.Sleep(time.Second * 3)
-		if t.reader.status.IsFinished() ||
-			t.reader.status == task_logger.TaskConfirmed ||
-			t.reader.status == task_logger.TaskRejected ||
-			t.reader.status == task_logger.TaskStoppingStatus {
+		status := t.reader.getStatus()
+		if status.IsFinished() ||
+			status == task_logger.TaskConfirmed ||
+			status == task_logger.TaskRejected ||
+			status == task_logger.TaskStoppingStatus {
 			break
 		}
 	}
 
-	switch t.reader.status {
+	switch t.reader.getStatus() {
 	case task_logger.TaskRejected:
 		t.Logger.SetStatus(task_logger.TaskFailStatus)
 	case task_logger.TaskConfirmed:
