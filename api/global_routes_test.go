@@ -28,7 +28,7 @@ type globalRoute struct {
 	// denyName is the permission name a denial is recorded with; empty means the catalog id of permission.
 	denyName string
 	// forbidsWithoutPlan marks a route whose handler answers 403 by itself when the plan lacks the feature
-	// (the Pro controllers of roles and audit, and the community stubs), so for an allowed caller only the
+	// (the Pro controllers of roles, audit and hosts, and the community stubs), so for an allowed caller only the
 	// audit trail tells a permission denial from that answer.
 	forbidsWithoutPlan bool
 }
@@ -45,6 +45,9 @@ func globalRoutes() []globalRoute {
 	}
 	audit := func(path string) globalRoute {
 		return globalRoute{method: http.MethodGet, path: path, permission: db.CanReadGlobalAudit, denyName: "audit_log", forbidsWithoutPlan: true}
+	}
+	hosts := func(method, path string) globalRoute {
+		return globalRoute{method: method, path: path, permission: db.CanManageGlobalSystem, forbidsWithoutPlan: true}
 	}
 	return []globalRoute{
 		// manage system
@@ -76,6 +79,10 @@ func globalRoutes() []globalRoute {
 		system(http.MethodGet, "/api/tasks", ""),
 		system(http.MethodGet, "/api/tasks/999", ""),
 		system(http.MethodDelete, "/api/tasks/999", ""),
+		hosts(http.MethodGet, "/api/hosts"),
+		hosts(http.MethodGet, "/api/hosts/1"),
+		hosts(http.MethodGet, "/api/hosts/1/tasks"),
+		hosts(http.MethodPost, "/api/hosts/1/decommission"),
 
 		// manage roles
 		roles(http.MethodGet, "/api/roles"),
@@ -162,7 +169,7 @@ func newGlobalRoutesFixture(t *testing.T) globalRoutesFixture {
 
 	// noLicense stands in for the subscription service: the Pro controllers then refuse their routes by plan,
 	// which the forbidsWithoutPlan flag of the table accounts for.
-	f.router = Route(store, f.roles, nil, nil, fakeRoleMappingStore{}, nil, f.pool, nil, nil, nil, nil, nil, nil, nil, noLicense{}, nil, nil, nil, nil)
+	f.router = Route(store, f.roles, nil, nil, fakeRoleMappingStore{}, nil, nil, f.pool, nil, nil, nil, nil, nil, nil, nil, noLicense{}, nil, nil, nil, nil)
 	return f
 }
 

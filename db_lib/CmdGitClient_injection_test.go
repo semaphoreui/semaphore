@@ -55,7 +55,7 @@ func setupGitClientTest(t *testing.T) {
 	t.Helper()
 	original := util.Config
 	t.Cleanup(func() { util.Config = original })
-	util.Config = &util.ConfigType{TmpPath: t.TempDir(), Process: &util.ConfigProcess{}}
+	util.Config = &util.ConfigType{TmpPath: t.TempDir()}
 }
 
 // TestCmdGitClient_OptionInjectionNeutralized proves that a GitURL crafted as a git

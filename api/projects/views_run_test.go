@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/api/helpers"
+	"github.com/semaphoreui/semaphore/api/sockets"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/audit/audittest"
@@ -49,7 +50,16 @@ func (missingInventories) GetInventory(int, int) (db.Inventory, error) {
 	return db.Inventory{}, db.ErrNotFound
 }
 
+// nopBroadcaster takes the task log lines sent to the member: no websocket hub runs in tests.
+type nopBroadcaster struct{}
+
+func (nopBroadcaster) Start()              {}
+func (nopBroadcaster) Publish(int, []byte) {}
+func (nopBroadcaster) Stop()               {}
+
 func TestRunViewTasks(t *testing.T) {
+	sockets.SetBroadcaster(nopBroadcaster{})
+	t.Cleanup(func() { sockets.SetBroadcaster(nil) })
 	f := newTaskControlFixture(t)
 	view, err := f.store.CreateView(db.View{ProjectID: f.project.ID, Title: "v"})
 	require.NoError(t, err)
@@ -57,6 +67,10 @@ func TestRunViewTasks(t *testing.T) {
 	require.NoError(t, err)
 	user, err := f.store.CreateUser(db.UserWithPwd{Pwd: "verystrongpassword1", User: db.User{Username: "u", Name: "u", Email: "u@example.com"}})
 	require.NoError(t, err)
+	// Only a member who may read the project sees the templates of the view.
+	runner, err := f.store.GetSharedRoleBySlug(string(db.ProjectTaskRunner))
+	require.NoError(t, err)
+	require.NoError(t, f.store.CreateProjectUser(f.project.ID, user.ID, []int{runner.ID}))
 	encryption := server.NewAccessKeyEncryptionService(f.store, f.store, f.store, f.store)
 	pool := tasks.CreateTaskPool(f.store, tasks.NewMemoryTaskStateStore(), nil, missingInventories{}, encryption, nil, nopLogWriter{}, nil, nil)
 

@@ -20,12 +20,21 @@ type JobData struct {
 	Environment         db.Environment  `json:"environment" binding:"required"`
 	JWT                 string          `json:"jwt,omitempty"`
 	HostConfigs         []db.HostConfig `json:"host_configs,omitempty"`
+
+	// AccessKeys are the decrypted keys that belong to this job alone, by key
+	// ID: the tokens of its MCP servers (McpServer.TokenKeyID). A token is a
+	// snapshot taken together with the server's URL, and two jobs of one
+	// response can hold different tokens under the same key ID, so these keys
+	// are never merged into RunnerState.AccessKeys.
+	AccessKeys map[int]db.AccessKey `json:"access_keys,omitempty"`
 }
 
 type RunnerState struct {
 	CurrentJobs []JobState
-	NewJobs     []JobData            `json:"new_jobs" binding:"required"`
-	AccessKeys  map[int]db.AccessKey `json:"access_keys" binding:"required"`
+	NewJobs     []JobData `json:"new_jobs" binding:"required"`
+	// AccessKeys are the decrypted keys of all new jobs, by key ID. A key that
+	// must stay the snapshot of one job is in JobData.AccessKeys instead.
+	AccessKeys map[int]db.AccessKey `json:"access_keys" binding:"required"`
 
 	ClearCache          bool `json:"clear_cache,omitempty"`
 	CacheCleanProjectID *int `json:"cache_clean_project_id,omitempty"`
@@ -73,6 +82,12 @@ type JobProgress struct {
 	// status but success. Optional on the wire: an old server ignores it and
 	// an old runner never sends it.
 	Outputs *string `json:"outputs,omitempty"`
+
+	// Hosts is the host stats document of the task, attached together with
+	// the final status whatever it is. Nil for executors that do not capture
+	// host stats and while the task runs. Optional on the wire: an old server
+	// ignores it and an old runner never sends it.
+	Hosts *string `json:"hosts,omitempty"`
 }
 
 type RunnerRegistration struct {

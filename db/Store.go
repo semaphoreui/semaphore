@@ -172,6 +172,8 @@ type TaskFilter struct {
 	End    *time.Time `json:"end"`
 	UserID *int       `json:"user_id"`
 	Status []task_logger.TaskStatus
+	// Viewer keeps only the tasks this member may see; nil lists them all.
+	Viewer *Viewer `json:"-"`
 }
 
 type TaskStat struct {
@@ -234,7 +236,6 @@ type UserManager interface {
 	GetUserByLoginOrEmail(login string, email string) (User, error)
 	GetAllAdmins() ([]User, error)
 
-	GetNodeCount() (int, error)
 	GetUiCount() (int, error)
 }
 
@@ -296,9 +297,79 @@ type InventoryManager interface {
 	GetInventory(projectID int, inventoryID int) (Inventory, error)
 	GetInventoryRefs(projectID int, inventoryID int) (ObjectReferrers, error)
 	GetInventories(projectID int, params RetrieveQueryParams, types []InventoryType) ([]Inventory, error)
+	// UpdateInventory leaves the variables as they are
 	UpdateInventory(inventory Inventory) error
+	SetInventoryVariables(projectID, inventoryID int, variables string) error
 	CreateInventory(inventory Inventory) (Inventory, error)
 	DeleteInventory(projectID int, inventoryID int) error
+}
+
+// McpServerManager handles the MCP servers of InventoryMcp inventories and
+// their tokens. Every method is scoped by the project of the inventory, so an
+// ID taken from a request never reaches a server of another project.
+type McpServerManager interface {
+	// GetMcpServers returns the servers of an inventory, with HasToken filled.
+	GetMcpServers(projectID int, inventoryID int) ([]McpServer, error)
+	// GetMcpServerTokens returns the token keys of the servers of an inventory,
+	// each with McpID set. The secret is still encrypted. Never pair them
+	// with the result of GetMcpServers: an edit between the two reads would
+	// give a server's old URL the new token. Use GetMcpServersWithTokens.
+	GetMcpServerTokens(projectID int, inventoryID int) ([]AccessKey, error)
+	// GetMcpServersWithTokens returns the servers of an inventory, each with
+	// the key of its token, read by one statement and so from one snapshot of
+	// the database. The secret is still encrypted.
+	GetMcpServersWithTokens(projectID int, inventoryID int) ([]McpServerWithToken, error)
+	// SetMcpServers replaces the servers of an inventory and applies the token
+	// changes in one transaction: a listed server with an ID is updated, one
+	// without an ID is created, a server missing from the list is deleted
+	// together with its token. It returns the stored servers.
+	SetMcpServers(projectID int, inventoryID int, changes []McpServerChange) ([]McpServer, error)
+	// CreateMcpInventory creates an InventoryMcp inventory together with its
+	// servers and tokens in one transaction: either all of it is stored or
+	// nothing is.
+	CreateMcpInventory(inventory Inventory, changes []McpServerChange) (Inventory, []McpServer, error)
+	// UpdateMcpInventory updates an InventoryMcp inventory and replaces its
+	// servers in one transaction, like SetMcpServers. An inventory of another
+	// type is not found: the type can not be switched to mcp. It returns the
+	// stored servers and the number of tokens deleted together with the
+	// servers missing from the list, counted in the same transaction.
+	UpdateMcpInventory(inventory Inventory, changes []McpServerChange) (servers []McpServer, removedTokens int, err error)
+}
+
+// InventoryHostListParams selects a page of the hosts of a managed inventory
+type InventoryHostListParams struct {
+	Search    string
+	Offset    int
+	Count     int // 0 means no limit
+	GroupID   int // hosts of the group and of its descendants
+	Ungrouped bool
+	IDs       []int // only these hosts, nil means any
+}
+
+// InventoryHostManager handles hosts of managed inventories
+type InventoryHostManager interface {
+	GetInventoryHosts(projectID, inventoryID int, params InventoryHostListParams) (hosts []InventoryHost, total int, err error)
+	GetInventoryHost(projectID, inventoryID, hostID int) (InventoryHost, error)
+	GetEnabledInventoryHosts(projectID, inventoryID int) ([]InventoryHost, error)
+	CreateInventoryHost(host InventoryHost, addGroups []int) (InventoryHost, error)
+	// UpdateInventoryHost leaves the enabled flag as it is and reports the groups whose link changed
+	UpdateInventoryHost(host InventoryHost, addGroups, removeGroups []int) (added, removed []int, err error)
+	// SetInventoryHostEnabled reports whether the flag was different before
+	SetInventoryHostEnabled(projectID, inventoryID, hostID int, enabled bool) (changed bool, err error)
+	DeleteInventoryHost(projectID, inventoryID, hostID int) error
+}
+
+// InventoryGroupManager handles groups of managed inventories, every change of links is applied whole or not at all, an unknown id to remove is ignored
+type InventoryGroupManager interface {
+	GetInventoryGroups(projectID, inventoryID int) ([]InventoryGroup, error)
+	GetInventoryGroup(projectID, inventoryID, groupID int) (InventoryGroup, error)
+	CreateInventoryGroup(group InventoryGroup, addChildren []int) (InventoryGroup, error)
+	// UpdateInventoryGroup reports the child groups whose link changed
+	UpdateInventoryGroup(group InventoryGroup, addChildren, removeChildren []int) (added, removed []int, err error)
+	DeleteInventoryGroup(projectID, inventoryID, groupID int) error
+	// ChangeInventoryHostGroups reports by group the hosts whose link changed
+	ChangeInventoryHostGroups(projectID, inventoryID int, hostIDs, add, remove []int) (added, removed map[int][]int, err error)
+	GetInventoryGroupHosts(projectID, inventoryID int) ([]InventoryGroupHost, error)
 }
 
 // RepositoryManager handles repository-related operations
@@ -349,6 +420,7 @@ type GetAccessKeyOptions struct {
 	StorageID       *int
 	SourceStorageID *int
 	TaskID          *int
+	McpID           *int
 }
 
 // Validate ensures that querying keys of an owned type always includes the
@@ -369,6 +441,8 @@ func (o GetAccessKeyOptions) Validate() error {
 		value, name = o.StorageID, "storage_id"
 	case AccessKeyTaskSecret:
 		value, name = o.TaskID, "task_id"
+	case AccessKeyMcp:
+		value, name = o.McpID, "mcp_id"
 	default:
 		return nil
 	}
@@ -462,6 +536,7 @@ type TaskManager interface {
 	CreateTask(task Task, maxTasks int) (Task, error)
 	UpdateTask(task Task) error
 	UpdateTaskArtifacts(projectID int, taskID int, artifacts *string) error
+	UpdateTaskEffectiveInventory(projectID int, taskID int, inventoryID *int) error
 	SetWaitingTasksToStopped(projectID int, templateID int) error
 	GetTemplateTasks(projectID int, templateID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 	GetProjectTasks(projectID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
@@ -481,10 +556,12 @@ type TaskManager interface {
 }
 
 type AnsibleTaskRepository interface {
-	CreateAnsibleTaskHost(host AnsibleTaskHost) error
 	CreateAnsibleTaskError(error AnsibleTaskError) error
 	GetAnsibleTaskHosts(projectID int, taskID int) ([]AnsibleTaskHost, error)
 	GetAnsibleTaskErrors(projectID int, taskID int) ([]AnsibleTaskError, error)
+	// ReplaceAnsibleTaskHosts clears the task's rows and inserts the given ones, an empty slice only clears.
+	// A nil inventoryID means the task has no inventory.
+	ReplaceAnsibleTaskHosts(projectID int, taskID int, inventoryID *int, hosts []AnsibleTaskHost) error
 }
 
 // ScheduleManager handles schedule-related operations
@@ -503,7 +580,14 @@ type ScheduleManager interface {
 // ViewManager handles view-related operations
 type ViewManager interface {
 	GetView(projectID int, viewID int) (View, error)
-	GetViews(projectID int) ([]View, error)
+	// GetViews returns the views of a project; a non-empty types narrows the
+	// list to the views of those types.
+	GetViews(projectID int, types []ViewType) ([]View, error)
+	// GetViewTemplateCounts groups the templates of a project that are in the
+	// scope by their view and by the status of their last task; an empty scope
+	// costs no query. viewer keeps only the templates this member may see; nil
+	// counts them all.
+	GetViewTemplateCounts(projectID int, scope ViewTemplateCountScope, viewer *Viewer) ([]ViewTemplateCount, error)
 	UpdateView(view View) error
 	CreateView(view View) (View, error)
 	DeleteView(projectID int, viewID int) error
@@ -615,6 +699,19 @@ type RoleRepository interface {
 	DeleteRoleWithAssignments(roleID int, withMappings bool) (RoleAssignments, error)
 }
 
+// Role grants on workflows: the table is in the community schema, the workflows are a Pro store.
+type WorkflowRoleManager interface {
+	GetWorkflowPermission(projectID int, workflowID int, userID int) (ProjectUserPermission, error)
+	GetWorkflowRunPermission(projectID int, runID int, userID int) (ProjectUserPermission, error)
+	GetTaskViewers(projectID int, templateID int, workflowRunID *int) ([]int, error)
+	GetWorkflowGrantsForUser(projectID int, userID int) (map[int]ProjectUserPermission, error)
+	GetWorkflowRoles(projectID int, workflowID int) ([]WorkflowRolePerm, error)
+	GetWorkflowRole(projectID int, workflowID int, permID int) (WorkflowRolePerm, error)
+	CreateWorkflowRole(perm WorkflowRolePerm) (WorkflowRolePerm, error)
+	UpdateWorkflowRole(perm WorkflowRolePerm) error
+	DeleteWorkflowRole(projectID int, workflowID int, permID int) error
+}
+
 // Store is the main interface that aggregates all specialized interfaces
 type Store interface {
 	ConnectionManager
@@ -624,7 +721,11 @@ type Store interface {
 	ProjectStore
 	ProjectInviteRepository
 	TemplateManager
+	WorkflowRoleManager
 	InventoryManager
+	McpServerManager
+	InventoryHostManager
+	InventoryGroupManager
 	RepositoryManager
 	HostConfigManager
 	EnvironmentManager

@@ -45,7 +45,6 @@ func setupGitRetryTest(t *testing.T, attempts int) {
 	t.Cleanup(func() { util.Config = original })
 	util.Config = &util.ConfigType{
 		TmpPath:     t.TempDir(),
-		Process:     &util.ConfigProcess{},
 		GitAttempts: attempts,
 	}
 }

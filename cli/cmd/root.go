@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -16,6 +17,7 @@ import (
 	"github.com/semaphoreui/semaphore/api"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/api/sockets"
+	"github.com/semaphoreui/semaphore/cli/cmd/client"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/factory"
 	"github.com/semaphoreui/semaphore/pkg/debuglog"
@@ -115,8 +117,13 @@ var registerPersistentFlags = sync.OnceFunc(func() {
 func Execute() {
 	registerPersistentFlags()
 	if err := rootCmd.Execute(); err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		// Ctrl+C needs no explanation, and "context canceled" is not one.
+		if !errors.Is(err, context.Canceled) {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+		}
+		// `semaphore client` distinguishes usage, auth, not-found and task
+		// outcomes by exit code; every other command keeps exiting with 1.
+		os.Exit(client.ExitCode(err))
 	}
 }
 
@@ -193,6 +200,17 @@ func runService() {
 		log.WithField("redis", haRedis.Describe()).Info("HA Redis backend connected")
 	}
 
+	// The store caches runners by token in memory, which is only correct on a
+	// single node: HA nodes must share the cache so that an invalidation made
+	// by one node reaches the others.
+	if runnerCache := proHA.NewRunnerCache(haRedis); runnerCache != nil {
+		holder, ok := store.(db.RunnerCacheHolder)
+		if !ok {
+			log.Fatalf("store %T does not support a shared runner cache", store)
+		}
+		holder.SetRunnerCache(runnerCache)
+	}
+
 	appMetrics := metrics.NewMetrics()
 
 	auditService, auditErr := audit.StartService(
@@ -209,6 +227,7 @@ func runService() {
 	state := proTasks.NewTaskStateStore(haRedis)
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
+	hostRepo := proFactory.NewHostRepository(store)
 	workflowStore := proFactory.NewWorkflowStore(store)
 	globalRoleStore := proFactory.NewGlobalRoleStore(store)
 	roleMappingStore := proFactory.NewRoleMappingStore(store)
@@ -263,6 +282,8 @@ func runService() {
 		encryptionService,
 	)
 
+	schedulePool.SetWorkflowService(workflowStore, workflowService)
+
 	defer schedulePool.Destroy()
 	defer taskPool.Stop()
 
@@ -291,6 +312,10 @@ func runService() {
 		schedulePool.SetDeduplicator(dedup)
 		secretStorageSyncScheduler.SetTickDeduplicator(dedup)
 	}
+
+	// The runners the pool built at creation hold the pool as it was then,
+	// without the deduplicator and the workflow engine: rebuild them.
+	schedulePool.Refresh()
 
 	// Each process holds its own in-memory cron table. Schedule CRUD handlers only
 	// call Refresh on the node that served the HTTP request, so other HA nodes
@@ -355,6 +380,7 @@ func runService() {
 		workflowStore,
 		roleMappingStore,
 		ansibleTaskRepo,
+		hostRepo,
 		&taskPool,
 		projectService,
 		integrationService,

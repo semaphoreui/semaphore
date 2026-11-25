@@ -34,6 +34,8 @@ export default {
     needReset: Boolean, // flag which signal about user want to reset form
   },
 
+  emits: ['error', 'save'],
+
   data() {
     return {
       item: null,
@@ -146,7 +148,8 @@ export default {
     async save(data = {}) {
       this.formError = null;
 
-      if (!this.$refs.form.validate()) {
+      const { valid } = await this.$refs.form.validate();
+      if (!valid) {
         this.$emit('error', {});
         return null;
       }

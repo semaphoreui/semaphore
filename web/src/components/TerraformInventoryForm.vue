@@ -1,14 +1,17 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null && keys != null"
+    class="TerraformInventoryForm"
+    data-testid="tfWorkspace-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
+      data-testid="tfWorkspace-error"
     >{{ formError }}</v-alert>
 
     <v-text-field
@@ -17,23 +20,51 @@
       :rules="[v => !!v || $t('path_required')]"
       required
       :disabled="formSaving"
+      data-testid="tfWorkspace-inventory"
     ></v-text-field>
 
     <v-select
       v-model="item.ssh_key_id"
       label="SSH key for private modules *"
       :rules="[v => !!v || 'Key is required']"
-      dense
+      density="compact"
       required
       :items="sshKeys"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :disabled="formSaving"
+      :menu-props="keyMenu"
+      class="TerraformInventoryForm__key"
+      data-testid="tfWorkspace-sshKeyId"
     ></v-select>
 
   </v-form>
 </template>
-<style>
+<style lang="scss">
+// The dense underlined select of Vuetify 2 (`v-select dense`): 4 px over the field
+// (`.v-text-field` margin-top), a 26 px line (Vuetify 4 compact: 32 px under no margin) with the
+// selection 2 px down, the arrow at its top, the resting label centred on the line and the floating
+// one 18 px over the resting one, scaled to .75.
+.TerraformInventoryForm__key {
+  margin-top: 4px;
+
+  .v-field__input {
+    min-height: 26px;
+    padding-top: 2px;
+  }
+
+  .v-field__append-inner {
+    padding-top: 0;
+  }
+
+  .v-field-label {
+    top: 2px;
+  }
+
+  .v-field-label.v-field-label--floating {
+    top: 1px;
+  }
+}
 </style>
 <script>
 /* eslint-disable import/no-extraneous-dependencies,import/extensions */
@@ -56,6 +87,9 @@ export default {
   data() {
     return {
       keys: null,
+      // The list over the field from its top edge (the default of plugins/vuetify.js), at most
+      // 304 px high (Vuetify 2 `menuProps`; Vuetify 4: 310).
+      keyMenu: { location: 'top', origin: 'top', maxHeight: 304 },
     };
   },
 

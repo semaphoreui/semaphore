@@ -634,7 +634,6 @@ func TestPopulateDetailsInventory1(t *testing.T) {
 func TestTaskGetPlaybookArgs(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
-		Process: &util.ConfigProcess{},
 	}
 
 	inventoryID := 1
@@ -682,7 +681,6 @@ func TestTaskGetPlaybookArgs(t *testing.T) {
 func TestTaskGetPlaybookArgs2(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
-		Process: &util.ConfigProcess{},
 	}
 
 	inventoryID := 1
@@ -734,7 +732,6 @@ func TestTaskGetPlaybookArgs2(t *testing.T) {
 func TestTaskGetPlaybookArgs3(t *testing.T) {
 	util.Config = &util.ConfigType{
 		TmpPath: "/tmp",
-		Process: &util.ConfigProcess{},
 	}
 
 	inventoryID := 1
@@ -851,7 +848,35 @@ func TestTaskRunner_populateWorkflowDetails(t *testing.T) {
 
 		require.NotNil(t, tr.Task.WorkflowTemplateID)
 		assert.Equal(t, 7, *tr.Task.WorkflowTemplateID)
+		assert.Nil(t, tr.Task.WorkflowVersion)
 		assert.Equal(t, 1, repo.calls)
+	})
+
+	t.Run("resolves the version of the run", func(t *testing.T) {
+		version := "1.4.0"
+		repo := &fakeWorkflowRepo{run: db.WorkflowRun{ID: runID, ProjectID: 3, WorkflowTemplateID: 7, Version: &version}}
+		tr := TaskRunner{
+			Task: db.Task{ID: 1, ProjectID: 3, WorkflowRunID: &runID},
+			pool: &TaskPool{workflowRepo: repo},
+		}
+
+		require.NoError(t, tr.populateWorkflowDetails())
+
+		require.NotNil(t, tr.Task.WorkflowVersion)
+		assert.Equal(t, "1.4.0", *tr.Task.WorkflowVersion)
+	})
+
+	t.Run("ignores an empty version of the run", func(t *testing.T) {
+		version := ""
+		repo := &fakeWorkflowRepo{run: db.WorkflowRun{ID: runID, ProjectID: 3, WorkflowTemplateID: 7, Version: &version}}
+		tr := TaskRunner{
+			Task: db.Task{ID: 1, ProjectID: 3, WorkflowRunID: &runID},
+			pool: &TaskPool{workflowRepo: repo},
+		}
+
+		require.NoError(t, tr.populateWorkflowDetails())
+
+		assert.Nil(t, tr.Task.WorkflowVersion)
 	})
 
 	t.Run("skips tasks outside a workflow", func(t *testing.T) {
@@ -889,4 +914,110 @@ func TestTaskRunner_populateWorkflowDetails(t *testing.T) {
 
 		assert.Nil(t, tr.Task.WorkflowTemplateID)
 	})
+}
+
+type managedInventoryServiceMock struct {
+	inventory db.Inventory
+}
+
+func (s *managedInventoryServiceMock) GetInventory(projectID int, inventoryID int) (db.Inventory, error) {
+	return s.inventory, nil
+}
+
+func TestPopulateDetails_ManagedInventory(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{})
+	require.NoError(t, err)
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Type: db.AccessKeyNone})
+	require.NoError(t, err)
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Test",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	require.NoError(t, err)
+	inv, err := store.CreateInventory(db.Inventory{ProjectID: proj.ID, Name: "managed", Type: db.InventoryManaged})
+	require.NoError(t, err)
+	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: proj.ID, InventoryID: inv.ID, Name: "web-on", Enabled: true}, nil)
+	require.NoError(t, err)
+	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: proj.ID, InventoryID: inv.ID, Name: "web-off", Enabled: false}, nil)
+	require.NoError(t, err)
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:         "Test",
+		Playbook:     "test.yml",
+		ProjectID:    proj.ID,
+		RepositoryID: repo.ID,
+		InventoryID:  &inv.ID,
+	})
+	require.NoError(t, err)
+
+	pool := TaskPool{
+		store:             store,
+		inventoryService:  &managedInventoryServiceMock{inventory: inv},
+		encryptionService: &EncryptionServiceMock{},
+	}
+	tsk := TaskRunner{
+		pool: &pool,
+		Task: db.Task{TemplateID: tpl.ID, ProjectID: proj.ID},
+	}
+	tsk.job = &LocalExecutor{Task: tsk.Task, Logger: &tsk}
+
+	err = tsk.populateDetails()
+
+	require.NoError(t, err)
+	assert.Equal(t, db.InventoryStaticYaml, tsk.Inventory.Type)
+	assert.Contains(t, tsk.Inventory.Inventory, "web-on")
+	assert.NotContains(t, tsk.Inventory.Inventory, "web-off")
+	assert.Nil(t, tsk.Inventory.Variables)
+	stored, err := store.GetInventory(proj.ID, inv.ID)
+	require.NoError(t, err)
+	assert.Equal(t, db.InventoryManaged, stored.Type)
+}
+
+func TestPopulateDetails_InvalidManagedInventoryReturnsError(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+
+	proj, err := store.CreateProject(db.Project{})
+	require.NoError(t, err)
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Type: db.AccessKeyNone})
+	require.NoError(t, err)
+	repo, err := store.CreateRepository(db.Repository{
+		ProjectID: proj.ID,
+		SSHKeyID:  key.ID,
+		Name:      "Test",
+		GitURL:    "git@example.com:test/test",
+		GitBranch: "master",
+	})
+	require.NoError(t, err)
+	inv, err := store.CreateInventory(db.Inventory{ProjectID: proj.ID, Name: "managed", Type: db.InventoryManaged})
+	require.NoError(t, err)
+	tpl, err := store.CreateTemplate(db.Template{
+		Name:         "Test",
+		Playbook:     "test.yml",
+		ProjectID:    proj.ID,
+		RepositoryID: repo.ID,
+		InventoryID:  &inv.ID,
+	})
+	require.NoError(t, err)
+	inv.Variables = new("[not a mapping")
+
+	pool := TaskPool{
+		store:             store,
+		inventoryService:  &managedInventoryServiceMock{inventory: inv},
+		encryptionService: &EncryptionServiceMock{},
+		logger:            make(chan logRecord, 1),
+	}
+	tsk := TaskRunner{
+		pool: &pool,
+		Task: db.Task{TemplateID: tpl.ID, ProjectID: proj.ID},
+	}
+	tsk.job = &LocalExecutor{Task: tsk.Task, Logger: &tsk}
+
+	assert.NotPanics(t, func() {
+		err = tsk.populateDetails()
+	})
+	assert.ErrorContains(t, err, "inventory variables: ")
 }
