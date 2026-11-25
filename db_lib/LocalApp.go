@@ -5,14 +5,15 @@ import (
 	"os"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/agentprompt"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
 
-// getHomeDir returns the HOME directory value for a task based on the configured
+// GetHomeDir returns the HOME directory value for a task based on the configured
 // HomeDirMode. For "project_home" it returns the project tmp directory.
 // For "template_dir" and "user_home" it returns the real user HOME (no override).
-func getHomeDir(repo db.Repository, templateID int) string {
+func GetHomeDir(repo db.Repository, templateID int) string {
 	switch util.Config.HomeDirMode {
 	case util.HomeDirModeProjectHome:
 		return util.Config.GetProjectTmpDir(repo.ProjectID)
@@ -74,7 +75,10 @@ type LocalAppRunningArgs struct {
 	Inputs          map[string]string
 	TaskParams      any
 	TemplateParams  any
-	StopCh          <-chan struct{}
+	// AgentPromptValues are the variables and secrets the prompt of an AI
+	// agent can name in ${{ … }}; only an agent app reads them.
+	AgentPromptValues agentprompt.Values
+	StopCh            <-chan struct{}
 }
 
 type LocalAppInstallingArgs struct {

@@ -2,21 +2,21 @@
   <div class="IntegrationCallCard pa-4">
     <div class="d-flex align-start">
       <div class="flex-grow-1">
-        <div class="text-h6">{{ call.integration_name || call.alias }}</div>
-        <div class="text-caption text--secondary IntegrationCallCard__mono">
+        <div class="text-headline-small">{{ call.integration_name || call.alias }}</div>
+        <div class="text-body-small text-medium-emphasis IntegrationCallCard__mono">
           {{ call.method }} /api/integrations/{{ call.alias }}
         </div>
       </div>
       <CopyClipboardButton :text="json" :success-message="$t('integrationCallCopied')" />
-      <v-btn icon :aria-label="$t('close')" @click="$emit('close')">
+      <v-btn icon variant="text" :aria-label="$t('close')" @click="$emit('close')">
         <v-icon>mdi-close</v-icon>
       </v-btn>
     </div>
 
     <v-alert
       v-if="call.outcome !== 'ok'"
-      dense
-      text
+      density="compact"
+      variant="tonal"
       :type="call.outcome === 'skipped' ? 'info' : call.outcome === 'error' ? 'error' : 'warning'"
       class="mt-3 mb-0"
     >
@@ -24,7 +24,7 @@
     </v-alert>
 
     <div v-for="section in sections" :key="section.key" class="mt-4">
-      <div class="text-overline">{{ $t(section.key) }}</div>
+      <div class="text-label-small text-uppercase">{{ $t(section.key) }}</div>
       <table class="IntegrationCallCard__fields">
         <tr v-for="row in section.rows" :key="row.label">
           <th>{{ row.label }}</th>
@@ -39,7 +39,9 @@
 
     <div class="mt-4">
       <div class="d-flex align-center">
-        <div class="text-overline flex-grow-1">{{ $t('integrationCallBody') }}</div>
+        <div class="text-label-small text-uppercase flex-grow-1">
+          {{ $t('integrationCallBody') }}
+        </div>
         <CopyClipboardButton
           v-if="call.request_body"
           :text="call.request_body"
@@ -50,12 +52,12 @@
       <v-progress-linear v-if="loading" indeterminate />
 
       <template v-else>
-        <div v-if="truncated" class="text-caption text--secondary mb-1">
+        <div v-if="truncated" class="text-body-small text-medium-emphasis mb-1">
           {{ $t('integrationCallBodyTruncated', { stored: storedSize, size: call.request_size }) }}
         </div>
 
         <pre v-if="call.request_body" class="IntegrationCallCard__body">{{ body }}</pre>
-        <div v-else class="text--secondary">{{ $t('integrationCallEmptyBody') }}</div>
+        <div v-else class="text-medium-emphasis">{{ $t('integrationCallEmptyBody') }}</div>
       </template>
     </div>
   </div>
@@ -70,6 +72,8 @@ dayjs.extend(utc);
 
 export default {
   components: { CopyClipboardButton, TaskLink },
+
+  emits: ['close'],
 
   props: {
     call: Object,

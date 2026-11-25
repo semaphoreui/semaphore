@@ -36,7 +36,7 @@ export default {
   data() {
     const allowActions = this.allowActions();
 
-    const headers = this.getHeaders().filter((header) => allowActions || header.value !== 'actions');
+    const headers = this.getHeaders().filter((header) => allowActions || header.key !== 'actions');
 
     return {
       headers,

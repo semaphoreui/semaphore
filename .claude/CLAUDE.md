@@ -160,3 +160,79 @@ func TestMyHandler(t *testing.T) {
     assert.Contains(t, w.Body.String(), "expected")
 }
 ```
+
+## Writing E2E Test Cases
+
+An e2e test case is a scenario in Markdown that a person or an agent executes by hand against a
+running Semaphore stand. It is not test code. Reference: `tests/e2e/workflow-rerun.md`.
+
+### Where
+
+- Store the cases in `tests/e2e/`, one Markdown file per feature: `tests/e2e/<feature>.md`,
+  kebab-case, named by the feature and not by the PR number or the branch.
+- When a file for the feature already exists, extend it. Do not start a second file for the same
+  feature.
+
+### What to cover
+
+- Cover the functionality of the current pull request. Take the scope from the diff against the
+  PR's base branch — `git diff develop...HEAD`, and the same in `pro_impl/` when the PR has a
+  paired Pro branch — not from the PR title or from memory.
+- Give every behaviour the PR adds or changes at least one case: the main path, each failure
+  path, the permission boundary (a role that must not be able to do it), and the API rejections
+  (status code and error text).
+- Leave out behaviour the PR does not touch.
+
+### Reliable and reproducible
+
+A case is reproducible when two people who run it on two fresh stands get the same result.
+
+- Build all data in a `## Fixture` section, starting from an empty project. Give exact names,
+  values, script bodies and the role to sign in with. Never rely on data that happens to be on
+  the stand.
+- State the environment the result depends on: UI language, edition or plan, enabled features,
+  runner type, the user's role.
+- Never hard-code an ID. Record it during the run and refer to it by a letter (`A`, `B`) or a
+  placeholder (`<project ID>`).
+- Make failures deterministic: a file the script checks, a wrong value, a revoked permission.
+  Never timing, randomness or an external service.
+- Wait for a state, never for a duration. Name the state, the timeout, and what to record when
+  the timeout is hit. Use a fixed duration only when the duration itself is under test, and say
+  why.
+- Give each step one action and its observable result: the quoted UI label, the status, the URL
+  fragment, the HTTP status and error body. "Works correctly" is not a result.
+- Check what must not change as well as what must: an earlier run keeps its status, no record was
+  created.
+- Say which cases run in order and share state; every other case stands alone. A case that leaves
+  something running stops it in its last step.
+- Run every case against a stand built from the PR branch before committing it (stand recipe:
+  `AGENTS/memory/ui-stands.md`). Take the expected results from that run, checked against the
+  code. A case that was not run is a draft — say so when handing it over.
+
+### Format
+
+```markdown
+# <Feature>
+
+<How to run the suite: order of cases, what the letters stand for, how to read a value.>
+
+## Fixture
+
+<Environment: UI language, edition, features, runner, role.>
+
+1. <Setup step with exact names and values.>
+2. <Baseline run; what to record.>
+
+<Default wait rule and what counts as a failure.>
+
+## 1. <What the case proves, as a sentence>
+
+1. <Action.> <Expected result.>
+2. <Action.> <Expected result.>
+
+## 2. <Next case>
+```
+
+- Number the cases and title each one by the behaviour it proves.
+- Use a table for a set of inputs with expected outputs, and for fixture data.
+- Write UI labels in bold exactly as displayed, and paths, statuses, values and JSON in backticks.

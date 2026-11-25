@@ -57,8 +57,16 @@ func (d *SqlDb) GetUserEvents(userID int, params db.RetrieveQueryParams) ([]db.E
 		OrderBy("id desc").
 		Where(`(
 			p.id IS NULL
-			or exists (select 1 from project__user_role pur where pur.project_id = p.id and pur.user_id = ?)
-			or exists (select 1 from project__user_mapped_role mr where mr.project_id = p.id and mr.user_id = ?)
+			or exists (
+				select 1 from project__user_role pur join `+"`role`"+` r on r.id = pur.role_id
+				where pur.project_id = p.id and pur.user_id = ? and r.permissions & 128 <> 0
+			)
+			or exists (
+				select 1 from project__user_mapped_role mr
+				join group_role_mapping m on m.id = mr.mapping_id
+				join `+"`role`"+` r on r.id = m.role_id
+				where mr.project_id = p.id and mr.user_id = ? and r.permissions & 128 <> 0
+			)
 		)`, userID, userID)
 
 	return d.getEvents(q, params)

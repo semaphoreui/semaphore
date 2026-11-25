@@ -2,7 +2,7 @@
 
 Cross-cutting UI features of the Vue frontend and their backend halves: per-user preferences
 stored on the server, server-side paging of task lists, the integration call history, and the
-not-yet-built in-app help panel.
+built-in help panel.
 
 | When you need it | Read |
 | --- | --- |
@@ -12,5 +12,8 @@ not-yet-built in-app help panel.
 | Tempted to add `COUNT(*)` or `OFFSET` to a task list query | `history-keyset-pagination.md` |
 | Changing the Integrations History tab, or what a webhook call records | `integration-call-history.md` |
 | Tempted to log integration calls into `audit_event`, or to store webhook payloads | `integration-call-history.md` |
-| Picking up the contextual help panel, or adding any help text / docs link to a form | `contextual-help-panel.md` |
-| Wiring the `docs/` submodule into a frontend build or CI job | `contextual-help-panel.md` |
+| Adding built-in help to a dialog or a page, or any help text / docs link to a form | `contextual-help-panel.md` |
+| Changing the help panel, its host logic (`HelpDocsHost`), `EditDialog` or `HelpPage` around it | `contextual-help-panel.md` |
+| Changing the format of help documents or the build that compiles and checks them (`web/vite/help`) | `contextual-help-panel.md` |
+| A build that fails with `HelpDocError`, or a help panel laid out against its dialog | `contextual-help-panel.md` |
+| Tempted to make a frontend build read the `docs/` clone | `contextual-help-panel.md` |

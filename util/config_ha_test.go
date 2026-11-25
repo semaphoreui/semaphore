@@ -158,8 +158,9 @@ func TestValidateConfig_HA(t *testing.T) {
 	Config.GitClientId = GoGitClientId
 	Config.GitSubmoduleJobs = 4
 	Config.EmailTlsMinVersion = "1.2"
-
 	Config.HA = &HAConfig{Enabled: true, Redis: &HARedisConfig{Addr: "r:6379"}}
+	Config.Auth = &AuthConfig{}
+
 	validateConfig()
 	assert.Empty(t, HAWarnings())
 

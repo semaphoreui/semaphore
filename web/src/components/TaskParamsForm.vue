@@ -1,9 +1,16 @@
 <template>
-  <div>
-    <v-text-field v-model="item.message" :label="$t('messageOptional')" outlined dense />
+  <div :data-state="needInventory && inventory == null ? 'loading' : 'ready'">
+    <v-text-field
+      v-model="item.message"
+      :label="$t('messageOptional')"
+      variant="outlined"
+      density="compact"
+      data-testid="taskParams-message"
+    />
 
     <SurveyFields
       v-if="editedEnvironment"
+      data-testid="taskParams-survey"
       :vars="template.survey_vars || []"
       :value="editedEnvironment"
       :secret-value="editedSecretEnvironment"
@@ -15,34 +22,40 @@
 
     <v-text-field
       v-model="git_branch"
+      data-testid="taskParams-gitBranch"
       :label="fieldLabel('branch')"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       required
       v-if="needField('allow_override_branch') && template.allow_override_branch_in_task"
     />
 
     <v-autocomplete
       v-model="inventory_id"
+      data-testid="taskParams-inventoryId"
       :label="fieldLabel('inventory')"
       :items="inventory"
       item-value="id"
-      item-text="name"
-      outlined
-      dense
+      item-title="name"
+      variant="outlined"
+      density="compact"
       required
       v-if="inventory != null && needInventory"
     ></v-autocomplete>
 
+    <!-- Vuetify 3 does not clip the bones of type="card" (206 px) to the height: overflow hidden,
+         as Vuetify 2 drew it -->
     <v-skeleton-loader
       v-else-if="needInventory"
+      data-testid="taskParams-loading"
       type="card"
       height="46"
-      style="margin-bottom: 16px; margin-top: 4px"
+      style="margin-bottom: 16px; margin-top: 4px; overflow: hidden"
     ></v-skeleton-loader>
 
     <TaskParamsAnsibleForm
       v-if="template.app === 'ansible'"
+      data-testid="taskParams-ansible"
       v-model="item.params"
       :app="template.app"
       :template-params="template.task_params || {}"
@@ -50,13 +63,23 @@
 
     <TaskParamsTerraformForm
       v-else-if="['terraform', 'tofu', 'terragrunt'].includes(template.app)"
+      data-testid="taskParams-terraform"
       v-model="item.params"
       :app="template.app"
       :template-params="template.task_params || {}"
     />
 
+    <!-- Keyed by the template: the field starts over with the prompt of the new one. -->
+    <TaskParamsAgentForm
+      v-else-if="isAgent"
+      :key="template.id"
+      v-model="item.params"
+      :template-params="template.task_params || {}"
+    />
+
     <ArgsPicker
       v-if="template.allow_override_args_in_task"
+      test-id="taskParams-args"
       :vars="args"
       title="CLI args"
       @change="setArgs"
@@ -71,13 +94,15 @@ import ArgsPicker from '@/components/ArgsPicker.vue';
 import AppFieldsMixin from '@/components/AppFieldsMixin';
 import TaskParamsAnsibleForm from '@/components/TaskParamsAnsibleForm.vue';
 import TaskParamsTerraformForm from '@/components/TaskParamsTerraformForm.vue';
+import TaskParamsAgentForm from '@/components/TaskParamsAgentForm.vue';
 import SurveyFields from '@/components/SurveyFields.vue';
+import { AGENT_APPS } from '@/lib/constants';
 
 export default {
   mixins: [AppFieldsMixin],
 
   props: {
-    value: Object,
+    modelValue: Object,
     template: Object,
     // Workflow task node only, passed through to SurveyFields: the workflow's
     // survey variables a field may be bound to (null = no binding UI) and the
@@ -90,9 +115,12 @@ export default {
   components: {
     TaskParamsAnsibleForm,
     TaskParamsTerraformForm,
+    TaskParamsAgentForm,
     ArgsPicker,
     SurveyFields,
   },
+
+  emits: ['bind', 'unbind', 'update:modelValue'],
 
   data() {
     return {
@@ -126,6 +154,10 @@ export default {
       return this.template.app;
     },
 
+    isAgent() {
+      return AGENT_APPS.includes(this.template.app);
+    },
+
     inventory_id: {
       get() {
         return (this.item || {}).inventory_id || this.template.inventory_id;
@@ -152,7 +184,7 @@ export default {
           return;
         }
         this.item.environment = JSON.stringify(this.editedEnvironment);
-        this.$emit('input', this.item);
+        this.$emit('update:modelValue', this.item);
       },
       deep: true,
       immediate: true,
@@ -164,7 +196,7 @@ export default {
           return;
         }
         this.item.secret = JSON.stringify(this.editedSecretEnvironment);
-        this.$emit('input', this.item);
+        this.$emit('update:modelValue', this.item);
       },
       deep: true,
       immediate: true,
@@ -175,10 +207,20 @@ export default {
         if (oldVal == null) {
           return;
         }
-        this.$emit('input', newVal);
+        this.$emit('update:modelValue', newVal);
       },
       deep: true,
       immediate: true,
+    },
+
+    // A schedule or an integration keeps this form while its template is changed. A prompt
+    // kept from the previous template would be saved unseen where the new one shows no field,
+    // and the server refuses every run for it; where it shows one, the task would run with a
+    // prompt written for another template.
+    'template.id': function onTemplateChange(id, oldId) {
+      if (oldId != null && id !== oldId) {
+        this.dropAgentPrompt();
+      }
     },
 
     needReset(val) {
@@ -206,7 +248,7 @@ export default {
       const v = val || {};
 
       // Build the item in one assignment so every edited key is reactive and
-      // the deep `item` watcher (which emits `input`) fires on any change.
+      // the deep `item` watcher (which emits `update:modelValue`) fires on any change.
       // Keys added to an already-reactive object one by one are NOT reactive
       // in Vue 2, which silently swallowed edits of params/message/branch/etc.
       this.item = {
@@ -239,11 +281,24 @@ export default {
       return this.item != null && this.template != null;
     },
 
+    // Removes the task's own prompt, so that it runs with the prompt of the template.
+    dropAgentPrompt() {
+      if (this.item?.params && 'prompt' in this.item.params) {
+        delete this.item.params.prompt;
+      }
+    },
+
     refreshItem() {
-      this.assignItem(this.value);
+      this.assignItem(this.modelValue);
 
       if (!this.item.params) {
         this.item.params = {};
+      }
+
+      // A prompt saved while the template let a task replace it is not shown once the template
+      // forbids that, and the server would refuse the task for it (like TaskForm.beforeSave).
+      if (this.isAgent && !this.template.task_params?.allow_override_prompt) {
+        this.dropAgentPrompt();
       }
 
       ['tags', 'limit', 'skip_tags'].forEach((param) => {

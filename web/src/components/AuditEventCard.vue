@@ -2,43 +2,65 @@
   <div class="AuditEventCard pa-4" data-testid="audit-card">
     <div class="d-flex align-start">
       <div class="flex-grow-1">
-        <div class="text-h6">{{ title }}</div>
-        <div class="text-caption text--secondary AuditEventCard__kind">{{ kind }}</div>
+        <div class="text-headline-small" data-testid="audit-cardTitle">{{ title }}</div>
+        <div
+          class="text-body-small text-medium-emphasis AuditEventCard__kind"
+          data-testid="audit-cardKind"
+        >{{ kind }}</div>
       </div>
       <CopyClipboardButton
         :text="json"
         :success-message="$t('audit_json_copied')"
         data-testid="audit-copy-json"
+        test-id="audit-cardCopyJson"
       />
-      <v-btn icon :aria-label="$t('close')" @click="$emit('close')">
+      <v-btn
+        icon
+        variant="text"
+        :aria-label="$t('close')"
+        data-testid="audit-cardClose"
+        @click="$emit('close')"
+      >
         <v-icon>mdi-close</v-icon>
       </v-btn>
     </div>
 
     <v-alert
       v-if="event.outcome === 'failure' || event.reason"
-      dense
-      text
+      density="compact"
+      variant="tonal"
       :type="event.outcome === 'failure' ? 'error' : 'warning'"
       class="mt-3 mb-0"
+      data-testid="audit-cardOutcome"
     >
       {{ event.outcome === 'failure' ? $t('audit_result_failure') : $t('audit_result_success') }}
-      <span v-if="event.reason">— {{ reason }}</span>
+      <span v-if="event.reason" data-testid="audit-cardReason">— {{ reason }}</span>
     </v-alert>
 
-    <div v-for="section in sections" :key="section.key" class="mt-4">
-      <div class="text-overline">{{ $t(section.key) }}</div>
+    <div
+      v-for="section in sections"
+      :key="section.key"
+      class="mt-4"
+      :data-testid="`audit-cardSection-${section.key.replace('audit_card_', '')}`"
+    >
+      <div class="text-label-small text-uppercase" data-testid="audit-cardSectionTitle">{{
+        $t(section.key)
+      }}</div>
       <table class="AuditEventCard__fields">
-        <tr v-for="row in section.rows" :key="row.label">
-          <th>{{ row.label }}</th>
-          <td>
+        <tr v-for="row in section.rows" :key="row.label" data-testid="audit-cardRow">
+          <th data-testid="audit-cardRowLabel">{{ row.label }}</th>
+          <td data-testid="audit-cardRowValue">
             <a
               v-if="row.pivot && pivots"
               href="#"
               :data-testid="`audit-pivot-${row.pivot.name}`"
               @click.prevent="$emit('pivot', row.pivot.filter)"
             >{{ row.value }}</a>
-            <span v-else-if="row.pivot" :title="$t('audit_only_pro_short')">
+            <span
+              v-else-if="row.pivot"
+              :title="$t('audit_only_pro_short')"
+              :data-testid="`audit-pivotLocked-${row.pivot.name}`"
+            >
               {{ row.value }}
             </span>
             <span v-else>{{ row.value }}</span>
@@ -50,6 +72,7 @@
 </template>
 <script>
 import dayjs from 'dayjs';
+import i18n from '@/plugins/i18';
 import CopyClipboardButton from '@/components/CopyClipboardButton.vue';
 import utc from 'dayjs/plugin/utc';
 import {
@@ -67,6 +90,8 @@ export default {
     pivots: Boolean,
   },
 
+  emits: ['close', 'pivot'],
+
   computed: {
     json() {
       return JSON.stringify(this.event, null, 2);
@@ -77,11 +102,11 @@ export default {
     },
 
     title() {
-      return eventTitle(this.event, this.$i18n);
+      return eventTitle(this.event, i18n.global);
     },
 
     reason() {
-      return reasonLabel(this.event.reason, this.$i18n);
+      return reasonLabel(this.event.reason, i18n.global);
     },
 
     sections() {
@@ -95,7 +120,7 @@ export default {
         rows: [
           {
             label: this.$t('audit_field_name'),
-            value: actorLabel(actor, this.$i18n),
+            value: actorLabel(actor, i18n.global),
             pivot: actor.type === 'user' && actor.id
               ? { name: 'user', filter: { user: Number(actor.id) } } : null,
           },
@@ -114,7 +139,7 @@ export default {
               pivot: target.id
                 ? { name: 'object', filter: { target_type: target.type, target_id: target.id } } : null,
             },
-            { label: this.$t('audit_field_type'), value: targetTypeLabel(target.type, this.$i18n) },
+            { label: this.$t('audit_field_type'), value: targetTypeLabel(target.type, i18n.global) },
             target.id && { label: this.$t('audit_field_id'), value: target.id },
           ],
         });

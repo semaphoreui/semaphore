@@ -1,29 +1,41 @@
--- One row per integration considered for one webhook call: the history the Integrations page shows.
--- The alias and the integration name are kept as plain strings, and task_id/run_id carry no foreign
--- key, so a call stays readable after the alias, the integration or the task it started is deleted.
-create table `project__integration_call`
+create table `project__inventory_group`
 (
-    `id`               integer primary key autoincrement,
-    `project_id`       int          not null,
-    `integration_id`   int          null,
-    `integration_name` varchar(255) not null,
-    `alias`            varchar(255) not null,
-    `created`          {{if .Mysql}}datetime(6){{else}}datetime{{end}} not null,
-    `source_ip`        varchar(64)  not null,
-    `method`           varchar(10)  not null,
-    `outcome`          varchar(16)  not null,
-    `reason`           varchar(255) not null,
-    `duration`         int          not null,
-    `task_id`          int          null,
-    `run_id`           int          null,
-    `workflow_id`      int          null,
-    `request_size`     int          not null default 0,
-    `request_body`     longtext     null,
+    `id`           integer primary key autoincrement,
+    `inventory_id` int not null,
+    `project_id`   int not null,
+    `name`         varchar(250){{if .Mysql}} character set utf8mb4 collate utf8mb4_bin{{end}} not null,
+    `description`  {{if .Mysql}}longtext not null{{else}}text not null default ''{{end}},
+    `variables`    {{if .Mysql}}longtext not null{{else}}text not null default ''{{end}},
+    `variable_count` int not null default 0,
+    `created`      datetime not null,
 
-    foreign key (`project_id`) references project (`id`) on delete cascade,
-    foreign key (`integration_id`) references project__integration (`id`) on delete set null
-){{if .Mysql}} default charset=utf8mb4{{end}};
+    unique (`inventory_id`, `name`),
+    foreign key (`inventory_id`) references `project__inventory` (`id`) on delete cascade,
+    foreign key (`project_id`) references `project` (`id`) on delete cascade
+);
 
--- The list pages backwards by `id desc` within one project, optionally filtered by alias.
-create index `project__integration_call__project_id` on `project__integration_call` (`project_id`, `id`);
-create index `project__integration_call__alias` on `project__integration_call` (`project_id`, `alias`);
+create index `project__inventory_group__project_id` on `project__inventory_group` (`project_id`);
+
+create table `project__inventory_group_host`
+(
+    `group_id` int not null,
+    `host_id`  int not null,
+
+    primary key (`group_id`, `host_id`),
+    foreign key (`group_id`) references `project__inventory_group` (`id`) on delete cascade,
+    foreign key (`host_id`) references `project__inventory_host` (`id`) on delete cascade
+);
+
+create index `project__inventory_group_host__host_id` on `project__inventory_group_host` (`host_id`);
+
+create table `project__inventory_group_child`
+(
+    `parent_id` int not null,
+    `child_id`  int not null,
+
+    primary key (`parent_id`, `child_id`),
+    foreign key (`parent_id`) references `project__inventory_group` (`id`) on delete cascade,
+    foreign key (`child_id`) references `project__inventory_group` (`id`) on delete cascade
+);
+
+create index `project__inventory_group_child__child_id` on `project__inventory_group_child` (`child_id`);

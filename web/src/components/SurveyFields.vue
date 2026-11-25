@@ -4,25 +4,28 @@
       <v-text-field
         v-if="isBound(v.name)"
         :label="v.title + (v.required ? ' *' : '')"
-        :value="boundLabel(v.name)"
+        :model-value="boundLabel(v.name)"
         :hint="$t('workflowNodeSurveyInputsBoundHint')"
         :error-messages="boundErrors(v.name)"
         persistent-hint
         readonly
         prepend-inner-icon="mdi-link-variant"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         class="SurveyFields__bound"
+        :data-testid="`surveyFields-bound-${v.name}`"
       >
-        <template v-slot:append-outer>
+        <template v-slot:append>
           <v-btn
             icon
-            small
+            variant="text"
+            size="small"
             :title="$t('workflowNodeSurveyInputsUnbind')"
             class="SurveyFields__unbind"
+            :data-testid="`surveyFields-unbind-${v.name}`"
             @click="$emit('unbind', v.name)"
           >
-            <v-icon small>mdi-close</v-icon>
+            <v-icon size="small">mdi-close</v-icon>
           </v-btn>
         </template>
       </v-text-field>
@@ -34,9 +37,10 @@
         v-model="secret[v.name]"
         :required="v.required"
         class="masked-secret-input"
+        :data-testid="`surveyFields-var-${v.name}`"
         :rules="[(val) => !v.required || !!val || v.title + $t('isRequired')]"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
       />
 
       <v-select
@@ -49,24 +53,30 @@
         :rules="[(val) => !v.required || (Array.isArray(val) ? val.length > 0 : val != null) ||
          v.title + ' ' + $t('isRequired')]"
         :items="v.values"
-        item-text="name"
+        item-title="name"
         item-value="value"
         :multiple="v.type === 'select'"
         :chips="v.type === 'select'"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
+        :data-testid="`surveyFields-var-${v.name}`"
       >
-        <template v-if="v.type === 'select'" v-slot:selection="{ item, index }">
+        <template v-if="v.type === 'select'" v-slot:chip="{ item, index }">
           <v-chip
-            small
-            close
+            size="small"
+            closable
             @click:close="removeSelectedItem(v.name, index)"
+            :data-testid="`surveyFields-chip-${v.name}`"
           >
             {{ item && item.name ? item.name : String(item) }}
           </v-chip>
         </template>
-        <template v-if="canBind(v)" v-slot:append-outer>
-          <WorkflowVarAssign :vars="workflowVars" @select="$emit('bind', v.name, $event)" />
+        <template v-if="canBind(v)" v-slot:append>
+          <WorkflowVarAssign
+            :vars="workflowVars"
+            :test-id="`surveyFields-assign-${v.name}`"
+            @select="$emit('bind', v.name, $event)"
+          />
         </template>
       </v-select>
 
@@ -79,11 +89,16 @@
         :rules="[(val) => !v.required || !!val || v.title + ' ' + $t('isRequired')]"
         rows="3"
         auto-grow
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
+        :data-testid="`surveyFields-var-${v.name}`"
       >
-        <template v-if="canBind(v)" v-slot:append-outer>
-          <WorkflowVarAssign :vars="workflowVars" @select="$emit('bind', v.name, $event)" />
+        <template v-if="canBind(v)" v-slot:append>
+          <WorkflowVarAssign
+            :vars="workflowVars"
+            :test-id="`surveyFields-assign-${v.name}`"
+            @select="$emit('bind', v.name, $event)"
+          />
         </template>
       </v-textarea>
 
@@ -98,11 +113,16 @@
           (val) =>
             !val || v.type !== 'int' || /^\d+$/.test(val) || v.title + ' ' + $t('mustBeInteger'),
         ]"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
+        :data-testid="`surveyFields-var-${v.name}`"
       >
-        <template v-if="canBind(v)" v-slot:append-outer>
-          <WorkflowVarAssign :vars="workflowVars" @select="$emit('bind', v.name, $event)" />
+        <template v-if="canBind(v)" v-slot:append>
+          <WorkflowVarAssign
+            :vars="workflowVars"
+            :test-id="`surveyFields-assign-${v.name}`"
+            @select="$emit('bind', v.name, $event)"
+          />
         </template>
       </v-text-field>
     </div>
@@ -132,6 +152,8 @@ export default {
     workflowVars: { type: Array, default: null },
     surveyInputs: { type: Array, default: () => [] },
   },
+
+  emits: ['unbind', 'bind'],
 
   data() {
     return { env: this.value, secret: this.secretValue };
@@ -197,5 +219,31 @@ export default {
 <style lang="scss">
 .SurveyFields__bound input {
   cursor: default;
+}
+
+.SurveyFields {
+  // The auto-grow textarea of Vuetify 2 (`.v-textarea textarea`, dense outlined): lines of 28 px,
+  // 6 px above the text, at least rows × 24 px high (its `rowHeight`), not rows × the line height.
+  .v-textarea--field-sizing textarea.v-field__input {
+    line-height: 28px;
+    padding-top: 6px;
+    padding-bottom: 0;
+    min-height: calc(3 * 24px + 6px);
+  }
+
+  // The «assign» and «unbind» buttons after a field (`#append-outer` of Vuetify 2): 9 px from the
+  // field, 8 px down from its top (`.v-input__append-outer` of a dense outlined field), not
+  // centred 16 px away.
+  .v-input > .v-input__append {
+    align-items: flex-start;
+    padding-top: 8px;
+    margin-inline-start: 9px;
+  }
+
+  // The chips of a multiple select 4 px apart from the field edge and from each other
+  // (`.v-select__selections .v-chip`: margin 0 4px).
+  .v-select--chips .v-select__selection {
+    margin-inline: 4px;
+  }
 }
 </style>

@@ -1,8 +1,14 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+<template>
+  <div
+    v-if="items != null"
+    data-testid="inventory-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
 
     <EditDialog
       v-model="attachInventoryDialog"
+      test-id="inventoryAttachDialog"
+      help-doc="workspace-attach-template"
       :save-button-text="$t('Attach')"
       :icon="getAppIcon(itemApp)"
       :icon-color="getAppColor(itemApp)"
@@ -23,15 +29,28 @@
 
     <EditDialog
       v-model="editDialog"
+      test-id="inventoryDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
-      :icon="getAppIcon(itemApp)"
-      :icon-color="getAppColor(itemApp)"
-      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${APP_INVENTORY_TITLE[itemApp]}`"
-      :max-width="450"
+      :icon="kindIcon(itemApp)"
+      :icon-color="kindColor(itemApp)"
+      :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} ${kindTitle(itemApp)}`"
+      :max-width="itemApp === MCP_INVENTORY.type ? 760 : 450"
+      :help-doc="isAnsibleInventory ? 'inventory-ansible' : null"
       @save="loadItems"
     >
       <template v-slot:form="{ onSave, onError, needSave, needReset }">
+        <McpInventoryForm
+          v-if="itemApp === MCP_INVENTORY.type"
+          :project-id="projectId"
+          :item-id="itemId"
+          @save="onSave"
+          @error="onError"
+          :need-save="needSave"
+          :need-reset="needReset"
+          :features="features"
+        />
         <InventoryForm
+          v-else
           :project-id="projectId"
           :item-id="itemId"
           @save="onSave"
@@ -44,6 +63,7 @@
     </EditDialog>
 
     <ObjectRefsDialog
+      test-id="inventoryRefsDialog"
       object-title="inventory"
       :object-refs="itemRefs"
       :project-id="projectId"
@@ -51,6 +71,7 @@
     />
 
     <YesNoDialog
+      test-id="inventoryDeleteDialog"
       :title="$t('deleteInventory')"
       :text="$t('askDeleteInv')"
       v-model="deleteItemDialog"
@@ -58,38 +79,50 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('inventory') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="inventory-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="inventory-title"
+      >{{ $t('inventory') }}</v-toolbar-title>
       <v-spacer></v-spacer>
 
+      <!-- `offset-y` of Vuetify 2: the menu, wider than the button, is pushed back into the
+        window up to 12 px from its edge, 4 px past the end of the button (16 px from the edge);
+        Vuetify 4 flips it to the end of the button instead -->
       <v-menu
-        offset-y
+        location="bottom end"
+        :offset="[0, 4]"
       >
-        <template v-slot:activator="{ on, attrs }">
+        <template v-slot:activator="{ props }">
           <v-btn
             class="pr-2"
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
             color="primary"
+            variant="elevated"
             v-if="can(USER_PERMISSIONS.manageProjectResources)"
+            data-testid="inventory-new"
           >{{ $t('newInventory') }}
             <v-icon>mdi-chevron-down</v-icon>
           </v-btn>
         </template>
-        <v-list>
+        <v-list data-testid="inventory-newMenu">
           <v-list-item
-            v-for="item in apps"
+            v-for="item in kinds"
             :key="item"
             link
             @click="itemApp = item; editItem('new');"
+            :data-testid="`inventory-new-${item}`"
           >
-            <v-list-item-icon>
+            <template v-slot:prepend>
               <v-icon
-                :color="getAppColor(item)"
-              >{{ getAppIcon(item) }}
+                :color="kindColor(item)"
+              >{{ kindIcon(item) }}
               </v-icon>
-            </v-list-item-icon>
-            <v-list-item-title>{{ APP_INVENTORY_TITLE[item] }}</v-list-item-title>
+            </template>
+            <v-list-item-title>{{ kindTitle(item) }}</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
@@ -101,32 +134,45 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto;"
+      class="mt-4 InventoryTable"
+      :items-per-page="-1"
+      data-testid="inventory-table"
+      :data-state="items.length === 0 ? 'empty' : 'ready'"
     >
       <template v-slot:item.name="{ item }">
-        <v-icon class="mr-3" small>
-          {{ getAppIcon(getAppByType(item.type)) }}
+        <v-icon class="mr-3 InventoryTable__appIcon" size="small" data-testid="inventory-rowIcon">
+          {{ kindIcon(getAppByType(item.type)) }}
         </v-icon>
 
-        {{ item.name }}
+        <router-link
+          v-if="item.type === 'managed'"
+          :to="`/project/${projectId}/inventory/${item.id}`"
+          data-testid="inventory-rowLink"
+        >{{ item.name }}</router-link>
+        <template v-else>{{ item.name }}</template>
       </template>
 
       <template v-slot:item.type="{ item }">
-        <code>{{ item.type }}</code>
+        <code data-testid="inventory-rowType">{{ item.type }}</code>
       </template>
       <template v-slot:item.inventory="{ item }">
         {{ ['file', 'terraform-workspace'].includes(item.type) ? item.inventory : '&mdash;' }}
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)">
+        <v-btn-group
+          density="compact"
+          data-testid="inventory-rowActions"
+        >
+          <v-btn
+            @click="askDeleteItem(item.id)"
+            data-testid="inventory-rowDelete"
+          >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
           <v-btn
             @click="itemApp = getAppByType(item.type); editItem(item.id)"
             v-if="!['tofu', 'terraform'].includes(getAppByType(item.type))"
+            data-testid="inventory-rowEdit"
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
@@ -137,31 +183,67 @@
               itemApp = getAppByType(item.type);
               attachInventoryDialog = true;
             "
+            data-testid="inventory-rowAttach"
           >
             <v-icon>mdi-connection</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
 
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` of Vuetify 4 has no `!important` and would lose to it.
+.InventoryTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+
+// The app icon in front of the name: an icon without a colour is grey (.54) in the light theme and
+// white in the dark one (`.theme--light.v-icon`), not the text colour of the cell (as Templates).
+.InventoryTable__appIcon.v-theme--light {
+  color: rgba(0, 0, 0, .54);
+}
+
+.InventoryTable__appIcon.v-theme--dark {
+  color: #fff;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import InventoryForm from '@/components/InventoryForm.vue';
-import { APP_INVENTORY_TITLE } from '@/lib/constants';
+import McpInventoryForm from '@/components/McpInventoryForm.vue';
+import { AGENT_APPS, APP_INVENTORY_TITLE, MCP_INVENTORY } from '@/lib/constants';
 import AppsMixin from '@/components/AppsMixin';
 import axios from 'axios';
 import TemplateSelectForm from '@/components/TemplateSelectForm.vue';
 
 export default {
   computed: {
-    APP_INVENTORY_TITLE() {
-      return APP_INVENTORY_TITLE;
+    MCP_INVENTORY() {
+      return MCP_INVENTORY;
+    },
+
+    // The kinds of inventory the menu creates: the Ansible inventory, and the MCP servers once an
+    // AI agent app is active (one kind for all of them).
+    kinds() {
+      const kinds = ['ansible'];
+      if (AGENT_APPS.some((app) => this.appsMixin.activeAppIds.includes(app))) {
+        kinds.push(MCP_INVENTORY.type);
+      }
+      return kinds;
+    },
+
+    // The dialog also edits the workspaces of Terraform, OpenTofu and Terragrunt, which have no
+    // help document. A computed property, not a comparison in the template: the build takes
+    // every string literal of a `help-doc` expression for the key of a document (vite/help).
+    isAnsibleInventory() {
+      return this.itemApp === 'ansible';
     },
   },
   mixins: [ItemListPageBase, AppsMixin],
-  components: { TemplateSelectForm, InventoryForm },
+  components: { TemplateSelectForm, InventoryForm, McpInventoryForm },
 
   props: {
     features: Object,
@@ -169,7 +251,6 @@ export default {
 
   data() {
     return {
-      apps: ['ansible'],
       itemApp: '',
       attachInventoryDialog: null,
     };
@@ -184,8 +265,23 @@ export default {
       await this.loadItems();
     },
 
+    // A kind is an app, or `mcp` for the inventory every agent app shares.
+    kindIcon(kind) {
+      return kind === MCP_INVENTORY.type ? MCP_INVENTORY.icon : this.getAppIcon(kind);
+    },
+
+    kindColor(kind) {
+      return kind === MCP_INVENTORY.type ? undefined : this.getAppColor(kind);
+    },
+
+    kindTitle(kind) {
+      return kind === MCP_INVENTORY.type ? MCP_INVENTORY.title : APP_INVENTORY_TITLE[kind];
+    },
+
     getAppByType(type) {
       switch (type) {
+        case MCP_INVENTORY.type:
+          return MCP_INVENTORY.type;
         case 'tofu-workspace':
           return 'tofu';
         case 'terraform-workspace':
@@ -200,22 +296,22 @@ export default {
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
+        title: this.$t('name'),
+        key: 'name',
         width: '30%',
       },
       {
-        text: this.$i18n.t('type'),
-        value: 'type',
+        title: this.$t('type'),
+        key: 'type',
         width: '20%',
       },
       {
-        text: this.$i18n.t('path'),
-        value: 'inventory',
+        title: this.$t('path'),
+        key: 'inventory',
         width: '50%',
       },
       {
-        value: 'actions',
+        key: 'actions',
         sortable: false,
         width: '0%',
       },

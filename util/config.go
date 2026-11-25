@@ -196,21 +196,22 @@ type RunnerK8sConfig struct {
 	// Namespace is where ephemeral task Pods are created.
 	Namespace string `json:"namespace,omitempty" default:"semaphore" env:"SEMAPHORE_RUNNER_K8S_NAMESPACE"`
 
-	// Image is the default container image used for the build container of each
-	// task Pod. Templates may override this in a future phase.
+	// Image is the image of the build container of each task Pod. A template's
+	// Executor image overrides it.
 	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_K8S_IMAGE"`
 
-	// HelperImage is the image used for the git-clone init container (Phase 3+).
+	// HelperImage is the image of the git-clone init container that clones the repository.
 	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/helper:latest" env:"SEMAPHORE_RUNNER_K8S_HELPER_IMAGE"`
 
-	// ServiceAccount that task Pods run under. Defaults to the namespace's default SA.
+	// ServiceAccount is the service account task Pods run under. Use one without
+	// permissions and with automountServiceAccountToken disabled.
 	ServiceAccount string `json:"service_account,omitempty" default:"default" env:"SEMAPHORE_RUNNER_K8S_SERVICE_ACCOUNT"`
 
 	// PullSecrets is a comma-separated list of imagePullSecrets attached to each Pod.
 	PullSecrets string `json:"pull_secrets,omitempty" env:"SEMAPHORE_RUNNER_K8S_PULL_SECRETS"`
 
-	// PollIntervalSeconds controls how often the executor polls Pod status. Defaults
-	// to 3 seconds. Kept as a plain int (not time.Duration) for env-binding simplicity.
+	// PollIntervalSeconds is how often the executor reads the Pod status.
+	// Plain int, not time.Duration, for env-binding simplicity.
 	PollIntervalSeconds int `json:"poll_interval_seconds,omitempty" default:"3" env:"SEMAPHORE_RUNNER_K8S_POLL_INTERVAL_SECONDS"`
 
 	// CleanupGraceSeconds is the grace period when deleting Pods. Defaults to 30s.
@@ -227,17 +228,20 @@ type RunnerDockerConfig struct {
 	// socket are used.
 	Host string `json:"host,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_HOST"`
 
-	// TLSVerify enables TLS certificate verification for tcp:// connections.
+	// TLSVerify is reserved and not applied yet: setting CertPath is what enables
+	// TLS with certificate verification.
 	TLSVerify bool `json:"tls_verify,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_TLS_VERIFY"`
 
 	// CertPath is the directory holding ca.pem, cert.pem and key.pem for mutual TLS
 	// against a remote daemon.
 	CertPath string `json:"cert_path,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_CERT_PATH"`
 
-	// Image is the default image used for the build container of each task.
+	// Image is the image of the build container of each task. A template's
+	// Executor image overrides it.
 	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_DOCKER_IMAGE"`
 
-	// HelperImage is the image used for the transient git-clone container.
+	// HelperImage is the image of the transient git-clone container; it also seeds
+	// the per-task secrets volume.
 	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/helper:latest" env:"SEMAPHORE_RUNNER_DOCKER_HELPER_IMAGE"`
 
 	// Network is the Docker network the build container joins. Defaults to "bridge".
@@ -252,7 +256,7 @@ type RunnerDockerConfig struct {
 	// MemoryLimit, when non-empty, caps the build container memory (e.g. "2g").
 	MemoryLimit string `json:"memory_limit,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_MEMORY_LIMIT"`
 
-	// PollIntervalSeconds controls how often container status is polled. Defaults to 2s.
+	// PollIntervalSeconds is not used: the executor waits for the container to exit.
 	PollIntervalSeconds int `json:"poll_interval_seconds,omitempty" default:"2" env:"SEMAPHORE_RUNNER_DOCKER_POLL_INTERVAL_SECONDS"`
 
 	// CleanupGraceSeconds is the timeout passed to docker stop. Defaults to 30s.
@@ -356,35 +360,6 @@ type MetricsConfig struct {
 	Enabled  bool   `json:"enabled" env:"SEMAPHORE_METRICS_ENABLED"`
 	Username string `json:"username,omitempty" env:"SEMAPHORE_METRICS_USERNAME"`
 	Password string `json:"password,omitempty" env:"SEMAPHORE_METRICS_PASSWORD,sensitive"`
-}
-
-type ConfigProcess struct {
-	User       string  `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
-	UID        *uint32 `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
-	Chroot     string  `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
-	GID        *uint32 `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
-	NoNewPrivs bool    `json:"no_new_privs,omitempty" env:"SEMAPHORE_PROCESS_NO_NEW_PRIVS"`
-
-	// AppNamespaces controls Linux namespace isolation for child apps
-	// (ansible, terraform, shell templates). Git is never isolated —
-	// SSH agent forwarding and credential helpers need host access.
-	AppNamespaces ConfigAppNamespaces `json:"app_namespaces"`
-}
-
-// ConfigAppNamespaces mirrors the CLONE_NEW* flags applied to app runs.
-// Each flag is a standard Linux namespace and is a no-op on non-Linux.
-type ConfigAppNamespaces struct {
-	// User isolates UIDs/GIDs (CLONE_NEWUSER). Enables unprivileged use
-	// of the other namespaces.
-	User bool `json:"user,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_USER"`
-	// Mount hides host mount points such as secret tmpfs (CLONE_NEWNS).
-	Mount bool `json:"mount,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_MOUNT"`
-	// PID hides host processes from child apps (CLONE_NEWPID).
-	PID bool `json:"pid,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_PID"`
-	// IPC isolates SysV IPC and POSIX message queues (CLONE_NEWIPC).
-	IPC bool `json:"ipc,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_IPC"`
-	// UTS isolates hostname and domain (CLONE_NEWUTS).
-	UTS bool `json:"uts,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_UTS"`
 }
 
 type ScheduleConfig struct {
@@ -698,13 +673,14 @@ type ConfigType struct {
 	SecretsPath string `json:"secrets_path,omitempty" env:"SEMAPHORE_SECRETS_PATH"`
 
 	// HomeDirMode controls how the HOME environment variable is set for tasks.
-	//   "template_home" (default) — HOME is set to a per-template directory,
-	//       isolating .ansible/ across parallel tasks. Repo is cloned into a
-	//       "src" subdirectory under HOME.
+	//   "template_dir" (default) — HOME is not overridden (keeps the HOME of the
+	//       server or runner process). Ansible tasks get ANSIBLE_HOME set to a
+	//       per-template "_home/.ansible" directory under the project temp
+	//       directory, isolating .ansible/ across parallel tasks.
 	//   "project_home" — HOME is set to the project temp directory (legacy
 	//       behavior). Parallel ansible-galaxy runs in the same project may conflict.
-	//   "user_home" — HOME is not overridden (keeps the real user HOME).
-	//       ANSIBLE_HOME is set per template to isolate .ansible/ for Ansible tasks.
+	//   "user_home" — HOME is not overridden (keeps the real user HOME) and
+	//       ANSIBLE_HOME is not set.
 	HomeDirMode string `json:"home_dir_mode,omitempty" rule:"^(user_home|project_home|template_dir)?$" env:"SEMAPHORE_HOME_DIR_MODE" default:"template_dir"`
 
 	// SshConfigPath is a path to the custom SSH config file.
@@ -775,6 +751,10 @@ type ConfigType struct {
 	// certificate for the legacy flat ldap_* config. Defaults to false
 	// (certificates are verified). See LdapProvider.TLSSkipVerify.
 	LdapTLSSkipVerify bool `json:"ldap_tls_skip_verify,omitempty" env:"SEMAPHORE_LDAP_TLS_SKIP_VERIFY"`
+	// LdapGroupSearchDN is the base DN of the group search. Empty: groups are not read.
+	LdapGroupSearchDN      string `json:"ldap_group_search_dn,omitempty" env:"SEMAPHORE_LDAP_GROUP_SEARCH_DN"`
+	LdapGroupSearchFilter  string `json:"ldap_group_search_filter,omitempty" env:"SEMAPHORE_LDAP_GROUP_SEARCH_FILTER"`
+	LdapGroupNameAttribute string `json:"ldap_group_name_attribute,omitempty" env:"SEMAPHORE_LDAP_GROUP_NAME_ATTRIBUTE"`
 
 	// LdapProviders configures multiple LDAP directories (like OidcProviders
 	// for OIDC). The key is the provider ID shown in identity records; the
@@ -853,8 +833,6 @@ type ConfigType struct {
 	Metrics *MetricsConfig `json:"metrics,omitempty"`
 
 	Log *ConfigLog `json:"log,omitempty"`
-
-	Process *ConfigProcess `json:"process,omitempty"`
 
 	Schedule *ScheduleConfig `json:"schedule,omitempty"`
 
@@ -1013,14 +991,6 @@ func (conf *ConfigType) RunnersReconcileInterval() time.Duration {
 	return time.Duration(sec) * time.Second
 }
 
-type SubscriptionConfig struct {
-	// Key is a subscription key or token that can be set via config.
-	// When this is set, subscription activation from the web interface is disabled.
-	Key       string `json:"key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY,sensitive"`
-	KeyFile   string `json:"key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
-	ServerURL string `json:"server_url,omitempty" env:"SEMAPHORE_SUBSCRIPTION_SERVER_URL" default:"https://portal.semaphoreui.com/billing"`
-}
-
 func NewConfigType() *ConfigType {
 	return &ConfigType{
 		LdapMappings: &LdapMappings{},
@@ -1098,6 +1068,12 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		usedConfigPath = loadConfigFile(configPath)
 	}
 
+	// Refuse to start on the removed `process` settings: ignoring them would
+	// silently run tasks with the privileges of the Semaphore process.
+	if err := checkRemovedProcessSettings(usedConfigPath); err != nil {
+		exitOnConfigError("Configuration error: " + err.Error() + ".")
+	}
+
 	loadConfigEnvironment()
 	loadConfigDefaults()
 
@@ -1107,12 +1083,6 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 
 	//fmt.Println("Validating config")
 	validateConfig()
-
-	if Config.Process.NoNewPrivs {
-		if err := SetNoNewPrivs(); err != nil {
-			panic(fmt.Errorf("failed to set no_new_privs: %w", err))
-		}
-	}
 
 	var encryption []byte
 
@@ -1338,8 +1308,7 @@ func cloneStruct(origValue reflect.Value) reflect.Value {
 func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) error {
 	structType := structValue.Type()
 
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
+	for field := range structType.Fields() {
 
 		// Skip fields with db:"-" tag
 		dbTag := field.Tag.Get("db")
@@ -2044,10 +2013,8 @@ func validateConfig() {
 		panic(err)
 	}
 
-	if Config.Auth != nil {
-		if err := validate(Config.Auth); err != nil {
-			panic(err)
-		}
+	if err := validate(Config.Auth); err != nil {
+		panic(err)
 	}
 
 	if _, err := validateHAConfig(Config.HA); err != nil {
@@ -2055,6 +2022,10 @@ func validateConfig() {
 	}
 
 	if err := Config.Audit.Validate(); err != nil {
+		panic(err)
+	}
+
+	if err := Config.Subscription.Validate(); err != nil {
 		panic(err)
 	}
 
@@ -2471,6 +2442,8 @@ var appCommands = map[string]string{
 	"tofu":       "tofu",
 	"terragrunt": "terragrunt",
 	"bash":       "bash",
+	"claude":     "claude",
+	"codex":      "codex",
 }
 
 var appPriorities = map[string]int{
@@ -2481,6 +2454,8 @@ var appPriorities = map[string]int{
 	"bash":       700,
 	"powershell": 600,
 	"python":     500,
+	"claude":     450,
+	"codex":      440,
 }
 
 func LookupDefaultApps() {

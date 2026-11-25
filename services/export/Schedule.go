@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/semaphoreui/semaphore/db"
+	log "github.com/sirupsen/logrus"
 )
 
 type ScheduleExporter struct {
@@ -32,10 +33,21 @@ func (e *ScheduleExporter) load(store db.Store, exporter DataExporter, progress 
 	return nil
 }
 
+// getSchedules unwraps the list rows. This exporter does not carry workflows,
+// so a schedule that starts one has no target on the other side and is left
+// out, like an integration with a workflow target.
 func getSchedules(vals []db.ScheduleWithTpl) []db.Schedule {
 	values := make([]db.Schedule, 0)
 
 	for _, val := range vals {
+		if val.RunsWorkflow() {
+			log.WithFields(log.Fields{
+				"context":     "export",
+				"project_id":  val.ProjectID,
+				"schedule_id": val.ID,
+			}).Warn("schedule starts a workflow and is skipped: workflows are not exported")
+			continue
+		}
 		values = append(values, val.Schedule)
 	}
 
@@ -70,7 +82,7 @@ func (e *ScheduleExporter) restoreValue(val EntityObject[db.Schedule], store db.
 		return err
 	}
 
-	old.TemplateID, err = exporter.getNewKeyInt(Template, val.scope, old.TemplateID)
+	old.TemplateID, err = exporter.getNewKeyIntRef(Template, val.scope, old.TemplateID, e)
 	if err != nil {
 		return err
 	}

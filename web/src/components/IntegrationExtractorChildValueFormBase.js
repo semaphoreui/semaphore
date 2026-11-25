@@ -5,6 +5,7 @@ export default {
   props: {
     // integrationId: [Number, String],
   },
+  emits: ['error', 'save'],
   methods: {
     /**
      * Saves or creates item via API.
@@ -13,7 +14,8 @@ export default {
     async save() {
       this.formError = null;
 
-      if (!this.$refs.form.validate()) {
+      const { valid } = await this.$refs.form.validate();
+      if (!valid) {
         this.$emit('error', {});
         return null;
       }

@@ -16,22 +16,24 @@
         :items="integrationOptions"
         :label="$t('integration')"
         class="mr-4"
-        dense
+        density="compact"
+        variant="underlined"
         hide-details
         style="max-width: 260px"
-        @change="applyIntegration($event)"
+        @update:model-value="applyIntegration"
       ></v-select>
 
       <v-text-field
         v-model="alias"
         :label="$t('alias')"
-        append-icon="mdi-magnify"
+        append-inner-icon="mdi-magnify"
         clearable
-        dense
+        density="compact"
+        variant="underlined"
         hide-details
         style="max-width: 260px"
         @keyup.enter="applyAlias(alias)"
-        @click:append="applyAlias(alias)"
+        @click:append-inner="applyAlias(alias)"
         @click:clear="applyAlias('')"
       ></v-text-field>
     </div>
@@ -46,10 +48,10 @@
       :no-data-text="$t('noIntegrationCalls')"
       hide-default-footer
       class="IntegrationCallsTable"
-      @click:row="openCall"
+      @click:row="(e, { item }) => openCall(item)"
     >
       <template v-slot:item.created="{ item }">
-        {{ item.created | formatDate }}
+        {{ $filters.formatDate(item.created) }}
       </template>
 
       <!-- Links inside a row stop the click, or it would also open the drawer. -->
@@ -60,7 +62,7 @@
             :to="`/project/${projectId}/integrations/${item.integration_id}`"
           >{{ item.integration_name }}
           </router-link>
-          <span v-else class="text--secondary">{{ item.integration_name }}</span>
+          <span v-else class="text-medium-emphasis">{{ item.integration_name }}</span>
         </span>
 
         <div style="font-size: 14px">
@@ -71,9 +73,9 @@
       </template>
 
       <template v-slot:item.outcome="{ item }">
-        <v-chip :color="OUTCOME_COLORS[item.outcome]" small>{{ item.outcome }}</v-chip>
+        <v-chip :color="OUTCOME_COLORS[item.outcome]" size="small">{{ item.outcome }}</v-chip>
 
-        <div v-if="item.reason" class="text--secondary" style="font-size: 14px">
+        <div v-if="item.reason" class="text-medium-emphasis" style="font-size: 14px">
           {{ item.reason }}
         </div>
       </template>
@@ -95,36 +97,36 @@
     </v-data-table>
 
     <div class="d-flex align-center justify-end mt-2 mr-2 mb-4">
-      <span class="text--secondary mr-2">{{ $t('rowsPerPage') }}</span>
+      <span class="text-medium-emphasis mr-2">{{ $t('rowsPerPage') }}</span>
 
       <v-select
         v-model="perPage"
         :disabled="loading"
         :items="perPageOptions"
         class="mr-4"
-        dense
+        density="compact"
+        variant="underlined"
         hide-details
         style="max-width: 72px"
       ></v-select>
 
-      <v-btn :disabled="loading || pageIndex === 0" icon @click="goPrev()">
+      <v-btn :disabled="loading || pageIndex === 0" icon variant="text" @click="goPrev()">
         <v-icon>mdi-chevron-left</v-icon>
       </v-btn>
 
-      <span class="mx-2 text--secondary">{{ rangeStart }} - {{ rangeEnd }}</span>
+      <span class="mx-2 text-medium-emphasis">{{ rangeStart }} - {{ rangeEnd }}</span>
 
-      <v-btn :disabled="loading || !hasNext" icon @click="goNext()">
+      <v-btn :disabled="loading || !hasNext" icon variant="text" @click="goNext()">
         <v-icon>mdi-chevron-right</v-icon>
       </v-btn>
     </div>
 
     <v-navigation-drawer
-      :value="selected !== null"
-      right
-      fixed
+      :model-value="selected !== null"
+      location="right"
       temporary
       width="480"
-      @input="(open) => { if (!open) selected = null; }"
+      @update:model-value="(open) => { if (!open) selected = null; }"
     >
       <IntegrationCallCard
         v-if="selected"
@@ -208,8 +210,8 @@ export default {
   computed: {
     integrationOptions() {
       return [
-        { text: this.$i18n.t('allIntegrations'), value: null },
-        ...this.integrations.map((i) => ({ text: i.name, value: i.id })),
+        { title: this.$t('allIntegrations'), value: null },
+        ...this.integrations.map((i) => ({ title: i.name, value: i.id })),
       ];
     },
 
@@ -253,13 +255,13 @@ export default {
   methods: {
     getHeaders() {
       return [
-        { text: this.$i18n.t('time'), value: 'created', sortable: false },
-        { text: this.$i18n.t('integration'), value: 'integration_name', sortable: false },
-        { text: this.$i18n.t('sourceIp'), value: 'source_ip', sortable: false },
-        { text: this.$i18n.t('method'), value: 'method', sortable: false },
-        { text: this.$i18n.t('status'), value: 'outcome', sortable: false },
-        { text: this.$i18n.t('task2'), value: 'task_id', sortable: false },
-        { text: this.$i18n.t('duration'), value: 'duration', sortable: false },
+        { title: this.$t('time'), key: 'created', sortable: false },
+        { title: this.$t('integration'), key: 'integration_name', sortable: false },
+        { title: this.$t('sourceIp'), key: 'source_ip', sortable: false },
+        { title: this.$t('method'), key: 'method', sortable: false },
+        { title: this.$t('status'), key: 'outcome', sortable: false },
+        { title: this.$t('task2'), key: 'task_id', sortable: false },
+        { title: this.$t('duration'), key: 'duration', sortable: false },
       ];
     },
 

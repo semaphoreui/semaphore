@@ -1,6 +1,6 @@
 <script setup></script>
 <template>
-  <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 512 512">
+  <svg data-testid="icon-openbao" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 512 512">
     <!-- eslint-disable max-len -->
     <ellipse cx="257.3" cy="284.9" rx="248.3" ry="81.1" fill="#87d6be" />
     <path
