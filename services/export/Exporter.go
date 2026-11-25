@@ -18,6 +18,8 @@ const (
 	TemplateRole            = "TemplateRole"
 	SecretStorage           = "SecretStorage"
 	Inventory               = "Inventory"
+	InventoryHost           = "InventoryHost"
+	InventoryGroup          = "InventoryGroup"
 	Repository              = "Repository"
 	HostConfig              = "HostConfig"
 	View                    = "View"
@@ -255,11 +257,12 @@ func (t *ValueMap[T]) appendValuesAndCheck(values []T, scope string, checkDuplic
 	}
 	for _, v := range values {
 		if checkDuplicates {
-			_, ok := t.keyScopeMap[scope+v.GetDbKey()]
-			if ok {
+			// A scope is a project id or empty, so the slash keeps 1 and 23 apart from 12 and 3
+			key := scope + "/" + v.GetDbKey()
+			if t.keyScopeMap[key] {
 				return fmt.Errorf("duplicate key %s", v.GetDbKey())
 			}
-			t.keyScopeMap[scope+v.GetDbKey()] = true
+			t.keyScopeMap[key] = true
 		}
 		t.values = append(t.values, EntityObject[T]{value: v, scope: scope})
 	}
@@ -422,6 +425,8 @@ func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUs
 		HostConfig:              &HostConfigExporter{},
 		SecretStorage:           &SecretStorageExporter{},
 		Inventory:               &InventoryExporter{},
+		InventoryHost:           &InventoryHostExporter{},
+		InventoryGroup:          &InventoryGroupExporter{},
 		View:                    &ViewExporter{},
 		Role:                    &RoleExporter{},
 		RoleMapping:             &RoleMappingExporter{},

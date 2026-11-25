@@ -16,8 +16,6 @@ de tarefa. Escolha um nome que diferencie os hosts, por exemplo `Production web 
 
 ## Tag do Executor {#inventoryForm-runnerTag}
 
-Exibido quando há executores de projeto disponíveis.
-
 As tarefas que usam este inventário são executadas em um executor que tenha esta tag. Uma tag de
 executor definida no modelo de tarefa tem precedência sobre a tag do inventário. Deixe o campo
 vazio para que qualquer executor possa assumir as tarefas.
@@ -50,6 +48,8 @@ De onde vem o inventário:
 - **Static YAML**: o inventário é digitado nesta caixa de diálogo no formato YAML. Use-o também
   para a configuração de um plugin de inventário.
 - **File**: o inventário é um arquivo em um repositório Git.
+- **Managed**: os hosts e suas variáveis são guardados como registros. Abra o inventário pela lista
+  para editá-los.
 
 Os campos abaixo do tipo mudam de acordo com ele.
 

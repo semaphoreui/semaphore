@@ -17,6 +17,12 @@ form: src/components/ScheduleForm.vue, src/components/TaskParamsForm.vue, src/co
 计划启动的任务模板。此字段为必填项。任务的运行方式与从模板启动时相同，使用模板自身的库存、仓库、变量组和其他设置，
 并在模板允许任务更改的地方使用下面的参数。
 
+## Workflow to run {#scheduleForm-workflowId}
+
+当运行目标为 **Workflow** 时显示。选择计划要启动的工作流，此字段为必填项。
+计划运行工作流需要 Semaphore Pro。没有此功能时，该字段不可用，
+点击 **Upgrade to PRO** 可打开订阅对话框。任务参数仅适用于模板目标。
+
 ## 任务参数 {#scheduleForm-taskParams}
 
 在选择了模板时显示。

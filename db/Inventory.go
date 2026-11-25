@@ -9,9 +9,14 @@ const (
 	InventoryStaticYaml InventoryType = "static-yaml"
 	// InventoryFile means that it is path to the Ansible inventory file
 	InventoryFile                InventoryType = "file"
+	InventoryManaged             InventoryType = "managed"
 	InventoryTerraformWorkspace  InventoryType = "terraform-workspace"
 	InventoryTofuWorkspace       InventoryType = "tofu-workspace"
 	InventoryTerragruntWorkspace InventoryType = "terragrunt-workspace"
+	// InventoryMcp is a list of MCP servers available to an AI agent. The
+	// servers are rows of project__inventory_mcp (McpServer); the inventory
+	// field itself stays empty.
+	InventoryMcp InventoryType = "mcp"
 )
 
 func (i InventoryType) IsStatic() bool {
@@ -24,6 +29,11 @@ type Inventory struct {
 	Name      string `db:"name" json:"name" binding:"required"`
 	ProjectID int    `db:"project_id" json:"project_id" backup:"-"`
 	Inventory string `db:"inventory" json:"inventory"`
+
+	// Variables are the group variables of a managed inventory, YAML or JSON
+	Variables *string `db:"variables" json:"variables"`
+	// VariableCount is the number of top-level variables, set when they are saved
+	VariableCount int `db:"variable_count" json:"variable_count" backup:"-"`
 
 	// accesses hosts in inventory
 	SSHKeyID *int      `db:"ssh_key_id" json:"ssh_key_id" backup:"-"`
@@ -48,6 +58,11 @@ type Inventory struct {
 
 	// RunnerTag is a tag which allow join inventory to the runner.
 	RunnerTag *string `db:"runner_tag" json:"runner_tag,omitempty"`
+
+	// McpServers are the servers of an InventoryMcp inventory, filled by the
+	// API when it returns one inventory. Not a column: servers are rows of
+	// project__inventory_mcp. Tokens are never included, only HasToken.
+	McpServers []McpServer `db:"-" json:"mcp_servers,omitempty" backup:"-"`
 }
 
 func (e Inventory) GetFilename() string {
@@ -56,6 +71,15 @@ func (e Inventory) GetFilename() string {
 	}
 
 	return e.Inventory
+}
+
+// VariablesText is the variables text, empty when the column is null
+func (e Inventory) VariablesText() string {
+	if e.Variables == nil {
+		return ""
+	}
+
+	return *e.Variables
 }
 
 func (e Inventory) Validate() error {

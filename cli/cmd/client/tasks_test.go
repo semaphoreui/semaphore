@@ -595,3 +595,31 @@ func TestBuildExtraVars(t *testing.T) {
 	_, err = buildExtraVars(cmd, nil, f)
 	assert.ErrorContains(t, err, "top-level mapping")
 }
+
+// An agent's events are printed as the text they stand for, when read once
+// and when followed.
+func TestTaskLogs_AgentEventsAsText(t *testing.T) {
+	// The server gives one more line at every poll of the task.
+	s := newTaskServer(task_logger.TaskRunningStatus, task_logger.TaskRunningStatus, task_logger.TaskRunningStatus,
+		task_logger.TaskRunningStatus, task_logger.TaskSuccessStatus)
+	s.lines = []string{
+		"Running claude with 1 MCP server(s)",
+		`{"@agent":"tool","id":"t1","name":"Bash","input":{"command":"ls"}}`,
+		`{"@agent":"result","id":"t1","text":"a.txt\nb.txt"}`,
+		`{"@agent":"text","text":"Two files."}`,
+	}
+	srv := httptest.NewServer(s.handler(t))
+	defer srv.Close()
+
+	const expected = "Running claude with 1 MCP server(s)\n> Bash {\"command\":\"ls\"}\n  a.txt\n  b.txt\nTwo files.\n"
+
+	s.polls = len(s.lines)
+	out, _, err := run(t, taskEnv(srv), "", "task", "logs", "42")
+	require.NoError(t, err)
+	assert.Equal(t, expected, out)
+
+	s.polls = 0
+	out, _, err = run(t, taskEnv(srv), "", "task", "logs", "42", "-f")
+	require.NoError(t, err)
+	assert.Equal(t, expected, out)
+}

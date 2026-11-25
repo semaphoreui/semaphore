@@ -5,11 +5,71 @@ import (
 	"net/http"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pro_interfaces"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/schedules"
 )
+
+// workflowSchedulesProOnly is the 403 body when a schedule would start a workflow without
+// the workflow_schedules_management feature; the web client shows it as is.
+const workflowSchedulesProOnly = "Schedules that run a workflow are only available for PRO users."
+
+// ScheduleController serves the handlers that create or change a schedule. They are the only
+// ones that need the license: a schedule that starts a workflow is a Pro feature.
+type ScheduleController struct {
+	pro proFeatureGate
+}
+
+func NewScheduleController(subscription pro_interfaces.SubscriptionService) *ScheduleController {
+	return &ScheduleController{pro: newProFeatureGate(subscription)}
+}
+
+// workflowTargetAllowed lets a template target through, and a workflow target only with the
+// workflow_schedules_management feature. The one exception is an update that keeps the
+// workflow the schedule already has: an expired license must not freeze the name or the
+// timing of an existing schedule, it only stops new workflow targets. The answer is written
+// on refusal (403 without the feature, 500 when the plan cannot be read); like the other
+// plan refusals this records no audit deny event.
+func (c *ScheduleController) workflowTargetAllowed(w http.ResponseWriter, r *http.Request, schedule db.Schedule, old *db.Schedule) bool {
+	if !schedule.RunsWorkflow() {
+		return true
+	}
+	if old != nil && old.RunsWorkflow() && *old.WorkflowID == *schedule.WorkflowID {
+		return true
+	}
+
+	features, err := c.pro.features(helpers.UserFromContext(r))
+	if err != nil {
+		log.WithFields(log.Fields{
+			"context":    "schedules",
+			"project_id": schedule.ProjectID,
+		}).WithError(err).Error("Failed to read the subscription plan")
+		helpers.WriteErrorStatus(w, "Failed to read the subscription plan", http.StatusInternalServerError)
+		return false
+	}
+	if !features.WorkflowSchedulesManagement {
+		helpers.WriteErrorStatus(w, workflowSchedulesProOnly, http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+// scheduleMetadata names what the schedule starts. A schedule has exactly one
+// target (Schedule.Validate and the store enforce it), so one of the two ids
+// is recorded, never both.
+func scheduleMetadata(schedule db.Schedule) audit.ScheduleMetadata {
+	var metadata audit.ScheduleMetadata
+	if schedule.RunsWorkflow() {
+		metadata.WorkflowID = *schedule.WorkflowID
+	} else if schedule.TemplateID != nil {
+		metadata.TemplateID = *schedule.TemplateID
+	}
+	return metadata
+}
 
 // SchedulesMiddleware ensures a template exists and loads it to the context
 func SchedulesMiddleware(next http.Handler) http.Handler {
@@ -124,8 +184,8 @@ func ValidateScheduleCronFormat(w http.ResponseWriter, r *http.Request) {
 	_ = validateCronFormat(schedule.CronFormat, w)
 }
 
-// AddSchedule adds a template to the database
-func AddSchedule(w http.ResponseWriter, r *http.Request) {
+// AddSchedule adds a schedule to the database
+func (c *ScheduleController) AddSchedule(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 
 	var schedule db.Schedule
@@ -138,6 +198,16 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	schedule.ProjectID = project.ID
+
+	if err := schedule.Validate(); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	if !c.workflowTargetAllowed(w, r, schedule, nil) {
+		return
+	}
+
 	schedule, err := helpers.Store(r).CreateSchedule(schedule)
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -156,7 +226,7 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.ResourceScheduleCreate,
 		Target:    audit.ResourceTarget(audit.TargetSchedule, schedule.ID, schedule.Name),
 		ProjectID: project.ID,
-		Metadata:  audit.ScheduleMetadata{TemplateID: schedule.TemplateID},
+		Metadata:  scheduleMetadata(schedule),
 	})
 
 	refreshSchedulePool(r)
@@ -165,7 +235,7 @@ func AddSchedule(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateSchedule writes a schedule to an existing key in the database
-func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
+func (c *ScheduleController) UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 	oldSchedule := helpers.GetFromContext(r, "schedule").(db.Schedule)
 
 	var schedule db.Schedule
@@ -193,6 +263,15 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := schedule.Validate(); err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	if !c.workflowTargetAllowed(w, r, schedule, &oldSchedule) {
+		return
+	}
+
 	err := helpers.Store(r).UpdateSchedule(schedule)
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -211,7 +290,7 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		Kind:      audit.ResourceScheduleUpdate,
 		Target:    audit.ResourceTarget(audit.TargetSchedule, oldSchedule.ID, schedule.Name),
 		ProjectID: oldSchedule.ProjectID,
-		Metadata:  audit.ScheduleMetadata{TemplateID: schedule.TemplateID},
+		Metadata:  scheduleMetadata(schedule),
 	})
 
 	// A full update can switch the schedule on or off too.
@@ -224,7 +303,7 @@ func UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 			Kind:      kind,
 			Target:    audit.ResourceTarget(audit.TargetSchedule, oldSchedule.ID, schedule.Name),
 			ProjectID: oldSchedule.ProjectID,
-			Metadata:  audit.ScheduleMetadata{TemplateID: schedule.TemplateID},
+			Metadata:  scheduleMetadata(schedule),
 		})
 	}
 
@@ -267,7 +346,7 @@ func SetScheduleActive(w http.ResponseWriter, r *http.Request) {
 			Kind:      kind,
 			Target:    audit.ResourceTarget(audit.TargetSchedule, oldSchedule.ID, oldSchedule.Name),
 			ProjectID: oldSchedule.ProjectID,
-			Metadata:  audit.ScheduleMetadata{TemplateID: oldSchedule.TemplateID},
+			Metadata:  scheduleMetadata(oldSchedule),
 		})
 	}
 

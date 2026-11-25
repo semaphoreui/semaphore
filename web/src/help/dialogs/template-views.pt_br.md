@@ -47,6 +47,14 @@ Oculta a aba dos membros que não podem gerenciar os recursos do projeto. Quem p
 vê-la, riscada. Ocultar uma aba não oculta os modelos dela: uma visualização do tipo **All**
 continua a listá-los.
 
+## Show task counts {#viewsForm-showTemplateStats}
+
+Mostra na aba quantos dos modelos dela estão em cada estado, em um chip de segmentos coloridos:
+verde para uma última tarefa bem-sucedida, vermelho para uma que falhou, cinza para uma interrompida
+ou para um modelo que nunca foi executado, laranja para uma tarefa que aguarda confirmação, azul
+para uma na fila ou em execução. Fica desativado por padrão, e as contagens são calculadas apenas
+para as visualizações que o têm ativado.
+
 ## Adicionar visualização {#viewsForm-add}
 
 Adiciona uma visualização ao final da lista, com um título vazio para digitar.

@@ -16,8 +16,6 @@ modello di compito. Scegli un nome che distingua gli host, ad esempio `Productio
 
 ## Tag esecutore {#inventoryForm-runnerTag}
 
-Visibile quando sono disponibili esecutori del progetto.
-
 I compiti che usano questo inventario vengono eseguiti su un esecutore che ha questo tag. Un tag
 esecutore impostato sul modello di compito ha la precedenza sul tag dell'inventario. Lascia il campo
 vuoto per consentire a qualsiasi esecutore di prendere i compiti.
@@ -50,6 +48,8 @@ Da dove proviene l'inventario:
 - **Static YAML**: l'inventario viene scritto in questa finestra di dialogo in formato YAML. Usalo
   anche per la configurazione di un plugin di inventario.
 - **File**: l'inventario è un file in un repository Git.
+- **Managed**: gli host e le loro variabili sono conservati come record. Apri l'inventario
+  dall'elenco per modificarli.
 
 I campi sotto il tipo cambiano in base a esso.
 

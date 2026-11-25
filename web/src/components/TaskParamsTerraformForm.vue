@@ -26,7 +26,7 @@
       </v-checkbox>
     </v-col>
 
-    <v-col>
+    <v-col v-if="templateParams.allow_auto_approve">
       <v-checkbox
         class="mt-0"
         :model-value="params.auto_approve"

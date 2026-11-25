@@ -25,6 +25,7 @@ const PLAIN_DIALOGS_WITHOUT_HELP = {
   'components/RichEditor.vue': 'a code editor opened over a field that has help of its own',
   'components/ArgsPicker.vue': 'edits one argument of a list that has help of its own',
   'views/Auth.vue': 'help on how to fix a sign-in, itself',
+  'views/project/InventoryHosts.vue': 'picks groups for the selected hosts, nothing to type',
   'components/TemplateForm.vue': 'its three help dialogs are out of scope (TASK@A3B2A4AC7F)',
 };
 

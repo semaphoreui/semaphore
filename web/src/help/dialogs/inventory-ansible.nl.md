@@ -18,8 +18,6 @@ bijvoorbeeld `Production web servers`.
 
 ## Runner tag {#inventoryForm-runnerTag}
 
-Wordt getoond wanneer er projectrunners beschikbaar zijn.
-
 Taken die deze inventaris gebruiken, worden uitgevoerd op een runner met deze tag. Een runner tag
 die op het taaksjabloon is ingesteld, gaat voor de tag van de inventaris. Laat het veld leeg om
 elke runner de taken te laten uitvoeren.
@@ -52,6 +50,8 @@ Waar de inventaris vandaan komt:
 - **Static YAML**: de inventaris wordt in dit dialoogvenster ingevoerd in het YAML-formaat.
   Gebruik dit ook voor de configuratie van een inventarisplugin.
 - **File**: de inventaris is een bestand in een Git-repository.
+- **Managed**: de hosts en hun variabelen worden als records bewaard. Open de inventaris vanuit de
+  lijst om ze te bewerken.
 
 De velden onder het type veranderen mee met het type.
 

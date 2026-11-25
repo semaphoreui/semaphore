@@ -3,6 +3,7 @@ package project
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -129,6 +130,10 @@ func (e BackupEnvironment) Restore(b *BackupDB) error {
 }
 
 func (e BackupView) Verify(backup *BackupFormat) error {
+	// The restore writes the filter, so a bad one must fail here, before any object is created.
+	if err := e.Validate(); err != nil {
+		return err
+	}
 	return verifyDuplicate[BackupView](e.Title, backup.Views)
 }
 
@@ -150,12 +155,28 @@ func (e BackupSchedule) Verify(backup *BackupFormat) error {
 func (e BackupSchedule) Restore(b *BackupDB) error {
 	v := e.Schedule
 	v.ProjectID = b.meta.ID
+	v.TemplateID = nil
+	v.WorkflowID = nil
 
-	tpl := findEntityByName[db.Template](&e.Template, b.templates)
-	if tpl == nil {
-		return fmt.Errorf("template does not exist in templates[].name")
+	switch {
+	case e.Template != nil && e.Workflow != nil:
+		return fmt.Errorf("schedule runs either a template or a workflow, not both")
+	case e.Template != nil:
+		tpl := findEntityByName[db.Template](e.Template, b.templates)
+		if tpl == nil {
+			return fmt.Errorf("template does not exist in templates[].name")
+		}
+		v.TemplateID = &tpl.ID
+	case e.Workflow != nil:
+		// Workflows are restored before schedules, so b.workflows is complete.
+		workflow := findEntityByName[db.WorkflowTemplate](e.Workflow, b.workflows)
+		if workflow == nil {
+			return fmt.Errorf("workflow does not exist in workflows[].name")
+		}
+		v.WorkflowID = &workflow.ID
+	default:
+		return fmt.Errorf("schedule has neither a template nor a workflow")
 	}
-	v.TemplateID = tpl.ID
 
 	if e.CheckableRepository != nil {
 		repo := findEntityByName[db.Repository](e.CheckableRepository, b.repositories)
@@ -225,6 +246,68 @@ func (e BackupInventory) Verify(backup *BackupFormat) error {
 	if e.BecomeKey != nil && getEntryByName[BackupAccessKey](e.BecomeKey, backup.Keys) == nil {
 		return fmt.Errorf("BecomeKey does not exist in keys[].Name")
 	}
+	if len(e.Hosts) > 0 && e.Type != db.InventoryManaged {
+		return fmt.Errorf("inventory %q is not managed but has hosts", e.Name)
+	}
+	if e.VariablesText() != "" && e.Type != db.InventoryManaged {
+		return fmt.Errorf("inventory %q is not managed but has variables", e.Name)
+	}
+	if _, err := db.ParseInventoryVariables(e.VariablesText()); err != nil {
+		return fmt.Errorf("variables of inventory %q: %w", e.Name, err)
+	}
+	names := make(map[string]bool)
+	for i, h := range e.Hosts {
+		if names[h.Name] {
+			return fmt.Errorf("host %q of inventory %q is duplicated", h.Name, e.Name)
+		}
+		names[h.Name] = true
+		host := db.InventoryHost{Name: h.Name, Variables: h.Variables}
+		if err := host.Validate(); err != nil {
+			return fmt.Errorf("host %q of inventory %q at hosts[%d]: %w", h.Name, e.Name, i, err)
+		}
+	}
+	if len(e.Groups) > 0 && e.Type != db.InventoryManaged {
+		return fmt.Errorf("inventory %q is not managed but has groups", e.Name)
+	}
+	groupIndex := make(map[string]int)
+	for i, g := range e.Groups {
+		if _, ok := groupIndex[g.Name]; ok {
+			return fmt.Errorf("group %q of inventory %q is duplicated", g.Name, e.Name)
+		}
+		groupIndex[g.Name] = i
+		group := db.InventoryGroup{Name: g.Name, Variables: g.Variables}
+		if err := group.Validate(); err != nil {
+			return fmt.Errorf("group %q of inventory %q at groups[%d]: %w", g.Name, e.Name, i, err)
+		}
+		listed := make(map[string]bool)
+		for _, h := range g.Hosts {
+			if !names[h] {
+				return fmt.Errorf("group %q of inventory %q names unknown host %q", g.Name, e.Name, h)
+			}
+			if listed[h] {
+				return fmt.Errorf("group %q of inventory %q lists host %q twice", g.Name, e.Name, h)
+			}
+			listed[h] = true
+		}
+	}
+	children := make(map[int][]int)
+	for i, g := range e.Groups {
+		listed := make(map[string]bool)
+		for _, c := range g.Children {
+			child, ok := groupIndex[c]
+			if !ok {
+				return fmt.Errorf("group %q of inventory %q names unknown child group %q", g.Name, e.Name, c)
+			}
+			if listed[c] {
+				return fmt.Errorf("group %q of inventory %q lists child group %q twice", g.Name, e.Name, c)
+			}
+			listed[c] = true
+			children[i] = append(children[i], child)
+		}
+	}
+	if cycle := db.InventoryGroupCycle(children); cycle != nil {
+		return fmt.Errorf("group %q of inventory %q is its own ancestor", e.Groups[cycle[0]].Name, e.Name)
+	}
 	return nil
 }
 
@@ -256,6 +339,61 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 		return err
 	}
 	b.inventories = append(b.inventories, newInventory)
+
+	hostIDs := make(map[string]int)
+	for _, h := range e.Hosts {
+		host, err := b.store.CreateInventoryHost(db.InventoryHost{
+			ProjectID:   b.meta.ID,
+			InventoryID: newInventory.ID,
+			Name:        h.Name,
+			Description: h.Description,
+			Enabled:     h.Enabled,
+			Variables:   h.Variables,
+		}, nil)
+		if err != nil {
+			return fmt.Errorf("host %q of inventory %q: %w", h.Name, e.Name, err)
+		}
+		hostIDs[h.Name] = host.ID
+	}
+
+	groups := make(map[string]db.InventoryGroup)
+	for _, g := range e.Groups {
+		group, err := b.store.CreateInventoryGroup(db.InventoryGroup{
+			ProjectID:   b.meta.ID,
+			InventoryID: newInventory.ID,
+			Name:        g.Name,
+			Description: g.Description,
+			Variables:   g.Variables,
+		}, nil)
+		if err != nil {
+			return fmt.Errorf("group %q of inventory %q: %w", g.Name, e.Name, err)
+		}
+		groups[g.Name] = group
+	}
+
+	for _, g := range e.Groups {
+		group := groups[g.Name]
+		if len(g.Children) > 0 {
+			var children []int
+			for _, c := range g.Children {
+				children = append(children, groups[c].ID)
+			}
+			if _, _, err = b.store.UpdateInventoryGroup(group, children, nil); err != nil {
+				return fmt.Errorf("group %q of inventory %q: %w", g.Name, e.Name, err)
+			}
+		}
+
+		var members []int
+		for _, h := range g.Hosts {
+			members = append(members, hostIDs[h])
+		}
+		// Batches keep the host id list of one call within database parameter limits
+		for batch := range slices.Chunk(members, 1000) {
+			if _, _, err = b.store.ChangeInventoryHostGroups(b.meta.ID, newInventory.ID, batch, []int{group.ID}, nil); err != nil {
+				return fmt.Errorf("group %q of inventory %q: %w", g.Name, e.Name, err)
+			}
+		}
+	}
 	return nil
 }
 
@@ -910,28 +1048,28 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		}
 	}
 
-	for i, o := range backup.Schedules {
-		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at schedules[%d]: %w", i, err)
-		}
-	}
-
 	for i, o := range backup.Runners {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at runners[%d]: %w", i, err)
 		}
 	}
 
-	// Workflows are restored last: their nodes reference templates, inventories
-	// and environments by name, all of which must already exist in the project.
+	// Workflows come after the templates, inventories and environments their
+	// nodes reference by name, all of which must already exist in the project.
 	for i, o := range backup.Workflows {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at workflows[%d]: %w", i, err)
 		}
 	}
 
-	// Integrations come after workflows: one may start a workflow, and nothing
-	// restored above refers to an integration.
+	// Schedules and integrations come after workflows: either may start a
+	// workflow, and nothing restored above refers to them.
+	for i, o := range backup.Schedules {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at schedules[%d]: %w", i, err)
+		}
+	}
+
 	for i, o := range backup.Integration {
 		if err := o.Restore(&b); err != nil {
 			return nil, fmt.Errorf("error at integrations[%d]: %w", i, err)

@@ -433,9 +433,9 @@ func scheduleResource() resource[db.ScheduleWithTpl] {
 	return resource[db.ScheduleWithTpl]{
 		kind:    "schedule",
 		aliases: []string{"schedules"},
-		short:   "Manage schedules (cron runs of templates)",
+		short:   "Manage schedules (cron runs of templates or workflows)",
 		example: "nightly",
-		columns: output.Columns("id", "name", "tpl_name", "cron_format", "active"),
+		columns: output.Columns("id", "name", "tpl_name", "wf_name", "cron_format", "active"),
 		list: func(ctx context.Context, api *apiclient.Client, projectID int) ([]db.ScheduleWithTpl, error) {
 			return api.ListSchedules(ctx, projectID)
 		},

@@ -123,6 +123,35 @@ func main() {
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Updates inventory > 204 > application/json", capabilityWrapper("inventory"))
 	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id} > Removes inventory > 204 > application/json", capabilityWrapper("inventory"))
 
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/variables > Replaces the variables of a managed inventory > 204 > application/json", capabilityWrapper("inventory_host"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts > Get hosts of a managed inventory > 200 > application/json", capabilityWrapper("inventory_host"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts > Add a host to a managed inventory > 201 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"inventory_host"})
+		t.Request.Body = "{\"name\":\"dredd-" + getUUID() + ".example.org\",\"enabled\":true}"
+	})
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id} > Get a host of a managed inventory > 200 > application/json", capabilityWrapper("inventory_host"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id} > Updates a host of a managed inventory > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"inventory_host"})
+		t.Request.Body = "{\"name\":\"dredd-" + getUUID() + ".example.org\"}"
+	})
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id}/enabled > Enables or disables a host of a managed inventory > 204 > application/json", capabilityWrapper("inventory_host"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id} > Removes a host of a managed inventory > 204 > application/json", capabilityWrapper("inventory_host"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/host_groups > Adds hosts of a managed inventory to groups and removes them from groups > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"inventory_group"})
+		t.Request.Body = "{\"hosts\":[" + strconv.Itoa(inventoryHostID) + "],\"add\":[" + strconv.Itoa(inventoryGroupID) + "]}"
+	})
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/groups > Get groups of a managed inventory > 200 > application/json", capabilityWrapper("inventory_group"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/groups > Add a group to a managed inventory > 201 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"inventory_host"})
+		t.Request.Body = "{\"name\":\"dredd_" + getUUID() + "\"}"
+	})
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/groups/{inventory_group_id} > Get a group of a managed inventory > 200 > application/json", capabilityWrapper("inventory_group"))
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/groups/{inventory_group_id} > Updates a group of a managed inventory > 204 > application/json", func(t *trans.Transaction) {
+		addCapabilities([]string{"inventory_group"})
+		t.Request.Body = "{\"name\":\"dredd_" + getUUID() + "\"}"
+	})
+	h.Before("inventory > /api/project/{project_id}/inventory/{inventory_id}/groups/{inventory_group_id} > Removes a group of a managed inventory > 204 > application/json", capabilityWrapper("inventory_group"))
+
 	h.Before("variable-group > /api/project/{project_id}/environment > Add environment > 201 > application/json", capabilityWrapper("environment"))
 	h.Before("variable-group > /api/project/{project_id}/environment/{environment_id} > Get environment > 200 > application/json", capabilityWrapper("environment"))
 	h.Before("variable-group > /api/project/{project_id}/environment/{environment_id} > Update environment > 204 > application/json", capabilityWrapper("environment"))
@@ -193,6 +222,21 @@ func main() {
 		})
 	}
 
+	// The hosts registry needs a PRO plan the Dredd stand does not have: a PRO server answers 403, the community one [] for the lists and 404 for a host.
+	if !hostsEnabled() {
+		for _, v := range []string{
+			"project > /api/project/{project_id}/hosts > Get hosts of the project (PRO) > 200 > application/json",
+			"project > /api/project/{project_id}/hosts/{host_id} > Get a host of the project (PRO) > 200 > application/json",
+			"project > /api/project/{project_id}/hosts/{host_id}/tasks > Get project tasks of the host (PRO) > 200 > application/json",
+			"/api/hosts > Get hosts of all projects (PRO) > 200 > application/json",
+			"/api/hosts/{host_id} > Get a host (PRO) > 200 > application/json",
+			"/api/hosts/{host_id}/tasks > Get tasks of the host (PRO) > 200 > application/json",
+			"/api/hosts/{host_id}/decommission > Decommission the host (PRO) > 204 > application/json",
+		} {
+			h.Before(v, skipTest)
+		}
+	}
+
 	if isProBuild() {
 		h.Before("workflow > /api/project/{project_id}/workflows > Get workflows > 200 > application/json", capabilityWrapper("workflow"))
 		h.Before("workflow > /api/project/{project_id}/workflows > Add workflow > 201 > application/json", capabilityWrapper("template"))
@@ -234,6 +278,11 @@ func main() {
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop > Stop workflow run > 200 > application/json", capabilityWrapper("workflow_run"))
+		// Only a finished run can be re-run.
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/rerun > Re-run workflow run > 201 > application/json", capabilityWrapper("workflow_run_finished"))
+		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/rerun > Re-run workflow run > 201 > application/json", func(t *trans.Transaction) {
+			t.Request.Body = "{\"mode\":\"all\"}"
+		})
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/artifacts > Get merged workflow run artifacts > 200 > application/json", capabilityWrapper("workflow_run"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals > Get workflow run approvals > 200 > application/json", capabilityWrapper("workflow_approval"))
 		h.Before("workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json", capabilityWrapper("workflow_approval"))
@@ -271,6 +320,7 @@ func main() {
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs > Get workflow runs > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id} > Get workflow run details > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/stop > Stop workflow run > 200 > application/json",
+			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/rerun > Re-run workflow run > 201 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals > Get workflow run approvals > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals/{node_id} > Resolve workflow approval > 200 > application/json",
 			"workflow > /api/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/artifacts > Get merged workflow run artifacts > 200 > application/json",

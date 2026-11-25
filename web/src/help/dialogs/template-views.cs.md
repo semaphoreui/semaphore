@@ -45,6 +45,14 @@ Seřadí kartu sestupně. Funguje pouze tehdy, když je nastaveno **Sort by**.
 Skryje kartu před členy, kteří nemohou spravovat prostředky projektu. Ti, kdo to mohou, ji dál
 vidí, přeškrtnutou. Skrytí karty neskryje její šablony: zobrazení typu **All** je stále uvádí.
 
+## Show task counts {#viewsForm-showTemplateStats}
+
+Zobrazí na kartě, kolik jejích šablon je v jakém stavu, jako jeden štítek z barevných segmentů:
+zelený pro poslední úlohu, která uspěla, červený pro neúspěšnou, šedý pro zastavenou nebo pro
+šablonu, která nebyla nikdy spuštěna, oranžový pro úlohu čekající na potvrzení, modrý pro úlohu ve
+frontě nebo běžící. Ve výchozím stavu je vypnuto a počty se počítají jen pro zobrazení, která je
+mají zapnuté.
+
 ## Přidat zobrazení {#viewsForm-add}
 
 Přidá zobrazení na konec seznamu, s prázdným názvem k vyplnění.

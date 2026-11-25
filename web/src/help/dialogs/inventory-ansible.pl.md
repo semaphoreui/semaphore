@@ -16,8 +16,6 @@ szablonie zadania. Wybierz nazwę, która odróżnia hosty, na przykład `Produc
 
 ## Tag uruchamiacza {#inventoryForm-runnerTag}
 
-Wyświetlane, gdy dostępne są uruchamiacze projektu.
-
 Zadania korzystające z tego inwentarza są wykonywane na uruchamiaczu, który ma ten tag. Tag
 uruchamiacza ustawiony w szablonie zadania ma pierwszeństwo przed tagiem inwentarza. Pozostaw pole
 puste, aby zadania mógł przejąć dowolny uruchamiacz.
@@ -50,6 +48,8 @@ Skąd pochodzi inwentarz:
 - **Static YAML**: inwentarz jest wpisywany w tym oknie dialogowym w formacie YAML. Użyj go także
   do konfiguracji wtyczki inwentarza.
 - **File**: inwentarz jest plikiem w repozytorium Git.
+- **Managed**: hosty i ich zmienne są przechowywane jako rekordy. Otwórz inwentarz z listy, aby je
+  edytować.
 
 Pola poniżej typu zmieniają się w zależności od niego.
 

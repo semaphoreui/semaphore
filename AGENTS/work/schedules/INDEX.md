@@ -8,3 +8,4 @@ task receives.
 | Picking up per-schedule timezones or the `CRON_TZ=` prefix, or touching the global `schedule.timezone` | `per-schedule-timezone.md` |
 | Changing the schedule form's next-run preview or `run_at` handling | `per-schedule-timezone.md` |
 | Survey defaults in scheduled tasks | `../secrets-and-task-vars/INDEX.md` |
+| Letting a schedule start a workflow instead of a template, or wondering what the Pro side still needs for it | `workflow-target.md` |

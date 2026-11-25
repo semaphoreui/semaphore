@@ -208,6 +208,17 @@ func TestLocalExecutor_ansibleCallbackPlugins(t *testing.T) {
 			expected: "~/.ansible/plugins/callback" + sep + "/usr/share/ansible/plugins/callback" + sep + dir,
 		},
 		{
+			name:     "follows ANSIBLE_HOME set for the task",
+			env:      []string{"ANSIBLE_HOME=/opt/ansible"},
+			config:   util.ConfigType{EnvVars: map[string]string{"ANSIBLE_HOME": "/from/config"}},
+			expected: "/opt/ansible/plugins/callback" + sep + "/usr/share/ansible/plugins/callback" + sep + dir,
+		},
+		{
+			name:     "follows ANSIBLE_HOME from the config env vars",
+			config:   util.ConfigType{EnvVars: map[string]string{"ANSIBLE_HOME": "/from/config"}},
+			expected: "/from/config/plugins/callback" + sep + "/usr/share/ansible/plugins/callback" + sep + dir,
+		},
+		{
 			// expected is derived below from the helper the app uses for
 			// ANSIBLE_HOME, so the two cannot drift apart.
 			name:   "follows ANSIBLE_HOME of the template_dir home mode",
@@ -221,6 +232,10 @@ func TestLocalExecutor_ansibleCallbackPlugins(t *testing.T) {
 			config := tt.config
 			util.Config = &config
 			t.Setenv("ANSIBLE_CALLBACK_PLUGINS", tt.osEnv)
+			// A cfg without callback_plugins stops the lookup before /etc/ansible.
+			home := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(home, ".ansible.cfg"), []byte("[defaults]\n"), 0o644))
+			t.Setenv("HOME", home)
 
 			executor := &LocalExecutor{
 				Template:   db.Template{ID: 7, ProjectID: 3},
@@ -234,6 +249,29 @@ func TestLocalExecutor_ansibleCallbackPlugins(t *testing.T) {
 			assert.Equal(t, tt.expected, executor.ansibleCallbackPlugins(tt.env, dir))
 		})
 	}
+}
+
+func TestLocalExecutor_ansibleCallbackPluginsFromAnsible(t *testing.T) {
+	prev := util.Config
+	t.Cleanup(func() { util.Config = prev })
+	util.Config = &util.ConfigType{}
+	bin := t.TempDir()
+	script := "#!/bin/sh\n[ \"$ANSIBLE_VERBOSITY$ANSIBLE_DEBUG\" = 00 ] || echo verbose\necho '[{\"name\":\"DEFAULT_CALLBACK_PLUGIN_PATH\",\"value\":[\"/opt/ansible/plugins/callback\",\"/repo/cb\"]}]'\n"
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "ansible-config"), []byte(script), 0o755))
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	repository := db.Repository{ProjectID: 3, GitURL: t.TempDir()}
+	executor := &LocalExecutor{
+		Template:   db.Template{ID: 7, ProjectID: 3},
+		Repository: repository,
+		App: &db_lib.AnsibleApp{Playbook: &db_lib.AnsiblePlaybook{
+			TemplateID: 7, Repository: repository, Logger: task_logger.NopLogger{},
+		}},
+	}
+
+	plugins := executor.ansibleCallbackPlugins([]string{"ANSIBLE_VERBOSITY=4", "ANSIBLE_DEBUG=1"}, "/tmp/callback_plugins")
+
+	sep := string(os.PathListSeparator)
+	assert.Equal(t, "/opt/ansible/plugins/callback"+sep+"/repo/cb"+sep+"/tmp/callback_plugins", plugins)
 }
 
 func newOutputsExecutor(capture *outputsCaptureFake, app *outputsApp) (*LocalExecutor, *recordingLogger) {

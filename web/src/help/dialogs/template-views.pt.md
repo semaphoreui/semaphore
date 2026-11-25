@@ -47,6 +47,14 @@ Oculta o separador aos membros que não podem gerir os recursos do projeto. Quem
 vê-lo, riscado. Ocultar um separador não oculta os seus modelos: uma visualização do tipo **All**
 continua a listá-los.
 
+## Show task counts {#viewsForm-showTemplateStats}
+
+Mostra no separador quantos dos seus modelos estão em cada estado, num chip de segmentos coloridos:
+verde para uma última tarefa bem-sucedida, vermelho para uma falhada, cinzento para uma parada ou
+para um modelo que nunca foi executado, laranja para uma tarefa que aguarda confirmação, azul para
+uma em fila ou em execução. Está desativado por omissão, e as contagens só são calculadas para as
+visualizações que o têm ativado.
+
 ## Adicionar visualização {#viewsForm-add}
 
 Acrescenta uma visualização no fim da lista, com um título vazio para preencher.

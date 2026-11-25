@@ -49,6 +49,14 @@ Blendet den Tab für Mitglieder aus, die die Ressourcen des Projekts nicht verwa
 Diejenigen, die es dürfen, sehen ihn weiterhin, durchgestrichen. Das Ausblenden eines Tabs blendet
 seine Vorlagen nicht aus: Eine Ansicht vom Typ **All** listet sie weiterhin auf.
 
+## Show task counts {#viewsForm-showTemplateStats}
+
+Zeigt auf dem Tab, wie viele seiner Vorlagen in welchem Zustand sind, als ein Chip aus farbigen
+Segmenten: Grün für eine letzte Aufgabe, die erfolgreich war, Rot für eine fehlgeschlagene, Grau für
+eine gestoppte oder eine Vorlage, die noch nie gestartet wurde, Orange für eine Aufgabe, die auf
+eine Bestätigung wartet, Blau für eine wartende oder laufende. Standardmäßig ist es aus, und die
+Zahlen werden nur für die Ansichten berechnet, bei denen es eingeschaltet ist.
+
 ## Ansicht hinzufügen {#viewsForm-add}
 
 Fügt am Ende der Liste eine Ansicht mit einem leeren Titel zum Eintippen hinzu.

@@ -327,6 +327,28 @@ predefinição é `backend.tf`. O nome tem de terminar em `.tf` e conter apenas 
 `_`, `-` e `.`. Escolha um nome que nenhum ficheiro do seu código tenha: o Semaphore substitui
 esse ficheiro e elimina-o depois da tarefa.
 
+## Prompt {#templateForm-agentPrompt}
+
+Apresentado para modelos Claude Code e Codex.
+
+O que é pedido ao agente. É obrigatório, salvo se **Prompt** nas solicitações do agente estiver
+assinalado.
+
+O prompt pode referir valores dos Grupos de Variáveis do modelo e variáveis de pesquisa da tarefa.
+São inseridos no prompt quando uma tarefa é iniciada:
+
+- `${{ vars.extra.NAME }}`: uma variável extra ou uma variável de pesquisa.
+- `${{ vars.env.NAME }}`: uma variável de ambiente.
+- `${{ secrets.extra.NAME }}`: uma variável extra secreta ou uma variável de pesquisa secreta.
+- `${{ secrets.env.NAME }}`: uma variável de ambiente secreta.
+
+Uma tarefa falha quando o prompt refere uma variável que não existe. Um modelo com uma expressão mal
+formada, como `${{ vars.NAME }}`, não é guardado. Qualquer outro `${{ … }}`, como
+`${{ github.sha }}`, fica tal como está escrito, e `$${{ … }}` dá um `${{ … }}` literal.
+
+O valor de um segredo inserido no prompt é mascarado no registo da tarefa, mas é enviado ao modelo
+de IA juntamente com o prompt.
+
 ## Limite {#templateForm-allowOverrideLimit}
 
 Em **Solicitações de Ansible**. Permite que o utilizador defina os hosts em que a tarefa é
@@ -366,6 +388,18 @@ Approve** quando uma tarefa é iniciada, para aplicar o plano sem confirmação.
 da tarefa disponibiliza essa opção em qualquer caso, mas sem esta caixa o Semaphore ignora-a: a
 tarefa aguarda uma confirmação depois do plano, salvo se a **Aprovação automática** do modelo
 estiver assinalada.
+
+## Prompt {#templateForm-allowOverridePrompt}
+
+Nas solicitações de Claude Code e Codex. Permite que o utilizador indique outro prompt quando uma
+tarefa é iniciada, em vez do prompt do modelo. A caixa de diálogo da tarefa começa com o prompt do
+modelo.
+
+Um prompt indicado por uma tarefa chega ao agente tal como está escrito: as suas expressões
+`${{ … }}` não são substituídas por valores.
+
+Com a caixa assinalada, o prompt do modelo pode ficar vazio; uma tarefa sem prompt próprio é então
+recusada. Sem a caixa, é recusada uma tarefa que traga o seu próprio prompt.
 
 ## Galaxy install options {#templateForm-galaxy}
 

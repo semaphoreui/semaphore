@@ -196,7 +196,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
     }
   ],
   "templates": [],
-  "version": 4,
+  "version": 5,
   "views": [],
   "workflows": []
 }`, str)
@@ -335,6 +335,125 @@ func TestBackup_RestoreScheduleWithoutTaskParams(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "restored schedule should be persisted")
+}
+
+func TestRestore_InventoryFromBackupBeforeHosts(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "u", Name: "U", Email: "u@example.com", Admin: true}})
+	require.NoError(t, err)
+	backup := &BackupFormat{}
+	require.NoError(t, backup.Unmarshal(`{
+  "meta": {"name": "Old Project"},
+  "inventories": [{"name": "old", "type": "static", "inventory": "[all]\nlocalhost"}]
+}`))
+
+	require.NoError(t, backup.Verify())
+	restored, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+	require.NoError(t, err)
+	invs, err := store.GetInventories(restored.ID, db.RetrieveQueryParams{}, []db.InventoryType{})
+	require.NoError(t, err)
+	require.Len(t, invs, 1)
+	assert.Nil(t, invs[0].Variables)
+	hosts, total, err := store.GetInventoryHosts(restored.ID, invs[0].ID, db.InventoryHostListParams{})
+	require.NoError(t, err)
+	assert.Empty(t, hosts)
+	assert.Equal(t, 0, total)
+}
+
+func TestRestore_InventoryFromBackupBeforeGroups(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "u", Name: "U", Email: "u@example.com", Admin: true}})
+	require.NoError(t, err)
+	backup := &BackupFormat{}
+	require.NoError(t, backup.Unmarshal(`{
+  "meta": {"name": "Old Project"},
+  "inventories": [{"name": "old", "type": "managed", "hosts": [{"name": "web1", "enabled": true}]}]
+}`))
+
+	require.NoError(t, backup.Verify())
+	restored, err := backup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+	require.NoError(t, err)
+	invs, err := store.GetInventories(restored.ID, db.RetrieveQueryParams{}, []db.InventoryType{})
+	require.NoError(t, err)
+	require.Len(t, invs, 1)
+	hosts, _, err := store.GetInventoryHosts(restored.ID, invs[0].ID, db.InventoryHostListParams{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	assert.Empty(t, hosts[0].Groups)
+	groups, err := store.GetInventoryGroups(restored.ID, invs[0].ID)
+	require.NoError(t, err)
+	assert.Empty(t, groups)
+}
+
+func TestBackup_SkipsAChildGroupWithoutAName(t *testing.T) {
+	b := BackupDB{
+		inventories: []db.Inventory{{ID: 1, Name: "inv", Type: db.InventoryManaged}},
+		inventoryGroups: map[int][]db.InventoryGroup{1: {
+			{ID: 1, Name: "web", Children: []int{2, 3}},
+			{ID: 2, Name: "edge"},
+		}},
+	}
+
+	backup, err := b.format()
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"edge"}, backup.Inventories[0].Groups[0].Children)
+}
+
+func TestVerify_RejectsBrokenInventoryGroups(t *testing.T) {
+	tests := []struct {
+		name    string
+		invType db.InventoryType
+		hosts   []BackupInventoryHost
+		groups  []BackupInventoryGroup
+		wantErr string
+	}{
+		{"not managed", db.InventoryStatic, nil, []BackupInventoryGroup{{Name: "web"}}, `inventory "inv" is not managed but has groups`},
+		{"duplicated", db.InventoryManaged, nil, []BackupInventoryGroup{{Name: "web"}, {Name: "web"}}, `group "web" of inventory "inv" is duplicated`},
+		{"invalid", db.InventoryManaged, nil, []BackupInventoryGroup{{Name: "all"}}, `group "all" of inventory "inv" at groups[0]`},
+		{"unknown host", db.InventoryManaged, nil, []BackupInventoryGroup{{Name: "web", Hosts: []string{"db1"}}}, `group "web" of inventory "inv" names unknown host "db1"`},
+		{"unknown child", db.InventoryManaged, nil, []BackupInventoryGroup{{Name: "web", Children: []string{"edge"}}}, `group "web" of inventory "inv" names unknown child group "edge"`},
+		{"host listed twice", db.InventoryManaged, []BackupInventoryHost{{Name: "web1"}}, []BackupInventoryGroup{{Name: "web", Hosts: []string{"web1", "web1"}}}, `group "web" of inventory "inv" lists host "web1" twice`},
+		{"child listed twice", db.InventoryManaged, nil, []BackupInventoryGroup{{Name: "web", Children: []string{"edge", "edge"}}, {Name: "edge"}}, `group "web" of inventory "inv" lists child group "edge" twice`},
+		{"cycle", db.InventoryManaged, nil, []BackupInventoryGroup{{Name: "web", Children: []string{"edge"}}, {Name: "edge", Children: []string{"web"}}}, `group "web" of inventory "inv" is its own ancestor`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backup := &BackupFormat{
+				Meta: BackupMeta{Project: db.Project{Name: "p"}},
+				Inventories: []BackupInventory{{
+					Inventory: db.Inventory{Name: "inv", Type: tt.invType},
+					Hosts:     tt.hosts,
+					Groups:    tt.groups,
+				}},
+			}
+
+			assert.ErrorContains(t, backup.Verify(), tt.wantErr)
+		})
+	}
+}
+
+func TestVerify_RejectsABadViewFilter(t *testing.T) {
+	tests := []struct {
+		name    string
+		filter  db.MapStringAnyField
+		wantErr string
+	}{
+		{"unknown key", db.MapStringAnyField{"app": "ansible"}, "error at views[0]: unknown view filter: app"},
+		{"longer than the column", db.MapStringAnyField{"name": strings.Repeat("a", 1000)}, "error at views[0]: view filter is too long"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backup := &BackupFormat{
+				Meta:  BackupMeta{Project: db.Project{Name: "p"}},
+				Views: []BackupView{{View: db.View{Title: "All", Type: db.ViewTypeAll, Filter: &tt.filter}}},
+			}
+
+			assert.ErrorContains(t, backup.Verify(), tt.wantErr)
+		})
+	}
 }
 
 // TestBackup_Workflow moved to pro_impl/db/sql/backup_workflow_test.go because
@@ -1079,7 +1198,7 @@ func TestVerify_RefusesOtherFormatVersions(t *testing.T) {
 	}{
 		{"no version with roles", BackupFormat{Roles: []BackupRole{{Role: db.Role{Slug: "ops", Name: "Ops"}}}}, "older version of Semaphore"},
 		{"no version with a grant", BackupFormat{Templates: []BackupTemplate{{Template: db.Template{Name: "t"}, Roles: grant}}}, "older version of Semaphore"},
-		{"newer", BackupFormat{Version: 5}, "newer version of Semaphore"},
+		{"newer", BackupFormat{Version: BackupFormatVersion + 1}, "newer version of Semaphore"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1302,6 +1421,51 @@ func TestRestore_ReadBitByFileVersion(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, perms, 1)
 			assert.Equal(t, tt.wantGrant, perms[0].Permissions)
+		})
+	}
+}
+
+func TestBackupInventory_VerifyRejectsBadHosts(t *testing.T) {
+	tests := []struct {
+		name  string
+		typ   db.InventoryType
+		hosts []BackupInventoryHost
+	}{
+		{"host with an invalid name", db.InventoryManaged, []BackupInventoryHost{{Name: "web[1:3]", Variables: "secret: s3cr3t"}}},
+		{"host with variables that are not a mapping", db.InventoryManaged, []BackupInventoryHost{{Name: "web1", Variables: "- s3cr3t"}}},
+		{"hosts on a static inventory", db.InventoryStatic, []BackupInventoryHost{{Name: "web1", Variables: "secret: s3cr3t"}}},
+		{"two hosts with the same name", db.InventoryManaged, []BackupInventoryHost{{Name: "web1", Variables: "secret: s3cr3t"}, {Name: "web1"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inv := BackupInventory{Inventory: db.Inventory{Name: "inv", Type: tt.typ}, Hosts: tt.hosts}
+
+			err := inv.Verify(&BackupFormat{Inventories: []BackupInventory{inv}})
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), `"inv"`)
+			assert.NotContains(t, err.Error(), "s3cr3t")
+		})
+	}
+}
+
+func TestBackupInventory_VerifyRejectsBadVariables(t *testing.T) {
+	tests := []struct {
+		name string
+		typ  db.InventoryType
+	}{
+		{"managed inventory with variables that are not a mapping", db.InventoryManaged},
+		{"variables on a static inventory", db.InventoryStatic},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inv := BackupInventory{Inventory: db.Inventory{Name: "inv", Type: tt.typ, Variables: new("- s3cr3t")}}
+
+			err := inv.Verify(&BackupFormat{Inventories: []BackupInventory{inv}})
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), `"inv"`)
+			assert.NotContains(t, err.Error(), "s3cr3t")
 		})
 	}
 }

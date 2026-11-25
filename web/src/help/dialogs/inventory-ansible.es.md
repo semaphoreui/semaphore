@@ -16,8 +16,6 @@ una plantilla de tarea. Elija un nombre que distinga los hosts, por ejemplo `Pro
 
 ## Etiqueta del ejecutor {#inventoryForm-runnerTag}
 
-Se muestra cuando hay ejecutores del proyecto disponibles.
-
 Las tareas que usan este inventario se ejecutan en un ejecutor que tiene esta etiqueta. Una etiqueta
 del ejecutor definida en la plantilla de tarea tiene prioridad sobre la etiqueta del inventario.
 Deje el campo vacío para que cualquier ejecutor pueda tomar las tareas.
@@ -49,6 +47,8 @@ De dónde procede el inventario:
 - **Static YAML**: el inventario se escribe en este diálogo en formato YAML. Úselo también para la
   configuración de un plugin de inventario.
 - **File**: el inventario es un archivo en un repositorio Git.
+- **Managed**: los hosts y sus variables se guardan como registros. Abra el inventario desde la
+  lista para editarlos.
 
 Los campos debajo del tipo cambian según este.
 

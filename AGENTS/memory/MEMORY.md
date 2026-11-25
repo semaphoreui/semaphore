@@ -50,10 +50,11 @@ only when the task touches that topic. Keep this file under 150 lines.
 - Frontend build code lives in `web/vite/` (`build/` is gitignored at any depth, `.gitignore:2`);
   the Vite 8 config loader resolves a relative `.mjs` import only with its extension, and
   `npm run build` run by hand deletes the tracked `api/public/.gitkeep` — `git checkout` it.
-- `go.mod` has `replace .../pro => ./pro`; `go.work` is gitignored. Since 2026-10-18 `pro_impl/` is a
-  git submodule (`semaphorepro-module`, `update = none`, so `git submodule update` leaves it empty;
-  branch `feat/wf_integrations_2`) — a worktree's `go.work` may still point at another checkout's
-  `pro_impl`; check both are on the same commit before trusting a build. Any Dockerfile layer
+- `go.mod` has `replace .../pro => ./pro`; `go.work`, `/pro_impl/` and `/docs/` are gitignored.
+  Submodules were removed again (`8fd229657 chore: remove submodules`), so a fresh worktree has
+  none of the three: clone `semaphorepro-module` and `semaphore-docs` into it (a local clone of
+  the main checkout's copy, then `remote set-url origin` + fetch, is fastest), branch both, and
+  copy `go.work` — check `pro_impl` is on the commit you expect before trusting a build. Any Dockerfile layer
   running `go mod download` must also COPY `pro/go.mod` + `pro/go.sum`; build images from a
   shallow `git clone file://<repo>` so they never see `go.work`.
 - A fresh worktree of `develop` (seen 2026-11-17 at `526f6eb5`) has no `.gitmodules`, no `pro_impl/`
@@ -98,6 +99,11 @@ only when the task touches that topic. Keep this file under 150 lines.
   content element (through `content-class`) for anything that must reach the window edge.
 - Semaphore web: `/api/user` carries `global_permissions` (mask) — gate admin menus and pages with
   `hasGlobalPermission(user, GLOBAL_PERMISSIONS.x)` from `web/src/lib/role-permissions.js`, not `user.admin`.
+- An object that runs "a template or a workflow" (integration, schedule) shares one shape: nullable
+  `template_id`/`workflow_id`, `Validate()` + store `validateRunTarget`, a `projects.*Controller`
+  with `proFeatureGate` on its own `Features.Workflow*Management` flag, backup by name, and a
+  `WorkflowRunParams` id that only `pro_impl`'s `StartWorkflow` stamps on the root task — copy
+  `AGENTS/work/schedules/workflow-target.md` before adding a third one.
 - A Pro feature with its own tables follows `feat/group-role-mappings`: community keeps the migration,
   the `db.XStore` interface, a stub in `pro/db/sql` + `pro/db/factory`, a stub controller in `pro/api`
   and the `api.Route` parameter wired in `cli/cmd/root.go`; `pro_impl` holds the real store
@@ -106,8 +112,13 @@ only when the task touches that topic. Keep this file under 150 lines.
 - An `api/` test that builds the real `api.Route` must pass under `go.work` too: the Pro controllers
   dereference nil stores and the subscription service — pass fakes (`noLicense{}`, `fakeRoleMappingStore`
   in `api/global_routes_test.go`) and expect a plan 403 without an audit deny event on roles/audit routes.
-- This worktree has its own `pro_impl/` clone (not a git worktree of the main one): branch it, test
+- A worktree has its own `pro_impl/` clone (not a git worktree of the main one): branch it, test
   it with `cd pro_impl && go test ./...`, and remember its commits live in that clone.
+- A test fake that embeds a nil `db.WorkflowManager` / `pro_interfaces.WorkflowService` hangs the
+  package (10 min timeout) instead of failing when a handler starts calling a method the fake
+  lacks — after adding a store or service call, run `go test ./api/projects/ -timeout 90s -v`.
+- `web/` builds with Vite: `VUE_APP_BUILD_TYPE=pro_selfhosted npm run build` (not
+  `vue-cli-service`); it deletes the tracked `api/public/.gitkeep` — `git checkout` it back.
 - `docs.cyberark.com` returns 404 to WebFetch/curl for every page; use the Ansible collection
   `cyberark/ansible-security-automation-collection` and the Go client `infamousjoeg/cybr-cli`
   as the PVWA API reference.
@@ -122,11 +133,34 @@ only when the task touches that topic. Keep this file under 150 lines.
   quotes ignored: `!unsafe "2026.08"` is a float, `"00123"` the int 83. Tag only strings holding a
   Jinja2 delimiter or a `#jinja2:` header (`isPossiblyTemplate`, `services/tasks/extra_vars_file.go`);
   check a generated extra-vars file with the real loader, not yaml.v3 (`extra_vars_ansible_test.go`).
+- Never take `RowsAffected() == 0` for "row not found": the MySQL DSN has no `clientFoundRows`, so
+  an UPDATE that changes nothing reports 0 for a row that exists (SQLite and PostgreSQL count
+  matched rows, so SQLite unit tests do not catch it). Look the row up in the same transaction.
+- Two SELECTs, even in one transaction, are not one snapshot (PostgreSQL defaults to READ
+  COMMITTED): data that must match — an MCP server URL and its token — is read by one statement
+  (`GetMcpServersWithTokens`).
+- `RunnerState.AccessKeys` holds one value per key ID for all new jobs of a poll, so a secret that is
+  a per-task snapshot (an MCP token, read with its URL) goes in `JobData.AccessKeys` — an edit keeps
+  the key ID, and a shared map would hand one task's token to another task's URL.
+- A file or directory written for a child app must be handed to the process config user
+  (`util.ChownDir` / `util.ChownTree`): with `process.user` or `process.uid`+`gid` the child is not
+  the server user and cannot read a 0600/0700 tree the server created.
 - A new per-task execution step (hooks, extra commands) must be implemented twice: in
   `services/tasks/local_executor.go` (server and runner local executor share it) and in the Pro
   container executors, which render one `sh -c` script under `set -e` in
   `pro_impl/services/tasks/containerexec` (Docker and K8s). On `develop` the server stores no runner
   version (`db/Runner.go`), so an old runner silently ignores new `JobData.Template` fields.
+- `claude -p` in its default text format prints nothing until the run is over, so an agent run asks for
+  `--output-format=stream-json --verbose --include-partial-messages`; Codex runs as `codex exec --json`.
+  Check a new agent CLI for this (measured 2026-11-12). How the events reach the log and the
+  client — `AGENTS/work/ai-agents/agent-log.md`.
+- An agent CLI's MCP setup must be tried against a real MCP server: the agent stand's fake CLI calls
+  nothing, and `codex exec` refused every MCP call with `default_tools_approval_mode = "auto"` until
+  2026-11-12 (`"approve"` works). A 60-line HTTP server answering `initialize`, `tools/list` and
+  `tools/call` with JSON is enough.
+- pro_impl `services/tasks/k8s`: the three `TestStreamPodLogsLive_*` tests hang in the fake clientset's
+  `GetLogs` (client-go v0.36.2; same on a clean HEAD, 2026-11-12) — run the package with
+  `-skip TestStreamPodLogsLive` and test log handling through `pumpContainerLogs`.
 
 ## Topic files
 

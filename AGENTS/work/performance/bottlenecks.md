@@ -76,10 +76,22 @@ Amplifiers: `max_parallel_tasks` defaults to `9999` (TP-7) and the MySQL/Postgre
   `v2.20.7.sql` were listed: none on `runner(token)`, `task(status)`, `task(created)`,
   `task(template_id, created)`, `task(project_id, created)`, `task(template_id, id)`,
   `task__output(task_id, stage_id)`, `task__output(task_id, time, id)`; `task__output(task_id)` and
-  `task(project_id|template_id)` do exist. Remedy: one migration with the eight indexes. **present**.
+  `task(project_id|template_id)` do exist. Remedy: one migration with the eight indexes. **partly fixed** —
+  ⚠️ 2026-11-18: `v2.21.6.sql` adds `task(template_id, id)` on PostgreSQL only and drops the
+  one-column `task_template_id_idx` it supersedes; MySQL and SQLite keep the primary key in every
+  index, so `task(template_id)` already serves there. The other seven are still missing.
 - **DB-1 — Template list: correlated `last_task_id` subquery per row plus env and vault queries per template.**
   `getTemplates` (`db/sql/template.go:290`; `:412-422`). Remedy: batch with `IN`, add
   `task(template_id, id)`. **present** — last tasks are already fetched in one `IN` query (`:372-380`).
+  ⚠️ 2026-11-18, measured on 2 000 templates / 3 M tasks: the "last task of a template" subquery
+  (`where template_id = pt.id order by id desc limit 1`) took 30 s on PostgreSQL 18 with only
+  `task(template_id)` — the planner walks `task_pkey` backwards and filters; with
+  `task(template_id, id)` (migration 2.21.6) it is 13–22 ms. MySQL 8.4 sorts every task of the
+  template for that `ORDER BY` inside a correlated subquery (2 s when the row is fetched, ~60 ms
+  when the index covers it) unless the order names both index columns:
+  `order by template_id desc, id desc` reads one entry backwards (60–80 ms for the status of all
+  2 000 templates; MariaDB 10.11 6 ms, SQLite 4 ms). `GetViewTemplateCounts` (`db/sql/view.go`) is
+  written that way; the list subquery here returns only `id` and gains nothing measurable from it.
 - **DB-2 — Task lists run `Fill()` per row: a `GetTask` for every `build_task_id`.** `getTasks`
   (`db/sql/task.go:335-340`) → `TaskWithTpl.Fill` (`db/Task.go:205-214`). Remedy: one `IN`. **present**.
 - **DB-3 — Filters/sorts on unindexed `task.status` and `task.created`.** Status filter (`task.go:299`),

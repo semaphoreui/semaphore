@@ -71,6 +71,14 @@
       data-testid="taskSummary-errorsTable"
       :data-state="hosts == null ? 'loading' : (failedTasks.length === 0 ? 'empty' : 'ready')"
     >
+      <template v-slot:item.host="{ item }">
+        <router-link
+          v-if="inRegistry(item.host)"
+          :to="`/project/${projectId}/hosts?search=${encodeURIComponent(item.host)}`"
+          data-testid="taskSummary-errorHostLink"
+        >{{ item.host }}</router-link>
+        <span v-else>{{ item.host }}</span>
+      </template>
       <template v-slot:item.error="{ item }">
         <div
           style="overflow: hidden; color: #ff5252; max-width: 400px; text-overflow: ellipsis"
@@ -123,7 +131,14 @@
         </thead>
         <tbody>
           <tr v-for="(host, index) in hosts" :key="index">
-            <td data-testid="taskSummary-hostName">{{ host.host }}</td>
+            <td data-testid="taskSummary-hostName">
+              <router-link
+                v-if="inRegistry(host.host)"
+                :to="`/project/${projectId}/hosts?search=${encodeURIComponent(host.host)}`"
+                data-testid="taskSummary-hostLink"
+              >{{ host.host }}</router-link>
+              <span v-else>{{ host.host }}</span>
+            </td>
 
             <td
               :style="{
@@ -292,6 +307,9 @@
 <script>
 import ProjectMixin from '@/components/ProjectMixin';
 
+// The Semaphore machine itself, the registry does not keep it.
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '::1'];
+
 export default {
   props: {
     projectId: Number,
@@ -355,6 +373,10 @@ export default {
   },
 
   methods: {
+    inRegistry(host) {
+      return this.features.hosts && !LOCAL_HOSTS.includes(host.toLowerCase());
+    },
+
     async loadData() {
       if (this.features.task_summary) {
         [this.failedTasks, this.hosts, this.stages] = await Promise.all([

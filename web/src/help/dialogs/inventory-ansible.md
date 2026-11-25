@@ -16,8 +16,6 @@ task template. Pick a name that tells the hosts apart, for example `Production w
 
 ## Runner tag {#inventoryForm-runnerTag}
 
-Shown when project runners are available.
-
 Tasks that use this inventory run on a runner that carries this tag. A runner tag set on the task
 template takes precedence over the tag of the inventory. Leave the field empty to let any runner
 take the tasks.
@@ -49,6 +47,8 @@ Where the inventory comes from:
 - **Static YAML**: the inventory is typed into this dialog in the YAML format. Use it for the
   configuration of an inventory plugin as well.
 - **File**: the inventory is a file in a Git repository.
+- **Managed**: the hosts and their variables are kept as records. Open the inventory from the list
+  to edit them.
 
 The fields below the type change with it.
 

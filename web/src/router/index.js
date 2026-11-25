@@ -9,6 +9,9 @@ import ObjectPerms from '@/views/project/ObjectPerms.vue';
 import Roles from '@/views/Roles.vue';
 import RoleMappings from '@/views/RoleMappings.vue';
 import AuditLog from '@/views/AuditLog.vue';
+import Hosts from '@/views/Hosts.vue';
+import HostView from '@/views/HostView.vue';
+import HostTaskList from '@/components/HostTaskList.vue';
 import Schedule from '../views/project/Schedule.vue';
 import History from '../views/project/History.vue';
 import Activity from '../views/project/Activity.vue';
@@ -17,6 +20,10 @@ import Templates from '../views/project/Templates.vue';
 import TemplateView from '../views/project/TemplateView.vue';
 import Environment from '../views/project/Environment.vue';
 import Inventory from '../views/project/Inventory.vue';
+import InventoryView from '../views/project/InventoryView.vue';
+import InventoryHosts from '../views/project/InventoryHosts.vue';
+import InventoryGroups from '../views/project/InventoryGroups.vue';
+import InventoryVariables from '../views/project/InventoryVariables.vue';
 import Keys from '../views/project/Keys.vue';
 import Repositories from '../views/project/Repositories.vue';
 import HostConfig from '../views/project/HostConfig.vue';
@@ -74,6 +81,32 @@ const routes = [
   {
     path: '/project/:projectId/activity',
     component: Activity,
+  },
+  {
+    path: '/project/:projectId/hosts',
+    component: Hosts,
+  },
+  {
+    path: '/project/:projectId/hosts/:hostId',
+    redirect: redirectTo((p) => `/project/${p.projectId}/hosts/${p.hostId}/tasks`),
+    component: HostView,
+    children: [{
+      path: 'tasks',
+      component: HostTaskList,
+    }],
+  },
+  {
+    path: '/hosts',
+    component: Hosts,
+  },
+  {
+    path: '/hosts/:hostId',
+    redirect: redirectTo((p) => `/hosts/${p.hostId}/tasks`),
+    component: HostView,
+    children: [{
+      path: 'tasks',
+      component: HostTaskList,
+    }],
   },
   {
     path: '/project/:projectId/runners',
@@ -169,6 +202,21 @@ const routes = [
   {
     path: '/project/:projectId/inventory',
     component: Inventory,
+  },
+  {
+    path: '/project/:projectId/inventory/:inventoryId',
+    redirect: redirectTo((p) => `/project/${p.projectId}/inventory/${p.inventoryId}/hosts`),
+    component: InventoryView,
+    children: [{
+      path: 'hosts',
+      component: InventoryHosts,
+    }, {
+      path: 'groups',
+      component: InventoryGroups,
+    }, {
+      path: 'variables',
+      component: InventoryVariables,
+    }],
   },
   {
     path: '/project/:projectId/integrations',

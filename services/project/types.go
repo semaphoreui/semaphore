@@ -7,15 +7,17 @@ import (
 )
 
 type BackupDB struct {
-	meta         db.Project
-	templates    []db.Template
-	repositories []db.Repository
-	hostConfigs  []db.HostConfig
-	keys         []db.AccessKey
-	views        []db.View
-	inventories  []db.Inventory
-	environments []db.Environment
-	schedules    []db.Schedule
+	meta            db.Project
+	templates       []db.Template
+	repositories    []db.Repository
+	hostConfigs     []db.HostConfig
+	keys            []db.AccessKey
+	views           []db.View
+	inventories     []db.Inventory
+	inventoryHosts  map[int][]db.InventoryHost
+	inventoryGroups map[int][]db.InventoryGroup
+	environments    []db.Environment
+	schedules       []db.Schedule
 
 	integrationProjAliases   []db.IntegrationAlias
 	integrations             []db.Integration
@@ -42,9 +44,10 @@ type BackupDB struct {
 	workflowStore db.WorkflowManager
 }
 
-// BackupFormatVersion is 4: version 2 gave roles slugs, 3 added the workflow verbs and grants on workflows,
-// 4 writes read_project, so a role or a grant without it is meant that way.
-const BackupFormatVersion = 4
+// BackupFormatVersion is 5: version 2 gave roles slugs, 3 added the workflow verbs and grants on workflows,
+// 4 writes read_project, so a role or a grant without it is meant that way, 5 carries the hosts and groups
+// of a managed inventory, which an older server would drop without a word.
+const BackupFormatVersion = 5
 
 // CleanupError says the project stayed behind after a failed restore.
 type CleanupError struct {
@@ -128,9 +131,13 @@ type BackupAccessKey struct {
 	Storage       *string `backup:"storage"`
 }
 
+// BackupSchedule stores the schedule's target by name: exactly one of
+// Template and Workflow is set. Backups written before workflow targets
+// existed carry "template" only and restore unchanged.
 type BackupSchedule struct {
 	db.Schedule
-	Template            string  `backup:"template"`
+	Template            *string `backup:"template"`
+	Workflow            *string `backup:"workflow"`
 	CheckableRepository *string `backup:"checkable_repository"`
 }
 
@@ -140,8 +147,26 @@ type BackupView struct {
 
 type BackupInventory struct {
 	db.Inventory
-	SSHKey    *string `backup:"ssh_key"`
-	BecomeKey *string `backup:"become_key"`
+	SSHKey    *string                `backup:"ssh_key"`
+	BecomeKey *string                `backup:"become_key"`
+	Hosts     []BackupInventoryHost  `backup:"hosts"`
+	Groups    []BackupInventoryGroup `backup:"groups"`
+}
+
+type BackupInventoryHost struct {
+	Name        string `backup:"name"`
+	Description string `backup:"description"`
+	Enabled     bool   `backup:"enabled"`
+	Variables   string `backup:"variables"`
+}
+
+// BackupInventoryGroup refers to hosts and child groups of its inventory by name
+type BackupInventoryGroup struct {
+	Name        string   `backup:"name"`
+	Description string   `backup:"description"`
+	Variables   string   `backup:"variables"`
+	Hosts       []string `backup:"hosts"`
+	Children    []string `backup:"children"`
 }
 
 type BackupRepository struct {

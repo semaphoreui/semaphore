@@ -175,6 +175,7 @@ func captureTelegramAlertTextWithWebHost(t *testing.T, tr *TaskRunner, webHost s
 // schedule, so it has no user, no version and no message.
 func newScheduledAlertTaskRunner() *TaskRunner {
 	scheduleID := 7
+	templateID := 21
 
 	return &TaskRunner{
 		Task: db.Task{
@@ -197,7 +198,7 @@ func newScheduledAlertTaskRunner() *TaskRunner {
 				schedule: db.Schedule{
 					ID:         scheduleID,
 					ProjectID:  1,
-					TemplateID: 21,
+					TemplateID: &templateID,
 					Name:       "Funding stop",
 				},
 			},

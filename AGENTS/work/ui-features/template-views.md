@@ -10,10 +10,10 @@ Status (2026-10-28): implemented on branch `prod-11-filter-on-backend-the-templa
 "all" view**, applied in SQL. Before PROD-11 the filter column existed but nothing read or wrote it
 (`getTemplates` had `// TODO: implement filter`), so every "all" view listed every template.
 
-⚠️ 2026-10-30: the filter is set in Edit Views (the cog next to the tabs), field "Name contains",
-shown only for a view of type "all" — not the view's title box, where testers first typed it. A
-search box on the page itself was built and removed again: the ticket asks for the backend filter
-only, and the author has not asked for a search.
+⚠️ 2026-11-25: the filter is set through the API only — `POST`/`PUT /project/{id}/views[/{view_id}]`
+with `"type": "all"` and `"filter": {"name": "<text>"}`. Edit Views has no field for it: a "Name
+contains" field was built and left out, like a search box on the page, because the ticket asks for
+the backend filter only.
 
 ## Decisions and why
 
@@ -28,8 +28,9 @@ only, and the author has not asked for a search.
   broken on SQLite for any term holding them. A backslash is also written differently in a MySQL
   and a PostgreSQL string literal; `!` is not. Every query using `escapeLike` must say
   `ESCAPE '!'`.
-- **The filter applies to "all" views only.** A custom view's templates are chosen by hand. The UI
-  still sends the filter for a custom view, so switching a view to custom and back keeps it.
+- **The filter applies to "all" views only.** A custom view's templates are chosen by hand. The
+  filter stays stored on a custom view, so an update that switches it to custom and back without
+  sending `filter` keeps it. A `PUT` without `type` makes the view custom.
 - **The filter is bounded by its encoded JSON**, not the name: `project__view.filter` is
   `varchar(1000)`, and `json.Marshal` writes `<`, `>`, `&` as six bytes each.
 - **`UpdateView` keeps the stored filter when the body has none**, and `"filter": {}` clears it.
@@ -44,12 +45,15 @@ only, and the author has not asked for a search.
 - ⚠️ 2026-10-28: SQLite's `LOWER` folds ASCII only, so on SQLite a filter does not match across the
   case of non-ASCII letters (`über` does not find `Über`). PostgreSQL and MySQL fold them.
 - A project restore goes through `CreateView`, which did not write the filter either; it does now,
-  so restored "all" views keep their filter.
+  so restored "all" views keep their filter. `BackupView.Verify` runs `View.Validate`, so a backup
+  with an unknown key or an oversized filter is refused before anything is restored.
+- The tab counts (`show_template_stats`) of an "all" view with a name filter come from a second
+  count query with that name (`GetViews`); the shared query counts every template of the project.
 
 ## Key files and references
 
 - `db/View.go` (`Validate`, `NameFilter`, `ViewFilterName`), `db/sql/view.go`,
   `db/sql/template.go` (`getTemplates`), `db/sql/user.go` (`escapeLike`)
-- `api/projects/views.go` (`UpdateView`), `web/src/components/EditViewsForm.vue`
+- `api/projects/views.go` (`UpdateView`, `GetViews`), `services/project/restore.go` (`BackupView`)
 - Tests: `db/View_test.go`, `db/sql/view_test.go`, `api/projects/views_test.go`
 - Views were introduced in `5457cf33 feat(views): implement sql`, which left the "all" filter as a TODO

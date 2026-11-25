@@ -16,8 +16,6 @@ Zvolte název, který hosty od sebe odliší, například `Production web server
 
 ## Tag runneru {#inventoryForm-runnerTag}
 
-Zobrazí se, když jsou k dispozici runnery projektu.
-
 Úlohy, které používají tento inventář, běží na runneru s tímto tagem. Tag runneru nastavený
 v šabloně úlohy má přednost před tagem inventáře. Ponechte pole prázdné, aby úlohy mohl převzít
 kterýkoli runner.
@@ -50,6 +48,8 @@ Odkud inventář pochází:
 - **Static YAML**: inventář se zadává v tomto dialogu ve formátu YAML. Použijte ho také pro
   konfiguraci pluginu inventáře.
 - **File**: inventář je soubor v repozitáři Git.
+- **Managed**: hosté a jejich proměnné jsou uloženi jako záznamy. Chcete-li je upravit, otevřete
+  inventář ze seznamu.
 
 Pole pod typem se mění podle něj.
 

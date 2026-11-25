@@ -2,6 +2,7 @@ package projects
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -103,4 +104,88 @@ func TestUpdateView(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		assert.Contains(t, w.Body.String(), "unknown view filter")
 	})
+}
+
+func TestGetViews_TypeFilter(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+
+	project, err := store.CreateProject(db.Project{Name: "views"})
+	require.NoError(t, err)
+
+	for _, view := range []db.View{
+		{ProjectID: project.ID, Title: "All", Position: 0, Type: db.ViewTypeAll},
+		{ProjectID: project.ID, Title: "Build", Position: 1, Type: db.ViewTypeCustom},
+		{ProjectID: project.ID, Title: "Deploy", Position: 2, Type: db.ViewTypeCustom},
+	} {
+		_, err = store.CreateView(view)
+		require.NoError(t, err)
+	}
+
+	tests := []struct {
+		name     string
+		query    string
+		status   int
+		expected []string
+	}{
+		{"no filter returns every view", "", http.StatusOK, []string{"All", "Build", "Deploy"}},
+		{"custom only", "?type=custom", http.StatusOK, []string{"Build", "Deploy"}},
+		{"all only", "?type=all", http.StatusOK, []string{"All"}},
+		{"empty value is no filter", "?type=", http.StatusOK, []string{"All", "Build", "Deploy"}},
+		{"unknown type is rejected", "?type=bogus", http.StatusBadRequest, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodGet, "/api/project/1/views"+tt.query, nil)
+			r = helpers.SetContextValue(r, "store", store)
+			r = helpers.SetContextValue(r, "project", project)
+			w := httptest.NewRecorder()
+
+			GetViews(w, r)
+
+			require.Equal(t, tt.status, w.Code)
+			if tt.status != http.StatusOK {
+				assert.Contains(t, w.Body.String(), "unknown view type")
+				return
+			}
+
+			var views []db.View
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &views))
+
+			titles := make([]string, 0, len(views))
+			for _, view := range views {
+				titles = append(titles, view.Title)
+			}
+			assert.Equal(t, tt.expected, titles)
+		})
+	}
+}
+
+func TestGetViews_TemplateStatsOfAFilteredAllView(t *testing.T) {
+	f := newTaskControlFixture(t)
+	_, err := f.store.CreateTemplate(db.Template{Name: "build", Playbook: "site.yml", ProjectID: f.project.ID, RepositoryID: f.template.RepositoryID, InventoryID: f.template.InventoryID})
+	require.NoError(t, err)
+
+	for _, view := range []db.View{
+		{ProjectID: f.project.ID, Title: "All", Type: db.ViewTypeAll, ShowTemplateStats: true},
+		{ProjectID: f.project.ID, Title: "Deploys", Position: 1, Type: db.ViewTypeAll, ShowTemplateStats: true, Filter: &db.MapStringAnyField{"name": "DEP"}},
+	} {
+		_, err = f.store.CreateView(view)
+		require.NoError(t, err)
+	}
+
+	r := httptest.NewRequest(http.MethodGet, "/api/project/1/views?include=template_stats", nil)
+	r = helpers.SetContextValue(r, "store", f.store)
+	r = helpers.SetContextValue(r, "project", f.project)
+	r = helpers.SetContextValue(r, "user", &db.User{ID: 1, Admin: true})
+	w := httptest.NewRecorder()
+
+	GetViews(w, r)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var views []db.ViewWithTemplateStats
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &views))
+	require.Len(t, views, 2)
+	// Neither template was launched, so both count as stopped.
+	assert.Equal(t, 2, views[0].TemplateStats.Stopped, "the unfiltered view counts every template")
+	assert.Equal(t, 1, views[1].TemplateStats.Stopped, "the filtered view counts only the deploy template")
 }

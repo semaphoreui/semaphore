@@ -16,8 +16,6 @@ d'un modèle de tâche. Choisissez un nom qui distingue les hôtes, par exemple 
 
 ## Étiquette de l'exécuteur {#inventoryForm-runnerTag}
 
-Affiché lorsque des exécuteurs de projet sont disponibles.
-
 Les tâches qui utilisent cet inventaire s'exécutent sur un exécuteur portant cette étiquette. Une
 étiquette d'exécuteur définie sur le modèle de tâche l'emporte sur celle de l'inventaire. Laissez le
 champ vide pour que n'importe quel exécuteur puisse prendre les tâches.
@@ -50,6 +48,8 @@ D'où vient l'inventaire :
 - **Static YAML** : l'inventaire est saisi dans cette boîte de dialogue au format YAML. Utilisez-le
   également pour la configuration d'un plugin d'inventaire.
 - **File** : l'inventaire est un fichier dans un dépôt Git.
+- **Managed** : les hôtes et leurs variables sont conservés sous forme d'enregistrements. Ouvrez
+  l'inventaire depuis la liste pour les modifier.
 
 Les champs situés sous le type changent en fonction de celui-ci.
 

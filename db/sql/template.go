@@ -247,7 +247,12 @@ func whereNameContains(q sq.SelectBuilder, name string) sq.SelectBuilder {
 		return q
 	}
 
-	return q.Where("LOWER(pt.name) LIKE LOWER(?) ESCAPE '!'", "%"+escapeLike(name)+"%")
+	cond, arg := nameContains(name)
+	return q.Where(cond, arg)
+}
+
+func nameContains(name string) (string, any) {
+	return "LOWER(pt.name) LIKE LOWER(?) ESCAPE '!'", "%" + escapeLike(name) + "%"
 }
 
 func (d *SqlDb) getTemplates(
