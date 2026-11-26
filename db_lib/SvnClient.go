@@ -102,7 +102,7 @@ func (c SvnClient) makeCmd(
 	// Same rule as git: never an empty HOME, which would hide the svn
 	// configuration of the user Semaphore runs as.
 	if !hasNonEmptyEnvVar(cmd.Env, "HOME") {
-		if homeDir := getHomeDir(r.Repository, r.TemplateID); homeDir != "" {
+		if homeDir := GetHomeDir(r.Repository, r.TemplateID); homeDir != "" {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", homeDir))
 		} else if h := os.Getenv("HOME"); h != "" {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", h))
@@ -140,8 +140,6 @@ func (c SvnClient) makeCmd(
 	if r.Repository.SSHKey.Type == db.AccessKeyLoginPassword && r.Repository.SSHKey.LoginPassword.Password != "" {
 		cmd.Stdin = strings.NewReader(r.Repository.SSHKey.LoginPassword.Password)
 	}
-
-	cmd.SysProcAttr = util.Config.GetSysProcAttr()
 
 	return cmd
 }
@@ -250,9 +248,6 @@ func (c SvnClient) Clone(r GitRepository) error {
 
 	targetPath := r.GetFullPath()
 	if err := os.MkdirAll(targetPath, 0755); err != nil {
-		return err
-	}
-	if err := util.ChownDir(targetPath); err != nil {
 		return err
 	}
 

@@ -141,15 +141,15 @@ func TestTask_ValidateNewTask_AgentPrompt(t *testing.T) {
 	tpl := agentTemplate(AppCodex, MapStringAnyField{"prompt": "tpl"})
 
 	ok := Task{}
-	assert.NoError(t, ok.ValidateNewTask(*tpl))
+	assert.NoError(t, ok.ValidateNewTask(*tpl, Repository{}))
 
 	overridden := Task{Params: MapStringAnyField{"prompt": "other"}}
-	err := overridden.ValidateNewTask(*tpl)
+	err := overridden.ValidateNewTask(*tpl, Repository{})
 	var validationErr *common_errors.ValidationError
 	assert.ErrorAs(t, err, &validationErr)
 
 	tpl.TaskParams["allow_override_prompt"] = true
-	assert.NoError(t, overridden.ValidateNewTask(*tpl))
+	assert.NoError(t, overridden.ValidateNewTask(*tpl, Repository{}))
 }
 
 func TestTemplate_ExpandAgentPrompt(t *testing.T) {
