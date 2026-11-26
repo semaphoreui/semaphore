@@ -20,11 +20,11 @@ Modern UI for Ansible, Terraform/OpenTofu/Terragrunt, PowerShell and other DevOp
 
 If your project has grown and deploying from the terminal is no longer feasible, then Semaphore UI is the tool you need.
 
+<!--
 ## Demo
 
 [Try Semaphore UI online](https://portal.semaphoreui.com/demo)
 
-<!--
 ## Live Demo
 
 Try the latest version of Semaphore at [https://portal.semaphoreui.com](https://portal.semaphoreui.com).
@@ -60,6 +60,7 @@ You can install Semaphore using the following methods:
   * [Yandex Cloud](https://yandex.cloud/ru/marketplace/products/fastlix/semaphore)
   * [RepoCloud](https://repocloud.io/details/Semaphore/)
   * [Pethost](https://pethost.dev/templates/semaphore/)
+  * [Podway](https://podway.io/start?app=semaphore&ref=docs-semaphore)
 * [Snap](http://snapcraft.io/semaphore)
 * [Binary file](https://semaphoreui.com/install/binary)
 * [Debian or RPM package](https://semaphoreui.com/install/binary)

@@ -25,6 +25,15 @@ type WorkflowService interface {
 	// of the run to stop and marks the run as stopped (terminal).
 	StopWorkflowRun(projectID int, runID int, user *db.User) (db.WorkflowRun, error)
 	ResolveWorkflowApproval(projectID int, workflowID int, runID int, nodeID int, status db.WorkflowApprovalStatus, user *db.User) (db.WorkflowApproval, error)
+	// RerunWorkflowRun repeats a finished run as a new run of the same graph
+	// revision with the same survey answers; the repeated run is left as it
+	// is. With db.WorkflowRerunAll every node runs again. With
+	// db.WorkflowRerunFailed the failed nodes and everything after them run
+	// again, and the nodes that succeeded are carried over — except that an
+	// approval standing before a node that runs again is requested again. A
+	// run that is still in progress, or one with nothing to run again, is
+	// rejected with a validation error. ctx carries the audit actor.
+	RerunWorkflowRun(ctx context.Context, projectID int, workflowID int, runID int, mode db.WorkflowRerunMode, user *db.User) (db.WorkflowRun, error)
 	HandleWorkflowTaskCompletion(task db.Task) error
 	GetWorkflowRunArtifacts(projectID int, runID int, currentTaskID *int) (map[string]any, error)
 }

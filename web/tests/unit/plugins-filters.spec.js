@@ -8,6 +8,16 @@ const ESC = String.fromCharCode(27);
 
 describe('plugins/filters', () => {
   describe('formatMilliseconds', () => {
+    // dayjs humanizes a duration against two readings of the clock; a millisecond between them
+    // turns the exact threshold of 90 s into "a minute". Hold the clock still.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('returns a dash for empty values', () => {
       expect(formatMilliseconds(null)).to.equal('—');
       expect(formatMilliseconds(undefined)).to.equal('—');

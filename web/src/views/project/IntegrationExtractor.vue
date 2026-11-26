@@ -1,5 +1,9 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="integration != null">
+<template>
+  <div
+    v-if="integration != null"
+    data-testid="integration-page"
+    :data-state="aliases == null ? 'loading' : 'ready'"
+  >
     <IntegrationExtractorCrumb
       :integration="integration"
       :integration-id="integrationId"
@@ -9,34 +13,57 @@
     <div class="px-4 pt-3 pb-2">
       <v-switch
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
-        class="mt-0"
+        class="mt-0 IntegrationExtractorSwitch"
         v-model="integration.searchable"
         :label="$t('globalAlias')"
-        @change="updateIntegration()"
+        @update:model-value="updateIntegration()"
+        data-testid="integration-searchable"
       />
     </div>
 
     <div v-if="integration.searchable" class="px-4">
-      <v-alert type="info" text class="d-inline-block">
+      <v-alert
+        type="info"
+        variant="tonal"
+        class="IntegrationExtractorInfo"
+        data-testid="integration-matchersInfo"
+      >
         Matchers allow the integration to be found by a project alias.
       </v-alert>
     </div>
 
-    <div v-else class="px-4 pb-6">
-      <div class="mb-3 pl-1" v-if="(aliases || []).length === 0">There is no aliases.</div>
+    <div
+      v-else
+      class="px-4 pb-6"
+      data-testid="integration-aliases"
+      :data-state="aliases == null ? 'loading' : (aliases.length === 0 ? 'empty' : 'ready')"
+    >
+      <div
+        class="mb-3 pl-1"
+        v-if="(aliases || []).length === 0"
+        data-testid="integration-aliasesEmpty"
+      >There is no aliases.</div>
 
-      <div v-else v-for="alias of aliases || []" :key="alias.id">
-        <code class="mr-2">{{ alias.url }}</code>
+      <div
+        v-else
+        v-for="alias of aliases || []"
+        :key="alias.id"
+        data-testid="integration-alias"
+      >
+        <code class="mr-2" data-testid="integration-aliasUrl">{{ alias.url }}</code>
 
         <CopyClipboardButton
           :text="alias.url"
           success-message="The alias URL  has been copied to the clipboard."
+          test-id="integration-aliasCopy"
         />
 
         <v-btn
           icon
+          variant="text"
           @click="deleteAlias(alias.id)"
           v-if="can(USER_PERMISSIONS.manageProjectResources)"
+          data-testid="integration-aliasDelete"
         >
           <v-icon>mdi-delete</v-icon>
         </v-btn>
@@ -47,6 +74,7 @@
         @click="addAlias()"
         :disabled="aliases == null"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        data-testid="integration-addAlias"
       >
         {{ aliases == null ? $t('LoadAlias') : $t('AddAlias') }}
       </v-btn>
@@ -69,6 +97,21 @@
     />
   </div>
 </template>
+<style lang="scss">
+// The info alert as wide as its text, the icon in front of it (Vuetify 2 `d-inline-block` on a
+// flex wrapper). The alert of Vuetify 4 is a grid: `d-inline-block` would drop the grid and put
+// the icon over the text, so it is an inline grid instead.
+.IntegrationExtractorInfo {
+  display: inline-grid;
+}
+
+// The switch label in the secondary text colour, as every `.v-label` of Vuetify 2
+// (`.theme--light.v-label`: .6, .7 dark); Vuetify 4 writes it in the text colour, .87.
+.IntegrationExtractorSwitch .v-label {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  opacity: 1;
+}
+</style>
 <script>
 import IntegrationsBase from '@/views/project/IntegrationsBase';
 import axios from 'axios';

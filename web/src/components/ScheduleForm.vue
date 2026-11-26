@@ -1,25 +1,33 @@
 <template>
+  <!-- position: relative — «Enabled» is placed from the form: Vuetify 3 scrolls the dialog
+       card itself, so a box placed from the card stays at the bottom of its first screen and
+       covers the form when the card scrolls (Vuetify 2 scrolled the dialog around the card) -->
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
-    v-if="templates && item != null"
+    class="ScheduleForm"
+    style="position: relative"
+    v-if="templates && workflows && item != null"
+    data-testid="scheduleForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
       v-model="showInfo"
       color="info"
-      text
-      dismissible
+      variant="tonal"
+      closable
       class="mb-6"
+      data-testid="scheduleForm-timezoneInfo"
     >
       Use environment variable <code>SEMAPHORE_SCHEDULE_TIMEZONE</code> or config param
       <code>schedule.timezone</code> to set timezone for Schedule.
     </v-alert>
 
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
+      data-testid="scheduleForm-error"
     >{{ formError }}
     </v-alert>
 
@@ -29,27 +37,112 @@
       :rules="[v => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="scheduleForm-name"
     ></v-text-field>
+    <div
+      v-if="workflowsEnabled"
+      class="d-flex justify-space-between align-center mb-2 ScheduleForm__target"
+      data-testid="scheduleForm-target"
+    >
+      <b style="font-size: 13px; margin-left: 5px">{{ $t('scheduleRunTarget') }}</b>
+      <v-btn-toggle
+        :model-value="target"
+        @update:model-value="setTarget($event)"
+        rounded="0"
+        variant="text"
+        class="ScheduleForm__targetToggle"
+        mandatory
+        :disabled="formSaving"
+        data-testid="scheduleForm-targetToggle"
+      >
+        <v-btn
+          value="template"
+          size="small"
+          class="ma-0"
+          style="border-radius: 4px"
+          data-testid="scheduleForm-target-template"
+        >
+          {{ $t('scheduleTargetTemplate') }}
+        </v-btn>
+        <v-btn
+          value="workflow"
+          size="small"
+          class="ma-0"
+          style="border-radius: 4px"
+          data-testid="scheduleForm-target-workflow"
+        >
+          {{ $t('scheduleTargetWorkflow') }}
+        </v-btn>
+      </v-btn-toggle>
+    </div>
+
+    <v-alert
+      v-if="target === 'workflow' && !workflowsEnabled"
+      type="info"
+      variant="tonal"
+      density="compact"
+      class="ScheduleForm__workflowUnavailable"
+      data-testid="scheduleForm-workflowUnavailable"
+    >
+      {{ $t('scheduleWorkflowTargetUnavailable', { id: item.workflow_id }) }}
+    </v-alert>
+
+    <div v-else-if="target === 'workflow'" style="position: relative">
+      <!-- the menus 304 px high, as a Vuetify 2 select menu (310 px in Vuetify 4) -->
+      <v-autocomplete
+        v-model="item.workflow_id"
+        :label="$t('workflowToRun')"
+        :items="workflows"
+        item-value="id"
+        item-title="name"
+        :rules="[v => !!v || $t('scheduleTargetRequired')]"
+        required
+        :disabled="formSaving || !workflowSchedulesAvailable"
+        variant="outlined"
+        density="compact"
+        class="ScheduleForm__workflow"
+        :menu-props="{ maxHeight: 304 }"
+        data-testid="scheduleForm-workflowId"
+      />
+
+      <v-chip
+        v-if="!workflowSchedulesAvailable"
+        color="hsl(348deg, 86%, 61%)"
+        variant="flat"
+        size="small"
+        label
+        class="text-white ScheduleForm__upgrade"
+        style="position: absolute; top: 8px; right: 8px"
+        @click="upgradeToPro('workflow_schedules_management')"
+        data-testid="scheduleForm-upgrade"
+      >
+        Upgrade to PRO
+      </v-chip>
+    </div>
 
     <v-autocomplete
+      v-else
       v-model="item.template_id"
       :label="$t('Template')"
       :items="templates"
       item-value="id"
-      :item-text="(itm) => itm.name"
+      :item-title="(itm) => itm.name"
       :rules="[v => !!v || $t('template_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      :menu-props="{ maxHeight: 304 }"
+      data-testid="scheduleForm-templateId"
     />
 
     <v-card
-      style="background: var(--highlighted-card-bg-color)"
-      v-if="item.template_id"
+      style="background: var(--highlighted-card-bg-color); overflow: visible"
+      v-if="target === 'template' && item.template_id"
       class="mb-8 pt-3"
+      data-testid="scheduleForm-taskParamsCard"
     >
       <div style="
         position: absolute;
@@ -64,6 +157,7 @@
 
       <v-card-text>
         <TaskParamsForm
+          data-testid="scheduleForm-taskParams"
           :template="templates.find(t => t.id === item.template_id)"
           v-model="item.task_params"
         />
@@ -80,8 +174,9 @@
         :rules="runAtRules"
         :disabled="formSaving"
         :suffix="timezone + ' time'"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
+        data-testid="scheduleForm-runAt"
       ></v-text-field>
 
       <div class="d-flex justify-end">
@@ -89,6 +184,7 @@
         <v-checkbox
           v-model="item.delete_after_run"
           hide-details
+          data-testid="scheduleForm-deleteAfterRun"
           class="mt-0 pt-0"
         >
           <template v-slot:label>
@@ -103,6 +199,7 @@
         v-model="rawCron"
         label="Show cron format"
         :disabled="disableRawCron"
+        data-testid="scheduleForm-rawCron"
       />
 
       <v-text-field
@@ -112,12 +209,13 @@
         :rules="[v => !!v || $t('Cron required')]"
         required
         :disabled="formSaving"
-        @input="refreshCheckboxes()"
+        @update:model-value="refreshCheckboxes()"
         :suffix="timezone + ' time'"
-        outlined
+        variant="outlined"
         :error="cronFormatError != null"
         :error-messages="cronFormatError"
-        dense
+        density="compact"
+        data-testid="scheduleForm-cronFormat"
       ></v-text-field>
 
       <div v-else>
@@ -126,17 +224,18 @@
           :label="$t('Timing')"
           :items="TIMINGS"
           item-value="id"
-          item-text="title"
+          item-title="title"
           :rules="[v => !!v || $t('template_required')]"
           required
           :disabled="formSaving"
-          @change="refreshCron()"
-          outlined
+          @update:model-value="refreshCron()"
+          variant="outlined"
           hide-details
-          dense
+          density="compact"
+          data-testid="scheduleForm-timing"
         />
 
-        <div v-if="['yearly'].includes(timing)">
+        <div v-if="['yearly'].includes(timing)" data-testid="scheduleForm-months">
           <div class="mt-4">Months</div>
           <div class="d-flex flex-wrap">
             <v-checkbox
@@ -146,14 +245,15 @@
               :value="m.id"
               :label="m.title"
               v-model="months"
+              :data-testid="`scheduleForm-month-${m.id}`"
               color="white"
               :class="{'ScheduleCheckbox--active': months.includes(m.id)}"
-              @change="refreshCron()"
+              @update:model-value="refreshCron()"
             ></v-checkbox>
           </div>
         </div>
 
-        <div v-if="['weekly'].includes(timing)">
+        <div v-if="['weekly'].includes(timing)" data-testid="scheduleForm-weekdays">
           <div class="mt-4">Weekdays</div>
           <div class="d-flex flex-wrap">
             <v-checkbox
@@ -162,14 +262,15 @@
               :value="d.id"
               :label="d.title"
               v-model="weekdays"
+              :data-testid="`scheduleForm-weekday-${d.id}`"
               color="white"
               :class="{'ScheduleCheckbox--active': weekdays.includes(d.id)}"
-              @change="refreshCron()"
+              @update:model-value="refreshCron()"
             ></v-checkbox>
           </div>
         </div>
 
-        <div v-if="['yearly', 'monthly'].includes(timing)">
+        <div v-if="['yearly', 'monthly'].includes(timing)" data-testid="scheduleForm-days">
           <div class="mt-4">Days</div>
           <div class="d-flex flex-wrap">
             <v-checkbox
@@ -179,17 +280,24 @@
               :value="d"
               :label="`${d}`"
               v-model="days"
+              :data-testid="`scheduleForm-day-${d}`"
               color="white"
               :class="{'ScheduleCheckbox--active': days.includes(d)}"
-              @change="refreshCron()"
+              @update:model-value="refreshCron()"
             ></v-checkbox>
           </div>
         </div>
 
-        <div v-if="['yearly', 'monthly', 'weekly', 'daily'].includes(timing)">
+        <div
+          v-if="['yearly', 'monthly', 'weekly', 'daily'].includes(timing)"
+          data-testid="scheduleForm-hours"
+        >
           <div class="mt-4 d-flex justify-space-between">
             <span>Hours</span>
-            <b style="color: red;">{{ timezone + ' time' }}</b>
+            <b
+              style="color: red;"
+              data-testid="scheduleForm-hoursTimezone"
+            >{{ timezone + ' time' }}</b>
           </div>
           <div class="d-flex flex-wrap">
             <v-checkbox
@@ -199,14 +307,15 @@
               :value="h - 1"
               :label="`${h - 1}`"
               v-model="hours"
+              :data-testid="`scheduleForm-hour-${h - 1}`"
               color="white"
               :class="{'ScheduleCheckbox--active': hours.includes(h - 1)}"
-              @change="refreshCron()"
+              @update:model-value="refreshCron()"
             ></v-checkbox>
           </div>
         </div>
 
-        <div>
+        <div data-testid="scheduleForm-minutes">
           <div class="mt-4">Minutes</div>
           <div class="d-flex flex-wrap">
             <v-checkbox
@@ -216,9 +325,10 @@
               :value="m.id"
               :label="m.title"
               v-model="minutes"
+              :data-testid="`scheduleForm-minute-${m.id}`"
               color="white"
               :class="{'ScheduleCheckbox--active': minutes.includes(m.id)}"
-              @change="refreshCron()"
+              @update:model-value="refreshCron()"
             ></v-checkbox>
           </div>
         </div>
@@ -226,14 +336,18 @@
     </div>
 
     <div
-      class="text-center text-subtitle-1 mb-3"
+      class="ScheduleForm__nextRunTitle text-center mb-3"
       :class="{'mt-8': !rawCron, 'mt-3': rawCron}"
       style="color: limegreen; font-weight: bold;"
+      data-testid="scheduleForm-nextRunTitle"
     >
       Next run time
     </div>
 
-    <v-simple-table class="TaskDetails__table text-sub mb-2">
+    <v-table
+      class="TaskDetails__table text-sub mb-2"
+      data-testid="scheduleForm-nextRun"
+    >
       <template v-slot:default>
         <thead>
         <tr>
@@ -243,24 +357,27 @@
         </tr>
         </thead>
         <tbody>
-        <tr>
+        <tr data-testid="scheduleForm-nextRunServer">
           <td>{{ timezone }}</td>
           <td>{{ nextRunUtcDate }}</td>
           <td>{{ nextRunUtcTime }}</td>
         </tr>
-        <tr>
+        <tr data-testid="scheduleForm-nextRunLocal">
           <td>{{ localTimezone }}</td>
           <td>{{ nextRunLocalDate }}</td>
           <td>{{ nextRunLocalTime }}</td>
         </tr>
         </tbody>
       </template>
-    </v-simple-table>
+    </v-table>
 
+    <!-- bottom left of the card, level with the dialog buttons, as in Vuetify 2: 15 px above
+         the card bottom = 45 px below the form (8 px margin of the table, 52 px button row) -->
     <v-checkbox
-      style="position: absolute; bottom: 15px; left: 22px;"
+      style="position: absolute; bottom: -45px; left: -2px;"
       v-model="item.active"
       hide-details
+      data-testid="scheduleForm-active"
     >
       <template v-slot:label>
         {{ $t('enabled') }}
@@ -271,33 +388,101 @@
 </template>
 
 <style lang="scss">
-.ScheduleCheckbox {
+// The Template / Workflow switch, styled as IntegrationForm__targetToggle.
+.ScheduleForm__targetToggle.v-btn-group {
+  height: 28px;
 
-  .v-input__slot {
-    padding: 4px 6px;
-    font-weight: bold;
-    border-radius: 6px;
-  }
+  > .v-btn {
+    height: 28px;
+    min-width: auto;
+    border: thin solid transparent;
+    opacity: .8;
 
-  .v-messages {
-    display: none;
-  }
+    &.v-btn--active {
+      opacity: 1;
+      color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 
-  &.theme--light {
-    .v-input__slot {
-      background: #e4e4e4;
-    }
-  }
-
-  &.theme--dark {
-    .v-input__slot {
-      background: gray;
+      > .v-btn__overlay {
+        opacity: .18;
+      }
     }
   }
 }
 
+.ScheduleForm__upgrade.v-chip {
+  --v-chip-height: 24px;
+}
+
+.ScheduleForm {
+  // The text of an alert is never narrower than its longest word (a flex item of
+  // `.v-alert__wrapper` in Vuetify 2): `SEMAPHORE_SCHEDULE_TIMEZONE` is not broken on a phone,
+  // the close button moves instead.
+  .v-alert__content {
+    min-width: min-content;
+  }
+
+  // The close button of the timezone alert: centred, 8 px from the text and 8 px into the padding
+  // (`.v-alert__dismissible`), not at the top 16 px from the text.
+  .v-alert__close {
+    grid-row: 1 / -1;
+    align-self: center;
+    margin-inline: 8px -8px;
+  }
+
+  // The suffix («UTC time») in the text colour and 4 px after the input (`.v-text-field__suffix`),
+  // not in the medium emphasis right at the input.
+  .v-text-field__suffix {
+    padding-inline-start: 4px;
+    color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+  }
+
+  // «Run at»: the calendar button at the right end of the input and the field 40 px high, as in
+  // Vuetify 2. The input of Vuetify 4 is a flex box, which leaves the button right after the date,
+  // and its 24 px line makes a date input 42 px high.
+  input[type="datetime-local"].v-field__input {
+    display: block;
+    line-height: 20px;
+  }
+}
+
+// «Next run time»: `text-subtitle-1` of Vuetify 2 (16 px on a 28 px line), the class before the
+// rename; `text-body-large` of Vuetify 4 has a 24 px line.
+.ScheduleForm__nextRunTitle {
+  font-size: 1rem;
+  line-height: 1.75rem;
+  letter-spacing: .009375em;
+}
+
+.ScheduleCheckbox {
+
+  // 8 px under the plate: the margin of `.v-input__slot` in Vuetify 2, rows 44 px apart.
+  .v-selection-control {
+    padding: 4px 6px;
+    margin-bottom: 8px;
+    font-weight: bold;
+    border-radius: 6px;
+  }
+
+  .v-input__details {
+    display: none;
+  }
+}
+
+// Vuetify 3 puts the theme class on an ancestor (the app, the dialog overlay), not on the field.
+.v-theme--light .ScheduleCheckbox {
+  .v-selection-control {
+    background: #e4e4e4;
+  }
+}
+
+.v-theme--dark .ScheduleCheckbox {
+  .v-selection-control {
+    background: gray;
+  }
+}
+
 .ScheduleCheckbox--active {
-  .v-input__slot {
+  .v-selection-control {
     background: #4caf50 !important;
   }
 
@@ -476,6 +661,9 @@ export default {
   data() {
     return {
       templates: null,
+      workflows: null,
+      /** What the schedule runs: 'template' or 'workflow'. Derived from the item on load. */
+      target: 'template',
       timing: 'hourly',
       TIMINGS,
       MONTHS,
@@ -521,16 +709,45 @@ export default {
       url: `/api/project/${this.projectId}/templates`,
       responseType: 'json',
     })).data;
+
+    // Workflows exist only in builds with the feature; elsewhere the endpoint is 404.
+    if (this.workflowsEnabled) {
+      this.workflows = (await axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/workflows`,
+        responseType: 'json',
+      })).data || [];
+    } else {
+      this.workflows = [];
+    }
   },
 
   props: {
     timezone: String,
     type: String,
+    /**
+     * Server feature flags (`systemInfo.features`): `workflows` shows the workflow target,
+     * `workflow_schedules_management` (Pro) lets the user pick a workflow.
+     */
+    features: Object,
   },
 
   computed: {
     localTimezone() {
       return 'Local';
+    },
+
+    workflowsEnabled() {
+      return !!(this.features && this.features.workflows);
+    },
+
+    /**
+     * Whether this user may point a schedule at a workflow. Without it the workflow
+     * select is shown disabled with an "Upgrade to PRO" chip, and the server refuses the
+     * target with 403 anyway.
+     */
+    workflowSchedulesAvailable() {
+      return !!(this.features && this.features.workflow_schedules_management);
     },
 
     runAtRules() {
@@ -567,6 +784,7 @@ export default {
       return {
         name: '',
         template_id: null,
+        workflow_id: null,
         cron_format: '* * * * *',
         active: true,
         run_once: false,
@@ -719,10 +937,37 @@ export default {
       }
     },
 
+    /**
+     * Switches the run target. Exactly one of template_id / workflow_id is kept;
+     * task params only make sense for a template.
+     */
+    setTarget(target) {
+      if (!target || target === this.target) {
+        return;
+      }
+      this.target = target;
+      if (target === 'workflow') {
+        this.item.template_id = null;
+        this.item.task_params = null;
+      } else {
+        this.item.workflow_id = null;
+        if (this.item.task_params == null) {
+          this.item.task_params = {};
+        }
+      }
+    },
+
     afterLoadData() {
-      // if (!this.item.type) {
-      //   this.item.type = this.item.run_at ? 'run_at' : '';
-      // }
+      // The API omits workflow_id when it is null.
+      if (this.item.workflow_id === undefined) {
+        this.item.workflow_id = null;
+      }
+
+      this.target = this.item.workflow_id ? 'workflow' : 'template';
+
+      if (this.target === 'template' && this.item.task_params == null) {
+        this.item.task_params = {};
+      }
 
       if (this.item.run_at) {
         this.setRunAtInputFromItem();
@@ -737,6 +982,13 @@ export default {
 
     async beforeSave() {
       this.item.type = this.type;
+
+      if (this.target === 'workflow') {
+        this.item.template_id = null;
+        this.item.task_params = null;
+      } else {
+        this.item.workflow_id = null;
+      }
 
       if (this.type === 'run_at') {
         const parsed = this.runAtInput

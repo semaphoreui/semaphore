@@ -55,6 +55,14 @@ type OutputsProvider interface {
 	Outputs() *string
 }
 
+// HostsProvider is implemented by executors that capture the host stats of
+// an Ansible task.
+type HostsProvider interface {
+	// Hosts returns the host stats document of the task, or nil when the
+	// playbook did not reach its stats.
+	Hosts() *string
+}
+
 type Executor interface {
 	Job
 

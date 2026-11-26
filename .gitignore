@@ -63,3 +63,5 @@ __debug_bin*
 /*.sqlite*
 /pro_impl/
 /AGENTS/tmp/*
+/docs/
+/website/

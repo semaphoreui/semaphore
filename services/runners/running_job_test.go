@@ -80,7 +80,7 @@ func TestRunningJob_AckLogRecords(t *testing.T) {
 			pending := rj.ackLogRecords(tt.sent)
 			assert.Equal(t, tt.wantPending, pending)
 
-			_, logs, _, _ := rj.getProgress()
+			_, logs, _, _, _ := rj.getProgress()
 			assert.Len(t, logs, tt.wantPending)
 		})
 	}
@@ -104,7 +104,7 @@ func TestRunningJob_LogCmdUsesWaitDelayForInheritedPipes(t *testing.T) {
 	require.ErrorIs(t, err, exec.ErrWaitDelay)
 	assert.Less(t, time.Since(startedAt), 1500*time.Millisecond)
 
-	_, logs, _, _ := rj.getProgress()
+	_, logs, _, _, _ := rj.getProgress()
 	require.Len(t, logs, 2)
 	assert.ElementsMatch(t, []string{"stdout", "stderr"}, []string{logs[0].Message, logs[1].Message})
 }
@@ -114,13 +114,13 @@ func TestRunningJob_GetProgressReturnsCopy(t *testing.T) {
 	rj.Log("a")
 	rj.Log("b")
 
-	_, logs, _, _ := rj.getProgress()
+	_, logs, _, _, _ := rj.getProgress()
 	assert.Len(t, logs, 2)
 
 	// Mutating the returned slice must not corrupt the internal state.
 	logs[0].Message = "mutated"
 
-	_, logs2, _, _ := rj.getProgress()
+	_, logs2, _, _, _ := rj.getProgress()
 	assert.Equal(t, "a", logs2[0].Message)
 }
 
@@ -159,7 +159,7 @@ func TestRunningJob_ConcurrentAccess(t *testing.T) {
 		spawn(func(i int) { rj.SetCommit(fmt.Sprintf("hash%d", i), "msg") })
 		spawn(func(i int) {
 			rj.getStatus()
-			_, logs, _, _ := rj.getProgress()
+			_, logs, _, _, _ := rj.getProgress()
 			if len(logs) > 0 {
 				rj.ackLogRecords(1)
 			}
@@ -187,7 +187,7 @@ func TestRunningJob_FinishAttachesOutputsToSuccess(t *testing.T) {
 
 	rj.finish(task_logger.TaskSuccessStatus, &document)
 
-	status, _, _, outputs := rj.getProgress()
+	status, _, _, outputs, _ := rj.getProgress()
 	assert.Equal(t, task_logger.TaskSuccessStatus, status)
 	require.NotNil(t, outputs)
 	assert.Equal(t, document, *outputs)
@@ -208,7 +208,7 @@ func TestRunningJob_FinishDropsOutputsForOtherStatuses(t *testing.T) {
 
 			rj.finish(tt.status, &document)
 
-			status, _, _, outputs := rj.getProgress()
+			status, _, _, outputs, _ := rj.getProgress()
 			assert.Equal(t, tt.status, status)
 			assert.Nil(t, outputs)
 		})
@@ -220,7 +220,7 @@ func TestRunningJob_FinishWithoutOutputs(t *testing.T) {
 
 	rj.finish(task_logger.TaskSuccessStatus, nil)
 
-	status, _, _, outputs := rj.getProgress()
+	status, _, _, outputs, _ := rj.getProgress()
 	assert.Equal(t, task_logger.TaskSuccessStatus, status)
 	assert.Nil(t, outputs)
 }

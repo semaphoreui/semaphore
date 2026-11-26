@@ -43,7 +43,7 @@ func getSchedulesByProject(projectID int, schedules []db.Schedule) []db.Schedule
 
 func getScheduleByTemplate(templateID int, schedules []db.Schedule) *string {
 	for _, o := range schedules {
-		if o.TemplateID == templateID {
+		if o.TemplateID != nil && *o.TemplateID == templateID {
 			return &o.CronFormat
 		}
 	}
@@ -170,17 +170,19 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 	}
 
 	// Task-bound survey-secret keys are ephemeral internals of a single task
-	// run; they don't belong in a project backup.
+	// run; they don't belong in a project backup. MCP server tokens belong to
+	// their server, not to the project key list: restoring one as a project
+	// key would orphan it (and the store refuses to create it).
 	filteredKeys := make([]db.AccessKey, 0, len(b.keys))
 	for _, k := range b.keys {
-		if k.Owner == db.AccessKeyTaskSecret {
+		if k.Owner == db.AccessKeyTaskSecret || k.Owner == db.AccessKeyMcp {
 			continue
 		}
 		filteredKeys = append(filteredKeys, k)
 	}
 	b.keys = filteredKeys
 
-	b.views, err = store.GetViews(projectID)
+	b.views, err = store.GetViews(projectID, nil)
 	if err != nil {
 		return
 	}
@@ -188,6 +190,22 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 	b.inventories, err = store.GetInventories(projectID, db.RetrieveQueryParams{}, []db.InventoryType{})
 	if err != nil {
 		return
+	}
+
+	b.inventoryHosts = make(map[int][]db.InventoryHost)
+	b.inventoryGroups = make(map[int][]db.InventoryGroup)
+	for _, inv := range b.inventories {
+		if inv.Type != db.InventoryManaged {
+			continue
+		}
+		b.inventoryHosts[inv.ID], _, err = store.GetInventoryHosts(projectID, inv.ID, db.InventoryHostListParams{Count: 0})
+		if err != nil {
+			return
+		}
+		b.inventoryGroups[inv.ID], err = store.GetInventoryGroups(projectID, inv.ID)
+		if err != nil {
+			return
+		}
 	}
 
 	b.environments, err = store.GetEnvironments(projectID, db.RetrieveQueryParams{})
@@ -261,9 +279,16 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 		return
 	}
 
-	b.workflows, err = workflowStore.GetWorkflowTemplates(projectID, db.RetrieveQueryParams{})
+	b.workflows, err = workflowStore.GetWorkflowTemplates(projectID, nil, db.RetrieveQueryParams{})
 	if err != nil {
 		return
+	}
+	b.workflowRoles = make(map[int][]db.WorkflowRolePerm)
+	for _, w := range b.workflows {
+		b.workflowRoles[w.ID], err = store.GetWorkflowRoles(projectID, w.ID)
+		if err != nil {
+			return
+		}
 	}
 
 	b.makeUniqueNames()
@@ -280,28 +305,40 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		}
 	}
 
-	schedules := make([]BackupSchedule, len(b.schedules))
-	for i, o := range b.schedules {
+	schedules := make([]BackupSchedule, 0, len(b.schedules))
+	for _, o := range b.schedules {
 
-		tplName, _ := findNameByID[db.Template](o.TemplateID, b.templates)
+		// The target is stored by name. A schedule whose target is not in the
+		// backup (a workflow in a build without workflows) is left out rather
+		// than written as an entry nothing can restore.
+		var tplName, workflowName *string
+		switch {
+		case o.TemplateID != nil:
+			tplName, _ = findNameByID[db.Template](*o.TemplateID, b.templates)
+		case o.WorkflowID != nil:
+			workflowName, _ = findNameByID[db.WorkflowTemplate](*o.WorkflowID, b.workflows)
+		}
+		if tplName == nil && workflowName == nil {
+			continue
+		}
+
 		var repoName *string
 		if o.RepositoryID != nil {
 			repoName, _ = findNameByID[db.Repository](*o.RepositoryID, b.repositories)
 		}
 
-		if tplName == nil {
-			continue
-		}
-
-		schedules[i] = BackupSchedule{
-			o,
-			*tplName,
-			repoName,
+		schedule := BackupSchedule{
+			Schedule:            o,
+			Template:            tplName,
+			Workflow:            workflowName,
+			CheckableRepository: repoName,
 		}
 
 		if o.TaskParams != nil && o.TaskParams.InventoryID != nil {
-			schedules[i].TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
+			schedule.TaskParams.InventoryName, _ = findNameByID[db.Inventory](*o.TaskParams.InventoryID, b.inventories)
 		}
+
+		schedules = append(schedules, schedule)
 	}
 
 	keys := make([]BackupAccessKey, len(b.keys))
@@ -344,10 +381,35 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		if o.BecomeKeyID != nil {
 			BecomeKey, _ = findNameByID[db.AccessKey](*o.BecomeKeyID, b.keys)
 		}
+		var hosts []BackupInventoryHost
+		groupHosts := make(map[int][]string)
+		for _, h := range b.inventoryHosts[o.ID] {
+			hosts = append(hosts, BackupInventoryHost{Name: h.Name, Description: h.Description, Enabled: h.Enabled, Variables: h.Variables})
+			for _, g := range h.Groups {
+				groupHosts[g] = append(groupHosts[g], h.Name)
+			}
+		}
+		groupNames := make(map[int]string)
+		for _, g := range b.inventoryGroups[o.ID] {
+			groupNames[g.ID] = g.Name
+		}
+		var groups []BackupInventoryGroup
+		for _, g := range b.inventoryGroups[o.ID] {
+			var children []string
+			for _, c := range g.Children {
+				// A child created after the groups were read has no name here
+				if name, ok := groupNames[c]; ok {
+					children = append(children, name)
+				}
+			}
+			groups = append(groups, BackupInventoryGroup{Name: g.Name, Description: g.Description, Variables: g.Variables, Hosts: groupHosts[g.ID], Children: children})
+		}
 		inventories[i] = BackupInventory{
 			Inventory: o,
 			SSHKey:    SSHKey,
 			BecomeKey: BecomeKey,
+			Hosts:     hosts,
+			Groups:    groups,
 		}
 	}
 
@@ -512,9 +574,15 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 			}
 			nodes[j] = node
 		}
+		var roles []BackupWorkflowRole
+		for _, r := range b.workflowRoles[o.ID] {
+			roles = append(roles, BackupWorkflowRole{Slug: r.RoleSlug, Permissions: r.Permissions})
+		}
+
 		workflows[i] = BackupWorkflow{
 			WorkflowTemplate: o,
 			Nodes:            nodes,
+			Roles:            roles,
 		}
 	}
 

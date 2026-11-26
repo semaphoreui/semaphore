@@ -50,7 +50,7 @@ func (s *sessionServiceImpl) GetSession(cookie http.Cookie) (*db.Session, bool) 
 		return nil, false
 	}
 
-	if session.IsExpiredAt(tz.Now(), util.Config.MaxSessionLife(), db.SessionInactivityTimeout) {
+	if session.IsExpiredAt(tz.Now(), util.Config.MaxSessionLife(), util.Config.SessionInactivityTimeout()) {
 		// The session was unused for too long or outlived the configured
 		// absolute lifetime. Destroy it so it cannot be reused.
 		if err = s.sessionRepo.ExpireSession(userID, sessionID); err != nil {

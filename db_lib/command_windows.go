@@ -6,9 +6,16 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"syscall"
 
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
+
+// appSysProcAttr returns the process attributes of a child app. Windows has no
+// sessions or process groups to put the app in, so it inherits the defaults.
+func appSysProcAttr() *syscall.SysProcAttr {
+	return nil
+}
 
 // waitCommand takes ownership of waiting for and terminating an already-started
 // command. The caller must not wait for or signal the command after this call.

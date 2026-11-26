@@ -226,6 +226,11 @@ func (d *SqlDb) UpdateTaskArtifacts(projectID int, taskID int, artifacts *string
 	return err
 }
 
+func (d *SqlDb) UpdateTaskEffectiveInventory(projectID int, taskID int, inventoryID *int) error {
+	_, err := d.exec("update task set effective_inventory_id=? where id=? and project_id=?", inventoryID, taskID, projectID)
+	return err
+}
+
 func (d *SqlDb) SetWaitingTasksToStopped(projectID int, templateID int) error {
 	_, err := d.exec(
 		"update task set status=?, `end`=? where template_id=? and project_id=? and status=?",
@@ -301,6 +306,11 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, workflowRunID *int, tas
 		q = q.Where(squirrel.Eq{"status": params.TaskFilter.Status})
 	}
 
+	if params.TaskFilter != nil && filtered(params.TaskFilter.Viewer) {
+		where, args := visibleTasksWhere(projectID, params.TaskFilter.Viewer.UserID)
+		q = q.Where(where, args...)
+	}
+
 	if templateID == nil {
 		q = q.Where("tpl.project_id=?", projectID)
 	} else {
@@ -333,6 +343,15 @@ func (d *SqlDb) getTasks(projectID int, templateID *int, workflowRunID *int, tas
 	_, err = d.selectAll(tasks, query, args...)
 
 	for i := range *tasks {
+		if params.TaskFilter != nil && filtered(params.TaskFilter.Viewer) {
+			visible, err := d.taskVisible(projectID, (*tasks)[i].BuildTaskID, params.TaskFilter.Viewer.UserID)
+			if err != nil {
+				return err
+			}
+			if !visible {
+				continue
+			}
+		}
 		err = (*tasks)[i].Fill(d)
 		if err != nil {
 			return
@@ -378,6 +397,17 @@ func (d *SqlDb) GetProjectTasks(projectID int, params db.RetrieveQueryParams) (t
 func (d *SqlDb) GetWorkflowRunTasks(projectID int, runID int, params db.RetrieveQueryParams) (tasks []db.TaskWithTpl, err error) {
 	tasks = make([]db.TaskWithTpl, 0)
 	err = d.getTasks(projectID, nil, &runID, nil, params, &tasks)
+	return
+}
+
+// GetProjectTasksByIDs returns the project's tasks with the given ids, newest
+// first. An id of another project is not returned.
+func (d *SqlDb) GetProjectTasksByIDs(projectID int, taskIDs []int) (tasks []db.TaskWithTpl, err error) {
+	tasks = make([]db.TaskWithTpl, 0)
+	if len(taskIDs) == 0 {
+		return
+	}
+	err = d.getTasks(projectID, nil, nil, taskIDs, db.RetrieveQueryParams{}, &tasks)
 	return
 }
 
@@ -440,10 +470,6 @@ func (d *SqlDb) GetTaskStageOutputs(projectID int, taskID int, stageID int) (out
 
 	_, err = d.selectAll(&output, query, args...)
 	return
-}
-
-func (d *SqlDb) GetNodeCount() (int, error) {
-	return 0, nil
 }
 
 func (d *SqlDb) GetUiCount() (int, error) {
