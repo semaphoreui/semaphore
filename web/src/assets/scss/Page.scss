@@ -1,0 +1,32 @@
+.PagePanel {
+  display: grid;
+  z-index: 2;
+  background-color: rgba(var(--v-border-color), 0.04);
+}
+
+.PagePanel__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+}
+
+// The bar of actions over the selected rows; it takes the place of PagePanel__main.
+.PagePanel__multiselect {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: rgb(var(--v-theme-surface-variant));
+  color: rgb(var(--v-theme-on-surface-variant));
+  z-index: 2;
+}
+
+// `surface-variant` of the dark theme is light grey (#c8c8c8) with black text.
+.v-theme--dark .PagePanel__multiselect {
+  background-color: #000;
+  color: #fff;
+}

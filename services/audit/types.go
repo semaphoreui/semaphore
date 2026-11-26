@@ -19,7 +19,7 @@ func validTypes() []Type {
 }
 
 func validCategories() []string {
-	return []string{"auth", "iam", "resource", "secret", "task", "runner", "system", "audit"}
+	return []string{"auth", "iam", "resource", "secret", "task", "workflow", "runner", "system", "audit"}
 }
 
 type Outcome string
@@ -93,10 +93,13 @@ const (
 	TargetGlobalRole            = "global_role"
 	TargetProjectRoleDefinition = "project_role_definition"
 	TargetTemplatePermission    = "template_permission"
+	TargetWorkflowPermission    = "workflow_permission"
 	TargetRoleMapping           = "role_mapping"
 	TargetLicense               = "license"
 	TargetProject               = "project"
 	TargetInventory             = "inventory"
+	TargetInventoryHost         = "inventory_host"
+	TargetInventoryGroup        = "inventory_group"
 	TargetRepository            = "repository"
 	TargetTemplate              = "template"
 	TargetSchedule              = "schedule"

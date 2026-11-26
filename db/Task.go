@@ -27,6 +27,12 @@ type TerraformTaskParams struct {
 	Reconfigure bool `json:"reconfigure"`
 }
 
+// AgentTaskParams are the params of an AI agent task.
+type AgentTaskParams struct {
+	// Prompt replaces the template prompt when the template allows it.
+	Prompt string `json:"prompt,omitempty"`
+}
+
 type AnsibleTaskParams struct {
 	Debug             bool     `json:"debug"`
 	DebugLevel        int      `json:"debug_level"`
@@ -90,11 +96,18 @@ type Task struct {
 	// the task starts so that executors (local or on a remote runner) can expose
 	// the workflow in the task environment without a database.
 	WorkflowTemplateID *int `db:"-" json:"workflow_template_id,omitempty"`
+	// WorkflowVersion is the version of the workflow run of WorkflowRunID.
+	// Like WorkflowTemplateID it is not stored with the task but resolved from
+	// the run before the task starts, so executors can expose it as
+	// SEMAPHORE_WORKFLOW_VERSION.
+	WorkflowVersion *string `db:"-" json:"workflow_version,omitempty"`
 	// Version is a build version.
 	// This field available only for Build tasks.
 	Version *string `db:"version" json:"version,omitempty"`
 
 	InventoryID *int `db:"inventory_id" json:"inventory_id,omitempty"`
+	// EffectiveInventoryID is the inventory the run was handed to execution with.
+	EffectiveInventoryID *int `db:"effective_inventory_id" json:"-"`
 
 	Params MapStringAnyField `db:"params" json:"params,omitempty"`
 
@@ -211,6 +224,15 @@ func (task *Task) ValidateNewTask(template Template, repository Repository) erro
 	}
 
 	if err := ValidatePlaybookPath(task.Playbook, "task"); err != nil {
+		return err
+	}
+
+	if template.App.IsAgent() {
+		var params AgentTaskParams
+		if err := task.ExtractParams(&params); err != nil {
+			return err
+		}
+		_, err := template.AgentPrompt(params)
 		return err
 	}
 

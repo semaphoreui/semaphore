@@ -19,10 +19,14 @@ export const TEMPLATE_TYPE_ACTION_TITLES = {
 };
 
 export const USER_PERMISSIONS = {
+  readProject: 128,
   runProjectTasks: 1,
   updateProject: 2,
   manageProjectResources: 4,
   manageProjectUsers: 8,
+  runWorkflows: 16,
+  editWorkflows: 32,
+  approveWorkflows: 64,
 };
 
 // Instance-wide permissions of a global role, as db.GlobalPermission. An admin holds all of them.
@@ -99,17 +103,17 @@ export const APP_ICONS = {
     darkColor: '#7b42bc',
   },
   tofu: {
-    icon: '$vuetify.icons.tofu',
+    icon: '$tofu',
     color: 'black',
     darkColor: 'white',
   },
   terragrunt: {
-    icon: '$vuetify.icons.terragrunt',
+    icon: '$terragrunt',
     color: '#4b3b7a',
     darkColor: '#4b3b7a',
   },
   pulumi: {
-    icon: '$vuetify.icons.pulumi',
+    icon: '$pulumi',
     color: 'black',
     darkColor: 'white',
   },
@@ -124,6 +128,17 @@ export const APP_ICONS = {
   powershell: {
     icon: 'mdi-powershell',
   },
+  // AI agents: icons of the Material set, not the vendors' logos.
+  claude: {
+    icon: 'mdi-asterisk',
+    color: '#D97757',
+    darkColor: '#D97757',
+  },
+  codex: {
+    icon: 'mdi-creation',
+    color: 'black',
+    darkColor: 'white',
+  },
 };
 
 export const APP_SHORT_TITLE = {
@@ -135,6 +150,8 @@ export const APP_SHORT_TITLE = {
   pulumi: 'Pulumi',
   python: 'Python',
   powershell: 'PowerShell',
+  claude: 'Claude Code',
+  codex: 'Codex',
 };
 
 export const APP_TITLE = {
@@ -146,6 +163,43 @@ export const APP_TITLE = {
   pulumi: 'Pulumi Code',
   python: 'Python Script',
   powershell: 'PowerShell Script',
+  claude: 'Claude Code Agent',
+  codex: 'Codex Agent',
+};
+
+// The apps which run an AI agent CLI (db.TemplateApp.IsAgent).
+export const AGENT_APPS = ['claude', 'codex'];
+
+// The apps whose template form has a column of their own options next to the common and the
+// advanced ones; their template editor is the wide one. '' is an old Ansible template.
+export const APPS_WITH_OPTIONS_COLUMN = ['', 'ansible', 'terraform', 'tofu', ...AGENT_APPS];
+
+// The variable an agent CLI reads its API key from; the user adds it to a Variable Group of the
+// template as a secret.
+export const AGENT_API_KEY_VARS = {
+  claude: 'ANTHROPIC_API_KEY',
+  codex: 'OPENAI_API_KEY',
+};
+
+// What the prompt of an agent template can name in ${{ … }} (pkg/agentprompt): the variables
+// and the secrets of the template's Variable Groups. Only the prompt kept in the template has
+// them replaced; a prompt given by a task goes to the agent as it is written.
+const promptExpression = (name) => `\${{ ${name} }}`;
+
+export const AGENT_PROMPT_EXPRESSION = promptExpression('…');
+
+export const AGENT_PROMPT_EXPRESSIONS = [
+  promptExpression('vars.extra.NAME'),
+  promptExpression('vars.env.NAME'),
+  promptExpression('secrets.extra.NAME'),
+  promptExpression('secrets.env.NAME'),
+];
+
+// The inventory of the agents: a list of MCP servers, one kind for every agent app.
+export const MCP_INVENTORY = {
+  type: 'mcp',
+  title: 'MCP Inventory',
+  icon: 'mdi-server-network',
 };
 
 export const APP_INVENTORY_TITLE = {
@@ -153,13 +207,17 @@ export const APP_INVENTORY_TITLE = {
   terraform: 'Terraform Workspace',
   tofu: 'OpenTofu Workspace',
   terragrunt: 'Terragrunt Workspace',
+  claude: MCP_INVENTORY.title,
+  codex: MCP_INVENTORY.title,
 };
 
 export const APP_INVENTORY_TYPES = {
-  ansible: ['static', 'file', 'static-yaml'],
+  ansible: ['static', 'file', 'static-yaml', 'managed'],
   terraform: ['terraform-workspace'],
   tofu: ['tofu-workspace'],
   terragrunt: ['terragrunt-workspace'],
+  claude: [MCP_INVENTORY.type],
+  codex: [MCP_INVENTORY.type],
 };
 
 export const DEFAULT_APPS = Object.keys(APP_ICONS);
@@ -281,6 +339,23 @@ export const PULUMI_FIELDS = {
   playbook: TERRAFORM_FIELDS.playbook,
 };
 
+// An AI agent works in a directory of the repository, like the terraform family, with the MCP
+// servers of an mcp inventory; its prompt may be replaced by a task when the template allows it.
+export const AGENT_FIELDS = {
+  ...BASE_FIELDS,
+  playbook: TERRAFORM_FIELDS.playbook,
+  inventory: {
+    label: 'mcpServersOptional',
+    optional: true,
+  },
+  prompt: {
+    label: 'agentPrompt',
+  },
+  allow_override_prompt: {
+    label: 'agentPrompt',
+  },
+};
+
 export const APP_FIELDS = {
   '': ANSIBLE_FIELDS,
   ansible: ANSIBLE_FIELDS,
@@ -288,10 +363,17 @@ export const APP_FIELDS = {
   tofu: TERRAFORM_FIELDS,
   terragrunt: TERRAFORM_FIELDS,
   pulumi: PULUMI_FIELDS,
+  claude: AGENT_FIELDS,
+  codex: AGENT_FIELDS,
 };
 
 export const ROLE_PERMISSIONS = {
   default: [{
+    permission: 128,
+    label: 'canReadProject',
+    color: 'grey',
+    textColor: 'white',
+  }, {
     permission: 1,
     label: 'canRunProjectTasks',
     color: 'blue',
@@ -311,16 +393,57 @@ export const ROLE_PERMISSIONS = {
     label: 'canManageProjectUsers',
     color: 'red',
     textColor: 'white',
+  }, {
+    permission: 16,
+    label: 'canRunWorkflows',
+    color: 'teal',
+    textColor: 'white',
+  }, {
+    permission: 32,
+    label: 'canEditWorkflows',
+    color: 'indigo',
+    textColor: 'white',
+  }, {
+    permission: 64,
+    label: 'canApproveWorkflows',
+    color: 'deep-purple',
+    textColor: 'white',
   }],
   template: [{
+    permission: 128,
+    label: 'canSeeTemplate',
+    color: 'grey',
+    textColor: 'white',
+  }, {
     permission: 1,
-    label: 'Can run tasks',
+    label: 'canRunTemplate',
     color: 'blue',
     textColor: 'white',
   }, {
     permission: 4,
-    label: 'Can update the template',
+    label: 'canEditTemplate',
     color: 'orange',
+    textColor: 'white',
+  }],
+  workflow: [{
+    permission: 128,
+    label: 'canSeeWorkflow',
+    color: 'grey',
+    textColor: 'white',
+  }, {
+    permission: 16,
+    label: 'canRunWorkflow',
+    color: 'teal',
+    textColor: 'white',
+  }, {
+    permission: 32,
+    label: 'canEditWorkflow',
+    color: 'indigo',
+    textColor: 'white',
+  }, {
+    permission: 64,
+    label: 'canApproveWorkflow',
+    color: 'deep-purple',
     textColor: 'white',
   }],
   global: [{

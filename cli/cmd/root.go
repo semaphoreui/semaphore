@@ -200,6 +200,17 @@ func runService() {
 		log.WithField("redis", haRedis.Describe()).Info("HA Redis backend connected")
 	}
 
+	// The store caches runners by token in memory, which is only correct on a
+	// single node: HA nodes must share the cache so that an invalidation made
+	// by one node reaches the others.
+	if runnerCache := proHA.NewRunnerCache(haRedis); runnerCache != nil {
+		holder, ok := store.(db.RunnerCacheHolder)
+		if !ok {
+			log.Fatalf("store %T does not support a shared runner cache", store)
+		}
+		holder.SetRunnerCache(runnerCache)
+	}
+
 	appMetrics := metrics.NewMetrics()
 
 	auditService, auditErr := audit.StartService(
@@ -216,6 +227,7 @@ func runService() {
 	state := proTasks.NewTaskStateStore(haRedis)
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
+	hostRepo := proFactory.NewHostRepository(store)
 	workflowStore := proFactory.NewWorkflowStore(store)
 	globalRoleStore := proFactory.NewGlobalRoleStore(store)
 	roleMappingStore := proFactory.NewRoleMappingStore(store)
@@ -270,6 +282,8 @@ func runService() {
 		encryptionService,
 	)
 
+	schedulePool.SetWorkflowService(workflowStore, workflowService)
+
 	defer schedulePool.Destroy()
 	defer taskPool.Stop()
 
@@ -298,6 +312,10 @@ func runService() {
 		schedulePool.SetDeduplicator(dedup)
 		secretStorageSyncScheduler.SetTickDeduplicator(dedup)
 	}
+
+	// The runners the pool built at creation hold the pool as it was then,
+	// without the deduplicator and the workflow engine: rebuild them.
+	schedulePool.Refresh()
 
 	// Each process holds its own in-memory cron table. Schedule CRUD handlers only
 	// call Refresh on the node that served the HTTP request, so other HA nodes
@@ -362,6 +380,7 @@ func runService() {
 		workflowStore,
 		roleMappingStore,
 		ansibleTaskRepo,
+		hostRepo,
 		&taskPool,
 		projectService,
 		integrationService,

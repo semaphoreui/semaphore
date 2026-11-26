@@ -1,21 +1,29 @@
 <template>
-  <div class="WorkflowCanvasControls" @mousedown.stop @wheel.stop>
-    <v-tooltip right v-for="item in items" :key="item.event">
-      <template v-slot:activator="{ on, attrs }">
+  <div
+    class="WorkflowCanvasControls"
+    data-testid="workflowCanvas-controls"
+    @mousedown.stop
+    @wheel.stop
+  >
+    <v-tooltip location="end" v-for="item in items" :key="item.event">
+      <template v-slot:activator="{ props }">
         <button
           type="button"
           class="WorkflowCanvasControls__btn"
+          :data-testid="`workflowCanvas-control-${item.event}`"
           :aria-label="item.title"
-          v-bind="attrs"
-          v-on="on"
+          v-bind="props"
           @click="$emit(item.event)"
         >
-          <v-icon small>{{ item.icon }}</v-icon>
+          <v-icon size="small">{{ item.icon }}</v-icon>
         </button>
       </template>
-      <span>{{ item.title }}</span>
+      <span :data-testid="`workflowCanvas-controlTooltip-${item.event}`">{{ item.title }}</span>
     </v-tooltip>
-    <div class="WorkflowCanvasControls__zoom">{{ zoomLabel }}</div>
+    <div
+      class="WorkflowCanvasControls__zoom"
+      data-testid="workflowCanvas-zoomLabel"
+    >{{ zoomLabel }}</div>
   </div>
 </template>
 
@@ -25,6 +33,8 @@ export default {
     zoom: { type: Number, default: 1 },
     editable: { type: Boolean, default: false },
   },
+
+  emits: ['zoom-in', 'zoom-out', 'fit', 'tidy'],
 
   computed: {
     items() {
@@ -64,15 +74,14 @@ export default {
     height: 32px;
     border: 0;
     background: transparent;
-    color: var(--wf-text2);
+    // The text colour of the canvas, as in Vuetify 2, whose reset (`[type="button"] { color:
+    // inherit }`, unlayered, after this file) won over a colour here. No line between the buttons:
+    // each sat in a `span.v-tooltip` there, so a `& + &` border never matched.
+    color: inherit;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-
-    & + & {
-      border-top: 1px solid var(--wf-divider);
-    }
 
     &:hover {
       background: var(--wf-tile-bg);

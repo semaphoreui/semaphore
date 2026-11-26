@@ -138,6 +138,17 @@ properties:
     description: >
       Disable verification of the LDAP server's TLS certificate for the legacy
       flat ldap_* config. Defaults to false (certificates are verified).
+  ldap_group_search_dn:
+    type: string
+    description: "Base DN of the group search. Empty: groups are not read."
+  ldap_group_search_filter:
+    type: string
+    default: "(|(member={{ .dn }})(uniqueMember={{ .dn }})(memberUid={{ .username }}))"
+    description: Group search filter, with {{ .dn }} and {{ .username }} of the user.
+  ldap_group_name_attribute:
+    type: string
+    default: cn
+    description: Group attribute that holds the group name.
   ldap_providers:
     type: object
     additionalProperties: { $ref: "#/$defs/LdapProvider" }
@@ -241,7 +252,6 @@ properties:
   syslog:       { $ref: "#/$defs/SyslogConfig" }
   metrics:      { $ref: "#/$defs/MetricsConfig" }
   log:          { $ref: "#/$defs/ConfigLog" }
-  process:      { $ref: "#/$defs/ConfigProcess" }
   schedule:     { $ref: "#/$defs/ScheduleConfig" }
   debugging:    { $ref: "#/$defs/DebuggingConfig" }
   ha:           { $ref: "#/$defs/HAConfig" }
@@ -381,8 +391,16 @@ $defs:
         description: >-
           Absolute lifetime of a login session in hours, counted from login.
           Once exceeded the session is expired even if it was recently active.
-          0 means no absolute limit; sessions then expire only after 7 days
-          without activity.
+          0 means no absolute limit; sessions then expire only after the
+          inactivity timeout (session_inactivity_hours).
+      session_inactivity_hours:
+        type: integer
+        minimum: 0
+        default: 0
+        description: >-
+          How long a login session may stay unused, in hours, before it is
+          expired. Every authenticated request resets the counter. 0 means the
+          built-in 168 hours (7 days); the timeout cannot be disabled.
 
   MultifactorAuthConfig:
     type: object
@@ -438,6 +456,17 @@ $defs:
         description: LDAP bind password (sensitive).
       search_dn:     { type: string }
       search_filter: { type: string }
+      group_search_dn:
+        type: string
+        description: "Base DN of the group search. Empty: groups are not read."
+      group_search_filter:
+        type: string
+        default: "(|(member={{ .dn }})(uniqueMember={{ .dn }})(memberUid={{ .username }}))"
+        description: Group search filter, with {{ .dn }} and {{ .username }} of the user.
+      group_name_attribute:
+        type: string
+        default: cn
+        description: Group attribute that holds the group name.
       mappings:     { $ref: "#/$defs/LdapMappings" }
       color:        { type: string }
       icon:         { type: string, description: MDI icon name without the mdi- prefix. }
@@ -578,26 +607,6 @@ $defs:
         description: Max number of old log files to retain.
       localtime: { type: boolean }
       compress:  { type: boolean }
-
-  ConfigProcess:
-    type: object
-    properties:
-      user:           { type: string }
-      uid:            { type: integer, minimum: 0 }
-      chroot:         { type: string }
-      gid:            { type: integer, minimum: 0 }
-      no_new_privs:   { type: boolean }
-      app_namespaces: { $ref: "#/$defs/ConfigAppNamespaces" }
-
-  ConfigAppNamespaces:
-    type: object
-    description: Linux CLONE_NEW* flags applied to app runs. No-op on non-Linux.
-    properties:
-      user:  { type: boolean }
-      mount: { type: boolean }
-      pid:   { type: boolean }
-      ipc:   { type: boolean }
-      uts:   { type: boolean }
 
   ScheduleConfig:
     type: object

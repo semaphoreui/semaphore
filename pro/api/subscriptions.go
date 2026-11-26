@@ -12,6 +12,7 @@ func NewSubscriptionController(
 	userRepo db.UserManager,
 	runnerRepo db.RunnerManager,
 	tfRepo db.TerraformStore,
+	hostRepo db.HostRepository,
 ) pro_interfaces.SubscriptionController {
 	return &subscriptionControllerImpl{}
 }

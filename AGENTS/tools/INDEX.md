@@ -18,11 +18,23 @@ How to add, document and retire a tool — [`CREATE.md`](CREATE.md).
 workflows, `run.sh` starts a run and follows every node (task, approval, delay) to a terminal
 status with optional auto-approve/stop, `runner.sh` registers and runs a remote runner for the
 stand and routes a project's templates to it, `inputs.sh` prints producer outputs and consumer
-`INPUT` lines of a run, `shoot-run.cjs` screenshots the run view, `seed-docs.sh` +
+`INPUT` lines of a run, `shoot-run.cjs` screenshots the run view, `check-run-panel.cjs` walks the run panel (`?w=<workflow>/<run>`)
+in a browser and prints PASS/FAIL per check, `seed-docs.sh` +
 `shoot-docs.cjs` seed the "Demo Stand" project and shoot the screenshots of the user guide's
 Outputs and inputs section. Use it instead of
 hand-written curl polling whenever a change to the workflow engine or run view must be checked
 against a real run.
+
+### `help-stand/` — check the built-in help panel on a real binary
+
+`stand.sh` builds the community binary, starts it on `:3100` with a second instance under a
+sub-path on `:3102` and seeds inventories of every kind; four Playwright checks drive the help of
+the Ansible inventory dialog and of the project Settings page: requests to the server only and
+work with other hosts blocked, the panel following the focus, the field marked by the active
+section, disabled sections, the layout of a page next to the panel, and ten dialogs of every kind
+in any language. Use it after any change to
+`EditDialog.vue`, `HelpPage.vue`, `HelpPanel.vue`, `HelpDocsHost.js` or `web/vite/help` — unit
+tests run in jsdom, which lays nothing out and has no focus trap.
 
 ### `redis-sentinel-stand/` — prove HA failover on Redis Sentinel
 
@@ -32,3 +44,22 @@ and two Semaphore HA nodes (`:3110`, `:3111`) in docker compose, kills and resto
 other, `wsprobe.go` prints the WebSocket events a node receives. Use it whenever the HA Redis
 connection, `ha.engine` / `ha.redis_sentinel` or the Pub/Sub broadcaster change — unit tests run
 on miniredis, which has no Sentinel.
+
+### `agent-stand/` — check the AI agent UI on a throwaway stand
+
+`stand.sh` builds this work copy and starts it on `127.0.0.1:3102` with its own SQLite, `seed.sh` adds an
+mcp inventory and Claude Code / Codex templates, `verify.cjs` saves through the UI and checks the
+API and task logs, `shoot.cjs` takes the screenshots, `shoot-log.cjs` runs a Claude and a Codex
+task and checks and shoots their logs (the agent's events as a transcript), `check-prompt.py` runs
+tasks whose prompt has `${{ … }}` expressions and checks the values and the masking, `shoot-docs.cjs`
+retakes the screenshots of the docs page about agent templates. Agents run a fake CLI unless started with
+`--real`. Use it after changing the mcp inventory form, the agent fields of the template form or
+the task prompt; unlike `agent-cli/`, it goes through the server and the browser.
+
+### `agent-cli/` — run the real Codex / Claude Code CLI like AgentApp
+
+`probe.sh codex|claude` writes the same per-task config as `db_lib/AgentApp.go`, sends the
+prompt on stdin, and starts a fake MCP server that shows whether the bearer token arrived. API keys
+come from the tool's git-ignored `.env`. Use it after changing how AgentApp builds the CLI
+config or flags, or to check that a test API key still works. Unit tests use a fake binary and
+cannot catch a CLI that rejects the config.

@@ -1,15 +1,17 @@
-import Vue from 'vue';
-import VueRouter from 'vue-router';
+import { createRouter, createWebHistory } from 'vue-router';
 import RestoreProject from '@/views/project/RestoreProject.vue';
 import Tasks from '@/views/Tasks.vue';
 import TaskList from '@/components/TaskList.vue';
 import TemplateDetails from '@/views/project/template/TemplateDetails.vue';
 import TemplateTerraformState from '@/views/project/template/TemplateTerraformState.vue';
 import Invites from '@/views/project/Invites.vue';
-import TemplatePerms from '@/views/project/template/TemplatePerms.vue';
+import ObjectPerms from '@/views/project/ObjectPerms.vue';
 import Roles from '@/views/Roles.vue';
 import RoleMappings from '@/views/RoleMappings.vue';
 import AuditLog from '@/views/AuditLog.vue';
+import Hosts from '@/views/Hosts.vue';
+import HostView from '@/views/HostView.vue';
+import HostTaskList from '@/components/HostTaskList.vue';
 import Schedule from '../views/project/Schedule.vue';
 import History from '../views/project/History.vue';
 import Activity from '../views/project/Activity.vue';
@@ -18,6 +20,10 @@ import Templates from '../views/project/Templates.vue';
 import TemplateView from '../views/project/TemplateView.vue';
 import Environment from '../views/project/Environment.vue';
 import Inventory from '../views/project/Inventory.vue';
+import InventoryView from '../views/project/InventoryView.vue';
+import InventoryHosts from '../views/project/InventoryHosts.vue';
+import InventoryGroups from '../views/project/InventoryGroups.vue';
+import InventoryVariables from '../views/project/InventoryVariables.vue';
 import Keys from '../views/project/Keys.vue';
 import Repositories from '../views/project/Repositories.vue';
 import HostConfig from '../views/project/HostConfig.vue';
@@ -41,7 +47,11 @@ import WorkflowStats from '../views/project/workflow/WorkflowStats.vue';
 import WorkflowRun from '../views/project/WorkflowRun.vue';
 import WorkflowEditor from '../views/project/WorkflowEditor.vue';
 
-Vue.use(VueRouter);
+// Redirect to a path built from the route params, keeping the query and the hash
+// (`?t=<task>` must reach the history page).
+function redirectTo(build) {
+  return (to) => ({ path: build(to.params), query: to.query, hash: to.hash });
+}
 
 const routes = [
   {
@@ -54,7 +64,7 @@ const routes = [
   },
   {
     path: '/project/:projectId',
-    redirect: '/project/:projectId/history',
+    redirect: redirectTo((p) => `/project/${p.projectId}/history`),
   },
   {
     path: '/project/:projectId/secret_storages',
@@ -71,6 +81,32 @@ const routes = [
   {
     path: '/project/:projectId/activity',
     component: Activity,
+  },
+  {
+    path: '/project/:projectId/hosts',
+    component: Hosts,
+  },
+  {
+    path: '/project/:projectId/hosts/:hostId',
+    redirect: redirectTo((p) => `/project/${p.projectId}/hosts/${p.hostId}/tasks`),
+    component: HostView,
+    children: [{
+      path: 'tasks',
+      component: HostTaskList,
+    }],
+  },
+  {
+    path: '/hosts',
+    component: Hosts,
+  },
+  {
+    path: '/hosts/:hostId',
+    redirect: redirectTo((p) => `/hosts/${p.hostId}/tasks`),
+    component: HostView,
+    children: [{
+      path: 'tasks',
+      component: HostTaskList,
+    }],
   },
   {
     path: '/project/:projectId/runners',
@@ -106,7 +142,7 @@ const routes = [
   },
   {
     path: '/project/:projectId/workflows/:workflowId',
-    redirect: '/project/:projectId/workflows/:workflowId/runs',
+    redirect: redirectTo((p) => `/project/${p.projectId}/workflows/${p.workflowId}/runs`),
     component: WorkflowView,
     children: [{
       path: 'runs',
@@ -114,6 +150,9 @@ const routes = [
     }, {
       path: 'stats',
       component: WorkflowStats,
+    }, {
+      path: 'perms',
+      component: ObjectPerms,
     }],
   },
   {
@@ -122,7 +161,7 @@ const routes = [
   },
   {
     path: '/project/:projectId/templates/:templateId',
-    redirect: '/project/:projectId/templates/:templateId/tasks',
+    redirect: redirectTo((p) => `/project/${p.projectId}/templates/${p.templateId}/tasks`),
     component: TemplateView,
     children: [{
       path: 'tasks',
@@ -132,7 +171,7 @@ const routes = [
       component: TemplateDetails,
     }, {
       path: 'perms',
-      component: TemplatePerms,
+      component: ObjectPerms,
     }, {
       path: 'state',
       component: TemplateTerraformState,
@@ -140,7 +179,7 @@ const routes = [
   },
   {
     path: '/project/:projectId/views/:viewId/templates/:templateId',
-    redirect: '/project/:projectId/views/:viewId/templates/:templateId/tasks',
+    redirect: redirectTo((p) => `/project/${p.projectId}/views/${p.viewId}/templates/${p.templateId}/tasks`),
     component: TemplateView,
     children: [{
       path: 'tasks',
@@ -150,7 +189,7 @@ const routes = [
       component: TemplateDetails,
     }, {
       path: 'perms',
-      component: TemplatePerms,
+      component: ObjectPerms,
     }, {
       path: 'state',
       component: TemplateTerraformState,
@@ -163,6 +202,21 @@ const routes = [
   {
     path: '/project/:projectId/inventory',
     component: Inventory,
+  },
+  {
+    path: '/project/:projectId/inventory/:inventoryId',
+    redirect: redirectTo((p) => `/project/${p.projectId}/inventory/${p.inventoryId}/hosts`),
+    component: InventoryView,
+    children: [{
+      path: 'hosts',
+      component: InventoryHosts,
+    }, {
+      path: 'groups',
+      component: InventoryGroups,
+    }, {
+      path: 'variables',
+      component: InventoryVariables,
+    }],
   },
   {
     path: '/project/:projectId/integrations',
@@ -248,8 +302,9 @@ const routes = [
   },
 ];
 
-const router = new VueRouter({
-  mode: 'history',
+// The base of the history is the `<base href>` of index.html (the path of `web_host`).
+const router = createRouter({
+  history: createWebHistory(),
   routes,
 });
 

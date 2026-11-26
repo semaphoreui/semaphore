@@ -49,3 +49,4 @@ func NewOrphanCleaner(_ pro_interfaces.HARedis, _ pro_interfaces.NodeRegistry, _
 func NewClusterInspector(_ pro_interfaces.HARedis) ClusterInspector                  { return nil }
 func NewWorkflowRunLocker(_ pro_interfaces.HARedis) pro_interfaces.WorkflowRunLocker { return nil }
 func NewAuditExportLeaser(_ pro_interfaces.HARedis) pro_interfaces.AuditExportLeaser { return nil }
+func NewRunnerCache(_ pro_interfaces.HARedis) db.RunnerCache                         { return nil }

@@ -1,47 +1,76 @@
 <template>
   <div class="pt-3">
-    <v-alert dense outlined type="success">
+    <v-alert
+      density="compact"
+      variant="outlined"
+      type="success"
+      data-testid="appRestoreResultDialog-success"
+    >
       {{ $t('projectWithNameRestored', { projectName: project.name }) }}
     </v-alert>
 
-    <v-alert v-if="emptyKeys > 0" dense outlined type="error" class="mb-0">
+    <v-alert
+      v-if="emptyKeys > 0"
+      density="compact"
+      variant="outlined"
+      type="error"
+      class="mb-0"
+      data-testid="appRestoreResultDialog-emptyKeys"
+    >
       <b>{{ $t('emptyKeysRestored', { emptyKeys }) }}</b>
       {{ $t('pleaseUpdateAccessKeys') }}
     </v-alert>
 
     <template v-if="rows.length > 0">
-      <div class="text-subtitle-1 mt-4">{{ $t('unassignedRolesTitle') }}</div>
+      <div
+        class="mt-4 RestoreProjectResult__title"
+        data-testid="appRestoreResultDialog-unassignedTitle"
+      >{{ $t('unassignedRolesTitle') }}</div>
 
-      <v-alert v-if="loadError" dense outlined type="error" class="mt-2 mb-0">
+      <v-alert
+        v-if="loadError"
+        density="compact"
+        variant="outlined"
+        type="error"
+        class="mt-2 mb-0"
+        data-testid="appRestoreResultDialog-loadError"
+      >
         {{ loadError }}
       </v-alert>
 
-      <div v-for="row in rows" :key="`row-${row.slug}`" class="mt-3">
+      <div
+        v-for="row in rows"
+        :key="`row-${row.slug}`"
+        class="mt-3"
+        :data-testid="`appRestoreResultDialog-row-${row.slug}`"
+      >
         <div>
           <b>{{ row.slug }}</b>
           <span v-if="row.name" class="ml-1">{{ row.name }}</span>
         </div>
-        <div class="text--secondary">{{ row.templates.map((tpl) => tpl.name).join(', ') }}</div>
+        <div class="text-medium-emphasis">{{ objectNames(row) }}</div>
 
         <v-select
           v-model="choices[row.slug]"
           :items="itemsFor(row)"
           item-value="slug"
-          item-text="name"
+          item-title="name"
           :label="$t('assignToRole')"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           hide-details
           class="mt-2"
           :disabled="assigning || locked(row)"
+          :menu-props="menuProps"
+          :data-testid="`appRestoreResultDialog-rowRole-${row.slug}`"
         >
-          <template v-slot:item="{ item: role }">
-            <v-list-item-content>
-              <v-list-item-title>{{ role.name }}</v-list-item-title>
-              <v-list-item-subtitle v-if="role.slug && role.slug !== CREATE">
-                {{ role.slug }}
-              </v-list-item-subtitle>
-            </v-list-item-content>
+          <template v-slot:item="{ props, item: role }">
+            <v-list-item
+              v-bind="props"
+              :title="role.name"
+              :subtitle="role.slug && role.slug !== CREATE ? role.slug : undefined"
+              :data-testid="`appRestoreResultDialog-roleOption-${optionKey(role)}`"
+            />
           </template>
         </v-select>
 
@@ -50,32 +79,45 @@
           v-model="newSlugs[row.slug]"
           :label="$t('slug')"
           :rules="[v => isValidSlug(v) || $t('invalidSlugFormat')]"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           class="mt-2"
           :disabled="assigning"
+          :data-testid="`appRestoreResultDialog-rowSlug-${row.slug}`"
         />
 
         <v-alert
           v-if="errors[row.slug]"
-          dense
-          outlined
+          density="compact"
+          variant="outlined"
           type="error"
           class="mt-2 mb-0"
           style="white-space: pre-line"
+          :data-testid="`appRestoreResultDialog-rowError-${row.slug}`"
         >{{ errors[row.slug] }}</v-alert>
       </div>
 
       <v-btn
+        variant="elevated"
         color="primary"
         class="mt-3"
         :disabled="!hasChoices"
         :loading="assigning"
         @click="assign()"
+        data-testid="appRestoreResultDialog-assign"
       >{{ $t('assign') }}</v-btn>
     </template>
   </div>
 </template>
+<style lang="scss">
+// The title of the role list: `text-subtitle-1` of Vuetify 2 (16 px on a 28 px line), the class
+// before the rename; `text-body-large` of Vuetify 4 has a 24 px line.
+.RestoreProjectResult__title {
+  font-size: 1rem;
+  line-height: 1.75rem;
+  letter-spacing: .009375em;
+}
+</style>
 <script>
 import axios from 'axios';
 import groupRolesForSelect, { isValidSlug } from '@/lib/roles';
@@ -97,6 +139,10 @@ export default {
     const perRow = (value) => Object.fromEntries(unassigned.map((row) => [row.slug, value]));
     return {
       CREATE,
+      // The role list of a dense select of Vuetify 2, as in TeamMemberForm (its styles).
+      menuProps: {
+        location: 'top', origin: 'top', contentClass: 'TeamRoleMenu', maxHeight: 304,
+      },
       roles: [],
       loadError: null,
       choices: perRow(null),
@@ -125,6 +171,14 @@ export default {
   methods: {
     isValidSlug,
 
+    // A stable test id part of an option: its slug, or what the two choices without one mean.
+    optionKey(role) {
+      if (role.slug === CREATE) {
+        return 'create';
+      }
+      return role.slug == null ? 'none' : role.slug;
+    },
+
     async loadRoles() {
       try {
         this.roles = (await axios.get(`/api/project/${this.project.id}/roles/all`)).data;
@@ -144,12 +198,17 @@ export default {
       if (row.reason === 'slug_taken') {
         items.push({ slug: CREATE, name: this.$t('createAsNewRole') });
       }
-      return items.concat(groupRolesForSelect(this.roles, (key) => this.$i18n.t(key)));
+      return items.concat(groupRolesForSelect(this.roles, (key) => this.$t(key)));
     },
 
-    /** A row keeps its role once a template is granted, so a retry cannot split the grants. */
+    objectNames(row) {
+      return row.templates.map((tpl) => tpl.name).concat(row.workflows.map((wf) => wf.name)).join(', ');
+    },
+
+    /** A row keeps its role once an object is granted, so a retry cannot split the grants. */
     locked(row) {
-      return row.templates.some((tpl) => this.granted[`${row.slug}/${tpl.id}`]);
+      return row.templates.some((tpl) => this.granted[`${row.slug}/${tpl.id}`])
+        || row.workflows.some((wf) => this.granted[`${row.slug}/wf/${wf.id}`]);
     },
 
     /** The slug the row's templates go to, or null when there is nothing valid to do yet. */
@@ -200,9 +259,25 @@ export default {
               role_slug: roleSlug,
               permissions: tpl.permissions,
             });
-            this.$set(this.granted, key, true);
+            this.granted[key] = true;
           } catch (err) {
             failed.push(`${tpl.name}: ${getErrorMessage(err)}`);
+          }
+        }
+      }
+      for (let i = 0; i < row.workflows.length; i += 1) {
+        const wf = row.workflows[i];
+        const key = `${row.slug}/wf/${wf.id}`;
+        if (!this.granted[key]) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            await axios.post(`${base}/workflows/${wf.id}/perms`, {
+              role_slug: roleSlug,
+              permissions: wf.permissions,
+            });
+            this.granted[key] = true;
+          } catch (err) {
+            failed.push(`${wf.name}: ${getErrorMessage(err)}`);
           }
         }
       }

@@ -56,6 +56,8 @@ const (
 	EventTask                    EventObjectType = "task"
 	EventEnvironment             EventObjectType = "environment"
 	EventInventory               EventObjectType = "inventory"
+	EventInventoryHost           EventObjectType = "inventory_host"
+	EventInventoryGroup          EventObjectType = "inventory_group"
 	EventKey                     EventObjectType = "key"
 	EventProject                 EventObjectType = "project"
 	EventRepository              EventObjectType = "repository"

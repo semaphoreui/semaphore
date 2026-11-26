@@ -31,6 +31,13 @@ func testReadPID(path string) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(string(value)))
 }
 
+func Test_AppSysProcAttr_StartsNewSession(t *testing.T) {
+	attributes := appSysProcAttr()
+
+	require.NotNil(t, attributes)
+	assert.True(t, attributes.Setsid, "app must lead its own process group")
+}
+
 func Test_RunCommand_DoesNotStartWhenCancellationIsPending(t *testing.T) {
 	t.Parallel()
 
