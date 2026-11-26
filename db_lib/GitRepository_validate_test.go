@@ -75,6 +75,8 @@ func layoutDir(t *testing.T, fullPath, layout string) {
 	case "git-file":
 		require.NoError(t, os.MkdirAll(fullPath, 0755))
 		require.NoError(t, os.WriteFile(path.Join(fullPath, ".git"), []byte("gitdir: ../.git/worktrees/x\n"), 0644))
+	case "svn-dir":
+		require.NoError(t, os.MkdirAll(path.Join(fullPath, ".svn"), 0755))
 	default:
 		t.Fatalf("unknown layout %q", layout)
 	}
@@ -94,6 +96,7 @@ func TestGitRepositoryValidateRepo(t *testing.T) {
 		{"directory with files but no .git", "files-without-git", false, true},
 		{"clone with .git directory", "git-dir", false, false},
 		{"worktree with .git file", "git-file", false, false},
+		{"subversion working copy", "svn-dir", false, false},
 	}
 
 	for _, tt := range tests {
@@ -147,6 +150,12 @@ func TestGitRepositoryCloneOrPull(t *testing.T) {
 		{
 			name:          "repository is pulled",
 			layout:        "git-dir",
+			canBePulled:   true,
+			expectedCalls: []string{"canBePulled", "pull"},
+		},
+		{
+			name:          "subversion working copy is pulled",
+			layout:        "svn-dir",
 			canBePulled:   true,
 			expectedCalls: []string{"canBePulled", "pull"},
 		},

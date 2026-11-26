@@ -578,3 +578,42 @@ func TestCreateDefaultGitClient_RoutesSubversion(t *testing.T) {
 		})
 	}
 }
+
+// recordingSvnClient is the svn client, recording whether CloneOrPull chose to
+// check out again or to update in place.
+type recordingSvnClient struct {
+	SvnClient
+	calls *[]string
+}
+
+func (c recordingSvnClient) Clone(r GitRepository) error {
+	*c.calls = append(*c.calls, "clone")
+	return c.SvnClient.Clone(r)
+}
+
+func (c recordingSvnClient) Pull(r GitRepository) error {
+	*c.calls = append(*c.calls, "pull")
+	return c.SvnClient.Pull(r)
+}
+
+// A task's second run updates the working copy of the first instead of
+// removing it and checking the branch out again, and the working copy passes
+// the check a task makes before it runs.
+func TestSvnClient_CloneOrPullUpdatesInPlace(t *testing.T) {
+	setupGitClientTest(t)
+	f := newSvnFixture(t)
+	f.commit(t, "site.yml", "v2", "second")
+
+	calls := []string{}
+	r := newTestSvnRepo(t, f.url, "trunk")
+	r.Client = recordingSvnClient{SvnClient: CreateSvnClient(nopKeyInstaller{}).(SvnClient), calls: &calls}
+
+	require.NoError(t, r.CloneOrPull())
+	require.NoError(t, r.ValidateRepo())
+
+	f.commit(t, "site.yml", "v3", "third")
+	require.NoError(t, r.CloneOrPull())
+
+	assert.Equal(t, []string{"clone", "pull"}, calls)
+	assert.Equal(t, "v3", readFile(t, filepath.Join(r.GetFullPath(), "site.yml")))
+}
