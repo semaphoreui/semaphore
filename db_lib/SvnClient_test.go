@@ -617,3 +617,39 @@ func TestSvnClient_CloneOrPullUpdatesInPlace(t *testing.T) {
 	assert.Equal(t, []string{"clone", "pull"}, calls)
 	assert.Equal(t, "v3", readFile(t, filepath.Join(r.GetFullPath(), "site.yml")))
 }
+
+// countPristines returns the number of pristine copies of a working copy.
+func countPristines(t *testing.T, wc string) int {
+	t.Helper()
+	count := 0
+	err := filepath.WalkDir(filepath.Join(wc, ".svn", "pristine"), func(_ string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			count++
+		}
+		return err
+	})
+	require.NoError(t, err)
+	return count
+}
+
+// Each update keeps the old version of a changed file in .svn/pristine; Pull
+// removes them, so the working copy of a template does not grow with every
+// task that updates it.
+func TestSvnClient_PullKeepsPristineStoreBounded(t *testing.T) {
+	setupGitClientTest(t)
+	f := newSvnFixture(t)
+	f.commit(t, "site.yml", "v2", "second")
+
+	client := CreateSvnClient(nopKeyInstaller{})
+	r := newTestSvnRepo(t, f.url, "trunk")
+	require.NoError(t, client.Clone(r))
+	require.Equal(t, 1, countPristines(t, r.GetFullPath()))
+
+	for _, content := range []string{"v3", "v4", "v5", "v6"} {
+		f.commit(t, "site.yml", content, content)
+		require.NoError(t, client.Pull(r))
+	}
+
+	assert.Equal(t, "v6", readFile(t, filepath.Join(r.GetFullPath(), "site.yml")))
+	assert.Equal(t, 1, countPristines(t, r.GetFullPath()), "one pristine copy per versioned file")
+}

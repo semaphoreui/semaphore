@@ -261,6 +261,12 @@ func (c SvnClient) Clone(r GitRepository) error {
 // template. Reverting first also unschedules additions, whose files the
 // cleanup then removes with the other unversioned and ignored files. Unlike
 // git pull, untracked files are not kept.
+//
+// Every update stores the new version of each changed file in .svn/pristine
+// and keeps the old one, so a working copy updated by every task grows without
+// bound. The unreferenced copies are removed after the update. Failing to do
+// so leaves the working copy usable, so it only logs: a failed Pull is
+// answered by a fresh checkout.
 func (c SvnClient) Pull(r GitRepository) error {
 	r.Logger.Log("Updating Subversion repository " + r.Repository.GetRedactedGitURL())
 
@@ -270,7 +276,13 @@ func (c SvnClient) Pull(r GitRepository) error {
 	if err := c.run(r, GitRepositoryFullPath, "cleanup", "--remove-unversioned", "--remove-ignored", "."); err != nil {
 		return err
 	}
-	return c.run(r, GitRepositoryFullPath, "update")
+	if err := c.run(r, GitRepositoryFullPath, "update"); err != nil {
+		return err
+	}
+	if err := c.run(r, GitRepositoryFullPath, "cleanup", "--vacuum-pristines", "."); err != nil {
+		r.Logger.Log("Failed to remove unused pristine copies: " + err.Error())
+	}
+	return nil
 }
 
 func (c SvnClient) Checkout(r GitRepository, target string) error {
