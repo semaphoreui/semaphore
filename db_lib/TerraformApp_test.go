@@ -48,56 +48,83 @@ func (l *terraformApprovalLogger) SetStatus(status task_logger.TaskStatus) {
 	l.listener(status)
 }
 
-// TestTerraformReader_ReadReleasesOnStoppingStatus guards against hanging when a
-// force-stop moves the task to stopping during terraform init's backend migration
-// prompt. TaskStoppingStatus is not finished; without this break, Read blocks forever
-// and Run never returns on the runner.
-func TestTerraformReader_ReadReleasesOnStoppingStatus(t *testing.T) {
-	reader := &terraformReader{
-		logger: &task_logger.NopLogger{},
-		status: task_logger.TaskWaitingConfirmation,
-	}
-	go func() {
-		time.Sleep(50 * time.Millisecond)
-		reader.setStatus(task_logger.TaskStoppingStatus)
-	}()
-
-	buf := make([]byte, 8)
+func readTerraformReaderWithTimeout(t *testing.T, reader *terraformReader, timeout time.Duration) (n int, buf []byte, err error) {
+	t.Helper()
+	buf = make([]byte, 8)
 	done := make(chan struct{})
-	var n int
-	var err error
 	go func() {
 		n, err = reader.Read(buf)
 		close(done)
 	}()
-
 	select {
 	case <-done:
-	case <-time.After(12 * time.Second):
-		t.Fatal("terraformReader.Read hung after task entered stopping status")
+	case <-time.After(timeout):
+		t.Fatal("terraformReader.Read hung")
 	}
-
-	require.NoError(t, err)
-	assert.True(t, reader.EOF)
-	assert.Equal(t, 1, n)
-	assert.Equal(t, byte('\n'), buf[0])
+	return n, buf, err
 }
 
-func TestTerraformReader_ReadEOFAfterStop(t *testing.T) {
-	reader := &terraformReader{
-		logger: &task_logger.NopLogger{},
-		status: task_logger.TaskWaitingConfirmation,
+// TestTerraformReader_ReadReleasesOnTerminalStatus guards against hanging when a
+// force-stop or finish moves the task out of waiting_confirmation during or before
+// terraform init's backend migration prompt.
+func TestTerraformReader_ReadReleasesOnTerminalStatus(t *testing.T) {
+	tests := []struct {
+		name          string
+		initialStatus task_logger.TaskStatus
+		afterDelay    task_logger.TaskStatus
+		delay         time.Duration
+		checkSecondEOF bool
+	}{
+		{
+			name:          "stopping flips after read entered wait",
+			initialStatus: task_logger.TaskWaitingConfirmation,
+			afterDelay:    task_logger.TaskStoppingStatus,
+			delay:         50 * time.Millisecond,
+		},
+		{
+			name:          "stopped flips after read entered wait",
+			initialStatus: task_logger.TaskWaitingConfirmation,
+			afterDelay:    task_logger.TaskStoppedStatus,
+			delay:         20 * time.Millisecond,
+			checkSecondEOF: true,
+		},
+		{
+			name:          "stopping before first read",
+			initialStatus: task_logger.TaskStoppingStatus,
+		},
+		{
+			name:          "stopped before first read",
+			initialStatus: task_logger.TaskStoppedStatus,
+			checkSecondEOF: true,
+		},
 	}
-	go func() {
-		time.Sleep(20 * time.Millisecond)
-		reader.setStatus(task_logger.TaskStoppedStatus)
-	}()
-	buf := make([]byte, 8)
-	n, err := reader.Read(buf)
-	require.NoError(t, err)
-	assert.Equal(t, 1, n)
-	_, err = reader.Read(buf)
-	require.ErrorIs(t, err, io.EOF)
+
+	timeout := 12 * time.Second
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reader := &terraformReader{
+				logger: &task_logger.NopLogger{},
+				status: tt.initialStatus,
+			}
+			if tt.delay > 0 {
+				go func() {
+					time.Sleep(tt.delay)
+					reader.setStatus(tt.afterDelay)
+				}()
+			}
+
+			n, buf, err := readTerraformReaderWithTimeout(t, reader, timeout)
+			require.NoError(t, err)
+			assert.True(t, reader.EOF)
+			assert.Equal(t, 1, n)
+			assert.Equal(t, byte('\n'), buf[0])
+
+			if tt.checkSecondEOF {
+				_, err = reader.Read(buf)
+				require.ErrorIs(t, err, io.EOF)
+			}
+		})
+	}
 }
 
 func TestTerraformApp_RunAutoApprove(t *testing.T) {

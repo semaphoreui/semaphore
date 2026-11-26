@@ -192,12 +192,7 @@ func (c CmdGitClient) Checkout(r GitRepository, target string) error {
 		}
 	}
 
-	args := []string{"checkout"}
-	if strings.HasPrefix(target, "-") {
-		args = append(args, "--")
-	}
-	args = append(args, target)
-	return c.run(r, GitRepositoryFullPath, args...)
+	return c.run(r, GitRepositoryFullPath, "checkout", "--end-of-options", target)
 }
 
 func (c CmdGitClient) CanBePulled(r GitRepository) bool {

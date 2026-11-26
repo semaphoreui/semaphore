@@ -53,19 +53,25 @@ func (r *terraformReader) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 
-	if r.getStatus() != task_logger.TaskWaitingConfirmation {
-		time.Sleep(time.Second * 3)
-		return 0, nil
-	}
-
-	for {
-		time.Sleep(time.Second * 3)
-		status := r.getStatus()
-		if status.IsFinished() ||
-			status == task_logger.TaskConfirmed ||
-			status == task_logger.TaskRejected ||
-			status == task_logger.TaskStoppingStatus {
-			break
+	status := r.getStatus()
+	if status != task_logger.TaskWaitingConfirmation {
+		if !status.IsFinished() &&
+			status != task_logger.TaskConfirmed &&
+			status != task_logger.TaskRejected &&
+			status != task_logger.TaskStoppingStatus {
+			time.Sleep(time.Second * 3)
+			return 0, nil
+		}
+	} else {
+		for {
+			time.Sleep(time.Second * 3)
+			status = r.getStatus()
+			if status.IsFinished() ||
+				status == task_logger.TaskConfirmed ||
+				status == task_logger.TaskRejected ||
+				status == task_logger.TaskStoppingStatus {
+				break
+			}
 		}
 	}
 
