@@ -1269,6 +1269,7 @@ func (t *LocalExecutor) Cleanup() {
 	if t.App != nil {
 		t.App.Clear()
 	}
+	t.destroyRunDir()
 }
 
 // resolveGitBranch computes the effective git branch for a run, applying the
@@ -1299,7 +1300,14 @@ func resolveGitBranch(repoBranch string, template db.Template, task db.Task) str
 // A monorepo is one checkout shared by every template on the repository's own
 // branch, so the template's branch and the task's branch are ignored there even
 // if a template still carries them from before the repository became a monorepo.
+//
+// A task of a repository whose checkout is shared by running tasks gets its
+// own directory, set here so the App runs in it from the start.
 func withEffectiveBranch(repository db.Repository, template db.Template, task db.Task) db.Repository {
+	if repository.UsesTaskRunDir() {
+		repository.RunDir = repository.GetTaskRunPath(task.ID)
+	}
+
 	if repository.Monorepo {
 		return repository
 	}
@@ -1421,7 +1429,7 @@ func (t *LocalExecutor) prepareRunTerraform(tfApp *db_lib.TerraformApp, installi
 // different commits still share the working tree afterwards — per-task
 // worktrees if that ever matters.
 func (t *LocalExecutor) updateAndCheckoutRepository() error {
-	unlock := t.RepoLock.Lock(t.Repository.GetFullPath(t.Template.ID))
+	unlock := t.RepoLock.Lock(t.Repository.GetCheckoutPath(t.Template.ID))
 	defer unlock()
 
 	if err := t.updateRepository(); err != nil {
@@ -1434,7 +1442,42 @@ func (t *LocalExecutor) updateAndCheckoutRepository() error {
 		return err
 	}
 
+	// Still under the lock: the next task's update must not change the
+	// checkout while it is being copied.
+	if err := t.copyRepositoryToRunDir(); err != nil {
+		t.Log("Failed to copy repository for this task: " + err.Error())
+		return err
+	}
+
 	return nil
+}
+
+// copyRepositoryToRunDir gives the task its own copy of a checkout shared by
+// running tasks (see Repository.UsesTaskRunDir). Cleanup removes it.
+func (t *LocalExecutor) copyRepositoryToRunDir() error {
+	if t.Repository.RunDir == "" {
+		return nil
+	}
+
+	repo := db_lib.GitRepository{
+		Logger:      t.Logger,
+		TemplateID:  t.Template.ID,
+		Repository:  t.Repository,
+		HostConfigs: t.hostConfigInstallation,
+	}
+
+	return db_lib.ExportSvnWorkingCopy(repo, t.KeyInstaller, t.Repository.RunDir)
+}
+
+// destroyRunDir removes the task's own copy of the checkout, if it had one.
+func (t *LocalExecutor) destroyRunDir() {
+	if t.Repository.RunDir == "" {
+		return
+	}
+
+	if err := os.RemoveAll(t.Repository.RunDir); err != nil {
+		t.Log("Failed to remove the task's copy of the repository: " + err.Error())
+	}
 }
 
 func (t *LocalExecutor) updateRepository() error {

@@ -450,3 +450,60 @@ func TestRepository_MonorepoKeepsPerTemplateHome(t *testing.T) {
 	assert.NotEqual(t, repo.GetHomePath(1), repo.GetHomePath(2))
 	assert.NotEqual(t, repo.GetInternalPath(1), repo.GetInternalPath(2))
 }
+
+// Only a Subversion monorepo gives each task its own copy: a git repository and
+// a Subversion repository checked out per template keep running in the checkout.
+func TestRepository_UsesTaskRunDir(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		monorepo bool
+		expected bool
+	}{
+		{"svn monorepo", "svn://svn.example.com/repo", true, true},
+		{"svn+ssh monorepo", "svn+ssh://svn.example.com/repo", true, true},
+		{"svn per template", "svn://svn.example.com/repo", false, false},
+		{"git monorepo", "https://example.com/x.git", true, false},
+		{"git per template", "https://example.com/x.git", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := Repository{GitURL: tt.url, Monorepo: tt.monorepo}
+			assert.Equal(t, tt.expected, repo.UsesTaskRunDir())
+		})
+	}
+}
+
+// A task with its own copy finds the code there, while git and svn keep
+// working in the checkout.
+func TestRepository_RunDir(t *testing.T) {
+	previous := util.Config
+	util.Config = &util.ConfigType{TmpPath: t.TempDir()}
+	t.Cleanup(func() { util.Config = previous })
+
+	repo := Repository{ID: 7, ProjectID: 1, GitURL: "svn://svn.example.com/repo", GitBranch: "trunk", Monorepo: true}
+	checkout := repo.GetCheckoutPath(3)
+	assert.Equal(t, checkout, repo.GetFullPath(3), "no copy: the task runs in the checkout")
+
+	repo.RunDir = repo.GetTaskRunPath(42)
+	assert.Equal(t, repo.RunDir, repo.GetFullPath(3))
+	assert.Equal(t, checkout, repo.GetCheckoutPath(3))
+
+	assert.Equal(t, path.Join(util.Config.TmpPath, "project_1", "repository_7_task_42"), repo.RunDir)
+	assert.NotEqual(t, repo.GetTaskRunPath(42), repo.GetTaskRunPath(43))
+}
+
+// A copy left behind by a crash is removed with the rest of the repository's
+// cache.
+func TestRepository_ClearCacheRemovesTaskRunDir(t *testing.T) {
+	previous := util.Config
+	util.Config = &util.ConfigType{TmpPath: t.TempDir()}
+	t.Cleanup(func() { util.Config = previous })
+
+	repo := Repository{ID: 7, ProjectID: 1}
+	runDir := repo.GetTaskRunPath(42)
+	require.NoError(t, os.MkdirAll(runDir, 0755))
+
+	require.NoError(t, repo.ClearCache())
+	assert.NoDirExists(t, runDir)
+}

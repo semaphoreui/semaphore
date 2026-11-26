@@ -285,6 +285,26 @@ func (c SvnClient) Pull(r GitRepository) error {
 	return nil
 }
 
+// ExportSvnWorkingCopy copies the working copy of r into target for one task:
+// the versioned files only, without the .svn directory, so the task can not
+// change the working copy and an update of it can not change the task's files.
+// What target held before is removed.
+func ExportSvnWorkingCopy(r GitRepository, keyInstaller AccessKeyInstaller, target string) error {
+	return SvnClient{keyInstaller: keyInstaller}.export(r, target)
+}
+
+func (c SvnClient) export(r GitRepository, target string) error {
+	r.Logger.Log("Copying the Subversion working copy for this task")
+
+	// svn export creates the directory, and refuses one which exists.
+	if err := os.RemoveAll(target); err != nil {
+		return err
+	}
+
+	// --quiet: one log line per file of a large repository is noise.
+	return c.run(r, GitRepositoryFullPath, "export", "--quiet", "--", svnPeg("."), svnPeg(target))
+}
+
 func (c SvnClient) Checkout(r GitRepository, target string) error {
 	r.Logger.Log("Updating Subversion repository to revision " + target)
 

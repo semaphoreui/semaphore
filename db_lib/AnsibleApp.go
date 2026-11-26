@@ -180,16 +180,16 @@ func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequir
 		return nil
 	}
 
-	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
-		galaxyArgs := append([]string{
-			string(requirementsType),
-			"install",
-			"-r",
-			requirementsFilePath,
-			"--force",
-		}, extraArgs...)
+	// A task copy of the checkout lives at a new path on every task, so a hash
+	// keyed by that path would never be found again and one would be left
+	// behind per task; and what galaxy installed into the previous copy is
+	// gone with it. Such a task installs its requirements every time.
+	if t.Repository.RunDir != "" {
+		return t.runGalaxy(galaxyInstallArgs(requirementsType, requirementsFilePath, extraArgs), environmentVars)
+	}
 
-		if err := t.runGalaxy(galaxyArgs, environmentVars); err != nil {
+	if hasRequirementsChanges(requirementsFilePath, requirementsHashFilePath) {
+		if err := t.runGalaxy(galaxyInstallArgs(requirementsType, requirementsFilePath, extraArgs), environmentVars); err != nil {
 			return err
 		}
 		if err := os.MkdirAll(t.Repository.GetInternalPath(t.Template.ID), 0o755); err != nil {
@@ -203,6 +203,16 @@ func (t *AnsibleApp) installGalaxyRequirementsFile(requirementsType GalaxyRequir
 	}
 
 	return nil
+}
+
+func galaxyInstallArgs(requirementsType GalaxyRequirementsType, requirementsFilePath string, extraArgs []string) []string {
+	return append([]string{
+		string(requirementsType),
+		"install",
+		"-r",
+		requirementsFilePath,
+		"--force",
+	}, extraArgs...)
 }
 
 func (t *AnsibleApp) GetPlaybookDir() string {

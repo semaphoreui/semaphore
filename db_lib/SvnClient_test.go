@@ -653,3 +653,28 @@ func TestSvnClient_PullKeepsPristineStoreBounded(t *testing.T) {
 	assert.Equal(t, "v6", readFile(t, filepath.Join(r.GetFullPath(), "site.yml")))
 	assert.Equal(t, 1, countPristines(t, r.GetFullPath()), "one pristine copy per versioned file")
 }
+
+// A task's copy holds the versioned files only: no .svn to update and none of
+// the files a task left in the working copy. What the directory held before is
+// gone.
+func TestSvnClient_ExportWorkingCopy(t *testing.T) {
+	setupGitClientTest(t)
+	f := newSvnFixture(t)
+	f.commit(t, "site.yml", "v2", "second")
+
+	r := newTestSvnRepo(t, f.url, "trunk")
+	require.NoError(t, CreateSvnClient(nopKeyInstaller{}).Clone(r))
+	require.NoError(t, os.WriteFile(filepath.Join(r.GetFullPath(), "unversioned.yml"), []byte("x"), 0644))
+
+	target := filepath.Join(util.Config.TmpPath, "project_1", "repository_0_task_42")
+	require.NoError(t, os.MkdirAll(target, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(target, "stale.yml"), []byte("x"), 0644))
+
+	require.NoError(t, ExportSvnWorkingCopy(r, nopKeyInstaller{}, target))
+
+	assert.Equal(t, "v2", readFile(t, filepath.Join(target, "site.yml")))
+	assert.NoDirExists(t, filepath.Join(target, ".svn"))
+	assert.NoFileExists(t, filepath.Join(target, "unversioned.yml"))
+	assert.NoFileExists(t, filepath.Join(target, "stale.yml"))
+	assert.DirExists(t, filepath.Join(r.GetFullPath(), ".svn"), "the working copy stays as it was")
+}

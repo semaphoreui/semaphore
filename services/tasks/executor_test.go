@@ -1,10 +1,16 @@
 package tasks
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/task_logger"
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolveGitBranch(t *testing.T) {
@@ -88,6 +94,92 @@ func TestWithEffectiveBranch_MonorepoIgnoresOverrides(t *testing.T) {
 
 	repository.Monorepo = false
 	assert.Equal(t, "feature", withEffectiveBranch(repository, template, task).GitBranch)
+}
+
+// Each task of a Subversion monorepo runs in its own directory; a git monorepo
+// and a Subversion repository checked out per template keep running in the
+// checkout.
+func TestWithEffectiveBranch_SvnMonorepoRunsInItsOwnDir(t *testing.T) {
+	previous := util.Config
+	util.Config = &util.ConfigType{TmpPath: t.TempDir()}
+	t.Cleanup(func() { util.Config = previous })
+
+	svn := db.Repository{ID: 7, ProjectID: 1, GitURL: "svn://svn.example.com/repo", GitBranch: "trunk", Monorepo: true}
+
+	one := withEffectiveBranch(svn, db.Template{}, db.Task{ID: 1})
+	two := withEffectiveBranch(svn, db.Template{}, db.Task{ID: 2})
+	assert.Equal(t, svn.GetTaskRunPath(1), one.RunDir)
+	assert.NotEqual(t, one.RunDir, two.RunDir)
+	assert.Equal(t, one.GetCheckoutPath(5), two.GetCheckoutPath(6), "they still share the checkout")
+
+	perTemplate := svn
+	perTemplate.Monorepo = false
+	assert.Empty(t, withEffectiveBranch(perTemplate, db.Template{}, db.Task{ID: 1}).RunDir)
+
+	git := svn
+	git.GitURL = "https://example.com/x.git"
+	assert.Empty(t, withEffectiveBranch(git, db.Template{}, db.Task{ID: 1}).RunDir)
+}
+
+// The task's copy is made from the shared working copy and removed when the
+// task ends; the working copy stays for the next task.
+func TestLocalExecutor_TaskRunDirLifecycle(t *testing.T) {
+	for _, bin := range []string{"svn", "svnadmin"} {
+		if _, err := exec.LookPath(bin); err != nil {
+			t.Skip(bin + " is not installed")
+		}
+	}
+
+	previous := util.Config
+	util.Config = &util.ConfigType{TmpPath: t.TempDir()}
+	t.Cleanup(func() { util.Config = previous })
+
+	root := filepath.Join(t.TempDir(), "repo")
+	runCmd(t, "", "svnadmin", "create", root)
+	url := "file://" + filepath.ToSlash(root)
+	runCmd(t, "", "svn", "mkdir", "--non-interactive", "-m", "layout", url+"/trunk")
+	runCmd(t, "", "svn", "import", "--non-interactive", "-m", "site", writeTemp(t, "site.yml", "v1"), url+"/trunk/site.yml")
+
+	// A file:// URL is not routed to the svn client, so the run directory is
+	// set by hand here; withEffectiveBranch is covered above.
+	repository := db.Repository{ID: 7, ProjectID: 1, GitURL: url, GitBranch: "trunk", Monorepo: true}
+	repository.RunDir = repository.GetTaskRunPath(42)
+	checkout := repository.GetCheckoutPath(3)
+	require.NoError(t, os.MkdirAll(filepath.Dir(checkout), 0755))
+	runCmd(t, "", "svn", "checkout", "--non-interactive", url+"/trunk", checkout)
+
+	executor := &LocalExecutor{
+		Template:     db.Template{ID: 3},
+		Repository:   repository,
+		Logger:       task_logger.NopLogger{},
+		KeyInstaller: &KeyInstallerMock{},
+	}
+
+	require.NoError(t, executor.copyRepositoryToRunDir())
+	content, err := os.ReadFile(filepath.Join(repository.RunDir, "site.yml"))
+	require.NoError(t, err)
+	assert.Equal(t, "v1", string(content))
+	assert.NoDirExists(t, filepath.Join(repository.RunDir, ".svn"))
+
+	executor.Cleanup()
+
+	assert.NoDirExists(t, repository.RunDir)
+	assert.DirExists(t, filepath.Join(checkout, ".svn"))
+}
+
+func runCmd(t *testing.T, dir, name string, args ...string) {
+	t.Helper()
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(out))
+}
+
+func writeTemp(t *testing.T, name, content string) string {
+	t.Helper()
+	file := filepath.Join(t.TempDir(), name)
+	require.NoError(t, os.WriteFile(file, []byte(content), 0644))
+	return file
 }
 
 // TestLocalExecutorImplementsExecutor is a compile-time guard: if LocalExecutor stops
