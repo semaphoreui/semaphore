@@ -1,9 +1,13 @@
 package db
 
 type WorkflowManager interface {
+	// GetWorkflowRunTasks lists the tasks that make up the state of a run,
+	// newest first: the tasks the run launched and, for a failed-only re-run,
+	// the tasks of the nodes it carries over from earlier runs.
 	GetWorkflowRunTasks(projectID int, runID int, params RetrieveQueryParams) ([]TaskWithTpl, error)
 
-	GetWorkflowTemplates(projectID int, params RetrieveQueryParams) ([]WorkflowTemplate, error)
+	// GetWorkflowTemplates lists the workflows the viewer may see; a nil viewer lists them all.
+	GetWorkflowTemplates(projectID int, viewer *Viewer, params RetrieveQueryParams) ([]WorkflowTemplate, error)
 	GetWorkflowTemplate(projectID int, workflowID int) (WorkflowTemplate, error)
 	CreateWorkflowTemplate(workflow WorkflowTemplate) (WorkflowTemplate, error)
 	UpdateWorkflowTemplate(workflow WorkflowTemplate) error
@@ -22,6 +26,13 @@ type WorkflowManager interface {
 
 	GetActiveWorkflowRuns() ([]WorkflowRun, error)
 	CreateWorkflowRun(run WorkflowRun) (WorkflowRun, error)
+	// CreateWorkflowRerun creates a run together with the nodes it carries
+	// over, in one transaction: a progression pass on any node of a cluster
+	// sees either no run or the run with every carried node in place, never a
+	// run whose carried nodes look not started.
+	CreateWorkflowRerun(run WorkflowRun, carries []WorkflowRunCarry) (WorkflowRun, error)
+	// GetWorkflowRunCarries lists the nodes the run carries over, by node id.
+	GetWorkflowRunCarries(projectID int, runID int) ([]WorkflowRunCarry, error)
 	UpdateWorkflowRun(run WorkflowRun) error
 
 	UpdateWorkflowRunStatusUnless(run WorkflowRun, excluded []WorkflowRunStatus) (bool, error)

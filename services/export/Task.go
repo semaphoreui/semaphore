@@ -60,6 +60,9 @@ func (e *TaskExporter) restoreValue(val EntityObject[db.Task], store db.Store, e
 		return err
 	}
 
+	// The recorded inventory has no foreign key and may be gone, so it is not carried over.
+	old.EffectiveInventoryID = nil
+
 	old.ScheduleID, err = exporter.getNewKeyIntRef(Schedule, val.scope, old.ScheduleID, e)
 	if err != nil {
 		return err

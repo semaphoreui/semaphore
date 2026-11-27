@@ -19,7 +19,6 @@ func setupExecutorConfig(t *testing.T) {
 	t.Cleanup(func() { util.Config = prevCfg })
 	util.Config = &util.ConfigType{
 		TmpPath: t.TempDir(),
-		Process: &util.ConfigProcess{},
 	}
 }
 
@@ -667,6 +666,8 @@ func TestHostConfigEnv_CarriesRewritesToThePlaybook(t *testing.T) {
 func TestTaskIdentityEnv(t *testing.T) {
 	runID := 42
 	workflowID := 7
+	version := "1.4.0"
+	emptyVersion := ""
 
 	tests := []struct {
 		name     string
@@ -696,6 +697,32 @@ func TestTaskIdentityEnv(t *testing.T) {
 			},
 		},
 		{
+			name:    "workflow task with version",
+			webHost: "https://semaphore.example.com",
+			task: db.Task{ID: 11, ProjectID: 3, WorkflowRunID: &runID, WorkflowTemplateID: &workflowID,
+				WorkflowVersion: &version},
+			expected: []string{
+				"SEMAPHORE_PROJECT_ID=3",
+				"SEMAPHORE_TASK_ID=11",
+				"SEMAPHORE_WORKFLOW_RUN_ID=42",
+				"SEMAPHORE_WORKFLOW_ID=7",
+				"SEMAPHORE_WORKFLOW_VERSION=1.4.0",
+				"SEMAPHORE_WORKFLOW_URL=https://semaphore.example.com/project/3/workflows/7/runs/42",
+			},
+		},
+		{
+			name:    "workflow task with empty version",
+			webHost: "",
+			task: db.Task{ID: 11, ProjectID: 3, WorkflowRunID: &runID, WorkflowTemplateID: &workflowID,
+				WorkflowVersion: &emptyVersion},
+			expected: []string{
+				"SEMAPHORE_PROJECT_ID=3",
+				"SEMAPHORE_TASK_ID=11",
+				"SEMAPHORE_WORKFLOW_RUN_ID=42",
+				"SEMAPHORE_WORKFLOW_ID=7",
+			},
+		},
+		{
 			name:    "workflow task without web host",
 			webHost: "",
 			task:    db.Task{ID: 11, ProjectID: 3, WorkflowRunID: &runID, WorkflowTemplateID: &workflowID},
@@ -717,4 +744,73 @@ func TestTaskIdentityEnv(t *testing.T) {
 			assert.Equal(t, tt.expected, taskIdentityEnv(tt.task))
 		})
 	}
+}
+
+// A string key can be forced into an inventory through the API; the executor
+// must refuse it with a readable error instead of running ansible without
+// credentials or panicking on an empty installation.
+func TestGetPlaybookArgs_StringKeyInInventoryIsRejected(t *testing.T) {
+	setupExecutorConfig(t)
+	keyID := 7
+	stringKey := db.AccessKey{ID: keyID, Name: "token", Type: db.AccessKeyString}
+
+	tests := []struct {
+		name      string
+		inventory db.Inventory
+		wantErr   string
+	}{
+		{
+			name:      "as ssh key",
+			inventory: db.Inventory{ID: 1, Type: db.InventoryStatic, SSHKeyID: &keyID, SSHKey: stringKey},
+			wantErr:   "access key does not suite for inventory's user credentials",
+		},
+		{
+			name:      "as become key",
+			inventory: db.Inventory{ID: 1, Type: db.InventoryStatic, BecomeKeyID: &keyID, BecomeKey: stringKey},
+			wantErr:   "access key does not suite for inventory's sudo user credentials",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			executor := &LocalExecutor{
+				Template:  db.Template{App: db.AppAnsible, Playbook: "site.yml"},
+				Inventory: tt.inventory,
+			}
+
+			args, inputs, err := executor.getPlaybookArgs("admin", nil)
+
+			require.EqualError(t, err, tt.wantErr)
+			// getPlaybookArgs returns the partial args it built before failing;
+			// what matters is that no password prompt or value was wired in.
+			assert.NotContains(t, args, "--ask-pass")
+			assert.NotContains(t, args, "--ask-become-pass")
+			assert.Empty(t, inputs)
+		})
+	}
+}
+
+// An agent gets only the template and task arguments on its command line:
+// secrets and extra vars, which a script gets as arguments, would show in ps.
+func TestGetAgentArgs_NoSecretsOnCommandLine(t *testing.T) {
+	setupExecutorConfig(t)
+
+	templateArgs := `["--model","m1"]`
+	taskArgs := `["--verbose"]`
+	exec := &LocalExecutor{
+		Template: db.Template{
+			App:                     db.AppClaude,
+			Arguments:               &templateArgs,
+			AllowOverrideArgsInTask: true,
+		},
+		Task: db.Task{Arguments: &taskArgs},
+		Environment: db.Environment{
+			JSON:    `{"PLAIN_VAR":"hello"}`,
+			Secrets: []db.EnvironmentSecret{{Name: "API_TOKEN", Secret: "s3cr3t", Type: db.EnvironmentSecretVar}},
+		},
+		Secret: `{"SURVEY_SECRET":"x"}`,
+	}
+
+	args, err := exec.getAgentArgs()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"--model", "m1", "--verbose"}, args)
 }

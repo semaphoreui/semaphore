@@ -3,11 +3,11 @@ package project
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
-	"github.com/semaphoreui/semaphore/pkg/random"
 )
 
 func getEntryByName[T BackupEntry](name *string, items []T) *T {
@@ -50,22 +50,68 @@ func (e BackupSecretStorage) Restore(b *BackupDB) error {
 	return nil
 }
 
+// Verify skips the slug format: an upgraded instance keeps old slugs like "my role", and its export must restore.
 func (e BackupRole) Verify(backup *BackupFormat) error {
-	return verifyDuplicate[BackupRole](e.Name, backup.Roles)
+	role := e.Role
+	role.Permissions &= db.KnownRolePermissions
+	if err := db.ValidateRole(role, false); err != nil {
+		return err
+	}
+	if n := len([]rune(role.Slug)); n == 0 || n > 100 {
+		return &common_errors.ValidationError{Message: "Role slug must be 1 to 100 characters"}
+	}
+	if db.IsReservedRoleSlug(role.Slug) {
+		return &common_errors.ValidationError{Message: "Role slug is reserved: " + role.Slug}
+	}
+	n := 0
+	for _, other := range backup.Roles {
+		if strings.EqualFold(other.Slug, role.Slug) {
+			n++
+		}
+	}
+	if n > 1 {
+		return &common_errors.ValidationError{Message: "Role slug is duplicate: " + role.Slug}
+	}
+	return nil
 }
 
 func (e BackupRole) Restore(b *BackupDB) error {
 	role := e.Role
 	role.ProjectID = &b.meta.ID
-	role.Slug = random.String(16)
 	// Unknown bits are never checked today but would turn on with a future permission.
 	role.Permissions &= db.KnownRolePermissions
-	newRole, err := b.store.CreateRole(role)
+	if b.version < 3 {
+		role.Permissions = db.LiftPermissions(role.Permissions)
+	}
+	if b.version < 4 {
+		role.Permissions |= db.CanReadProject
+	}
+	_, err := b.store.GetSharedRoleBySlug(role.Slug)
+	if err == nil {
+		taken := b.unassignedRole(role.Slug, ReasonSlugTaken)
+		taken.Name, taken.Permissions = role.Name, role.Permissions
+		return nil
+	}
+	if !errors.Is(err, db.ErrNotFound) {
+		return err
+	}
+	created, err := b.store.CreateRole(role)
 	if err != nil {
 		return err
 	}
-	b.roles = append(b.roles, newRole)
+	b.roles = append(b.roles, created)
 	return nil
+}
+
+// unassignedRole finds or adds the report entry for a slug. Use the pointer at once, a later add may move it.
+func (b *BackupDB) unassignedRole(slug, reason string) *UnassignedRole {
+	for i := range b.unassigned {
+		if b.unassigned[i].Slug == slug {
+			return &b.unassigned[i]
+		}
+	}
+	b.unassigned = append(b.unassigned, UnassignedRole{Slug: slug, Reason: reason, Templates: []UnassignedTemplate{}, Workflows: []UnassignedWorkflow{}})
+	return &b.unassigned[len(b.unassigned)-1]
 }
 
 func (e BackupEnvironment) Verify(backup *BackupFormat) error {
@@ -105,12 +151,28 @@ func (e BackupSchedule) Verify(backup *BackupFormat) error {
 func (e BackupSchedule) Restore(b *BackupDB) error {
 	v := e.Schedule
 	v.ProjectID = b.meta.ID
+	v.TemplateID = nil
+	v.WorkflowID = nil
 
-	tpl := findEntityByName[db.Template](&e.Template, b.templates)
-	if tpl == nil {
-		return fmt.Errorf("template does not exist in templates[].name")
+	switch {
+	case e.Template != nil && e.Workflow != nil:
+		return fmt.Errorf("schedule runs either a template or a workflow, not both")
+	case e.Template != nil:
+		tpl := findEntityByName[db.Template](e.Template, b.templates)
+		if tpl == nil {
+			return fmt.Errorf("template does not exist in templates[].name")
+		}
+		v.TemplateID = &tpl.ID
+	case e.Workflow != nil:
+		// Workflows are restored before schedules, so b.workflows is complete.
+		workflow := findEntityByName[db.WorkflowTemplate](e.Workflow, b.workflows)
+		if workflow == nil {
+			return fmt.Errorf("workflow does not exist in workflows[].name")
+		}
+		v.WorkflowID = &workflow.ID
+	default:
+		return fmt.Errorf("schedule has neither a template nor a workflow")
 	}
-	v.TemplateID = tpl.ID
 
 	if e.CheckableRepository != nil {
 		repo := findEntityByName[db.Repository](e.CheckableRepository, b.repositories)
@@ -182,6 +244,68 @@ func (e BackupInventory) Verify(backup *BackupFormat) error {
 	}
 	if e.Proxy != nil && getEntryByName[BackupProxy](e.Proxy, backup.Proxies) == nil {
 		return fmt.Errorf("proxy does not exist in proxies[].Name")
+	}
+	if len(e.Hosts) > 0 && e.Type != db.InventoryManaged {
+		return fmt.Errorf("inventory %q is not managed but has hosts", e.Name)
+	}
+	if e.VariablesText() != "" && e.Type != db.InventoryManaged {
+		return fmt.Errorf("inventory %q is not managed but has variables", e.Name)
+	}
+	if _, err := db.ParseInventoryVariables(e.VariablesText()); err != nil {
+		return fmt.Errorf("variables of inventory %q: %w", e.Name, err)
+	}
+	names := make(map[string]bool)
+	for i, h := range e.Hosts {
+		if names[h.Name] {
+			return fmt.Errorf("host %q of inventory %q is duplicated", h.Name, e.Name)
+		}
+		names[h.Name] = true
+		host := db.InventoryHost{Name: h.Name, Variables: h.Variables}
+		if err := host.Validate(); err != nil {
+			return fmt.Errorf("host %q of inventory %q at hosts[%d]: %w", h.Name, e.Name, i, err)
+		}
+	}
+	if len(e.Groups) > 0 && e.Type != db.InventoryManaged {
+		return fmt.Errorf("inventory %q is not managed but has groups", e.Name)
+	}
+	groupIndex := make(map[string]int)
+	for i, g := range e.Groups {
+		if _, ok := groupIndex[g.Name]; ok {
+			return fmt.Errorf("group %q of inventory %q is duplicated", g.Name, e.Name)
+		}
+		groupIndex[g.Name] = i
+		group := db.InventoryGroup{Name: g.Name, Variables: g.Variables}
+		if err := group.Validate(); err != nil {
+			return fmt.Errorf("group %q of inventory %q at groups[%d]: %w", g.Name, e.Name, i, err)
+		}
+		listed := make(map[string]bool)
+		for _, h := range g.Hosts {
+			if !names[h] {
+				return fmt.Errorf("group %q of inventory %q names unknown host %q", g.Name, e.Name, h)
+			}
+			if listed[h] {
+				return fmt.Errorf("group %q of inventory %q lists host %q twice", g.Name, e.Name, h)
+			}
+			listed[h] = true
+		}
+	}
+	children := make(map[int][]int)
+	for i, g := range e.Groups {
+		listed := make(map[string]bool)
+		for _, c := range g.Children {
+			child, ok := groupIndex[c]
+			if !ok {
+				return fmt.Errorf("group %q of inventory %q names unknown child group %q", g.Name, e.Name, c)
+			}
+			if listed[c] {
+				return fmt.Errorf("group %q of inventory %q lists child group %q twice", g.Name, e.Name, c)
+			}
+			listed[c] = true
+			children[i] = append(children[i], child)
+		}
+	}
+	if cycle := db.InventoryGroupCycle(children); cycle != nil {
+		return fmt.Errorf("group %q of inventory %q is its own ancestor", e.Groups[cycle[0]].Name, e.Name)
 	}
 	return nil
 }
@@ -269,6 +393,61 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 		return err
 	}
 	b.inventories = append(b.inventories, newInventory)
+
+	hostIDs := make(map[string]int)
+	for _, h := range e.Hosts {
+		host, err := b.store.CreateInventoryHost(db.InventoryHost{
+			ProjectID:   b.meta.ID,
+			InventoryID: newInventory.ID,
+			Name:        h.Name,
+			Description: h.Description,
+			Enabled:     h.Enabled,
+			Variables:   h.Variables,
+		}, nil)
+		if err != nil {
+			return fmt.Errorf("host %q of inventory %q: %w", h.Name, e.Name, err)
+		}
+		hostIDs[h.Name] = host.ID
+	}
+
+	groups := make(map[string]db.InventoryGroup)
+	for _, g := range e.Groups {
+		group, err := b.store.CreateInventoryGroup(db.InventoryGroup{
+			ProjectID:   b.meta.ID,
+			InventoryID: newInventory.ID,
+			Name:        g.Name,
+			Description: g.Description,
+			Variables:   g.Variables,
+		}, nil)
+		if err != nil {
+			return fmt.Errorf("group %q of inventory %q: %w", g.Name, e.Name, err)
+		}
+		groups[g.Name] = group
+	}
+
+	for _, g := range e.Groups {
+		group := groups[g.Name]
+		if len(g.Children) > 0 {
+			var children []int
+			for _, c := range g.Children {
+				children = append(children, groups[c].ID)
+			}
+			if _, _, err = b.store.UpdateInventoryGroup(group, children, nil); err != nil {
+				return fmt.Errorf("group %q of inventory %q: %w", g.Name, e.Name, err)
+			}
+		}
+
+		var members []int
+		for _, h := range g.Hosts {
+			members = append(members, hostIDs[h])
+		}
+		// Batches keep the host id list of one call within database parameter limits
+		for batch := range slices.Chunk(members, 1000) {
+			if _, _, err = b.store.ChangeInventoryHostGroups(b.meta.ID, newInventory.ID, batch, []int{group.ID}, nil); err != nil {
+				return fmt.Errorf("group %q of inventory %q: %w", g.Name, e.Name, err)
+			}
+		}
+	}
 	return nil
 }
 
@@ -402,6 +581,12 @@ func (e BackupTemplate) Verify(backup *BackupFormat) error {
 		return fmt.Errorf("vault_key does not exist in keys[].name")
 	}
 
+	for _, grant := range e.Roles {
+		if grant.Slug == "" {
+			return fmt.Errorf("role grant has no slug")
+		}
+	}
+
 	if e.Vaults != nil {
 		for _, vault := range e.Vaults {
 			if vault.VaultKey != nil {
@@ -505,46 +690,63 @@ func (e BackupTemplate) Restore(b *BackupDB) error {
 		}
 	}
 
-	if e.Roles != nil {
-		for _, role := range e.Roles {
-			if role.IsGlobal {
-				r, err := b.store.GetGlobalRoleBySlug(role.Role)
-				if errors.Is(err, db.ErrNotFound) {
-					return fmt.Errorf("global role does not exist: %s", role.Role)
-				}
-				if err != nil {
-					return err
-				}
-
-				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
-					TemplateID:  newTemplate.ID,
-					RoleID:      r.ID,
-					ProjectID:   b.meta.ID,
-					Permissions: role.Permissions & db.KnownRolePermissions,
-				})
-
-				if err != nil {
-					return err
-				}
-
-				continue
-			}
-			if k := findEntityByName[db.Role](&role.Role, b.roles); k == nil {
-				return fmt.Errorf("roles[].role does not exist in roles[].name")
-			} else {
-				_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
-					TemplateID:  newTemplate.ID,
-					RoleID:      k.ID,
-					ProjectID:   b.meta.ID,
-					Permissions: role.Permissions & db.KnownRolePermissions,
-				})
-				if err != nil {
-					return err
-				}
-			}
+	for _, grant := range e.Roles {
+		permissions := grant.Permissions & db.TemplateGrantPermissions
+		if b.version < 4 && permissions != 0 {
+			permissions |= db.CanReadProject
+		}
+		role, err := b.fileRole(grant.Slug)
+		if errors.Is(err, db.ErrNotFound) {
+			unassigned := b.unassignedRole(grant.Slug, ReasonNotInFile)
+			unassigned.Templates = append(unassigned.Templates, UnassignedTemplate{ID: newTemplate.ID, Name: newTemplate.Name, Permissions: permissions})
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		_, err = b.store.CreateTemplateRole(db.TemplateRolePerm{
+			TemplateID:  newTemplate.ID,
+			RoleID:      role.ID,
+			ProjectID:   b.meta.ID,
+			Permissions: permissions,
+		})
+		if err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+// fileRole is a role from the file or a builtin one; any other role is the user's choice, never a slug match.
+func (b *BackupDB) fileRole(slug string) (db.Role, error) {
+	for _, role := range b.roles {
+		if role.Slug == slug {
+			return role, nil
+		}
+	}
+	role, err := b.store.GetSharedRoleBySlug(slug)
+	if err == nil && !role.Builtin {
+		return db.Role{}, db.ErrNotFound
+	}
+	return role, err
+}
+
+func (e BackupIntegration) Verify(backup *BackupFormat) error {
+	switch {
+	case e.Template != nil && e.Workflow != nil:
+		return fmt.Errorf("integration runs either a template or a workflow, not both")
+	case e.Template != nil:
+		if getEntryByName[BackupTemplate](e.Template, backup.Templates) == nil {
+			return fmt.Errorf("template does not exist in templates[].name")
+		}
+	case e.Workflow != nil:
+		if getEntryByName[BackupWorkflow](e.Workflow, backup.Workflows) == nil {
+			return fmt.Errorf("workflow does not exist in workflows[].name")
+		}
+	default:
+		return fmt.Errorf("integration has neither a template nor a workflow")
+	}
 	return nil
 }
 
@@ -559,15 +761,29 @@ func (e BackupIntegration) Restore(b *BackupDB) error {
 		authSecretID = &((*k).ID)
 	}
 
-	tpl := findEntityByName[db.Template](&e.Template, b.templates)
-	if tpl == nil {
-		return fmt.Errorf("template does not exist in templates[].name")
-	}
-
 	integration := e.Integration
 	integration.ProjectID = b.meta.ID
 	integration.AuthSecretID = authSecretID
-	integration.TemplateID = tpl.ID
+	integration.TemplateID = nil
+	integration.WorkflowID = nil
+
+	switch {
+	case e.Template != nil:
+		tpl := findEntityByName[db.Template](e.Template, b.templates)
+		if tpl == nil {
+			return fmt.Errorf("template does not exist in templates[].name")
+		}
+		integration.TemplateID = &tpl.ID
+	case e.Workflow != nil:
+		// Workflows are restored before integrations, so b.workflows is complete.
+		workflow := findEntityByName[db.WorkflowTemplate](e.Workflow, b.workflows)
+		if workflow == nil {
+			return fmt.Errorf("workflow does not exist in workflows[].name")
+		}
+		integration.WorkflowID = &workflow.ID
+	default:
+		return fmt.Errorf("integration has neither a template nor a workflow")
+	}
 
 	if integration.TaskParams != nil {
 		inv := findEntityByName[db.Inventory](e.TaskParams.InventoryName, b.inventories)
@@ -621,6 +837,11 @@ func (e BackupRunner) Restore(b *BackupDB) error {
 }
 
 func (e BackupWorkflow) Verify(backup *BackupFormat) error {
+	for _, grant := range e.Roles {
+		if grant.Slug == "" {
+			return fmt.Errorf("role grant has no slug")
+		}
+	}
 	if err := verifyDuplicate[BackupWorkflow](e.Name, backup.Workflows); err != nil {
 		return err
 	}
@@ -676,11 +897,47 @@ func (e BackupWorkflow) Restore(b *BackupDB) error {
 		return err
 	}
 
+	for _, grant := range e.Roles {
+		permissions := grant.Permissions & db.WorkflowGrantPermissions
+		if b.version < 4 && permissions != 0 {
+			permissions |= db.CanReadProject
+		}
+		role, err := b.fileRole(grant.Slug)
+		if errors.Is(err, db.ErrNotFound) {
+			unassigned := b.unassignedRole(grant.Slug, ReasonNotInFile)
+			unassigned.Workflows = append(unassigned.Workflows, UnassignedWorkflow{ID: newWorkflow.ID, Name: newWorkflow.Name, Permissions: permissions})
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		_, err = b.store.CreateWorkflowRole(db.WorkflowRolePerm{
+			WorkflowID:  newWorkflow.ID,
+			RoleID:      role.ID,
+			ProjectID:   b.meta.ID,
+			Permissions: permissions,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	b.workflows = append(b.workflows, newWorkflow)
 	return nil
 }
 
 func (backup *BackupFormat) Verify() error {
+	grants := 0
+	for _, t := range backup.Templates {
+		grants += len(t.Roles)
+	}
+	// Roles got slugs in version 2, so an older file without them still reads.
+	if backup.Version < 2 && (len(backup.Roles) > 0 || grants > 0) {
+		return fmt.Errorf("backup was written by an older version of Semaphore, export the project again")
+	}
+	if backup.Version > BackupFormatVersion {
+		return fmt.Errorf("backup was written by a newer version of Semaphore")
+	}
 	for i, o := range backup.Environments {
 		if err := o.Verify(backup); err != nil {
 			return fmt.Errorf("error at environments[%d]: %s", i, err.Error())
@@ -693,7 +950,7 @@ func (backup *BackupFormat) Verify() error {
 	}
 	for i, o := range backup.Schedules {
 		if err := o.Verify(backup); err != nil {
-			return fmt.Errorf("error at templates[%d]: %s", i, err.Error())
+			return fmt.Errorf("error at schedules[%d]: %s", i, err.Error())
 		}
 	}
 	for i, o := range backup.Keys {
@@ -747,6 +1004,11 @@ func (backup *BackupFormat) Verify() error {
 			return fmt.Errorf("error at workflows[%d]: %s", i, err.Error())
 		}
 	}
+	for i, o := range backup.Integration {
+		if err := o.Verify(backup); err != nil {
+			return fmt.Errorf("error at integrations[%d]: %s", i, err.Error())
+		}
+	}
 
 	return nil
 }
@@ -797,9 +1059,9 @@ func (backup *BackupFormat) restoreProxyChains(b *BackupDB) error {
 	return nil
 }
 
-// Restore returns the created project with the error when a step after the project row fails.
-func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore db.WorkflowManager) (*db.Project, error) {
-	var b = BackupDB{store: store, workflowStore: workflowStore}
+// Restore creates the project whole or not at all: a failed entry removes it again.
+func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore db.WorkflowManager) (restored *RestoredProject, err error) {
+	var b = BackupDB{store: store, workflowStore: workflowStore, unassigned: []UnassignedRole{}, version: backup.Version}
 	project := backup.Meta.Project
 
 	// Prevent importing a project with a name that already exists
@@ -812,56 +1074,63 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		}
 	}
 
-	ownerRole, err := b.store.GetGlobalRoleBySlug(string(db.ProjectOwner))
+	ownerRole, err := b.store.GetSharedRoleBySlug(string(db.ProjectOwner))
 	if err != nil {
 		return nil, err
 	}
 
 	newProject, err := b.store.CreateProject(project)
-
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err == nil {
+			return
+		}
+		if deleteErr := b.store.DeleteProject(newProject.ID); deleteErr != nil {
+			err = &CleanupError{ProjectID: newProject.ID, Err: err, DeleteErr: deleteErr}
+		}
+	}()
 
 	if err = b.store.CreateProjectUser(newProject.ID, user.ID, []int{ownerRole.ID}); err != nil {
-		return &newProject, err
+		return nil, err
 	}
 
 	b.meta = newProject
 	for i, o := range backup.SecretStorages {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at secret storage[%d]: %s", i, err.Error())
+			return nil, fmt.Errorf("error at secret storage[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Roles {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at roles[%d]: %s", i, err.Error())
+			return nil, fmt.Errorf("error at roles[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Environments {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at environments[%d]: %s", i, err.Error())
+			return nil, fmt.Errorf("error at environments[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Views {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at views[%d]: %s", i, err.Error())
+			return nil, fmt.Errorf("error at views[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Keys {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at keys[%d]: %s", i, err.Error())
+			return nil, fmt.Errorf("error at keys[%d]: %w", i, err)
 		}
 	}
 
 	// Proxies first: repositories and inventories reference them by name.
 	for i, o := range backup.Proxies {
 		if err := o.Restore(&b); err != nil {
-			return nil, fmt.Errorf("error at proxies[%d]: %s", i, err.Error())
+			return nil, fmt.Errorf("error at proxies[%d]: %w", i, err)
 		}
 	}
 
@@ -871,19 +1140,19 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 
 	for i, o := range backup.Repositories {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at repositories[%d]: %s", i, err.Error())
+			return nil, fmt.Errorf("error at repositories[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.HostConfigs {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at host_configs[%d]: %s", i, err.Error())
+			return nil, fmt.Errorf("error at host_configs[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Inventories {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at inventories[%d]: %s", i, err.Error())
+			return nil, fmt.Errorf("error at inventories[%d]: %w", i, err)
 		}
 	}
 
@@ -894,20 +1163,42 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 			continue
 		}
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
+			return nil, fmt.Errorf("error at templates[%d]: %w", i, err)
 		}
 	}
 
 	for _, i := range deployTemplates {
 		o := backup.Templates[i]
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at templates[%d]: %s", i, err.Error())
+			return nil, fmt.Errorf("error at templates[%d]: %w", i, err)
+		}
+	}
+
+	for i, o := range backup.Runners {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at runners[%d]: %w", i, err)
+		}
+	}
+
+	// Workflows come after the templates, inventories and environments their
+	// nodes reference by name, all of which must already exist in the project.
+	for i, o := range backup.Workflows {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at workflows[%d]: %w", i, err)
+		}
+	}
+
+	// Schedules and integrations come after workflows: either may start a
+	// workflow, and nothing restored above refers to them.
+	for i, o := range backup.Schedules {
+		if err := o.Restore(&b); err != nil {
+			return nil, fmt.Errorf("error at schedules[%d]: %w", i, err)
 		}
 	}
 
 	for i, o := range backup.Integration {
 		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at integrations[%d]: %s", i, err.Error())
+			return nil, fmt.Errorf("error at integrations[%d]: %w", i, err)
 		}
 	}
 
@@ -919,25 +1210,5 @@ func (backup *BackupFormat) Restore(user db.User, store db.Store, workflowStore 
 		_, _ = b.store.CreateIntegrationAlias(alias)
 	}
 
-	for i, o := range backup.Schedules {
-		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at schedules[%d]: %s", i, err.Error())
-		}
-	}
-
-	for i, o := range backup.Runners {
-		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at runners[%d]: %s", i, err.Error())
-		}
-	}
-
-	// Workflows are restored last: their nodes reference templates, inventories
-	// and environments by name, all of which must already exist in the project.
-	for i, o := range backup.Workflows {
-		if err := o.Restore(&b); err != nil {
-			return &newProject, fmt.Errorf("error at workflows[%d]: %s", i, err.Error())
-		}
-	}
-
-	return &newProject, nil
+	return &RestoredProject{Project: newProject, UnassignedRoles: b.unassigned}, nil
 }

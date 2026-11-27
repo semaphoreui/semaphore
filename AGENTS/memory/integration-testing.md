@@ -1,4 +1,4 @@
-# integration-testing — SMTP, Dredd and the Bookwright repo
+# integration-testing — SMTP, subscription proxy, Dredd and the Bookwright repo
 
 ## SMTP integration tests (`util/mailer/integration/`)
 
@@ -17,6 +17,24 @@
 - License regen: `go-licenses` in `~/go/bin`; `license-checker` is not installed — a PATH shim
   `exec npx --yes license-checker "$@"` makes the collect script work. Test-only deps behind a
   build tag never appear in `THIRD-PARTY-LICENSES.md`.
+
+## Subscription proxy container tests (`pro_impl/services/server/`)
+
+- `subscription_svc_proxy_container_test.go`, behind `//go:build integration`:
+  `go test -tags integration ./services/server/ -run TestSubscriptionProxy` (~8 s, three
+  containers). testcontainers-go v0.44 + `modules/mockserver` live in `pro_impl/go.mod` only —
+  the community module has no testcontainers dependency.
+- The portal (`mockserver/mockserver:5.15.0`) gets the network alias `portal` and
+  `subscription.server_url` points at `http://portal:1080/billing`: the host cannot resolve that
+  name, so a request that skips the proxy fails with `lookup portal: no such host`. That is what
+  proves the proxy is used and not merely configured.
+- The proxy is `mitmproxy/mitmproxy:12.1.2` run as `mitmdump --mode regular --listen-host 0.0.0.0
+  --listen-port 8080 --set block_global=false` (the client is the Docker host, so `block_global`
+  must be off); `--proxyauth user:pass` gives the authenticating variant, which answers 407 — not
+  a transport error — when the password is wrong.
+- Portal state goes through the MockServer control API on the mapped port: `PUT /mockserver/reset`,
+  `/mockserver/expectation`, `/mockserver/retrieve?type=REQUESTS&format=JSON` (returns the matching
+  requests, so counting them is the assertion).
 
 ## Dredd contract tests (`.dredd/`)
 
@@ -49,6 +67,27 @@
   58427 itself). 54 skips (ws, login, OIDC, 400s, Pro workflow endpoints) are the normal baseline.
 - A field the server nulls (e.g. `Inventory.repository_id` for non-file types since `6a4a04ba`)
   must be `x-nullable: true` in `api-docs.yml`; the openapi2 parser Dredd uses honours it.
+- Pro Dredd run (2026-10-15, exercises the 14 workflow endpoints the OSS run skips): build server
+  and hooks *with* `go.work` (`go build -o bin/semaphore-pro ./cli`, hooks to `compiled_hooks_pro`),
+  point a copy of `dredd.testing.yml` at them with absolute paths (keep it outside the repo) and
+  a wrapper that `exec`s `bin/semaphore-pro`; same DB recreate and `ECONNREFUSED 61321` retry.
+  Baseline: 127 passing, 0 failing, 32 skipped. A worktree without `web/node_modules` can use
+  the main checkout's `web/node_modules/.bin/dredd` and its `.dredd/config.json`.
+- The dredd↔goodman race also shows as `complete: 2 passing, 130 failing … 27 skipped` with every
+  transaction 401 and no `ECONNREFUSED` in the log (2026-10-16): retry until the summary says
+  `0 failing` instead of grepping for the error. A `run_in_background` Bash inherits whatever cwd the
+  session last had — use absolute paths for `go build ./cli` and the Dredd config.
+
+- Cheapest full local run (2026-10-16, mirrors CI): `GOWORK=off go build -o bin/semaphore ./cli`,
+  `cd .dredd/hooks && GOWORK=off go build -o ../compiled_hooks .`, `npm install --no-save dredd@13.1.2`
+  in `web`, `go install github.com/snikch/goodman/cmd/goodman@latest`, then generate
+  `.dredd/config.json` with `./bin/semaphore setup - < config.stdin` using the exact answers of the
+  `integrate-sqlite` job in `.github/workflows/dev.yml` (option `4`, SQLite path and tmp path in the
+  scratchpad, `http://localhost:58427`, six `no`, `$(pwd)/.dredd`, admin/admin@localhost/Developer/password),
+  and `./web/node_modules/.bin/dredd --config .dredd/dredd.testing.yml`. Delete the SQLite file between
+  runs. The first run usually ends `2 passing, 130 failing` with every status `401` — that is the
+  goodman race, not the code; loop up to three runs and keep the first with zero `got '401'`.
+  Baseline on `feat/wf_integrations` (2026-10-16): `104 passing, 1 failing (POST /inventory), 54 skipped`.
 
 ## Bookwright `integration-tests/` repo
 

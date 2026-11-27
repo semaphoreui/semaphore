@@ -147,6 +147,100 @@ definitions:
       external:
         type: boolean
 
+  GlobalPermissionDefinition:
+    type: object
+    properties:
+      id:
+        type: string
+        example: global.users.manage
+      permission:
+        type: integer
+        description: "Bit value: 1 manage users, 2 manage global roles, 4 manage system settings, 8 read the audit log"
+        example: 1
+      description:
+        type: string
+        example: Manage users
+
+  GlobalRole:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 1
+      slug:
+        type: string
+        example: auditor
+      name:
+        type: string
+        example: Auditor
+      permissions:
+        type: integer
+        description: "Mask of global permission bits: 1 manage users, 2 manage global roles, 4 manage system settings, 8 read the audit log"
+        example: 8
+
+  GlobalRoleRequest:
+    type: object
+    required:
+      - slug
+      - name
+    properties:
+      slug:
+        type: string
+        description: Unique identifier, 1 to 100 letters, digits, '_' or '-'. It cannot change after creation.
+        example: auditor
+      name:
+        type: string
+        example: Auditor
+      permissions:
+        type: integer
+        description: Mask of global permission bits
+        example: 8
+
+  GlobalRoleAssignment:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 1
+      user_id:
+        type: integer
+        minimum: 1
+      role_id:
+        type: integer
+        minimum: 1
+      role_slug:
+        type: string
+        example: auditor
+      role_name:
+        type: string
+        example: Auditor
+      global_permissions:
+        type: integer
+        description: Mask of global permission bits granted by the role
+        example: 8
+
+  EffectiveGlobalPermissions:
+    type: object
+    properties:
+      permissions:
+        type: integer
+        description: Mask of the global permissions the user holds
+        example: 8
+      decisions:
+        type: array
+        items:
+          type: object
+          properties:
+            permission:
+              type: string
+              example: global.audit.read
+            allowed:
+              type: boolean
+            role_id:
+              type: integer
+            role_name:
+              type: string
+
   ProjectUser:
     type: object
     properties:
@@ -264,8 +358,11 @@ definitions:
 
   ProjectBackup:
     type: object
-    example: {"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","app":"ansible","working_directory":".","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"suppress_error_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}]}
+    example: {"version":5,"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","app":"ansible","working_directory":".","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"suppress_error_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}],"roles":[{"slug":"deployer","name":"Deployer","permissions":129}]}
     properties:
+      version:
+        type: integer
+        description: Format version of the backup file, 5. Files written by a newer version are refused. Version 5 carries the hosts and groups of a managed inventory. A version 2 file is accepted and its roles get the workflow verbs the upgrade gives stored roles. A file of version 3 or older is accepted and its roles and permissions get read_project. A file without a version is accepted only when it carries no roles and no template permissions.
       meta:
         type: object
         properties:
@@ -332,6 +429,16 @@ definitions:
               type: string
             allow_override_branch_in_task:
               type: boolean
+            roles:
+              type: array
+              description: Template permissions granted to roles, by role slug.
+              items:
+                type: object
+                properties:
+                  slug:
+                    type: string
+                  permissions:
+                    type: integer
       repositories:
         type: array
         items:
@@ -354,7 +461,7 @@ definitions:
               type: string
             type:
               type: string
-              enum: [ssh, login_password, none]
+              enum: [ssh, login_password, none, string]
       views:
         type: array
         items:
@@ -380,7 +487,24 @@ definitions:
               type: string
             type:
               type: string
-              enum: [static, static-yaml, file]
+              enum: [static, static-yaml, file, managed]
+            variables:
+              type: string
+              description: Variables of a managed inventory, a YAML or JSON mapping
+            hosts:
+              type: array
+              description: Hosts of a managed inventory
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  enabled:
+                    type: boolean
+                  variables:
+                    type: string
       environments:
         type: array
         items:
@@ -394,6 +518,158 @@ definitions:
               type: string
             env:
               type: string
+      roles:
+        type: array
+        description: Project roles. Template and workflow permissions refer to them by slug.
+        items:
+          type: object
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+            permissions:
+              type: integer
+      workflows:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+            start_version:
+              type: string
+            survey_vars:
+              type: array
+              items:
+                $ref: "#/definitions/TemplateSurveyVar"
+            nodes:
+              type: array
+              items:
+                $ref: "#/definitions/BackupWorkflowNode"
+            edges:
+              type: array
+              items:
+                $ref: "#/definitions/BackupWorkflowEdge"
+            roles:
+              type: array
+              description: Workflow permissions granted to roles, by role slug.
+              items:
+                type: object
+                properties:
+                  slug:
+                    type: string
+                  permissions:
+                    type: integer
+
+  BackupWorkflowNode:
+    type: object
+    description: A workflow node in a backup. The template is referred to by name, ids of the database are left out.
+    properties:
+      id:
+        type: integer
+        description: Node number inside the workflow, referred to by the edges.
+      template:
+        type: string
+        description: Name of the template a task node runs.
+      kind:
+        type: string
+        enum: [task, approval, note, delay]
+      convergence_mode:
+        type: string
+        enum: [all, any]
+      approval_timeout:
+        type: integer
+      approval_message:
+        type: string
+      task_params:
+        $ref: '#/definitions/BackupTaskParams'
+      note:
+        type: string
+      delay_seconds:
+        type: integer
+      survey_inputs:
+        type: array
+        items:
+          $ref: "#/definitions/WorkflowNodeSurveyInput"
+      position_x:
+        type: integer
+      position_y:
+        type: integer
+
+  BackupTaskParams:
+    type: object
+    description: Task parameters of a workflow node in a backup. The inventory is referred to by name.
+    properties:
+      environment:
+        type: string
+      git_branch:
+        type: string
+      message:
+        type: string
+      version:
+        type: string
+      arguments:
+        type: string
+      inventory_name:
+        type: string
+      params:
+        allOf:
+          - $ref: '#/definitions/AnsibleTaskParams'
+          - $ref: '#/definitions/TerraformTaskParams'
+
+  BackupWorkflowEdge:
+    type: object
+    description: A workflow edge in a backup, between node numbers of the same workflow.
+    properties:
+      source_node_id:
+        type: integer
+      destination_node_id:
+        type: integer
+      condition:
+        type: string
+        enum: [on_success, on_failure, always]
+      input_mode:
+        type: string
+        enum: [by_name, explicit]
+      input_mappings:
+        type: array
+        items:
+          $ref: "#/definitions/WorkflowInputMapping"
+
+  TemplateRolePermission:
+    type: object
+    description: A role grant on one template. The role is addressed by slug.
+    properties:
+      id:
+        type: integer
+      template_id:
+        type: integer
+      project_id:
+        type: integer
+      role_slug:
+        type: string
+      permissions:
+        type: integer
+        description: read_project (128), run_tasks (1) and manage_resources (4). A verb includes read_project, the server adds it.
+
+  WorkflowRolePermission:
+    type: object
+    description: A role grant on one workflow. The role is addressed by slug.
+    properties:
+      id:
+        type: integer
+      workflow_id:
+        type: integer
+      project_id:
+        type: integer
+      role_slug:
+        type: string
+      permissions:
+        type: integer
+        description: read_project (128), run_workflows (16), edit_workflows (32) and approve_workflows (64). A verb includes read_project, the server adds it.
 
   APIToken:
     type: object
@@ -456,6 +732,56 @@ definitions:
       type:
         type: string
 
+  RestoredProject:
+    allOf:
+      - $ref: "#/definitions/Project"
+      - type: object
+        properties:
+          unassigned_roles:
+            type: array
+            description: >-
+              Roles the restore left for you to decide about. A template or workflow grant to a role that is
+              neither in the file nor a built-in role (reason not_in_file) or a project role whose slug a
+              shared role already holds (reason slug_taken) is not restored. Assign the templates and
+              workflows to a role of this instance yourself.
+            example: []
+            items:
+              type: object
+              properties:
+                slug:
+                  type: string
+                reason:
+                  type: string
+                  enum: [not_in_file, slug_taken]
+                name:
+                  type: string
+                  description: Name of the role in the file, only for slug_taken.
+                permissions:
+                  type: integer
+                  description: Permissions of the role in the file, only for slug_taken.
+                templates:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      permissions:
+                        type: integer
+                workflows:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      permissions:
+                        type: integer
+
   AccessKeyRequest:
     type: object
     properties:
@@ -467,7 +793,7 @@ definitions:
         example: None
       type:
         type: string
-        enum: [none, ssh, login_password]
+        enum: [none, ssh, login_password, string]
         x-example: none
       project_id:
         type: integer
@@ -475,6 +801,11 @@ definitions:
         x-example: 2
       override_secret:
         type: boolean
+      string:
+        type: string
+        description: Value of a key of type `string` — a single secret with no login (a token, an API key). Stored encrypted, never returned.
+        x-example: secret-token
+        example: secret-token
       login_password:
         type: object
         properties:
@@ -512,7 +843,7 @@ definitions:
         example: Test
       type:
         type: string
-        enum: [none, ssh, login_password]
+        enum: [none, ssh, login_password, string]
       project_id:
         type: integer
 
@@ -667,7 +998,23 @@ definitions:
         description: Repository holding the inventory file. Used only by a "file" inventory; for any other type it is dropped and stored as null.
       type:
         type: string
-        enum: [static, static-yaml, file, terraform-workspace]
+        enum: [static, static-yaml, file, terraform-workspace, tofu-workspace, managed, mcp]
+        description: |
+          An "mcp" inventory is a list of remote MCP servers for an AI agent template (apps "codex" and "claude").
+          It has no "inventory" text, ssh/become keys or repository; its servers are given in "mcp_servers".
+          The type can not be changed to or from "mcp".
+      mcp_servers:
+        type: array
+        example: []
+        description: |
+          Servers of an "mcp" inventory; allowed only for that type. The list replaces the servers in one transaction,
+          together with the inventory itself: a server with "id" is updated, one without is created, a server left out
+          is deleted with its token. On update, omit the field to keep the servers as they are.
+        items:
+          $ref: "#/definitions/McpServerRequest"
+      variables:
+        type: string
+        description: Group variables of a "managed" inventory as YAML or JSON mapping. Used on create only, an update leaves them as they are.
 
   Inventory:
     type: object
@@ -698,7 +1045,208 @@ definitions:
         description: Proxy used to reach the hosts of the inventory
       type:
         type: string
-        enum: [static, static-yaml, file, terraform-workspace]
+        enum: [static, static-yaml, file, terraform-workspace, tofu-workspace, managed, mcp]
+      mcp_servers:
+        type: array
+        description: Servers of an "mcp" inventory. Returned by GET of one inventory and by create; never in the list. Tokens are never returned, only "has_token".
+        items:
+          $ref: "#/definitions/McpServer"
+      variables:
+        type: string
+        description: Group variables of a "managed" inventory, null for any other type. Absent in the list of inventories.
+        x-nullable: true
+      variable_count:
+        type: integer
+        description: Number of top-level variables, set by the server
+
+  McpServerRequest:
+    type: object
+    required: [name, url]
+    properties:
+      id:
+        type: integer
+        description: ID of an existing server of this inventory; omit for a new server.
+      name:
+        type: string
+        maxLength: 64
+        pattern: "^[A-Za-z0-9_-]+$"
+        example: github
+        description: Unique within the inventory.
+      url:
+        type: string
+        example: https://api.githubcopilot.com/mcp/
+        description: HTTP or SSE endpoint, http or https only, without credentials.
+      enabled:
+        type: boolean
+        description: A disabled server is kept but not given to the agent.
+      token:
+        $ref: "#/definitions/McpTokenRequest"
+
+  McpTokenRequest:
+    type: object
+    required: [operation]
+    description: A change of the server's token; omit to keep the token as it is.
+    properties:
+      operation:
+        type: string
+        enum: [create, update, delete]
+        description: create gives a server without a token its token, update replaces the value, delete removes the token.
+      secret:
+        type: string
+        format: password
+        description: 'The token, sent to the server as a bearer token. Required for create and update. Stored encrypted and never returned.'
+
+  McpServer:
+    type: object
+    properties:
+      id:
+        type: integer
+      inventory_id:
+        type: integer
+      name:
+        type: string
+        example: github
+      url:
+        type: string
+        example: https://api.githubcopilot.com/mcp/
+      enabled:
+        type: boolean
+      has_token:
+        type: boolean
+        description: Whether the server has a token. The token itself is never returned.
+
+  InventoryHost:
+    type: object
+    properties:
+      id:
+        type: integer
+      inventory_id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+        example: web1
+      description:
+        type: string
+      enabled:
+        type: boolean
+      variables:
+        type: string
+        description: Host variables as YAML or JSON mapping. Absent in the list of hosts.
+      variable_count:
+        type: integer
+        description: Number of top-level variables, set by the server
+      created:
+        type: string
+        format: date-time
+      groups:
+        type: array
+        description: IDs of the groups the host is a direct member of
+        items:
+          type: integer
+      last_status:
+        type: string
+        x-nullable: true
+        description: Status of the last run on the host, set by the server
+      last_run:
+        type: string
+        format: date-time
+        x-nullable: true
+        description: Time of the last run on the host, set by the server
+      last_task_id:
+        type: integer
+        x-nullable: true
+        description: Task of the last run on the host, set by the server
+      host_id:
+        type: integer
+        x-nullable: true
+        description: Host of the hosts registry this host is matched to, set by the server
+
+  InventoryHostRequest:
+    type: object
+    required: [name]
+    properties:
+      name:
+        type: string
+        example: web1
+      description:
+        type: string
+      enabled:
+        type: boolean
+        description: Used on create only, true when omitted. An update leaves it as it is.
+      variables:
+        type: string
+        description: Host variables as YAML or JSON mapping
+      add_groups:
+        type: array
+        description: IDs of groups of the inventory to add the host to. Together with remove_groups at most 100.
+        maxItems: 100
+        items:
+          type: integer
+      remove_groups:
+        type: array
+        description: IDs of groups to remove the host from. Ignored on create. Together with add_groups at most 100.
+        maxItems: 100
+        items:
+          type: integer
+
+  InventoryGroup:
+    type: object
+    properties:
+      id:
+        type: integer
+      inventory_id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+        example: webservers
+      description:
+        type: string
+      variables:
+        type: string
+        description: Group variables as YAML or JSON mapping. Absent in the list of groups.
+      variable_count:
+        type: integer
+        description: Number of top-level variables, set by the server
+      created:
+        type: string
+        format: date-time
+      children:
+        type: array
+        description: IDs of the direct child groups
+        items:
+          type: integer
+      host_count:
+        type: integer
+        description: Number of hosts of the group and of its child groups at any depth, each counted once
+
+  InventoryGroupRequest:
+    type: object
+    required: [name]
+    properties:
+      name:
+        type: string
+        example: webservers
+      description:
+        type: string
+      variables:
+        type: string
+        description: Group variables as YAML or JSON mapping
+      add_children:
+        type: array
+        description: IDs of groups of the inventory to add as direct child groups
+        maxItems: 1000
+        items:
+          type: integer
+      remove_children:
+        type: array
+        description: IDs of direct child groups to remove. Ignored on create.
+        maxItems: 1000
+        items:
+          type: integer
 
   Proxy:
     type: object
@@ -778,10 +1326,16 @@ definitions:
         minimum: 1
       template_id:
         type: integer
-        minimum: 1
+        x-nullable: true
+        description: The task template the integration starts. Exactly one of template_id and workflow_id is set.
+      workflow_id:
+        type: integer
+        x-nullable: true
+        description: The workflow the integration starts instead of a template (Pro). Extracted values become the answers to the workflow's survey.
       auth_method:
         type: string
-        example: none
+        example: ""
+        enum: ['', token, hmac, github, gitlab, bitbucket]
       auth_secret_id:
         type: integer
         x-nullable: true
@@ -804,9 +1358,16 @@ definitions:
         type: integer
       template_id:
         type: integer
+        x-nullable: true
+        description: The task template to start. Exactly one of template_id and workflow_id must be set.
+      workflow_id:
+        type: integer
+        x-nullable: true
+        description: The workflow to start instead of a template (Pro). task_params do not apply to a workflow and are dropped.
       auth_method:
         type: string
-        example: none
+        example: ""
+        enum: ['', token, hmac, github, gitlab, bitbucket]
       auth_secret_id:
         type: integer
         x-nullable: true
@@ -943,7 +1504,7 @@ definitions:
         type: boolean
         description: Share one checkout of this repository between all templates instead of cloning it per template. Templates of a monorepo can not have a branch of their own or let tasks override the branch or commit.
         example: false
-  
+
   Repository:
     type: object
     properties:
@@ -966,6 +1527,123 @@ definitions:
         type: boolean
         description: Share one checkout of this repository between all templates instead of cloning it per template. Templates of a monorepo can not have a branch of their own or let tasks override the branch or commit.
         example: false
+
+  Host:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      display_name:
+        type: string
+      first_seen:
+        type: string
+      last_seen:
+        type: string
+      last_automated:
+        type: string
+        x-nullable: true
+      runs:
+        type: integer
+      last_status:
+        type: string
+      last_task_id:
+        type: integer
+        x-nullable: true
+      last_project_id:
+        type: integer
+        x-nullable: true
+      decommissioned:
+        type: string
+        x-nullable: true
+      counted:
+        type: boolean
+        description: Whether the host is in the license count, set in the global list and card only
+      last_template:
+        allOf:
+          - $ref: "#/definitions/HostTemplateRef"
+        x-nullable: true
+      templates:
+        type: array
+        items:
+          $ref: "#/definitions/HostTemplateRef"
+      projects:
+        type: array
+        items:
+          $ref: "#/definitions/HostProjectRef"
+      inventories:
+        type: array
+        items:
+          $ref: "#/definitions/HostInventoryRef"
+
+  HostInventoryRef:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+
+  HostTemplateRef:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+
+  HostProjectRef:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+
+  HostDetails:
+    allOf:
+      - $ref: "#/definitions/Host"
+      - type: object
+        properties:
+          failed_in_last_10:
+            type: integer
+
+  HostTask:
+    type: object
+    properties:
+      task_id:
+        type: integer
+      project_id:
+        type: integer
+      project_name:
+        type: string
+      template_id:
+        type: integer
+      template_name:
+        type: string
+      status:
+        type: string
+      start:
+        type: string
+        x-nullable: true
+      user_name:
+        type: string
+        x-nullable: true
+      ok:
+        type: integer
+      changed:
+        type: integer
+      failed:
+        type: integer
+      unreachable:
+        type: integer
+      skipped:
+        type: integer
+      rescued:
+        type: integer
+      ignored:
+        type: integer
 
   Task:
     type: object
@@ -1003,6 +1681,12 @@ definitions:
       workflow_node_id:
         type: integer
         description: Node of the workflow revision that started the task. Ignored on create.
+      workflow_template_id:
+        type: integer
+        description: Workflow the run of workflow_run_id belongs to. Resolved by the server before the task starts, not stored. Ignored on create.
+      workflow_version:
+        type: string
+        description: Version of the workflow run the task belongs to. Resolved by the server before the task starts, not stored. Ignored on create.
       artifacts:
         type: string
         description: >
@@ -1016,6 +1700,8 @@ definitions:
     properties:
       debug:
         type: boolean
+      debug_level:
+        type: integer
       dry_run:
         type: boolean
       diff:
@@ -1045,6 +1731,8 @@ definitions:
       auto_approve:
         type: boolean
       upgrade:
+        type: boolean
+      reconfigure:
         type: boolean
 
   TaskPrams:
@@ -1249,7 +1937,7 @@ definitions:
         type: string
       type:
         type: string
-        enum: ["", int, enum, secret, text] # String => "", Integer => "int", Text (multiline) => "text"
+        enum: ["", int, enum, select, secret, text] # String => "", Integer => "int", Text (multiline) => "text"
         example: int
       target:
         type: string
@@ -1261,6 +1949,9 @@ definitions:
         type: array
         items:
           $ref: "#/definitions/TemplateSurveyVarValue"
+      default_value:
+        description: A string, or an array of strings for a select variable.
+        x-nullable: true
 
   TemplateSurveyVarValue:
     type: object
@@ -1301,6 +1992,12 @@ definitions:
         type: integer
       template_id:
         type: integer
+        x-nullable: true
+        description: The task template to start. Exactly one of template_id and workflow_id must be set.
+      workflow_id:
+        type: integer
+        x-nullable: true
+        description: The workflow to start instead of a template (Pro). task_params do not apply to a workflow and are dropped.
       name:
         type: string
       active:
@@ -1325,6 +2022,12 @@ definitions:
         type: integer
       template_id:
         type: integer
+        x-nullable: true
+        description: The task template the schedule starts. Exactly one of template_id and workflow_id is set.
+      workflow_id:
+        type: integer
+        x-nullable: true
+        description: The workflow the schedule starts instead of a template (Pro). The run starts with the workflow's survey defaults.
       name:
         type: string
       active:
@@ -1353,6 +2056,11 @@ definitions:
       position:
         type: integer
         minimum: 1
+      show_template_stats:
+        type: boolean
+        description: >
+          Show on the tab of the view the counts of its templates by the
+          status of their last task. Off when omitted.
   View:
     type: object
     properties:
@@ -1374,6 +2082,38 @@ definitions:
         enum: [name]
       sort_reverse:
         type: boolean
+      show_template_stats:
+        type: boolean
+        description: >
+          The tab of the view shows the counts of its templates by the
+          status of their last task. Off by default.
+      template_stats:
+        $ref: "#/definitions/ViewTemplateStats"
+
+  ViewTemplateStats:
+    type: object
+    description: >
+      Number of templates of a view by the status of their last task,
+      returned by the views list with `include=template_stats` for a view
+      that has `show_template_stats` on. A Custom
+      view counts the templates assigned to it, the "All" view every
+      template of the project. Every template is in exactly one count.
+    properties:
+      success:
+        type: integer
+        description: The last task succeeded.
+      failed:
+        type: integer
+        description: The last task failed.
+      stopped:
+        type: integer
+        description: The last task is stopped or being stopped, or the template was never launched.
+      confirming:
+        type: integer
+        description: The last task waits for a confirmation.
+      running:
+        type: integer
+        description: The last task is waiting in the queue, starting or running.
 
   Runner:
     type: object
@@ -1561,6 +2301,16 @@ definitions:
         description: Number of seconds to wait before continuing (delay kind only).
       task_params:
         $ref: '#/definitions/TaskPrams'
+      survey_inputs:
+        type: array
+        description: >-
+          Task nodes only. Feeds survey variables of the node's template from the workflow's
+          survey variables (the answers the run was started with). A workflow value reaches a
+          variable only through such a binding, whatever the names. When several sources offer
+          a value for one variable: explicit edge mapping, then workflow variable, then by-name
+          edge delivery, then the node's static value, then the variable's default.
+        items:
+          $ref: "#/definitions/WorkflowNodeSurveyInput"
 
   WorkflowEdge:
     type: object
@@ -1590,6 +2340,19 @@ definitions:
         items:
           $ref: "#/definitions/WorkflowInputMapping"
 
+  WorkflowNodeSurveyInput:
+    type: object
+    required:
+      - var
+      - workflow_var
+    properties:
+      var:
+        type: string
+        description: Non-secret survey variable of the node's template.
+      workflow_var:
+        type: string
+        description: Non-secret survey variable of the workflow whose value the run collected.
+
   WorkflowInputMapping:
     type: object
     required: [var, key]
@@ -1613,12 +2376,23 @@ definitions:
         type: string
       description:
         type: string
+      permissions:
+        type: integer
+        description: What the caller may do with this workflow, the project verbs plus the grants on it (read-only).
       revision_id:
         type: integer
         description: Revision the nodes and edges were read from (read-only).
       revision:
         type: integer
         description: Ordinal of that revision within the workflow (read-only).
+      survey_vars:
+        type: array
+        description: >-
+          Survey asked when a run is started (the same shape as a template's survey; a secret
+          type is rejected). Stored with the graph revision, so every run knows the survey it
+          answered.
+        items:
+          $ref: "#/definitions/TemplateSurveyVar"
       nodes:
         type: array
         items:
@@ -1627,6 +2401,18 @@ definitions:
         type: array
         items:
           $ref: "#/definitions/WorkflowEdge"
+
+  WorkflowRunRequest:
+    type: object
+    description: >-
+      Body of "Run workflow"; optional. The answers to the workflow's survey. The server applies
+      the survey defaults, rejects the start with a validation error when a required variable has
+      no value or a value does not fit its type, and drops keys that are not survey variables.
+    properties:
+      environment:
+        type: object
+        description: Survey variable name → value (a select variable takes a list of strings).
+        additionalProperties: true
 
   WorkflowRun:
     type: object
@@ -1643,6 +2429,12 @@ definitions:
       status:
         type: string
         enum: [running, success, failed, stopped, approval]
+      environment:
+        type: object
+        description: >-
+          Survey answers the run was started with, after defaults and type checks (read-only).
+          Absent for a workflow without a survey. Never holds a secret.
+        additionalProperties: true
       start:
         type: string
         format: date-time
@@ -1651,6 +2443,28 @@ definitions:
         format: date-time
       root_task_id:
         type: integer
+      rerun_of_run_id:
+        type: integer
+        description: The run this one repeats. Absent for a run started the usual way.
+      rerun_mode:
+        type: string
+        enum: [all, failed]
+        description: >-
+          How the run repeats rerun_of_run_id: `all` runs every node again, `failed` runs the
+          failed nodes and everything after them again and carries the rest over.
+
+  WorkflowRerunRequest:
+    type: object
+    required:
+      - mode
+    properties:
+      mode:
+        type: string
+        enum: [all, failed]
+        description: >-
+          `all` runs every node again. `failed` runs the failed nodes and everything after them
+          again; nodes that succeeded are carried over, and an approval that stands before a
+          node that runs again is requested again.
 
   WorkflowApproval:
     type: object
@@ -1684,6 +2498,11 @@ definitions:
         $ref: "#/definitions/Task"
       approval:
         $ref: "#/definitions/WorkflowApproval"
+      carried_from_run_id:
+        type: integer
+        description: >-
+          Set for a node that a `failed` re-run did not execute again: the task or approval
+          shown is what the node came to in that earlier run.
 
   WorkflowRunDetails:
     type: object
@@ -1724,6 +2543,11 @@ definitions:
       has_runs:
         type: boolean
         description: At least one run pins this revision, so it survives later saves.
+      survey_vars:
+        type: array
+        description: Survey of this revision (see WorkflowTemplate.survey_vars).
+        items:
+          $ref: "#/definitions/TemplateSurveyVar"
 
   WorkflowApprovalResolveRequest:
     type: object
@@ -1762,14 +2586,14 @@ parameters:
     in: path
     type: integer
     required: true
-    x-example: 22
+    x-example: 21
   revision_id:
     name: revision_id
     description: workflow revision ID
     in: path
     type: integer
     required: true
-    x-example: 23
+    x-example: 22
   user_id:
     name: user_id
     description: User ID
@@ -1777,6 +2601,20 @@ parameters:
     type: integer
     required: true
     x-example: 2
+  assignment_id:
+    name: assignment_id
+    description: Global role assignment ID
+    in: path
+    type: integer
+    required: true
+    x-example: 23
+  role_id:
+    name: role_id
+    description: Global role ID
+    in: path
+    type: integer
+    required: true
+    x-example: 24
   key_id:
     name: key_id
     description: key ID
@@ -1797,7 +2635,7 @@ parameters:
     in: path
     type: integer
     required: true
-    x-example: 21
+    x-example: 29
 
   inventory_id:
     name: inventory_id
@@ -1827,6 +2665,34 @@ parameters:
     type: integer
     required: true
     x-example: 18
+  host_id:
+    name: host_id
+    description: Host ID
+    in: path
+    type: integer
+    required: true
+    x-example: 26
+  inventory_host_id:
+    name: inventory_host_id
+    description: host ID of a managed inventory
+    in: path
+    type: integer
+    required: true
+    x-example: 27
+  inventory_group_id:
+    name: inventory_group_id
+    description: group ID of a managed inventory
+    in: path
+    type: integer
+    required: true
+    x-example: 28
+  perm_id:
+    name: perm_id
+    description: role grant ID
+    in: path
+    type: integer
+    required: true
+    x-example: 25
   run_id:
     name: run_id
     description: workflow run ID
@@ -2362,6 +3228,175 @@ paths:
         204:
           description: Password updated
 
+  /users/{user_id}/global-roles:
+    parameters:
+      - $ref: "#/parameters/user_id"
+    get:
+      tags:
+        - user
+      summary: Lists the global roles assigned to the user
+      description: Requires the global permission "Can manage global roles".
+      responses:
+        200:
+          description: Global role assignments
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/GlobalRoleAssignment"
+    post:
+      tags:
+        - user
+      summary: Assigns a global role to the user
+      description: Requires the global permission "Can manage global roles". Only a global role can be assigned.
+      consumes:
+        - application/json
+      parameters:
+        - name: Assignment
+          in: body
+          required: true
+          schema:
+            type: object
+            required:
+              - role_id
+            properties:
+              role_id:
+                type: integer
+                minimum: 1
+                example: 1
+      responses:
+        201:
+          description: Global role assigned
+          schema:
+            $ref: "#/definitions/GlobalRoleAssignment"
+        400:
+          description: Unknown global role or the user already holds it
+
+  /users/{user_id}/global-roles/{assignment_id}:
+    parameters:
+      - $ref: "#/parameters/user_id"
+      - $ref: "#/parameters/assignment_id"
+    delete:
+      tags:
+        - user
+      summary: Removes a global role from the user
+      description: Refused when the user is the last one who can manage global roles.
+      responses:
+        204:
+          description: Global role removed
+        409:
+          description: The instance would be left without an administrator
+
+  /users/{user_id}/global-permissions:
+    parameters:
+      - $ref: "#/parameters/user_id"
+    get:
+      tags:
+        - user
+      summary: Effective global permissions of the user
+      description: Everything for an admin, otherwise the union of the assigned global roles, with the role that grants each permission.
+      responses:
+        200:
+          description: Effective global permissions
+          schema:
+            $ref: "#/definitions/EffectiveGlobalPermissions"
+
+  /global-roles/permissions:
+    get:
+      tags:
+        - user
+      summary: Lists the global permissions a global role can grant
+      description: Requires the global permission "Can manage global roles".
+      responses:
+        200:
+          description: Global permission catalog
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/GlobalPermissionDefinition"
+
+  /global-roles:
+    get:
+      tags:
+        - user
+      summary: Lists global roles
+      description: A global role grants instance-wide permissions to the users it is assigned to. Requires the global permission "Can manage global roles".
+      responses:
+        200:
+          description: Global roles
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/GlobalRole"
+    post:
+      tags:
+        - user
+      summary: Creates a global role
+      description: Requires the global permission "Can manage global roles".
+      consumes:
+        - application/json
+      parameters:
+        - name: Global role
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/GlobalRoleRequest"
+      responses:
+        201:
+          description: Global role created
+          schema:
+            $ref: "#/definitions/GlobalRole"
+        400:
+          description: Invalid role or the slug is taken
+
+  /global-roles/{role_id}:
+    parameters:
+      - $ref: "#/parameters/role_id"
+    get:
+      tags:
+        - user
+      summary: Gets a global role
+      responses:
+        200:
+          description: Global role
+          schema:
+            $ref: "#/definitions/GlobalRole"
+    put:
+      tags:
+        - user
+      summary: Updates a global role
+      description: Changes the name and the permissions; the slug stays. Refused when the role would stop being the only way to manage global roles.
+      consumes:
+        - application/json
+      parameters:
+        - name: Global role
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/GlobalRoleRequest"
+      responses:
+        204:
+          description: Global role updated
+        400:
+          description: Invalid role
+        409:
+          description: The instance would be left without an administrator
+    delete:
+      tags:
+        - user
+      summary: Deletes a global role
+      description: A role that users hold is refused with the number of holders; with force=true the assignments are removed too, unless the holders are the last administrators.
+      parameters:
+        - name: force
+          in: query
+          required: false
+          type: boolean
+          description: Delete the role together with its assignments
+      responses:
+        204:
+          description: Global role deleted
+        409:
+          description: The role is assigned to users, or the instance would be left without an administrator
+
   # Projects
   /projects:
     get:
@@ -2392,7 +3427,7 @@ paths:
           description: Created project
           schema:
             $ref: "#/definitions/Project"
-  
+
   /projects/restore:
     post:
       tags:
@@ -2410,7 +3445,7 @@ paths:
         200:
           description: Created project
           schema:
-            $ref: "#/definitions/Project"
+            $ref: "#/definitions/RestoredProject"
 
   /events:
     get:
@@ -2422,7 +3457,7 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Event'
-  
+
   /events/last:
     get:
       summary: Get last 200 Events related to Semaphore and projects you are part of
@@ -2761,7 +3796,7 @@ paths:
           description: Integration Created
           schema:
             $ref: "#/definitions/Integration"
-  
+
   /project/{project_id}/integrations/{integration_id}:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -2998,7 +4033,7 @@ paths:
           in: query
           required: false
           type: string
-          enum: [none, ssh, login_password]
+          enum: [none, ssh, login_password, string]
           description: Filter by key type
           x-example: none
         - name: sort
@@ -3364,6 +4399,292 @@ paths:
         204:
           description: inventory removed
 
+  /project/{project_id}/inventory/{inventory_id}/variables:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    put:
+      tags:
+        - inventory
+      summary: Replaces the variables of a managed inventory
+      parameters:
+        - name: variables
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [variables]
+            properties:
+              variables:
+                type: string
+                description: Group variables as YAML or JSON mapping
+                example: "http_port: 8080"
+      responses:
+        400:
+          description: Invalid variables or the inventory is not managed
+        204:
+          description: variables replaced
+
+  /project/{project_id}/inventory/{inventory_id}/hosts:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    get:
+      tags:
+        - inventory
+      summary: Get hosts of a managed inventory
+      parameters:
+        - name: search
+          in: query
+          required: false
+          type: string
+          description: Part of the host name, case-insensitive
+        - name: offset
+          in: query
+          required: false
+          type: integer
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 50 by default (also for 0), 1000 at most
+        - name: group
+          in: query
+          required: false
+          type: integer
+          description: Only hosts of this group and of its descendants
+        - name: ungrouped
+          in: query
+          required: false
+          type: boolean
+          description: Only hosts without a group, can not be used together with group
+      responses:
+        400:
+          description: Invalid query parameter or the inventory is not managed
+        404:
+          description: The group is not in the inventory
+        200:
+          description: Page of hosts, X-Total-Count header holds the total
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/InventoryHost"
+    post:
+      tags:
+        - inventory
+      summary: Add a host to a managed inventory
+      parameters:
+        - name: InventoryHost
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/InventoryHostRequest"
+      responses:
+        400:
+          description: >-
+            Invalid host, too many groups, a group to add that is not in this inventory, or the
+            inventory is not managed
+        201:
+          description: host created
+          schema:
+            $ref: "#/definitions/InventoryHost"
+
+  /project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+      - $ref: "#/parameters/inventory_host_id"
+    get:
+      tags:
+        - inventory
+      summary: Get a host of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        200:
+          description: host object
+          schema:
+            $ref: "#/definitions/InventoryHost"
+    put:
+      tags:
+        - inventory
+      summary: Updates a host of a managed inventory
+      parameters:
+        - name: InventoryHost
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/InventoryHostRequest"
+      responses:
+        400:
+          description: >-
+            Invalid host, too many groups, an ID both added and removed, a group to add that is not
+            in this inventory, or the inventory is not managed
+        204:
+          description: host updated
+    delete:
+      tags:
+        - inventory
+      summary: Removes a host of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        204:
+          description: host removed
+
+  /project/{project_id}/inventory/{inventory_id}/hosts/{inventory_host_id}/enabled:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+      - $ref: "#/parameters/inventory_host_id"
+    put:
+      tags:
+        - inventory
+      summary: Enables or disables a host of a managed inventory
+      parameters:
+        - name: enabled
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [enabled]
+            properties:
+              enabled:
+                type: boolean
+                example: false
+      responses:
+        400:
+          description: No enabled value or the inventory is not managed
+        204:
+          description: host enabled or disabled
+
+  /project/{project_id}/inventory/{inventory_id}/host_groups:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    put:
+      tags:
+        - inventory
+      summary: Adds hosts of a managed inventory to groups and removes them from groups
+      parameters:
+        - name: changes
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [hosts]
+            properties:
+              hosts:
+                type: array
+                description: IDs of hosts of the inventory
+                minItems: 1
+                maxItems: 1000
+                items:
+                  type: integer
+              add:
+                type: array
+                description: IDs of groups to add the hosts to. Together with remove at most 100.
+                maxItems: 100
+                items:
+                  type: integer
+              remove:
+                type: array
+                description: IDs of groups to remove the hosts from. Together with add at most 100.
+                maxItems: 100
+                items:
+                  type: integer
+      responses:
+        400:
+          description: >-
+            No hosts, nothing to add or remove, too many hosts or groups, an ID both added and removed,
+            a host or a group to add that is not in this inventory, or the inventory is not managed
+        404:
+          description: The inventory does not exist
+        204:
+          description: groups of the hosts changed or were already as asked
+
+  /project/{project_id}/inventory/{inventory_id}/groups:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    get:
+      tags:
+        - inventory
+      summary: Get groups of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        200:
+          description: All groups of the inventory
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/InventoryGroup"
+    post:
+      tags:
+        - inventory
+      summary: Add a group to a managed inventory
+      parameters:
+        - name: InventoryGroup
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/InventoryGroupRequest"
+      responses:
+        400:
+          description: Invalid group or the inventory is not managed
+        201:
+          description: group created
+          schema:
+            $ref: "#/definitions/InventoryGroup"
+
+  /project/{project_id}/inventory/{inventory_id}/groups/{inventory_group_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+      - $ref: "#/parameters/inventory_group_id"
+    get:
+      tags:
+        - inventory
+      summary: Get a group of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        404:
+          description: The group is not in the inventory
+        200:
+          description: group object
+          schema:
+            $ref: "#/definitions/InventoryGroup"
+    put:
+      tags:
+        - inventory
+      summary: Updates a group of a managed inventory
+      parameters:
+        - name: InventoryGroup
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/InventoryGroupRequest"
+      responses:
+        400:
+          description: Invalid group, a cycle of groups, or the inventory is not managed
+        404:
+          description: The group is not in the inventory
+        204:
+          description: group updated
+    delete:
+      tags:
+        - inventory
+      summary: Removes a group of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        404:
+          description: The group is not in the inventory
+        204:
+          description: group removed
+
   # project environment
   /project/{project_id}/environment:
     parameters:
@@ -3529,6 +4850,8 @@ paths:
           description: template object
           schema:
             $ref: "#/definitions/Template"
+        404:
+          description: no such template, or the member may not read it
     put:
       tags:
         - template
@@ -3549,6 +4872,74 @@ paths:
       responses:
         204:
           description: template removed
+
+  /project/{project_id}/templates/{template_id}/perms:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+    get:
+      tags:
+        - template
+      summary: Get template permissions
+      responses:
+        200:
+          description: role grants on the template
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/TemplateRolePermission"
+    post:
+      tags:
+        - template
+      summary: Grant a role on the template
+      parameters:
+        - name: permission
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/TemplateRolePermission"
+      responses:
+        201:
+          description: grant created
+          schema:
+            $ref: "#/definitions/TemplateRolePermission"
+        400:
+          description: unknown role or permissions outside the template verbs
+
+  /project/{project_id}/templates/{template_id}/perms/{perm_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/template_id"
+      - $ref: "#/parameters/perm_id"
+    get:
+      tags:
+        - template
+      summary: Get one template permission
+      responses:
+        200:
+          description: role grant
+          schema:
+            $ref: "#/definitions/TemplateRolePermission"
+    put:
+      tags:
+        - template
+      summary: Change the permissions of a grant
+      parameters:
+        - name: permission
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/TemplateRolePermission"
+      responses:
+        204:
+          description: grant updated
+    delete:
+      tags:
+        - template
+      summary: Remove a grant
+      responses:
+        204:
+          description: grant removed
 
   # project workflows
   /project/{project_id}/workflows:
@@ -3594,6 +4985,8 @@ paths:
           description: workflow template
           schema:
             $ref: "#/definitions/WorkflowTemplate"
+        404:
+          description: no such workflow, or the member may not read it
     put:
       tags:
         - workflow
@@ -3648,6 +5041,74 @@ paths:
           schema:
             $ref: "#/definitions/WorkflowTemplate"
 
+  /project/{project_id}/workflows/{workflow_id}/perms:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+    get:
+      tags:
+        - workflow
+      summary: Get workflow permissions
+      responses:
+        200:
+          description: role grants on the workflow
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/WorkflowRolePermission"
+    post:
+      tags:
+        - workflow
+      summary: Grant a role on the workflow
+      parameters:
+        - name: permission
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowRolePermission"
+      responses:
+        201:
+          description: grant created
+          schema:
+            $ref: "#/definitions/WorkflowRolePermission"
+        400:
+          description: unknown role or permissions outside the workflow verbs
+
+  /project/{project_id}/workflows/{workflow_id}/perms/{perm_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/perm_id"
+    get:
+      tags:
+        - workflow
+      summary: Get one workflow permission
+      responses:
+        200:
+          description: role grant
+          schema:
+            $ref: "#/definitions/WorkflowRolePermission"
+    put:
+      tags:
+        - workflow
+      summary: Change the permissions of a grant
+      parameters:
+        - name: permission
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowRolePermission"
+      responses:
+        204:
+          description: grant updated
+    delete:
+      tags:
+        - workflow
+      summary: Remove a grant
+      responses:
+        204:
+          description: grant removed
+
   /project/{project_id}/workflows/{workflow_id}/runs:
     parameters:
       - $ref: "#/parameters/project_id"
@@ -3667,6 +5128,12 @@ paths:
       tags:
         - workflow
       summary: Run workflow
+      parameters:
+        - name: Workflow run
+          in: body
+          required: false
+          schema:
+            $ref: "#/definitions/WorkflowRunRequest"
       responses:
         201:
           description: workflow run created
@@ -3700,6 +5167,31 @@ paths:
       responses:
         200:
           description: workflow run stopped
+          schema:
+            $ref: "#/definitions/WorkflowRun"
+
+  /project/{project_id}/workflows/{workflow_id}/runs/{run_id}/rerun:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/workflow_id"
+      - $ref: "#/parameters/run_id"
+    post:
+      tags:
+        - workflow
+      summary: Re-run workflow run
+      description: >-
+        Repeats a finished run as a new run of the same graph revision with the same survey
+        answers. The repeated run is not changed. A run that is still in progress, or a
+        `failed` re-run of a run with no failed nodes, is rejected with 400.
+      parameters:
+        - name: Re-run
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/WorkflowRerunRequest"
+      responses:
+        201:
+          description: workflow run created
           schema:
             $ref: "#/definitions/WorkflowRun"
 
@@ -3823,10 +5315,30 @@ paths:
     get:
       tags:
         - project
-      summary: Get view
+      summary: Get views
+      parameters:
+        - name: type
+          in: query
+          required: false
+          type: string
+          enum: [custom, all]
+          description: >
+            Return only the views of this type. `custom` selects the views
+            created by users (their `type` field is empty), `all` the
+            built-in "All" view. Every view is returned when omitted.
+        - name: include
+          in: query
+          required: false
+          type: string
+          enum: [template_stats]
+          description: >
+            `template_stats` adds the `template_stats` object to the views
+            that have `show_template_stats` on: the number of their templates
+            the caller may see, by the status of their last task. The other
+            views are returned without it and cost no counting.
       responses:
         200:
-          description: view
+          description: views
           schema:
             type: array
             items:
@@ -3993,6 +5505,8 @@ paths:
           description: Task
           schema:
             $ref: "#/definitions/Task"
+        404:
+          description: no such task, or the member may not read it
     delete:
       tags:
         - task
@@ -4032,6 +5546,185 @@ paths:
             content-type:
               type: string
               x-example: text/plain; charset=utf-8
+
+  /project/{project_id}/hosts:
+    parameters:
+      - $ref: "#/parameters/project_id"
+    get:
+      tags:
+        - project
+      summary: Get hosts of the project (PRO)
+      parameters:
+        - name: search
+          in: query
+          required: false
+          type: string
+          description: Part of the host name, case-insensitive
+        - name: status
+          in: query
+          required: false
+          type: string
+          enum: [failed, unreachable]
+          description: Only hosts whose last run ended with this status
+        - name: not_seen_days
+          in: query
+          required: false
+          type: integer
+          description: Only hosts no task reached for this many days
+        - name: template_id
+          in: query
+          required: false
+          type: integer
+          description: Only hosts the template ran on
+        - name: offset
+          in: query
+          required: false
+          type: integer
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 25 by default, 200 at most
+      responses:
+        400:
+          description: Invalid query parameter
+        200:
+          description: Page of hosts with the numbers of the project, X-Total-Count header holds the total
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Host"
+
+  /project/{project_id}/hosts/{host_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/host_id"
+    get:
+      tags:
+        - project
+      summary: Get a host of the project (PRO)
+      responses:
+        200:
+          description: Host, only projects of the user
+          schema:
+            $ref: "#/definitions/HostDetails"
+
+  /project/{project_id}/hosts/{host_id}/tasks:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/host_id"
+    get:
+      tags:
+        - project
+      summary: Get project tasks of the host (PRO)
+      parameters:
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 20 by default, 200 at most
+        - name: before
+          in: query
+          required: false
+          type: integer
+          description: Only tasks with an id below this one, for the next page
+      responses:
+        400:
+          description: Invalid query parameter
+        200:
+          description: Tasks newest first, X-Has-Next header says whether a next page exists
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/HostTask"
+
+  /hosts:
+    get:
+      summary: Get hosts of all projects (PRO)
+      parameters:
+        - name: search
+          in: query
+          required: false
+          type: string
+          description: Part of the host name, case-insensitive
+        - name: status
+          in: query
+          required: false
+          type: string
+          enum: [failed, unreachable]
+          description: Only hosts whose last run ended with this status
+        - name: not_seen_days
+          in: query
+          required: false
+          type: integer
+          description: Only hosts no task reached for this many days
+        - name: offset
+          in: query
+          required: false
+          type: integer
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 25 by default, 200 at most
+      responses:
+        400:
+          description: Invalid query parameter
+        200:
+          description: Page of hosts, X-Total-Count header holds the total
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Host"
+
+  /hosts/{host_id}:
+    parameters:
+      - $ref: "#/parameters/host_id"
+    get:
+      summary: Get a host (PRO)
+      responses:
+        200:
+          description: Host
+          schema:
+            $ref: "#/definitions/HostDetails"
+
+  /hosts/{host_id}/tasks:
+    parameters:
+      - $ref: "#/parameters/host_id"
+    get:
+      summary: Get tasks of the host (PRO)
+      parameters:
+        - name: count
+          in: query
+          required: false
+          type: integer
+          description: Page size, 20 by default, 200 at most
+        - name: before
+          in: query
+          required: false
+          type: integer
+          description: Only tasks with an id below this one, for the next page
+      responses:
+        400:
+          description: Invalid query parameter
+        200:
+          description: Tasks newest first, X-Has-Next header says whether a next page exists
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/HostTask"
+
+  /hosts/{host_id}/decommission:
+    parameters:
+      - $ref: "#/parameters/host_id"
+    post:
+      summary: Decommission the host (PRO)
+      responses:
+        204:
+          description: Host is decommissioned, repeated call changes nothing
+        404:
+          description: Host not found
+
   /apps:
     get:
       summary: Get apps

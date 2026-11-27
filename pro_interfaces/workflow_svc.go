@@ -1,6 +1,10 @@
 package pro_interfaces
 
-import "github.com/semaphoreui/semaphore/db"
+import (
+	"context"
+
+	"github.com/semaphoreui/semaphore/db"
+)
 
 // WorkflowService orchestrates workflow runs: starting a run, progressing it as
 // upstream tasks finish, resolving approvals and merging run artifacts. It is a
@@ -8,12 +12,28 @@ import "github.com/semaphoreui/semaphore/db"
 // (pro/services/server/workflow_svc.go); the licensed build provides the real
 // implementation (pro_impl/services/server/workflow_svc.go).
 type WorkflowService interface {
-	StartWorkflow(workflow db.WorkflowTemplate, user *db.User) (db.WorkflowRun, error)
+	// StartWorkflow creates a run of the workflow's current revision. ctx
+	// carries the audit actor of whoever started it (audit.WithActor). params
+	// carries the answers to the workflow's survey and, for a run started by a
+	// webhook, the integration id; the service applies the survey defaults and
+	// rejects the start with a validation error when a required variable has
+	// no value or a value does not fit its type.
+	StartWorkflow(ctx context.Context, workflow db.WorkflowTemplate, params db.WorkflowRunParams, user *db.User) (db.WorkflowRun, error)
+
 	ProgressWorkflowRun(projectID int, runID int, user *db.User) error
 	// StopWorkflowRun stops a non-finished run: it signals every in-flight task
 	// of the run to stop and marks the run as stopped (terminal).
 	StopWorkflowRun(projectID int, runID int, user *db.User) (db.WorkflowRun, error)
 	ResolveWorkflowApproval(projectID int, workflowID int, runID int, nodeID int, status db.WorkflowApprovalStatus, user *db.User) (db.WorkflowApproval, error)
+	// RerunWorkflowRun repeats a finished run as a new run of the same graph
+	// revision with the same survey answers; the repeated run is left as it
+	// is. With db.WorkflowRerunAll every node runs again. With
+	// db.WorkflowRerunFailed the failed nodes and everything after them run
+	// again, and the nodes that succeeded are carried over — except that an
+	// approval standing before a node that runs again is requested again. A
+	// run that is still in progress, or one with nothing to run again, is
+	// rejected with a validation error. ctx carries the audit actor.
+	RerunWorkflowRun(ctx context.Context, projectID int, workflowID int, runID int, mode db.WorkflowRerunMode, user *db.User) (db.WorkflowRun, error)
 	HandleWorkflowTaskCompletion(task db.Task) error
 	GetWorkflowRunArtifacts(projectID int, runID int, currentTaskID *int) (map[string]any, error)
 }
@@ -24,6 +44,11 @@ type WorkflowService interface {
 // avoiding an import of (and a cycle with) the services/tasks package.
 type WorkflowTaskEnqueuer interface {
 	AddTask(task db.Task, userID *int, username string, projectID int, needAlias bool) (db.Task, error)
+	// AddTaskFrom is AddTask with an explicit audit actor (carried by ctx) and
+	// audit trigger (a services/audit.Trigger* value, kept a string here so
+	// this package does not import audit). The engine uses it for the root
+	// task of a run, whose starter is known; later nodes go through AddTask.
+	AddTaskFrom(ctx context.Context, trigger string, task db.Task, userID *int, username string, projectID int, needAlias bool) (db.Task, error)
 	// AddFailedTask persists a task that can not start — the workflow engine
 	// could not resolve its inputs — already finished with the error status
 	// and with lines in its log. Nothing is enqueued: the caller is the engine

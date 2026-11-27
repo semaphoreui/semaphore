@@ -48,7 +48,14 @@ func (c *UsersController) GetUsers(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	if currentUser.Admin {
+	// Everyone may look members up by name; the details are for those who manage users.
+	managesUsers, err := hasGlobalPermission(r, currentUser, db.CanManageGlobalUsers)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	if managesUsers {
 		helpers.WriteJSON(w, http.StatusOK, users)
 	} else {
 		var result = make([]minimalUser, 0)
@@ -71,11 +78,13 @@ func (c *UsersController) AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The route requires CanManageGlobalUsers; the admin and Pro flags stay with admins, so that a user
+	// manager cannot create an account more powerful than their own.
 	editor := helpers.GetFromContext(r, "user").(*db.User)
-	if !editor.Admin {
-		c.log.WithField("editor", editor.Username).Debug("Not permitted to create users")
+	if !editor.Admin && (user.Admin || user.Pro) {
+		c.log.WithField("editor", editor.Username).Debug("Not permitted to create admin or Pro users")
 		helpers.RecordDenied(r, "admin", 0)
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -138,7 +147,12 @@ func (c *UsersController) ReadonlyUserMiddleware(next http.Handler) http.Handler
 
 		editor := helpers.GetFromContext(r, "user").(*db.User)
 
-		if !editor.Admin && editor.ID != user.ID {
+		mayManage, err := userMayManageUser(r, editor, user)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		if !mayManage && editor.ID != user.ID {
 			user = db.User{
 				ID:       user.ID,
 				Username: user.Username,
@@ -168,7 +182,12 @@ func (c *UsersController) GetUserMiddleware(next http.Handler) http.Handler {
 
 		editor := helpers.GetFromContext(r, "user").(*db.User)
 
-		if !editor.Admin && editor.ID != user.ID {
+		mayManage, err := userMayManageUser(r, editor, user)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		if !mayManage && editor.ID != user.ID {
 			c.log.WithFields(log.Fields{
 				"editor":  editor.Username,
 				"user_id": user.ID,
@@ -186,14 +205,22 @@ func (c *UsersController) GetUserMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// userUpdateRequest is the body of PUT /users/{user_id}. CurrentPwd is read only when the body also carries
+// a new password, see allowPasswordChange.
+type userUpdateRequest struct {
+	db.UserWithPwd
+	CurrentPwd string `json:"current_password"`
+}
+
 func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	targetUser := helpers.GetFromContext(r, "_user").(db.User)
 	editor := helpers.GetFromContext(r, "user").(*db.User)
 
-	var user db.UserWithPwd
-	if !helpers.Bind(w, r, &user) {
+	var req userUpdateRequest
+	if !helpers.Bind(w, r, &req) {
 		return
 	}
+	user := req.UserWithPwd
 
 	if !editor.Admin && (user.Pro && !targetUser.Pro) {
 		c.log.WithFields(log.Fields{
@@ -224,19 +251,19 @@ func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !editor.Admin && editor.ID != targetUser.ID {
-		c.log.WithFields(log.Fields{
-			"editor":  editor.Username,
-			"user_id": targetUser.ID,
-		}).Debug("Not permitted to update another user")
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
+	// GetUserMiddleware let the editor in: an admin, a user manager allowed to touch this user, or the user.
 	if editor.ID == targetUser.ID && targetUser.Admin != user.Admin {
 		c.log.WithField("editor", editor.Username).Debug("Not permitted to change own admin status")
 		helpers.RecordDenied(r, "admin", 0)
 		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Only an admin hands out the admin flag.
+	if !editor.Admin && targetUser.Admin != user.Admin {
+		c.log.WithField("editor", editor.Username).Debug("Not permitted to change the admin flag")
+		helpers.RecordDenied(r, "admin", 0)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -246,9 +273,18 @@ func (c *UsersController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The password column is also written by POST /users/{user_id}/password; both routes apply one rule.
+	if user.Pwd != "" && !c.allowPasswordChange(w, r, editor, targetUser, req.CurrentPwd) {
+		return
+	}
+
 	meta := userUpdateMetadata(targetUser, user)
 	user.ID = targetUser.ID
 	if err := helpers.Store(r).UpdateUser(user); err != nil {
+		if errors.Is(err, db.ErrInvalidOperation) {
+			helpers.WriteError(w, err)
+			return
+		}
 		c.log.WithError(err).WithField("user_id", targetUser.ID).Error("Failed to update user")
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -279,40 +315,12 @@ func (c *UsersController) UpdateUserPassword(w http.ResponseWriter, r *http.Requ
 		CurrentPwd string `json:"current_password"`
 	}
 
-	if !editor.Admin && editor.ID != user.ID {
-		c.log.WithFields(log.Fields{
-			"editor":  editor.Username,
-			"user_id": user.ID,
-		}).Debug("Not permitted to change another user's password")
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	if user.External {
-		c.log.WithField("user_id", user.ID).Debug("Password is not editable for external users")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
 	if !helpers.Bind(w, r, &pwd) {
 		return
 	}
 
-	// CWE-620: require the current password when a user changes their own,
-	// so a stolen session can't be used to take over the account. Admins
-	// changing someone else's password are exempt — they can't know it.
-	if editor.ID == user.ID {
-		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(pwd.CurrentPwd)); err != nil {
-			c.log.WithField("user_id", user.ID).Debug("Current password does not match")
-			helpers.Audit(r).Record(r.Context(), audit.Event{
-				Kind:    audit.IAMUserPasswordChange,
-				Outcome: audit.OutcomeFailure,
-				Reason:  audit.ReasonInvalidCurrentPassword,
-				Target:  audit.UserTarget(user.ID, user.Username),
-			})
-			helpers.WriteErrorStatus(w, "Current password is incorrect", http.StatusBadRequest)
-			return
-		}
+	if !c.allowPasswordChange(w, r, editor, user, pwd.CurrentPwd) {
+		return
 	}
 
 	if err := helpers.Store(r).SetUserPassword(user.ID, pwd.Pwd); err != nil {
@@ -330,20 +338,54 @@ func (c *UsersController) UpdateUserPassword(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (c *UsersController) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	user := helpers.GetFromContext(r, "_user").(db.User)
-	editor := helpers.GetFromContext(r, "user").(*db.User)
-
-	if !editor.Admin && editor.ID != user.ID {
-		c.log.WithFields(log.Fields{
-			"editor":  editor.Username,
-			"user_id": user.ID,
-		}).Debug("Not permitted to delete another user")
-		w.WriteHeader(http.StatusUnauthorized)
-		return
+// allowPasswordChange reports whether editor may give target a new password. When it does not, it has
+// already answered the request. Every handler that writes a password calls it before the write, so that
+// sibling routes cannot drift apart (GHSA-3gg5-457g-m9cg).
+//
+// CWE-620: a user changing their own password must give the current one, so that a stolen session or API
+// token can't be turned into the account's credential. This holds for admins too. An editor resetting
+// someone else's password is exempt: GetUserMiddleware only admits editors who may manage that user, and
+// they can't know the password. External users have no local password to change.
+func (c *UsersController) allowPasswordChange(
+	w http.ResponseWriter,
+	r *http.Request,
+	editor *db.User,
+	target db.User,
+	currentPwd string,
+) bool {
+	if target.External {
+		c.log.WithField("user_id", target.ID).Debug("Password is not editable for external users")
+		w.WriteHeader(http.StatusBadRequest)
+		return false
 	}
 
+	if editor.ID != target.ID {
+		return true
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(target.Password), []byte(currentPwd)); err != nil {
+		c.log.WithField("user_id", target.ID).Debug("Current password does not match")
+		helpers.Audit(r).Record(r.Context(), audit.Event{
+			Kind:    audit.IAMUserPasswordChange,
+			Outcome: audit.OutcomeFailure,
+			Reason:  audit.ReasonInvalidCurrentPassword,
+			Target:  audit.UserTarget(target.ID, target.Username),
+		})
+		helpers.WriteErrorStatus(w, "Current password is incorrect", http.StatusBadRequest)
+		return false
+	}
+
+	return true
+}
+
+func (c *UsersController) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	user := helpers.GetFromContext(r, "_user").(db.User)
+
 	if err := helpers.Store(r).DeleteUser(user.ID); err != nil {
+		if errors.Is(err, db.ErrInvalidOperation) {
+			helpers.WriteError(w, err)
+			return
+		}
 		c.log.WithError(err).WithField("user_id", user.ID).Error("Failed to delete user")
 		w.WriteHeader(http.StatusInternalServerError)
 		return

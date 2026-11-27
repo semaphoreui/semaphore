@@ -8,7 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createTestIntegration(t *testing.T, store *SqlDb) (db.Project, db.Integration) {
+// createTestTemplate creates a project with one bash template in it.
+func createTestTemplate(t *testing.T, store *SqlDb) (db.Project, db.Template) {
+	t.Helper()
 	project, err := store.CreateProject(db.Project{Name: "test project"})
 	require.NoError(t, err)
 
@@ -19,28 +21,33 @@ func createTestIntegration(t *testing.T, store *SqlDb) (db.Project, db.Integrati
 	})
 	require.NoError(t, err)
 
-	repo, err := store.CreateRepository(db.Repository{
-		Name:      "test repo",
-		ProjectID: project.ID,
-		GitURL:    "git@example.com:test/test.git",
-		GitBranch: "main",
-		SSHKeyID:  key.ID,
-	})
+	// Raw SQL: migration tests use this helper at schemas older than the
+	// columns CreateRepository writes.
+	repoID, err := store.insert("id",
+		"insert into project__repository (project_id, name, git_url, git_branch, ssh_key_id) "+
+			"values (?, 'test repo', 'git@example.com:test/test.git', 'main', ?)", project.ID, key.ID)
 	require.NoError(t, err)
 
 	template, err := store.CreateTemplate(db.Template{
 		Name:         "test template",
 		ProjectID:    project.ID,
-		RepositoryID: repo.ID,
+		RepositoryID: repoID,
 		Playbook:     "test.yml",
 		App:          db.AppBash,
 	})
 	require.NoError(t, err)
 
+	return project, template
+}
+
+func createTestIntegration(t *testing.T, store *SqlDb) (db.Project, db.Integration) {
+	t.Helper()
+	project, template := createTestTemplate(t, store)
+
 	integration, err := store.CreateIntegration(db.Integration{
 		Name:       "test integration",
 		ProjectID:  project.ID,
-		TemplateID: template.ID,
+		TemplateID: &template.ID,
 	})
 	require.NoError(t, err)
 

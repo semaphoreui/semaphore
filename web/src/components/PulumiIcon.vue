@@ -1,5 +1,5 @@
 <template>
-  <svg width="106" height="106" viewBox="0 0 106 106" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg data-testid="icon-pulumi" width="106" height="106" viewBox="0 0 106 106" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path fill-rule="evenodd" clip-rule="evenodd" d="M17.0724 58.8698C20.9836 56.6116 20.9901
     49.3006 17.0869 42.5403C13.1837 35.7799 6.84888 32.1302 2.93767 34.3885C-0.973544 36.6467
     -0.980046 43.9576 2.92315 50.718C6.82634 57.4783 13.1612 61.128 17.0724 58.8698ZM17.0958

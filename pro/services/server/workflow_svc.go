@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
 )
@@ -22,7 +24,7 @@ func NewWorkflowReconciler(_ db.WorkflowManager, _ pro_interfaces.WorkflowServic
 	return nil
 }
 
-func (s *workflowService) StartWorkflow(workflow db.WorkflowTemplate, user *db.User) (db.WorkflowRun, error) {
+func (s *workflowService) StartWorkflow(ctx context.Context, workflow db.WorkflowTemplate, params db.WorkflowRunParams, user *db.User) (db.WorkflowRun, error) {
 	return db.WorkflowRun{}, nil
 }
 
@@ -36,6 +38,10 @@ func (s *workflowService) StopWorkflowRun(projectID int, runID int, user *db.Use
 
 func (s *workflowService) ResolveWorkflowApproval(projectID int, workflowID int, runID int, nodeID int, status db.WorkflowApprovalStatus, user *db.User) (db.WorkflowApproval, error) {
 	return db.WorkflowApproval{}, nil
+}
+
+func (s *workflowService) RerunWorkflowRun(ctx context.Context, projectID int, workflowID int, runID int, mode db.WorkflowRerunMode, user *db.User) (db.WorkflowRun, error) {
+	return db.WorkflowRun{}, nil
 }
 
 func (s *workflowService) HandleWorkflowTaskCompletion(task db.Task) error {

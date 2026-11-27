@@ -43,7 +43,7 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 	require.NoError(t, err)
 
 	// SqlDb.CreateRepository writes monorepo and proxy_id, which appear only in
-	// 2.20.11 and 2.20.13, so seed the repository with SQL matching the 2.19.12
+	// 2.20.11 and 2.21.10, so seed the repository with SQL matching the 2.19.12
 	// schema.
 	repoID, err := store.insert("id",
 		"insert into project__repository (project_id, name, git_url, git_branch, ssh_key_id) "+
@@ -58,18 +58,16 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 		projectID, repoID)
 	require.NoError(t, err)
 
-	task, err := store.CreateTask(db.Task{
-		TemplateID: templateID,
-		ProjectID:  projectID,
-		Status:     "success",
-		Playbook:   "site.yml",
-		UserID:     &user.ID,
-		Created:    now,
-	}, 0)
+	// SqlDb.CreateTask writes effective_inventory_id, which appears only in 2.21.8,
+	// so seed the task with SQL matching the 2.19.12 schema.
+	taskID, err := store.insert("id",
+		"insert into task (template_id, project_id, status, playbook, environment, user_id, created) "+
+			"values (?, ?, 'success', 'site.yml', '', ?, ?)",
+		templateID, projectID, user.ID, now)
 	require.NoError(t, err)
 
 	_, err = store.CreateTaskOutput(db.TaskOutput{
-		TaskID: task.ID,
+		TaskID: taskID,
 		Time:   now,
 		Output: "ok",
 	})
@@ -89,12 +87,12 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, survivedSession.UserID)
 
-	survivedTask, err := store.GetTask(projectID, task.ID)
+	survivedTask, err := store.GetTask(projectID, taskID)
 	require.NoError(t, err)
 	require.NotNil(t, survivedTask.UserID)
 	assert.Equal(t, user.ID, *survivedTask.UserID)
 
-	outputs, err := store.GetTaskOutputs(projectID, task.ID, db.RetrieveQueryParams{})
+	outputs, err := store.GetTaskOutputs(projectID, taskID, db.RetrieveQueryParams{})
 	require.NoError(t, err)
 	assert.Len(t, outputs, 1)
 
@@ -106,7 +104,7 @@ func TestMigration_2_19_14_DataSurvivesRebuild(t *testing.T) {
 	_, err = store.GetSession(user.ID, session.ID)
 	assert.ErrorIs(t, err, db.ErrNotFound)
 
-	survivedTask, err = store.GetTask(projectID, task.ID)
+	survivedTask, err = store.GetTask(projectID, taskID)
 	require.NoError(t, err)
 	assert.Nil(t, survivedTask.UserID)
 }

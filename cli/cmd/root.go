@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -15,6 +17,7 @@ import (
 	"github.com/semaphoreui/semaphore/api"
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/api/sockets"
+	"github.com/semaphoreui/semaphore/cli/cmd/client"
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/db/factory"
 	"github.com/semaphoreui/semaphore/pkg/debuglog"
@@ -114,8 +117,13 @@ var registerPersistentFlags = sync.OnceFunc(func() {
 func Execute() {
 	registerPersistentFlags()
 	if err := rootCmd.Execute(); err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		// Ctrl+C needs no explanation, and "context canceled" is not one.
+		if !errors.Is(err, context.Canceled) {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+		}
+		// `semaphore client` distinguishes usage, auth, not-found and task
+		// outcomes by exit code; every other command keeps exiting with 1.
+		os.Exit(client.ExitCode(err))
 	}
 }
 
@@ -171,6 +179,37 @@ func runService() {
 
 	// Initialize HA node identity before any component that uses it.
 	util.InitHANodeID()
+	for _, warning := range util.HAWarnings() {
+		log.Warn(warning)
+	}
+
+	// One Redis connection per node, shared by every HA component so that
+	// they all see the same master and the node holds one connection pool.
+	// Nil outside HA mode and in the open-source build. An HA node that
+	// cannot reach Redis must not start: it would fire schedules and claim
+	// tasks without coordinating with the rest of the cluster.
+	haRedis := proHA.NewHARedis()
+	if haRedis != nil {
+		pingCtx, cancelPing := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := haRedis.Ping(pingCtx); err != nil {
+			cancelPing()
+			log.WithError(err).WithField("redis", haRedis.Describe()).Fatal("failed to connect to the HA Redis backend")
+		}
+		cancelPing()
+		defer haRedis.Close()
+		log.WithField("redis", haRedis.Describe()).Info("HA Redis backend connected")
+	}
+
+	// The store caches runners by token in memory, which is only correct on a
+	// single node: HA nodes must share the cache so that an invalidation made
+	// by one node reaches the others.
+	if runnerCache := proHA.NewRunnerCache(haRedis); runnerCache != nil {
+		holder, ok := store.(db.RunnerCacheHolder)
+		if !ok {
+			log.Fatalf("store %T does not support a shared runner cache", store)
+		}
+		holder.SetRunnerCache(runnerCache)
+	}
 
 	appMetrics := metrics.NewMetrics()
 
@@ -178,17 +217,19 @@ func runService() {
 		store,
 		util.Config.Audit,
 		util.HANodeID(),
-		proServer.NewAuditExporter(store, util.Config.Audit, proHA.NewAuditExportLeaser(), appMetrics),
+		proServer.NewAuditExporter(store, util.Config.Audit, proHA.NewAuditExportLeaser(haRedis), appMetrics),
 	)
 	if auditErr != nil {
 		log.WithError(auditErr).Fatal("failed to start the audit log")
 	}
 	defer auditService.Stop()
 
-	state := proTasks.NewTaskStateStore()
+	state := proTasks.NewTaskStateStore(haRedis)
 	terraformStore := proFactory.NewTerraformStore(store)
 	ansibleTaskRepo := proFactory.NewAnsibleTaskRepository(store)
+	hostRepo := proFactory.NewHostRepository(store)
 	workflowStore := proFactory.NewWorkflowStore(store)
+	globalRoleStore := proFactory.NewGlobalRoleStore(store)
 	roleMappingStore := proFactory.NewRoleMappingStore(store)
 
 	projectService := server.NewProjectService(store, store)
@@ -230,7 +271,7 @@ func runService() {
 	// enqueuer), then inject the service back into the pool. The run locker is
 	// Redis-backed in HA mode (cluster-wide progression locks) and nil
 	// otherwise, which makes the service fall back to its in-process locker.
-	workflowService := proServer.NewWorkflowService(workflowStore, store, &taskPool, proHA.NewWorkflowRunLocker())
+	workflowService := proServer.NewWorkflowService(workflowStore, store, &taskPool, proHA.NewWorkflowRunLocker(haRedis))
 	taskPool.SetWorkflowService(workflowService)
 	taskPool.SetTaskOutputsCollector(proTasks.NewTaskOutputsCollector())
 
@@ -240,6 +281,8 @@ func runService() {
 		accessKeyInstallationService,
 		encryptionService,
 	)
+
+	schedulePool.SetWorkflowService(workflowStore, workflowService)
 
 	defer schedulePool.Destroy()
 	defer taskPool.Stop()
@@ -251,7 +294,8 @@ func runService() {
 	// 2. Schedule deduplication: only one node fires each schedule occurrence
 	// 3. WebSocket broadcaster: real-time events reach clients on all nodes
 	// 4. Orphan cleaner: tasks from dead nodes are marked as failed
-	if nodeRegistry := proHA.NewNodeRegistry(); nodeRegistry != nil {
+	nodeRegistry := proHA.NewNodeRegistry(haRedis)
+	if nodeRegistry != nil {
 		if err := nodeRegistry.Start(); err != nil {
 			log.WithError(err).Fatal("failed to start HA node registry")
 		}
@@ -262,12 +306,16 @@ func runService() {
 	// Cluster inspector powers the admin Cluster Dashboard. It is nil when HA
 	// is disabled; the dashboard then falls back to the local task pool. The
 	// instance is injected per-request below.
-	clusterInspector := proHA.NewClusterInspector()
+	clusterInspector := proHA.NewClusterInspector(haRedis)
 
-	if dedup := proHA.NewScheduleDeduplicator(); dedup != nil {
+	if dedup := proHA.NewScheduleDeduplicator(haRedis); dedup != nil {
 		schedulePool.SetDeduplicator(dedup)
 		secretStorageSyncScheduler.SetTickDeduplicator(dedup)
 	}
+
+	// The runners the pool built at creation hold the pool as it was then,
+	// without the deduplicator and the workflow engine: rebuild them.
+	schedulePool.Refresh()
 
 	// Each process holds its own in-memory cron table. Schedule CRUD handlers only
 	// call Refresh on the node that served the HTTP request, so other HA nodes
@@ -283,7 +331,7 @@ func runService() {
 		}()
 	}
 
-	if orphanCleaner := proHA.NewOrphanCleaner(store); orphanCleaner != nil {
+	if orphanCleaner := proHA.NewOrphanCleaner(haRedis, nodeRegistry, store); orphanCleaner != nil {
 		orphanCleaner.Start()
 		defer orphanCleaner.Stop()
 	}
@@ -299,11 +347,7 @@ func runService() {
 
 	util.Config.PrintDbInfo()
 
-	port := util.Config.Port
-
-	if !strings.HasPrefix(port, ":") {
-		port = ":" + port
-	}
+	port := util.Config.Port.Addr()
 
 	fmt.Printf("Tmp Path (projects home) %v\n", util.Config.TmpPath)
 	fmt.Printf("Semaphore %v\n", util.Version())
@@ -316,7 +360,7 @@ func runService() {
 	// channel is being consumed when LocalBroadcast is called.
 	go sockets.StartWS()
 
-	if wsBroadcaster := proHA.NewWSBroadcaster(); wsBroadcaster != nil {
+	if wsBroadcaster := proHA.NewWSBroadcaster(haRedis); wsBroadcaster != nil {
 		sockets.SetBroadcaster(wsBroadcaster)
 		wsBroadcaster.Start()
 		defer wsBroadcaster.Stop()
@@ -331,10 +375,12 @@ func runService() {
 
 	route := api.Route(
 		store,
+		globalRoleStore,
 		terraformStore,
 		workflowStore,
 		roleMappingStore,
 		ansibleTaskRepo,
+		hostRepo,
 		&taskPool,
 		projectService,
 		integrationService,

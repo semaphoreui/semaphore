@@ -42,8 +42,8 @@ func (c *RolesController) GetProjectRoles(w http.ResponseWriter, r *http.Request
 	helpers.WriteJSON(w, http.StatusOK, []string{})
 }
 
-func (c *RolesController) GetProjectAndGlobalRoles(w http.ResponseWriter, r *http.Request) {
-	roles, err := c.roleRepo.GetGlobalRoles()
+func (c *RolesController) GetProjectAndSharedRoles(w http.ResponseWriter, r *http.Request) {
+	roles, err := c.roleRepo.GetSharedRoles()
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

@@ -1,8 +1,14 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div>
+<template>
+  <NoProjects v-if="user && !user.can_create_project" :user="user"/>
+  <div v-else data-testid="restoreProject-page">
     <v-toolbar flat >
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('restoreProject') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="restoreProject-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title
+        data-testid="restoreProject-title"
+      >{{ $t('restoreProject') }}</v-toolbar-title>
       <v-spacer></v-spacer>
     </v-toolbar>
 
@@ -18,7 +24,11 @@
         </div>
 
         <div class="text-right">
-            <v-btn color="primary" @click="restoreProject()">{{ $t('restore') }}</v-btn>
+            <v-btn
+              color="primary"
+              @click="restoreProject()"
+              data-testid="restoreProject-restore"
+            >{{ $t('restore') }}</v-btn>
         </div>
         </div>
     </div>
@@ -31,9 +41,13 @@
 <script>
 import EventBus from '@/event-bus';
 import RestoreProjectForm from '@/components/RestoreProjectForm.vue';
+import NoProjects from '@/components/NoProjects.vue';
 
 export default {
-  components: { RestoreProjectForm },
+  components: { RestoreProjectForm, NoProjects },
+  props: {
+    user: Object,
+  },
   data() {
     return {
     };

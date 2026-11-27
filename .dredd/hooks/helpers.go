@@ -55,12 +55,17 @@ func truncateAll() {
 		"task",
 		"session",
 		"project__environment",
+		"project__inventory_group_child",
+		"project__inventory_group_host",
+		"project__inventory_group",
+		"project__inventory_host",
 		"project__inventory",
 		"project__repository",
 		"project__template",
 		"project__template_vault",
 		"project__schedule",
 		"project__user_role",
+		"user__global_role",
 		"user",
 		"project__view",
 		"project__integration",
@@ -120,7 +125,7 @@ func setupObjectsAndPaths(t *transaction.Transaction) {
 
 // Object Lifecycle
 func addUserProjectRelation(pid int, user int) {
-	owner, err := store.GetGlobalRoleBySlug("owner")
+	owner, err := store.GetSharedRoleBySlug("owner")
 	if err != nil {
 		panic(err)
 	}
@@ -189,6 +194,62 @@ func addUser() *db.User {
 	return &user
 }
 
+// addGlobalRole creates a global role that grants the audit log, so that it can be assigned to a user.
+func addTemplatePerm() int {
+	role, err := store.GetSharedRoleBySlug("task_runner")
+	if err != nil {
+		panic(err)
+	}
+	perm, err := store.CreateTemplateRole(db.TemplateRolePerm{
+		ProjectID:   userProject.ID,
+		TemplateID:  templateID,
+		RoleID:      role.ID,
+		Permissions: db.CanRunProjectTasks,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return perm.ID
+}
+
+func addWorkflowPerm() int {
+	role, err := store.GetSharedRoleBySlug("task_runner")
+	if err != nil {
+		panic(err)
+	}
+	perm, err := store.CreateWorkflowRole(db.WorkflowRolePerm{
+		ProjectID:   userProject.ID,
+		WorkflowID:  workflowID,
+		RoleID:      role.ID,
+		Permissions: db.CanRunWorkflows,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return perm.ID
+}
+
+func addGlobalRole() *db.GlobalRole {
+	uid := getUUID()
+	role, err := globalRoleStore.CreateGlobalRole(db.GlobalRole{
+		Slug:        "ITGR-" + uid,
+		Name:        "ITGR-" + uid,
+		Permissions: db.CanReadGlobalAudit,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &role
+}
+
+func addGlobalRoleAssignment(userID int, roleID int) *db.GlobalRoleAssignment {
+	assignment, err := globalRoleStore.CreateGlobalRoleAssignment(userID, roleID)
+	if err != nil {
+		panic(err)
+	}
+	return &assignment
+}
+
 func addView() *db.View {
 	view, err := store.CreateView(db.View{
 		ProjectID: userProject.ID,
@@ -225,8 +286,9 @@ func addInvite() *db.ProjectInvite {
 }
 
 func addSchedule() *db.Schedule {
+	tplID := int(templateID)
 	schedule, err := store.CreateSchedule(db.Schedule{
-		TemplateID: int(templateID),
+		TemplateID: &tplID,
 		CronFormat: "* * * 1 *",
 		ProjectID:  userProject.ID,
 	})
@@ -265,7 +327,7 @@ func addIntegration() *db.Integration {
 	integration, err := store.CreateIntegration(db.Integration{
 		ProjectID:  userProject.ID,
 		Name:       "Test Integration",
-		TemplateID: templateID,
+		TemplateID: &templateID,
 	})
 	if err != nil {
 		panic(err)
@@ -378,10 +440,14 @@ func addWorkflow() *db.WorkflowTemplate {
 }
 
 func addWorkflowRun() *db.WorkflowRun {
+	return addWorkflowRunWithStatus(db.WorkflowRunRunning)
+}
+
+func addWorkflowRunWithStatus(status db.WorkflowRunStatus) *db.WorkflowRun {
 	run, err := workflowStore.CreateWorkflowRun(db.WorkflowRun{
 		ProjectID:          userProject.ID,
 		WorkflowTemplateID: workflowID,
-		Status:             db.WorkflowRunRunning,
+		Status:             status,
 		Start:              new(tz.Now()),
 	})
 	if err != nil {
@@ -440,6 +506,24 @@ func isProBuild() bool {
 	return proFeatures.GetFeatures(&db.User{}, "").Workflows
 }
 
+// globalRolesEnabled reports whether the server under test offers global roles to the test user: the PRO
+// implementation enables them only for an active PRO plan, which the Dredd stand does not have.
+func globalRolesEnabled() bool {
+	return proFeatures.GetFeatures(&db.User{}, "").GlobalRolesManagement
+}
+
+// customRolesEnabled reports whether the server under test lets the test user write object grants: the PRO
+// implementation enables them only for an active Enterprise plan, which the Dredd stand does not have.
+func customRolesEnabled() bool {
+	return proFeatures.GetFeatures(&db.User{}, "").CustomRolesManagement
+}
+
+// hostsEnabled reports whether the server under test offers the hosts registry: the PRO implementation enables it
+// only for an active PRO plan, which the Dredd stand does not have.
+func hostsEnabled() bool {
+	return proFeatures.GetFeatures(&db.User{}, "").Hosts
+}
+
 // HELPERS
 var randSetup = false
 
@@ -481,6 +565,7 @@ func loadConfig() {
 
 var store db.Store
 var workflowStore db.WorkflowManager
+var globalRoleStore db.GlobalRoleStore
 
 func dbConnect() {
 	store = factory.CreateStore()
@@ -488,6 +573,7 @@ func dbConnect() {
 	store.Connect()
 
 	workflowStore = proFactory.NewWorkflowStore(store)
+	globalRoleStore = proFactory.NewGlobalRoleStore(store)
 }
 
 func stringInSlice(a string, list []string) (int, bool) {

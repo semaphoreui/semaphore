@@ -17,6 +17,14 @@ func NewWorkflowStore(store db.Store) db.WorkflowManager {
 	return &sql.WorkflowStoreImpl{}
 }
 
+func NewGlobalRoleStore(store db.Store) db.GlobalRoleStore {
+	return &sql.GlobalRoleStoreImpl{}
+}
+
 func NewRoleMappingStore(store db.Store) db.RoleMappingStore {
 	return &sql.RoleMappingStoreImpl{}
+}
+
+func NewHostRepository(store db.Store) db.HostRepository {
+	return &sql.HostStoreImpl{}
 }

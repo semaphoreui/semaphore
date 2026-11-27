@@ -1,15 +1,32 @@
 <template>
-  <div class="WorkflowNodeProperties">
+  <div class="WorkflowNodeProperties" data-testid="workflowNodeProps-panel">
     <div class="WorkflowNodeProperties__header">
-      <span class="WorkflowNodeProperties__tile" :class="`WorkflowNodeProperties__tile--${kind}`">
+      <span
+        class="WorkflowNodeProperties__tile"
+        :class="`WorkflowNodeProperties__tile--${kind}`"
+        :data-testid="`workflowNodeProps-tile-${kind}`"
+      >
         <v-icon :color="tileColor">{{ icon }}</v-icon>
       </span>
       <div class="WorkflowNodeProperties__heading">
-        <div class="text-subtitle-2 text-truncate">{{ heading }}</div>
-        <div class="text-caption text--secondary">{{ $t('workflowNodeId') }} #{{ node.id }}</div>
+        <div
+          class="text-label-large text-truncate"
+          data-testid="workflowNodeProps-heading"
+        >{{ heading }}</div>
+        <div
+          class="text-body-small text-medium-emphasis"
+          data-testid="workflowNodeProps-nodeId"
+        >{{ $t('workflowNodeId') }} #{{ node.id }}</div>
       </div>
-      <v-btn icon small :title="$t('close')" @click="$emit('close')">
-        <v-icon small>mdi-close</v-icon>
+      <v-btn
+        icon
+        variant="text"
+        size="small"
+        :title="$t('close')"
+        @click="$emit('close')"
+        data-testid="workflowNodeProps-close"
+      >
+        <v-icon size="small">mdi-close</v-icon>
       </v-btn>
     </div>
 
@@ -22,12 +39,13 @@
         :label="$t('workflowNoteText')"
         :placeholder="$t('workflowNotePlaceholder')"
         :disabled="!canManage"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         auto-grow
         rows="4"
         hide-details="auto"
-        @input="emitChange"
+        @update:model-value="emitChange"
+        data-testid="workflowNodeProps-note"
       />
 
       <template v-else>
@@ -35,14 +53,16 @@
           v-model="node.kind"
           :items="kindOptions"
           item-value="value"
-          item-text="text"
+          item-title="text"
           :label="$t('workflowNodeKind')"
           :disabled="!canManage"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           hide-details="auto"
           class="mb-5"
-          @change="onKindChanged"
+          @update:model-value="onKindChanged"
+          :menu-props="selectMenuProps"
+          data-testid="workflowNodeProps-kind"
         />
 
         <v-autocomplete
@@ -50,14 +70,16 @@
           v-model="node.template_id"
           :items="templates"
           item-value="id"
-          item-text="name"
+          item-title="name"
           :label="$t('taskTemplate')"
           :disabled="!canManage"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           hide-details="auto"
           class="mb-5"
-          @change="emitChange"
+          @update:model-value="onTemplateChanged"
+          :menu-props="{ contentClass: 'WorkflowNodeProperties__menu' }"
+          data-testid="workflowNodeProps-templateId"
         />
 
         <v-card
@@ -70,8 +92,13 @@
             <TaskParamsForm
               :template="template"
               v-model="node.task_params"
+              :workflow-vars="workflowVars"
+              :survey-inputs="bindings"
               class="mt-2"
-              @input="emitChange"
+              @update:model-value="emitChange"
+              @bind="setBinding"
+              @unbind="setBinding($event, null)"
+              data-testid="workflowNodeProps-taskParams"
             />
           </v-card-text>
         </v-card>
@@ -83,21 +110,23 @@
             min="1"
             :label="$t('workflowApprovalTimeout')"
             :disabled="!canManage"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             hide-details="auto"
             class="mb-5"
-            @input="emitChange"
+            @update:model-value="emitChange"
+            data-testid="workflowNodeProps-approvalTimeout"
           />
           <v-text-field
             v-model="node.approval_message"
             :label="$t('workflowApprovalMessage')"
             :disabled="!canManage"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             hide-details="auto"
             class="mb-5"
-            @input="emitChange"
+            @update:model-value="emitChange"
+            data-testid="workflowNodeProps-approvalMessage"
           />
         </template>
 
@@ -110,24 +139,27 @@
           :hint="$t('workflowDelayHint')"
           persistent-hint
           :disabled="!canManage"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           hide-details="auto"
           class="mb-5"
-          @input="emitChange"
+          @update:model-value="emitChange"
+          data-testid="workflowNodeProps-delaySeconds"
         />
 
         <v-select
           v-model="node.convergence_mode"
           :items="convergenceOptions"
           item-value="value"
-          item-text="text"
+          item-title="text"
           :label="$t('workflowConvergence')"
           :disabled="!canManage"
-          outlined
-          dense
+          variant="outlined"
+          density="compact"
           hide-details="auto"
-          @change="emitChange"
+          @update:model-value="emitChange"
+          :menu-props="selectMenuProps"
+          data-testid="workflowNodeProps-convergenceMode"
         />
       </template>
     </div>
@@ -136,14 +168,16 @@
 
     <div class="pa-4">
       <v-btn
-        outlined
-        small
+        variant="outlined"
+        size="small"
         block
         color="error"
+        class="WorkflowNodeProperties__delete"
         :disabled="!canManage"
         @click="$emit('delete')"
+        data-testid="workflowNodeProps-delete"
       >
-        <v-icon left small>mdi-delete-outline</v-icon>
+        <v-icon start size="small">mdi-delete-outline</v-icon>
         {{ $t('workflowToolbarDelete') }}
       </v-btn>
     </div>
@@ -154,24 +188,34 @@
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
 import { APP_ICONS } from '@/lib/constants';
 
-// Right-hand panel of the editor. `value` is the editor's working copy of the
-// node; the fields edit it in place and every change emits `input` so the
+// Right-hand panel of the editor. `modelValue` is the editor's working copy of the
+// node; the fields edit it in place and every change emits `update:modelValue` so the
 // canvas can repaint the card.
 export default {
   components: { TaskParamsForm },
 
   props: {
-    value: { type: Object, required: true },
+    modelValue: { type: Object, required: true },
     templates: { type: Array, default: () => [] },
     canManage: { type: Boolean, default: false },
+    // The workflow's own survey (WorkflowTemplate.survey_vars): the values a
+    // task node may be bound to through node.survey_inputs.
+    surveyVars: { type: Array, default: () => [] },
   },
 
+  emits: ['close', 'delete', 'update:modelValue'],
+
   data() {
-    return { node: this.value };
+    return {
+      node: this.modelValue,
+      // The menu of a select over its field (the defaults of VSelect, plugins/vuetify.js) with the
+      // class of the zone's menus.
+      selectMenuProps: { location: 'top', origin: 'top', contentClass: 'WorkflowNodeProperties__menu' },
+    };
   },
 
   watch: {
-    value(v) {
+    modelValue(v) {
       this.node = v;
     },
   },
@@ -218,11 +262,42 @@ export default {
         { value: 'any', text: this.$t('workflowConvergenceAny') },
       ];
     },
+    // Workflow variables a survey field of the node may be bound to. A secret
+    // is never offered: the run keeps its values in clear.
+    workflowVars() {
+      return (this.surveyVars || []).filter((v) => v.type !== 'secret');
+    },
+    bindings() {
+      return Array.isArray(this.node.survey_inputs) ? this.node.survey_inputs : [];
+    },
   },
 
   methods: {
     emitChange() {
-      this.$emit('input', this.node);
+      this.$emit('update:modelValue', this.node);
+    },
+    boundVar(name) {
+      const b = this.bindings.find((x) => x.var === name);
+      return b ? b.workflow_var : null;
+    },
+    // Writes node.survey_inputs as [{ var, workflow_var }]; an empty list
+    // leaves the node without the field, the shape the API returns. Called
+    // by the form's `bind` (name, workflow var) and `unbind` (name, null).
+    setBinding(name, workflowVar) {
+      const rest = this.bindings.filter((b) => b.var !== name);
+      const list = workflowVar ? [...rest, { var: name, workflow_var: workflowVar }] : rest;
+      if (list.length > 0) {
+        this.node.survey_inputs = list;
+      } else {
+        delete this.node.survey_inputs;
+      }
+      this.emitChange();
+    },
+    // Bindings name variables of the old template; none of them is known to
+    // carry over, so a new template starts without bindings.
+    onTemplateChanged() {
+      delete this.node.survey_inputs;
+      this.emitChange();
     },
     onKindChanged() {
       const { node } = this;
@@ -230,6 +305,8 @@ export default {
       if (kind === 'approval' || kind === 'delay') {
         node.template_id = null;
         node.task_params = null;
+        // Only a task node may carry bindings (backend validation).
+        delete node.survey_inputs;
       }
       if (kind !== 'approval') {
         node.approval_timeout = null;
@@ -298,5 +375,31 @@ export default {
   &__params {
     background: rgba(133, 133, 133, 0.06) !important;
   }
+
+  // `<v-icon left small>` of Vuetify 2 in the Delete button: a 16 px glyph in an 18 px box, 4 px
+  // out to the left and 8 px to the text.
+  &__delete.v-btn .v-icon--start {
+    --v-icon-size-multiplier: 1;
+    width: 18px;
+    height: 18px;
+    margin-inline: -4px 8px;
+  }
+}
+
+// The selected option of a menu as Vuetify 2 showed it on opening: active and highlighted
+// (`.v-list-item--highlighted`, the list index of `v-menu` starts at the active item), the pressed
+// overlay (.16), not the activated one (.12).
+.WorkflowNodeProperties__menu .v-list-item--active > .v-list-item__overlay {
+  opacity: calc(var(--v-pressed-opacity) * var(--v-theme-overlay-multiplier));
+}
+
+// The icon of a task or note tile has no colour of its own: the icon colour of Vuetify 2
+// (`.theme--light.v-icon`: .54, white in the dark theme), not the text colour.
+.v-theme--light .WorkflowNodeProperties__tile > .v-icon {
+  color: rgba(0, 0, 0, .54);
+}
+
+.v-theme--dark .WorkflowNodeProperties__tile > .v-icon {
+  color: #fff;
 }
 </style>

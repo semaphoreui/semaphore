@@ -7,9 +7,8 @@ describe('Roles.vue', () => {
   let Roles;
   let http;
 
-  before(() => {
-    // eslint-disable-next-line global-require
-    Roles = require('@/views/Roles.vue').default;
+  beforeAll(async () => {
+    Roles = (await import('@/views/Roles.vue')).default;
   });
 
   beforeEach(() => {
@@ -29,14 +28,31 @@ describe('Roles.vue', () => {
     forceDeleteDialog: false,
     isAdmin: true,
     can() { return true; },
-    $i18n: { t: (key) => key },
+    $t: (key) => key, // vue-i18n 11 (composition mode): the component translates with $t
     async loadItems() { return null; },
     getEventName() { return 'i-role'; },
     getSingleItemUrl() { return `/api/roles/${this.itemId}`; },
   });
 
+  // ItemListPageBase calls allowActions() from data(), before any computed property exists.
+  it('decides the actions column from props alone', () => {
+    const { allowActions } = Roles.methods;
+    const can = () => true;
+    const global = (user) => allowActions.call({ projectId: null, user, can });
+    expect(global({ admin: true })).to.equal(true);
+    expect(global({ admin: false, global_permissions: 2 })).to.equal(true);
+    expect(global({ admin: false, global_permissions: 1 })).to.equal(false);
+    const project = (canProject) => allowActions.call({
+      projectId: 7, user: { admin: false }, can: () => canProject,
+    });
+    expect(project(false)).to.equal(false);
+    expect(project(true)).to.equal(true);
+  });
+
   it('asks again with the impact when the role is assigned', async () => {
-    const impact = { members: 2, projects: 1, template_grants: 3 };
+    const impact = {
+      members: 2, projects: 1, template_grants: 3, workflow_grants: 1,
+    };
     http.respond(() => { throw httpError(409, { error: 'assigned', impact }); });
     const c = ctx();
 

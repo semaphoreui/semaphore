@@ -1,7 +1,7 @@
 {
     "version": "0.2.0",
     "configurations": [
-      
+
         {
             "name": "Launch Server (Container)",
             "type": "go",
@@ -14,7 +14,7 @@
                 "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}",
                 "SEMAPHORE_ADMIN_PASSWORD": "test123"
             }
-        }, 
+        },
         {
             "name": "Launch Server with remote Runner (Container)",
             "type": "go",
@@ -27,7 +27,7 @@
                 "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}",
                 "SEMAPHORE_USE_REMOTE_RUNNER": "true"
             }
-        }, 
+        },
         {
             "name": "Launch Runner (Container)",
             "type": "go",
@@ -39,7 +39,7 @@
             "env": {
                 "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
             }
-        }, 
+        },
         {
             "name": "Launch Dredd Tests without Server (LOCAL)",
             "type": "node",
@@ -53,7 +53,7 @@
             "name": "Launch Server (LOCAL)",
             "type": "go",
             "request": "launch",
-            "mode": "auto",
+            // "mode": "auto",
             "program": "./cli/main.go",
             "args": ["server", "--config", "./config.yml"],
             "cwd": "${workspaceFolder}",

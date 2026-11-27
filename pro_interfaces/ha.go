@@ -1,6 +1,23 @@
 package pro_interfaces
 
-import "time"
+import (
+	"context"
+	"time"
+)
+
+// HARedis is the single shared connection to the Redis backend that
+// coordinates the HA nodes. It is created once at startup by the Pro
+// module and injected into every HA component, so that all of them share
+// one connection pool and one view of the current master. The open-source
+// build has no Redis dependency and always gets nil.
+type HARedis interface {
+	// Ping checks that the backend is reachable.
+	Ping(ctx context.Context) error
+	// Close releases the connection pool.
+	Close() error
+	// Describe returns a human-readable address for logs and dashboards.
+	Describe() string
+}
 
 // NodeRegistry manages node heartbeats and cluster membership tracking
 // in HA mode. In active-active setups every Semaphore instance registers

@@ -31,7 +31,7 @@ func TestCopyKeepsRolesMembershipsAndGrants(t *testing.T) {
 	require.NoError(t, err)
 	legacy, err := src.CreateRole(db.Role{Slug: "legacy role", Name: "Legacy"})
 	require.NoError(t, err)
-	manager, err := src.GetGlobalRoleBySlug("manager")
+	manager, err := src.GetSharedRoleBySlug("manager")
 	require.NoError(t, err)
 
 	err = src.CreateProjectUser(proj.ID, user.ID, []int{manager.ID, local.ID, global.ID})
@@ -58,7 +58,7 @@ func TestCopyKeepsRolesMembershipsAndGrants(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{"manager", "local", "deployer"}, slugs)
 
-	kept, err := dst.GetGlobalRoleBySlug("legacy role")
+	kept, err := dst.GetSharedRoleBySlug("legacy role")
 	require.NoError(t, err)
 	assert.Equal(t, "Legacy", kept.Name)
 	assert.False(t, kept.Builtin)

@@ -16,9 +16,15 @@ import (
 
 const auditPageSize = 50
 
-// canReadAuditLog is the only place that decides who may read the audit log.
-func canReadAuditLog(user *db.User) bool {
-	return user.Admin
+// canReadAuditLog is the only place that decides who may read the audit log: admins and holders of a global
+// role with CanReadGlobalAudit.
+func canReadAuditLog(r *http.Request, user *db.User) bool {
+	allowed, err := hasGlobalPermission(r, user, db.CanReadGlobalAudit)
+	if err != nil {
+		log.WithError(err).WithField("user_id", user.ID).Error("Failed to read global permissions")
+		return false
+	}
+	return allowed
 }
 
 func auditLogMiddleware(next http.Handler) http.Handler {
@@ -30,7 +36,7 @@ func auditLogMiddleware(next http.Handler) http.Handler {
 		}
 
 		user := helpers.GetFromContext(r, "user").(*db.User)
-		if !canReadAuditLog(user) {
+		if !canReadAuditLog(r, user) {
 			helpers.RecordDenied(r, "audit_log", 0)
 			w.WriteHeader(http.StatusForbidden)
 			return

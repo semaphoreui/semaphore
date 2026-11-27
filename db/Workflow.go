@@ -44,6 +44,34 @@ type WorkflowInputMapping struct {
 	Key string `json:"key" backup:"key"`
 }
 
+// WorkflowNodeSurveyInput feeds one survey variable of the node's template
+// (Var) from one survey variable of the workflow (WorkflowVar), whose value
+// the run collected at start. The delivery is explicit only: a variable
+// without such a binding never receives a workflow value, whatever its name.
+type WorkflowNodeSurveyInput struct {
+	Var         string `json:"var" backup:"var"`
+	WorkflowVar string `json:"workflow_var" backup:"workflow_var"`
+}
+
+// WorkflowRunParams is the body of POST .../workflows/{id}/runs: the answers
+// to the workflow's survey as a JSON object, variable name → value. An empty
+// body starts the run with the survey defaults only.
+type WorkflowRunParams struct {
+	Environment MapStringAnyField `json:"environment,omitempty"`
+
+	// IntegrationID is set by the server when a webhook integration starts
+	// the run: it is stamped on the root task (task.integration_id), so the
+	// task page and the audit trail show which integration started the run.
+	// Never read from a request body.
+	IntegrationID *int `json:"-"`
+
+	// ScheduleID is set by the server when a schedule starts the run: it is
+	// stamped on the root task (task.schedule_id), so the task page and the
+	// audit trail show which schedule started the run. Never read from a
+	// request body.
+	ScheduleID *int `json:"-"`
+}
+
 // workflowOutputNamePattern is the shape of an output name. The hyphen is
 // allowed because Terraform output names may contain it.
 var workflowOutputNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
@@ -73,6 +101,15 @@ type WorkflowTemplate struct {
 
 	Nodes []WorkflowNode `db:"-" bolt:"include" json:"nodes" backup:"-"`
 	Edges []WorkflowEdge `db:"-" bolt:"include" json:"edges" backup:"edges"`
+
+	// What the caller may do with this workflow, filled by the API, never stored.
+	Permissions *ProjectUserPermission `db:"-" json:"permissions,omitempty" backup:"-"`
+
+	// SurveyVars is the survey a run asks for before it starts, the same
+	// shape as Template.SurveyVars. It belongs to the revision together with
+	// the graph (the node bindings of a revision refer to its names), so it is
+	// loaded with the nodes and edges and saved with every PUT.
+	SurveyVars []SurveyVar `db:"-" json:"survey_vars" backup:"survey_vars"`
 
 	// RevisionID and Revision describe the graph revision the Nodes/Edges were
 	// loaded from: the latest one for a template read through
@@ -106,6 +143,12 @@ type WorkflowRevision struct {
 	Created         time.Time `db:"created" json:"created"`
 	CreatedByUserID *int      `db:"created_by_user_id" json:"created_by_user_id,omitempty"`
 
+	// SurveyVarsJSON used internally for read from database.
+	// It is not used for store survey vars to database.
+	// Do not use it in your code. Use SurveyVars instead.
+	SurveyVarsJSON *string     `db:"survey_vars" json:"-"`
+	SurveyVars     []SurveyVar `db:"-" json:"survey_vars,omitempty"`
+
 	// HasRuns is filled by list queries: true when at least one run pins this
 	// revision (such a revision survives later saves).
 	HasRuns bool `db:"-" json:"has_runs"`
@@ -128,6 +171,14 @@ type WorkflowNode struct {
 
 	Note         *string `db:"note" json:"note,omitempty" backup:"note"`
 	DelaySeconds *int    `db:"delay_seconds" json:"delay_seconds,omitempty" backup:"delay_seconds"`
+
+	// SurveyInputsJSON used internally for read from database.
+	// It is not used for store survey inputs to database.
+	// Do not use it in your code. Use SurveyInputs instead.
+	SurveyInputsJSON *string `db:"survey_inputs" json:"-" backup:"-"`
+	// SurveyInputs binds survey variables of the node's template to survey
+	// variables of the workflow; only a task node may carry them.
+	SurveyInputs []WorkflowNodeSurveyInput `db:"-" json:"survey_inputs,omitempty" backup:"survey_inputs"`
 
 	PositionX int `db:"position_x" json:"position_x" backup:"position_x"`
 	PositionY int `db:"position_y" json:"position_y" backup:"position_y"`
@@ -229,10 +280,75 @@ type WorkflowRun struct {
 
 	Version *string `db:"version" json:"version,omitempty" backup:"version"`
 
+	// Environment holds the values of the workflow's survey variables the run
+	// was started with: a JSON object in the API, JSON text in the database
+	// (MapStringAnyField, as Task.Params). Written once by the engine at
+	// start, after defaults and type checks; every node of a cluster reads
+	// it when it launches a task. Nil when the workflow has no survey (and
+	// for runs created before the column existed). Never holds a secret.
+	Environment MapStringAnyField `db:"environment" json:"environment,omitempty" backup:"-"`
+
 	Start *time.Time `db:"start" json:"start,omitempty" backup:"start"`
 	End   *time.Time `db:"end" json:"end,omitempty" backup:"end"`
 
 	RootTaskID *int `db:"root_task_id" json:"root_task_id,omitempty" backup:"root_task_id"`
+
+	// RerunOfRunID is the run this one repeats, RerunMode how: nil for a run
+	// started the usual way. A re-run pins the revision and inherits the
+	// Environment of the run it repeats.
+	RerunOfRunID *int               `db:"rerun_of_run_id" json:"rerun_of_run_id,omitempty" backup:"-"`
+	RerunMode    *WorkflowRerunMode `db:"rerun_mode" json:"rerun_mode,omitempty" backup:"-"`
+}
+
+// IsFailedRerun reports whether the run repeats only the failed part of
+// another run, carrying the rest over (WorkflowRunCarry).
+func (run WorkflowRun) IsFailedRerun() bool {
+	return run.RerunMode != nil && *run.RerunMode == WorkflowRerunFailed
+}
+
+// WorkflowRerunMode says how much of a finished run a re-run executes again.
+type WorkflowRerunMode string
+
+const (
+	// WorkflowRerunAll executes every node again.
+	WorkflowRerunAll WorkflowRerunMode = "all"
+	// WorkflowRerunFailed executes the failed nodes and everything after them
+	// again; nodes that succeeded are carried over from the repeated run.
+	WorkflowRerunFailed WorkflowRerunMode = "failed"
+)
+
+func (mode WorkflowRerunMode) Validate() error {
+	switch mode {
+	case WorkflowRerunAll, WorkflowRerunFailed:
+		return nil
+	default:
+		return common_errors.NewValidationError("workflow re-run mode is invalid")
+	}
+}
+
+// WorkflowRerunParams is the body of POST .../runs/{run_id}/rerun.
+type WorkflowRerunParams struct {
+	Mode WorkflowRerunMode `json:"mode"`
+}
+
+// WorkflowRunCarry marks a node that a failed-only re-run does not execute
+// again: in WorkflowRunID the node counts as succeeded, and its result is the
+// one it produced in OriginRunID. The origin is always the run that really
+// executed the node, also when a re-run is itself re-run.
+//
+// The row, not the task it points at, is the node's state: a task deleted
+// later (TaskID becomes nil) leaves the node carried over, only without
+// outputs for the nodes after it.
+type WorkflowRunCarry struct {
+	ID int `db:"id" json:"-"`
+
+	ProjectID      int `db:"project_id" json:"-"`
+	WorkflowRunID  int `db:"workflow_run_id" json:"-"`
+	WorkflowNodeID int `db:"workflow_node_id" json:"workflow_node_id"`
+	OriginRunID    int `db:"origin_run_id" json:"origin_run_id"`
+	// TaskID is the task that executed the node in OriginRunID; nil for an
+	// approval or delay node.
+	TaskID *int `db:"task_id" json:"task_id,omitempty"`
 }
 
 type WorkflowApprovalStatus string
@@ -306,6 +422,49 @@ func (status WorkflowApprovalStatus) Validate() error {
 	default:
 		return common_errors.NewValidationError("workflow approval status is invalid")
 	}
+}
+
+// ValidateWorkflowSurveyVars checks the survey of a workflow: every variable
+// has a unique, non-empty name, a known target, a default that fits its type
+// (ValidateSurveyVar) and is not a secret. A secret can not be a workflow
+// variable because the run stores its survey values in clear in
+// WorkflowRun.Environment, exactly as a task does.
+func ValidateWorkflowSurveyVars(vars []SurveyVar) error {
+	seen := make(map[string]struct{}, len(vars))
+	for _, v := range vars {
+		if v.Name == "" {
+			return common_errors.NewValidationError("workflow survey variable name can not be empty")
+		}
+		if _, dup := seen[v.Name]; dup {
+			return common_errors.NewValidationError("workflow survey variable \"" + v.Name + "\" is declared more than once")
+		}
+		seen[v.Name] = struct{}{}
+
+		if v.Type == SurveyVarSecret {
+			return common_errors.NewValidationError("workflow survey variable \"" + v.Name + "\" can not be a secret")
+		}
+
+		switch v.Target {
+		case SurveyVarTargetDefault, SurveyVarTargetEnv:
+		default:
+			return common_errors.NewValidationError("workflow survey variable \"" + v.Name + "\": invalid target \"" + string(v.Target) + "\"")
+		}
+
+		if err := ValidateSurveyVar(v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SurveyVarByName returns the workflow's survey variable called name.
+func (workflow WorkflowTemplate) SurveyVarByName(name string) (SurveyVar, bool) {
+	for _, v := range workflow.SurveyVars {
+		if v.Name == name {
+			return v, true
+		}
+	}
+	return SurveyVar{}, false
 }
 
 // WorkflowTemplateValidationStore is the slice of Store workflow template

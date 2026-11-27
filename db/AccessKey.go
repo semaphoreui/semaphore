@@ -24,8 +24,26 @@ const (
 	// single task. Such keys are bound to the task via TaskID, expire via
 	// ExpireAt, and are hidden from the project secrets list (non-empty owner).
 	AccessKeyTaskSecret AccessKeyOwner = "task"
-	AccessKeyShared     AccessKeyOwner = ""
+	// AccessKeyMcp marks the authorization token of one MCP server of an
+	// inventory. Such keys are bound to the server via McpID, deleted with it,
+	// and managed only through the inventory API, never through /keys.
+	AccessKeyMcp    AccessKeyOwner = "mcp"
+	AccessKeyShared AccessKeyOwner = ""
 )
+
+// IsValid reports whether t is one of the known key types. The API checks it
+// on create and on update, so an unknown type never reaches the database:
+// the serializer would store nothing for it and every consumer would reject it
+// only at task run time, far from the request that created it.
+func (t AccessKeyType) IsValid() bool {
+	switch t {
+	case AccessKeySSH, AccessKeyNone, AccessKeyLoginPassword, AccessKeyString:
+		return true
+	default:
+		return false
+	}
+}
+
 const (
 	AccessKeySourceStorageVault AccessKeySourceStorageType = "vault"
 	AccessKeySourceStorageEnv   AccessKeySourceStorageType = "env"
@@ -36,7 +54,7 @@ const (
 type AccessKey struct {
 	ID   int    `db:"id" json:"id" backup:"-"`
 	Name string `db:"name" json:"name" binding:"required"`
-	// 'ssh/login_password/none'
+	// 'ssh/login_password/none/string', see AccessKeyType.IsValid.
 	Type AccessKeyType `db:"type" json:"type" binding:"required"`
 
 	ProjectID *int `db:"project_id" json:"project_id" backup:"-"`
@@ -57,6 +75,10 @@ type AccessKey struct {
 
 	// EnvironmentID is an ID of environment which owns the access key.
 	EnvironmentID *int `db:"environment_id" json:"-" backup:"-"`
+
+	// McpID is set for keys with owner AccessKeyMcp: the MCP server
+	// (project__inventory_mcp) whose token this key holds.
+	McpID *int `db:"mcp_id" json:"-" backup:"-"`
 
 	// UserID is an ID of a user which owns the access key.
 	UserID *int `db:"user_id" json:"-" backup:"-"`

@@ -94,7 +94,7 @@ func TestAddProject_IsRecorded(t *testing.T) {
 	}
 }
 
-func TestAddProject_SetupFailureIsPartial(t *testing.T) {
+func TestAddProject_FailedSetupLeavesNoProject(t *testing.T) {
 	f := newResourceFixture(t)
 	util.Config.Apps = map[string]util.App{}
 	r, rec := f.request(http.MethodPost, `{"name":"ops","demo":true}`, nil, nil)
@@ -103,11 +103,10 @@ func TestAddProject_SetupFailureIsPartial(t *testing.T) {
 	NewProjectsController(storeKeyService{&mockAccessKeyService{}, f.store}).AddProject(w, r)
 
 	assert.GreaterOrEqual(t, w.Code, http.StatusBadRequest, w.Body.String())
-	got := only(t, rec, audit.ResourceProjectCreate)
-	assert.Equal(t, audit.OutcomeSuccess, got.Event.Outcome, "the project is stored")
-	assert.Equal(t, audit.ReasonSetupFailed, got.Event.Reason)
-	assert.Equal(t, audit.ProjectCreateMetadata{Demo: true, Partial: true}, got.Event.Metadata)
-	assert.Equal(t, "ops", got.Event.Target.Name)
+	projects, err := f.store.GetAllProjects()
+	require.NoError(t, err)
+	assert.Len(t, projects, 1, "only the fixture project is left")
+	assert.Empty(t, rec.All())
 }
 
 func TestAddProject_DeniedIsRecorded(t *testing.T) {
@@ -119,7 +118,20 @@ func TestAddProject_DeniedIsRecorded(t *testing.T) {
 
 	NewProjectsController(storeKeyService{&mockAccessKeyService{}, f.store}).AddProject(w, r)
 
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Equal(t, audit.DenyMetadata{Method: http.MethodPost, Permission: "admin"}, only(t, rec, audit.AuthAuthorizationDeny).Event.Metadata)
+}
+
+func TestRestore_DeniedIsRecorded(t *testing.T) {
+	f := newResourceFixture(t)
+	f.user.Admin = false
+	util.Config.NonAdminCanCreateProject = false
+	r, rec := f.request(http.MethodPost, `{}`, nil, nil)
+	w := httptest.NewRecorder()
+
+	NewBackupController(proFactory.NewWorkflowStore(f.store), noLicense{}).Restore(w, r)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
 	assert.Equal(t, audit.DenyMetadata{Method: http.MethodPost, Permission: "admin"}, only(t, rec, audit.AuthAuthorizationDeny).Event.Metadata)
 }
 
@@ -155,8 +167,8 @@ func TestUpdateAndDeleteProject_AreRecorded(t *testing.T) {
 
 func TestBackupExportAndRestore_AreRecorded(t *testing.T) {
 	f := newResourceFixture(t)
-	controller := NewBackupController(proFactory.NewWorkflowStore(f.store))
-	integration, err := f.store.CreateIntegration(db.Integration{Name: "hook", ProjectID: f.project.ID, TemplateID: f.template(t).ID})
+	controller := NewBackupController(proFactory.NewWorkflowStore(f.store), noLicense{})
+	integration, err := f.store.CreateIntegration(db.Integration{Name: "hook", ProjectID: f.project.ID, TemplateID: new(f.template(t).ID)})
 	require.NoError(t, err)
 	_, err = f.store.CreateIntegrationAlias(db.IntegrationAlias{Alias: "a1b2c3", ProjectID: f.project.ID, IntegrationID: &integration.ID})
 	require.NoError(t, err)
@@ -178,30 +190,24 @@ func TestBackupExportAndRestore_AreRecorded(t *testing.T) {
 	assert.Equal(t, 1, got.Event.Metadata.(audit.BackupRestoreMetadata).Objects["integration_aliases"], "aliases inside integrations are counted")
 }
 
-func TestRestore_FailedStepIsPartial(t *testing.T) {
+func TestRestore_FailedEntryIsNotRecorded(t *testing.T) {
 	f := newResourceFixture(t)
 	f.template(t)
-	controller := NewBackupController(proFactory.NewWorkflowStore(f.store))
-
-	r, _ := f.request(http.MethodGet, "", nil, nil)
-	w := httptest.NewRecorder()
-	controller.GetBackup(w, r)
-	require.Equal(t, http.StatusOK, w.Code)
-
-	backup := strings.Replace(w.Body.String(), `"name": "p"`, `"name": "broken"`, 1)
-	// Verify accepts it, the template validation inside Restore refuses it.
+	controller := NewBackupController(proFactory.NewWorkflowStore(f.store), noLicense{})
+	backup := strings.Replace(f.backup(t, controller), `"name": "p"`, `"name": "broken"`, 1)
 	require.Contains(t, backup, `"app": "ansible"`)
 	backup = strings.Replace(backup, `"app": "ansible"`, `"app": "unknown"`, 1)
+
 	r, rec := f.request(http.MethodPost, backup, nil, nil)
-	w = httptest.NewRecorder()
+	w := httptest.NewRecorder()
 	controller.Restore(w, r)
 
-	assert.NotEqual(t, http.StatusOK, w.Code, "the API answer is unchanged")
-	got := only(t, rec, audit.ResourceProjectBackupRestore)
-	assert.Equal(t, audit.OutcomeSuccess, got.Event.Outcome, "the project is created")
-	assert.Equal(t, audit.ReasonRestoreFailed, got.Event.Reason)
-	assert.Equal(t, "broken", got.Event.Target.Name)
-	assert.True(t, got.Event.Metadata.(audit.BackupRestoreMetadata).Partial)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "error at templates[0]: invalid app")
+	assert.Empty(t, rec.All(), "nothing was created, so there is nothing to record")
+	projects, err := f.store.GetAllProjects()
+	require.NoError(t, err)
+	assert.Len(t, projects, 1, "only the fixture project is left")
 }
 
 func TestInventoryEvents(t *testing.T) {
@@ -210,9 +216,10 @@ func TestInventoryEvents(t *testing.T) {
 
 	r, rec := f.request(http.MethodPost, body, nil, nil)
 	w := httptest.NewRecorder()
-	AddInventory(w, r)
+	f.inventoryController().AddInventory(w, r)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	created := only(t, rec, audit.ResourceInventoryCreate)
+	assert.Equal(t, audit.InventoryMetadata{Type: "static"}, created.Event.Metadata)
 	assert.Equal(t, "prod", created.Event.Target.Name)
 	assert.Equal(t, f.project.ID, created.Event.ProjectID)
 
@@ -220,7 +227,7 @@ func TestInventoryEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	r, rec = f.request(http.MethodPut, `{"id":`+strconv.Itoa(inventory.ID)+`,"name":"prod2","project_id":`+strconv.Itoa(f.project.ID)+`,"type":"static","inventory":"[all]"}`, map[string]any{"inventory": inventory}, nil)
-	UpdateInventory(httptest.NewRecorder(), r)
+	f.inventoryController().UpdateInventory(httptest.NewRecorder(), r)
 	assert.Equal(t, audit.ResourceTarget(audit.TargetInventory, inventory.ID, "prod2"), only(t, rec, audit.ResourceInventoryUpdate).Event.Target)
 
 	r, rec = f.request(http.MethodDelete, "", map[string]any{"inventory": inventory}, nil)
@@ -356,7 +363,7 @@ func TestAddTemplate_InventoryFailureIsPartial(t *testing.T) {
 func TestScheduleEvents(t *testing.T) {
 	f := newResourceFixture(t)
 	template := f.template(t)
-	schedule, err := f.store.CreateSchedule(db.Schedule{Name: "nightly", ProjectID: f.project.ID, TemplateID: template.ID, CronFormat: "0 0 * * *"})
+	schedule, err := f.store.CreateSchedule(db.Schedule{Name: "nightly", ProjectID: f.project.ID, TemplateID: &template.ID, CronFormat: "0 0 * * *"})
 	require.NoError(t, err)
 	util.Config.Schedule = &util.ScheduleConfig{Timezone: "UTC"}
 	pool := schedules.CreateSchedulePool(f.store, nil, nil, nil)
@@ -400,7 +407,7 @@ func TestScheduleEvents(t *testing.T) {
 func TestUpdateSchedule_ActiveChangeAlsoRecordsSwitch(t *testing.T) {
 	f := newResourceFixture(t)
 	template := f.template(t)
-	schedule, err := f.store.CreateSchedule(db.Schedule{Name: "nightly", ProjectID: f.project.ID, TemplateID: template.ID, CronFormat: "0 0 * * *", Active: false})
+	schedule, err := f.store.CreateSchedule(db.Schedule{Name: "nightly", ProjectID: f.project.ID, TemplateID: &template.ID, CronFormat: "0 0 * * *", Active: false})
 	require.NoError(t, err)
 	util.Config.Schedule = &util.ScheduleConfig{Timezone: "UTC"}
 	pool := schedules.CreateSchedulePool(f.store, nil, nil, nil)
@@ -422,7 +429,7 @@ func TestUpdateSchedule_ActiveChangeAlsoRecordsSwitch(t *testing.T) {
 			body := `{"id":` + strconv.Itoa(schedule.ID) + `,"project_id":` + strconv.Itoa(f.project.ID) + `,"template_id":` + strconv.Itoa(template.ID) + `,"name":"nightly","cron_format":"0 0 * * *","active":` + strconv.FormatBool(tt.active) + `}`
 			r, rec := f.request(http.MethodPut, body, map[string]any{"schedule": stored, "schedule_pool": pool}, nil)
 			w := httptest.NewRecorder()
-			UpdateSchedule(w, r)
+			scheduleController(allFeatures).UpdateSchedule(w, r)
 			require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
 
 			kinds, err := rec.Kinds()
@@ -459,13 +466,31 @@ func TestUpdateKey_RecordsTheStoredType(t *testing.T) {
 	}
 }
 
+func TestIntegrationEvents_WorkflowTarget(t *testing.T) {
+	f := newResourceFixture(t)
+	_, err := f.store.Sql().Exec(f.store.PrepareQuery(
+		"insert into project__workflow_template (project_id, name) values (?, ?)"), f.project.ID, "wf")
+	require.NoError(t, err)
+	workflowID, err := f.store.Sql().SelectInt(f.store.PrepareQuery(
+		"select id from project__workflow_template where project_id = ? and name = ?"), f.project.ID, "wf")
+	require.NoError(t, err)
+
+	r, rec := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"workflow_id":`+strconv.FormatInt(workflowID, 10)+`,"auth_method":"none"}`, nil, nil)
+	w := httptest.NewRecorder()
+	// The workflow target is a Pro feature; the audit metadata is what is under test here.
+	integrationController(allFeatures).AddIntegration(w, r)
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	created := only(t, rec, audit.ResourceIntegrationCreate)
+	assert.Equal(t, audit.IntegrationMetadata{WorkflowID: int(workflowID), AuthMethod: "none"}, created.Event.Metadata)
+}
+
 func TestIntegrationEvents(t *testing.T) {
 	f := newResourceFixture(t)
 	template := f.template(t)
 
 	r, rec := f.request(http.MethodPost, `{"name":"hook","project_id":`+strconv.Itoa(f.project.ID)+`,"template_id":`+strconv.Itoa(template.ID)+`,"auth_method":"none"}`, nil, nil)
 	w := httptest.NewRecorder()
-	AddIntegration(w, r)
+	integrationController(noFeatures).AddIntegration(w, r)
 	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
 	created := only(t, rec, audit.ResourceIntegrationCreate)
 	assert.Equal(t, audit.IntegrationMetadata{TemplateID: template.ID, AuthMethod: "none"}, created.Event.Metadata)
@@ -495,9 +520,9 @@ func TestIntegrationEvents(t *testing.T) {
 func TestRemoveIntegrationAlias_OfAnotherIntegrationIsRefused(t *testing.T) {
 	f := newResourceFixture(t)
 	template := f.template(t)
-	owner, err := f.store.CreateIntegration(db.Integration{Name: "owner", ProjectID: f.project.ID, TemplateID: template.ID})
+	owner, err := f.store.CreateIntegration(db.Integration{Name: "owner", ProjectID: f.project.ID, TemplateID: &template.ID})
 	require.NoError(t, err)
-	other, err := f.store.CreateIntegration(db.Integration{Name: "other", ProjectID: f.project.ID, TemplateID: template.ID})
+	other, err := f.store.CreateIntegration(db.Integration{Name: "other", ProjectID: f.project.ID, TemplateID: &template.ID})
 	require.NoError(t, err)
 	alias, err := f.store.CreateIntegrationAlias(db.IntegrationAlias{Alias: "a1b2c3", ProjectID: f.project.ID, IntegrationID: &owner.ID})
 	require.NoError(t, err)
@@ -523,7 +548,7 @@ func TestDeleteIntegration_FailedDeleteIsNotRecorded(t *testing.T) {
 func TestIntegrationMatcherAndExtractorEvents(t *testing.T) {
 	f := newResourceFixture(t)
 	template := f.template(t)
-	integration, err := f.store.CreateIntegration(db.Integration{Name: "hook", ProjectID: f.project.ID, TemplateID: template.ID})
+	integration, err := f.store.CreateIntegration(db.Integration{Name: "hook", ProjectID: f.project.ID, TemplateID: &template.ID})
 	require.NoError(t, err)
 	values := map[string]any{"integration": integration}
 	id := strconv.Itoa(integration.ID)
@@ -679,3 +704,281 @@ type fakeEnvironmentService struct {
 }
 
 func (f fakeEnvironmentService) Delete(int, int) error { return f.deleteErr }
+
+func TestInventoryHostEvents(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+
+	w, rec := hostCall(f, inventory, http.MethodPost, `{"name":"web1","enabled":true,"variables":"ansible_host: 10.0.0.5\nx: 1"}`, 0, AddInventoryHost)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	created := only(t, rec, audit.ResourceInventoryHostCreate)
+	hostID := mustAtoi(t, created.Event.Target.ID)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetInventoryHost, hostID, "web1"), created.Event.Target)
+	assert.Equal(t, f.project.ID, created.Event.ProjectID)
+	assert.Equal(t, audit.InventoryHostMetadata{InventoryID: inventory.ID, InventoryName: "prod", AddedVariables: []string{"ansible_host", "x"}}, created.Event.Metadata)
+
+	body := `{"name":"web1","enabled":true,"variables":"ansible_host: 10.0.0.9\nansible_port: 22"}`
+	w, rec = hostCall(f, inventory, http.MethodPut, body, hostID, UpdateInventoryHost)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	updated := only(t, rec, audit.ResourceInventoryHostUpdate)
+	assert.Equal(t, audit.InventoryHostMetadata{
+		InventoryID: inventory.ID, InventoryName: "prod", ChangedFields: []string{"variables"},
+		AddedVariables: []string{"ansible_port"}, RemovedVariables: []string{"x"}, ChangedVariables: []string{"ansible_host"},
+	}, updated.Event.Metadata)
+
+	body = `{"name":"web2","enabled":true,"variables":"ansible_host: 10.0.0.9\nansible_port: 22"}`
+	w, rec = hostCall(f, inventory, http.MethodPut, body, hostID, UpdateInventoryHost)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	renamed := only(t, rec, audit.ResourceInventoryHostUpdate)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetInventoryHost, hostID, "web2"), renamed.Event.Target)
+	assert.Equal(t, audit.InventoryHostMetadata{InventoryID: inventory.ID, InventoryName: "prod", ChangedFields: []string{"name"}, OldName: "web1"}, renamed.Event.Metadata)
+
+	w, rec = hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, hostID, SetInventoryHostEnabled)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	disabled := only(t, rec, audit.ResourceInventoryHostDisable)
+	assert.Equal(t, audit.InventoryHostMetadata{InventoryID: inventory.ID, InventoryName: "prod"}, disabled.Event.Metadata)
+
+	w, rec = hostCall(f, inventory, http.MethodPut, `{"enabled":true}`, hostID, SetInventoryHostEnabled)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	only(t, rec, audit.ResourceInventoryHostEnable)
+
+	w, rec = hostCall(f, inventory, http.MethodDelete, "", hostID, RemoveInventoryHost)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	deleted := only(t, rec, audit.ResourceInventoryHostDelete)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetInventoryHost, hostID, "web2"), deleted.Event.Target)
+
+	events, err := f.store.GetEvents(f.project.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	descriptions := []string{}
+	for _, event := range events {
+		assert.Equal(t, db.EventInventoryHost, *event.ObjectType)
+		descriptions = append(descriptions, *event.Description)
+	}
+	assert.ElementsMatch(t, []string{
+		"Host web1 created in inventory prod",
+		"Host web1 updated in inventory prod",
+		"Host web2 updated in inventory prod",
+		"Host web2 disabled in inventory prod",
+		"Host web2 enabled in inventory prod",
+		"Host web2 deleted in inventory prod",
+	}, descriptions)
+}
+
+func TestInventoryHostEvents_NeverCarryVariableValues(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	all := ""
+
+	w, rec := hostCall(f, inventory, http.MethodPost, `{"name":"web1","enabled":true,"description":"note-text","variables":"ansible_host: 10.0.0.5\nansible_password: s3cret"}`, 0, AddInventoryHost)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	hostID := mustAtoi(t, only(t, rec, audit.ResourceInventoryHostCreate).Event.Target.ID)
+	raw, err := json.Marshal(rec.All())
+	require.NoError(t, err)
+	all += string(raw)
+
+	w, rec = hostCall(f, inventory, http.MethodPut, `{"name":"web1","enabled":true,"description":"other-text","variables":"ansible_host: 10.0.0.6\nansible_password: s3cret2"}`, hostID, UpdateInventoryHost)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	raw, err = json.Marshal(rec.All())
+	require.NoError(t, err)
+	all += string(raw)
+
+	events, err := f.store.GetEvents(f.project.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	for _, event := range events {
+		all += *event.Description
+	}
+
+	for _, secret := range []string{"10.0.0.5", "10.0.0.6", "s3cret", "note-text", "other-text"} {
+		assert.NotContains(t, all, secret)
+	}
+	assert.Contains(t, all, "ansible_password")
+}
+
+func TestInventoryHostEvents_EnabledIsRecordedOnce(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	host, err := f.store.CreateInventoryHost(db.InventoryHost{InventoryID: inventory.ID, ProjectID: f.project.ID, Name: "web1", Enabled: true, Variables: "a: 1"}, nil)
+	require.NoError(t, err)
+
+	w, rec := hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, host.ID, SetInventoryHostEnabled)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	only(t, rec, audit.ResourceInventoryHostDisable)
+
+	w, rec = hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, host.ID, SetInventoryHostEnabled)
+	require.Less(t, w.Code, http.StatusBadRequest, w.Body.String())
+	assert.Empty(t, rec.All())
+}
+
+func TestInventoryEvents_ManagedVariables(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory, err := f.store.CreateInventory(db.Inventory{ProjectID: f.project.ID, Name: "prod", Type: db.InventoryManaged, Variables: new("a: 1\nb: 2")})
+	require.NoError(t, err)
+
+	r, rec := f.request(http.MethodPut, `{"variables":"a: 5\nc: 3"}`, map[string]any{"inventory": inventory}, nil)
+	w := httptest.NewRecorder()
+	SetInventoryVariables(w, r)
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	stored, err := f.store.GetInventory(f.project.ID, inventory.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "a: 5\nc: 3", stored.VariablesText())
+
+	updated := only(t, rec, audit.ResourceInventoryUpdate)
+	assert.Equal(t, audit.InventoryMetadata{Type: "managed", AddedVariables: []string{"c"}, RemovedVariables: []string{"b"}, ChangedVariables: []string{"a"}}, updated.Event.Metadata)
+}
+
+func TestInventoryEvents_ManagedVariablesOnCreate(t *testing.T) {
+	f := newResourceFixture(t)
+	body := `{"name":"prod","project_id":` + strconv.Itoa(f.project.ID) + `,"type":"managed","variables":"b: 2\na: 1"}`
+	r, rec := f.request(http.MethodPost, body, nil, nil)
+	w := httptest.NewRecorder()
+
+	f.inventoryController().AddInventory(w, r)
+
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	created := only(t, rec, audit.ResourceInventoryCreate)
+	assert.Equal(t, audit.InventoryMetadata{Type: "managed", AddedVariables: []string{"a", "b"}}, created.Event.Metadata)
+}
+
+func TestInventoryGroupEvents_CreateNamesVariablesOnly(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	body := `{"name":"web","description":"note-text","variables":"ansible_user: d3ploy\nansible_password: s3cret"}`
+	r, rec := f.request(http.MethodPost, body, map[string]any{"inventory": inventory}, map[string]string{"inventory_id": strconv.Itoa(inventory.ID)})
+	w := httptest.NewRecorder()
+
+	AddInventoryGroup(w, r)
+
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	created := only(t, rec, audit.ResourceInventoryGroupCreate)
+	groupID := mustAtoi(t, created.Event.Target.ID)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetInventoryGroup, groupID, "web"), created.Event.Target)
+	assert.Equal(t, audit.InventoryGroupMetadata{InventoryID: inventory.ID, InventoryName: "prod", AddedVariables: []string{"ansible_password", "ansible_user"}}, created.Event.Metadata)
+
+	events, err := f.store.GetEvents(f.project.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, db.EventInventoryGroup, *events[0].ObjectType)
+	assert.Equal(t, "Group web created in inventory prod", *events[0].Description)
+
+	raw, err := json.Marshal(rec.All())
+	require.NoError(t, err)
+	for _, secret := range []string{"d3ploy", "s3cret", "note-text"} {
+		assert.NotContains(t, string(raw), secret)
+	}
+}
+
+func TestInventoryGroupEvents_HostGroupsRecordsOnePerGroup(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	web := newInventoryGroup(t, f, inventory, "web")
+	eu := newInventoryGroup(t, f, inventory, "eu")
+	web1 := newInventoryHost(t, f, inventory, "web1")
+	web2 := newInventoryHost(t, f, inventory, "web2")
+	body, err := json.Marshal(map[string]any{"hosts": []int{web1.ID, web2.ID}, "add": []int{web.ID, eu.ID}})
+	require.NoError(t, err)
+
+	w, rec := hostCall(f, inventory, http.MethodPut, string(body), 0, SetInventoryHostGroups)
+
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	kinds, err := rec.Kinds()
+	require.NoError(t, err)
+	assert.Equal(t, []audit.Kind{audit.ResourceInventoryGroupHostAdd, audit.ResourceInventoryGroupHostAdd}, kinds)
+	targets := []*audit.Target{}
+	for _, recorded := range rec.All() {
+		targets = append(targets, recorded.Event.Target)
+		assert.Equal(t, audit.InventoryGroupMetadata{InventoryID: inventory.ID, InventoryName: "prod", Hosts: []string{"web1", "web2"}}, recorded.Event.Metadata)
+	}
+	assert.ElementsMatch(t, []*audit.Target{
+		audit.ResourceTarget(audit.TargetInventoryGroup, web.ID, "web"),
+		audit.ResourceTarget(audit.TargetInventoryGroup, eu.ID, "eu"),
+	}, targets)
+
+	w, rec = hostCall(f, inventory, http.MethodPut, string(body), 0, SetInventoryHostGroups)
+
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	assert.Empty(t, rec.All())
+}
+
+func TestInventoryHostEvents_DeleteNamesItsGroups(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	web := newInventoryGroup(t, f, inventory, "web")
+	eu := newInventoryGroup(t, f, inventory, "eu")
+	host := newInventoryHost(t, f, inventory, "web1", web.ID, eu.ID)
+
+	w, rec := hostCall(f, inventory, http.MethodDelete, "", host.ID, RemoveInventoryHost)
+
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	deleted := only(t, rec, audit.ResourceInventoryHostDelete)
+	assert.Equal(t, audit.InventoryHostMetadata{InventoryID: inventory.ID, InventoryName: "prod", Groups: []string{"web", "eu"}}, deleted.Event.Metadata)
+}
+
+func TestInventoryGroupEvents_DeleteNamesParentsAndChildren(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	child := newInventoryGroup(t, f, inventory, "eu-1")
+	eu := newInventoryGroup(t, f, inventory, "eu", child.ID)
+	newInventoryGroup(t, f, inventory, "web", eu.ID)
+	newInventoryHost(t, f, inventory, "web1", eu.ID)
+
+	vars := map[string]string{"inventory_id": strconv.Itoa(inventory.ID), "inventory_group_id": strconv.Itoa(eu.ID)}
+	r, rec := f.request(http.MethodDelete, "", map[string]any{"inventory": inventory}, vars)
+	w := httptest.NewRecorder()
+
+	RemoveInventoryGroup(w, r)
+
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	deleted := only(t, rec, audit.ResourceInventoryGroupDelete)
+	assert.Equal(t, audit.InventoryGroupMetadata{
+		InventoryID: inventory.ID, InventoryName: "prod", Children: []string{"eu-1"}, Parents: []string{"web"}, HostCount: 1,
+	}, deleted.Event.Metadata)
+}
+
+func TestInventoryGroupEvents_MissingNamesAreIDs(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	r, rec := f.request(http.MethodPut, "", nil, nil)
+
+	recordInventoryGroupLinks(r, inventory, audit.ResourceInventoryGroupHostAdd, "had hosts added", map[int]string{}, map[int][]int{5: {7, 8}}, map[int]string{8: "web8"})
+
+	added := only(t, rec, audit.ResourceInventoryGroupHostAdd)
+	assert.Equal(t, audit.ResourceTarget(audit.TargetInventoryGroup, 5, "#5"), added.Event.Target)
+	assert.Equal(t, audit.InventoryGroupMetadata{InventoryID: inventory.ID, InventoryName: "prod", Hosts: []string{"#7", "web8"}}, added.Event.Metadata)
+}
+
+func TestInventoryGroupEvents_LongHostListIsSplit(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "prod")
+	web := newInventoryGroup(t, f, inventory, "web")
+	ids, names := []int{}, []string{}
+	for i := range 100 {
+		host := newInventoryHost(t, f, inventory, fmt.Sprintf("%03d", i)+strings.Repeat("h", 197))
+		ids = append(ids, host.ID)
+		names = append(names, host.Name)
+	}
+	body, err := json.Marshal(map[string]any{"hosts": ids, "add": []int{web.ID}})
+	require.NoError(t, err)
+
+	w, rec := hostCall(f, inventory, http.MethodPut, string(body), 0, SetInventoryHostGroups)
+
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	all := rec.All()
+	require.Greater(t, len(all), 1)
+	recorded := []string{}
+	for i, part := range all {
+		assert.Equal(t, audit.ResourceInventoryGroupHostAdd, part.Event.Kind)
+		raw, err := json.Marshal(part.Event.Metadata)
+		require.NoError(t, err)
+		assert.LessOrEqual(t, len(raw), audit.MaxMetadataBytes)
+		metadata := part.Event.Metadata.(audit.InventoryGroupMetadata)
+		assert.Equal(t, inventory.ID, metadata.InventoryID)
+		assert.Equal(t, i+1, metadata.Part)
+		assert.Equal(t, len(all), metadata.Parts)
+		recorded = append(recorded, metadata.Hosts...)
+	}
+	assert.ElementsMatch(t, names, recorded)
+
+	events, err := f.store.GetEvents(f.project.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	assert.Len(t, events, 1)
+}

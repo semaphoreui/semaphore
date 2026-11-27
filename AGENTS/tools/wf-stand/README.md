@@ -16,7 +16,11 @@ AGENTS/tools/wf-stand/runner.sh {start|stop|status|tag|untag}   # PID=<project> 
 AGENTS/tools/wf-stand/inputs.sh <workflow_id> [run_id]           # outputs stored per producer + "INPUT name=value" lines per consumer
 NODE_PATH=~/.npm/_npx/9833c18b2d85bc59/node_modules node AGENTS/tools/wf-stand/shoot-run.cjs <workflow_id> [run_id] [out.png] [--dark]
 AGENTS/tools/wf-stand/seed-docs.sh                                # project "Demo Stand" + workflow "Build and deploy" for the docs screenshots
+AGENTS/tools/wf-stand/seed-survey.sh                              # workflow "Survey: workflow variables" (survey + node bindings) in the seed-outputs project
+NODE_PATH=… node AGENTS/tools/wf-stand/shoot-editor.cjs <workflow_id> [node_title] [out.png] [--dark]   # editor with a node selected: survey panel, canvas, bindings
+NODE_PATH=… node AGENTS/tools/wf-stand/shoot-run-dialog.cjs <workflow_id> [out_dir] [--dark]       # starts a run through the survey dialog; shoots the dialog and the run view's Variables strip
 PID=<project> WF=<workflow> NODE_PATH=… node AGENTS/tools/wf-stand/shoot-docs.cjs   # the four screenshots of workflows.md § Outputs and inputs
+[PID=1 WF=1 RUN=1] NODE_PATH=… node AGENTS/tools/wf-stand/check-run-panel.cjs      # browser walkthrough of the run panel (?w=<workflow>/<run>): PASS/FAIL per check
 ```
 
 Examples:
@@ -140,3 +144,37 @@ Traps: the token is returned once at creation, so a runner whose config file is 
 stop the runner and `untag` before a session that expects tasks to run on the server, or they wait forever;
 `status` keeps saying `online` for up to 120 s after `stop` (the server's heartbeat timeout), trust the
 `process:` line.
+
+`seed-survey.sh` (2026-10-16, TASK@B197C72B7F) needs the templates of `seed-outputs.sh` and adds workflow
+"Survey: workflow variables": survey `env` (enum, default `staging`), `image_tag` (required), `replicas` (int,
+default 2); node 2 "bash: consume" bound `image_tag←image_tag`, `replicas←replicas`, `env_name←env` on top of
+static `image_tag=static-from-node`; node 3 the same template without bindings (must receive nothing although
+the names match); node 4 "bash: produce renamed outputs" → node 5 "bash: consume" over an explicit edge
+`replicas←count` plus the binding `image_tag←image_tag`. Start a run with a body:
+`POST …/workflows/<id>/runs {"environment":{"image_tag":"1.2.3","env":"prod"}}` (ids in
+`/tmp/semaphore-stand/wf-survey-ids.txt`). `shoot-editor.cjs` logs in, opens the editor, clicks the first card
+whose title matches, scrolls the first bound survey field into view and writes the page, a crop of the task
+params card (`<out>-fields.png`) and the open assign menu (`<out>-assign.png`). `shoot-run-dialog.cjs` opens the
+workflow page, presses Run, checks that an empty required answer is refused, fills `image_tag` (`IMAGE_TAG`,
+default 1.2.3) and the first enum option, starts the run and shoots `run-dialog-invalid.png`, `run-dialog.png` and
+`run-view-variables.png` in `out_dir`; it prints the run id and the Variables chips.
+
+⚠️ 2026-10-16: macOS purges files (not directories) under `/tmp` that were not touched for ~3 days —
+`config-wf.json`, `database-wf.sqlite`, the admin user and every script in `wf-repo` vanished between sessions.
+`stand.sh build` + a fresh `config-wf.json` (sqlite at `$DIR/database-wf.sqlite`, port `:3100`, three
+`openssl rand -base64 32` keys, `use_remote_runner: true`), `migrate`, `user add --admin --login admin
+--password admin123` and the seeds bring it back; `wf-repo` scripts must be recreated before any run.
+
+`check-run-panel.cjs` (2026-11-17, TASK@244A5E2CA1) drives Chrome through the run panel: run links
+in both lists, the width (default half, drag, limits, storage, double click), the task dialog over
+the panel (`?w=&t=`), Escape / Back / Forward / close, an unknown run, a run under the wrong workflow, Run + approve + Stop from the
+panel with the list under it following, the old run page, the narrow screen, and (9) another
+project — the same `?w=` under `OTHER_PID` must not show the old graph, creating a project through
+the sidebar must drop `w` (the project it creates is deleted again) — and (10) a run that ends while
+the list is on screen (approved through the API) must reach the list when its panel opens. It needs
+a project seeded by `seed.sh` (`WF` = "Exec happy", the second workflow of the list = "Exec branches")
+with one finished run `RUN` of `WF` (`run.sh 1 --approve --expect success`) and a second project
+`OTHER_PID` (default 2) without `WF`; it starts three runs itself. Screenshots land in
+`/tmp/semaphore-stand/shots-panel`; the console 404 it reports comes from the unknown-run and the
+other-project checks. Example tail: `43/43 passed` (2026-11-17; the build before the review fixes of
+PR #4441 fails the four checks of 9 and 10).

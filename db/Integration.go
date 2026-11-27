@@ -19,6 +19,37 @@ const (
 	IntegrationAuthBasic      = "basic"
 )
 
+// usesVerificationSecret reports whether the auth method checks the request
+// against one shared secret string: token, HMAC-SHA256, HMAC-SHA512, GitHub
+// and Bitbucket do. BasicAuth compares a login and a password instead, and
+// none checks nothing.
+func (m IntegrationAuthMethod) usesVerificationSecret() bool {
+	switch m {
+	case IntegrationAuthToken, IntegrationAuthHmac, IntegrationAuthHmacSha512,
+		IntegrationAuthGitHub, IntegrationAuthBitbucket:
+		return true
+	default:
+		return false
+	}
+}
+
+// AcceptsKeyType reports whether a credential of type t can back the auth
+// method. A method that verifies one shared secret takes a string key or
+// the password of a login/password key; BasicAuth needs a login as well, so
+// only a login/password key fits. A method that reads no key — none, or one
+// the webhook receiver does not know and refuses outright (clients send
+// "none" as well as "") — accepts any key.
+func (m IntegrationAuthMethod) AcceptsKeyType(t AccessKeyType) bool {
+	switch {
+	case m == IntegrationAuthBasic:
+		return t == AccessKeyLoginPassword
+	case m.usesVerificationSecret():
+		return t == AccessKeyLoginPassword || t == AccessKeyString
+	default:
+		return true
+	}
+}
+
 type IntegrationMatchType string
 
 const (
@@ -92,10 +123,19 @@ const (
 )
 
 type Integration struct {
-	ID           int                   `db:"id" json:"id" backup:"-"`
-	Name         string                `db:"name" json:"name"`
-	ProjectID    int                   `db:"project_id" json:"project_id" backup:"-"`
-	TemplateID   int                   `db:"template_id" json:"template_id" backup:"-"`
+	ID        int    `db:"id" json:"id" backup:"-"`
+	Name      string `db:"name" json:"name"`
+	ProjectID int    `db:"project_id" json:"project_id" backup:"-"`
+
+	// TemplateID is the task template the integration starts. Exactly one of
+	// TemplateID and WorkflowID is set; the store refuses anything else.
+	TemplateID *int `db:"template_id" json:"template_id" backup:"-"`
+	// WorkflowID is the workflow (a project__workflow_template row) the
+	// integration starts instead of a template. The webhook's extracted values
+	// go to the task of the workflow's root node; TaskParams do not apply and
+	// are dropped by the store.
+	WorkflowID *int `db:"workflow_id" json:"workflow_id" backup:"-"`
+
 	AuthMethod   IntegrationAuthMethod `db:"auth_method" json:"auth_method"`
 	AuthSecretID *int                  `db:"auth_secret_id" json:"auth_secret_id" backup:"-"`
 	AuthHeader   string                `db:"auth_header" json:"auth_header"`
@@ -115,11 +155,51 @@ func (alias IntegrationAlias) ToAlias() Alias {
 	}
 }
 
+// VerificationSecret is the shared secret an incoming webhook is verified
+// against by the token, HMAC, GitHub and Bitbucket methods: the value of a
+// string key, or the password of a login/password key.
+//
+// ok is false when the auth method needs that secret and the key cannot
+// provide it — wrong key type, unloaded key or an empty value — so the
+// request must be refused. It is never reported as an empty secret: with
+// the token method that would match a request carrying no header at all.
+// For none and BasicAuth, which do not use a shared secret, the secret is
+// empty and ok is true.
+func (env *Integration) VerificationSecret() (secret string, ok bool) {
+	if !env.AuthMethod.usesVerificationSecret() {
+		return "", true
+	}
+
+	switch env.AuthSecret.Type {
+	case AccessKeyString:
+		secret = env.AuthSecret.String
+	case AccessKeyLoginPassword:
+		secret = env.AuthSecret.LoginPassword.Password
+	}
+
+	return secret, secret != ""
+}
+
 func (env *Integration) Validate() error {
 	if env.Name == "" {
 		return common_errors.NewValidationError("No Name set for integration")
 	}
+
+	if env.TemplateID == nil && env.WorkflowID == nil {
+		return common_errors.NewValidationError("Integration must run a template or a workflow")
+	}
+
+	if env.TemplateID != nil && env.WorkflowID != nil {
+		return common_errors.NewValidationError("Integration can run either a template or a workflow, not both")
+	}
+
 	return nil
+}
+
+// RunsWorkflow reports whether the integration starts a workflow rather than
+// a task template.
+func (env *Integration) RunsWorkflow() bool {
+	return env.WorkflowID != nil
 }
 
 func (env *IntegrationMatcher) Validate() error {

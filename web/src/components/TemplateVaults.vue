@@ -1,22 +1,36 @@
 <template>
-  <div class="pb-6" style="margin-top: -10px;">
-    <v-dialog
+  <div class="pb-6" style="margin-top: -10px;" data-testid="templateVaults">
+    <HelpDialog
       v-model="editDialog"
-      hide-overlay
+      help-doc="template-vault"
+      :scrim="false"
       content-class="NestedDialog"
       width="300"
+      v-slot="{ docs }"
     >
-      <v-card :color="$vuetify.theme.dark ? '#212121' : 'white'">
-        <v-card-title></v-card-title>
+      <v-card
+        :style="{ backgroundColor: $vuetify.theme.current.dark ? '#212121' : '#fff' }"
+        data-testid="templateVaultDialog"
+      >
+        <v-card-title class="d-flex align-center" data-testid="templateVaultDialog-heading">
+          <v-spacer></v-spacer>
+          <HelpButton
+            v-if="docs.available"
+            :open="docs.open"
+            data-testid="templateVaultDialog-docs"
+            @click="docs.toggle()"
+          />
+        </v-card-title>
         <v-card-text class="pb-0">
           <v-form
             ref="form"
-            lazy-validation
             v-if="editedVault != null"
+            data-testid="templateVaultDialog-form"
           >
             <v-alert
-              :value="formError"
+              :model-value="!!formError"
               color="error"
+              data-testid="templateVaultDialog-error"
             >{{ formError }}
             </v-alert>
 
@@ -24,7 +38,8 @@
               :label="$t('vaultName')"
               placeholder="default"
               v-model.trim="editedVault.name"
-              :rules="[v => this.vaultNameRules(v)]"
+              :rules="[v => vaultNameRules(v)]"
+              data-testid="templateVaultDialog-name"
             />
 
             <v-select
@@ -32,28 +47,34 @@
               :label="$t('type')"
               :items="vaultTypes"
               item-value="id"
-              item-text="name"
+              item-title="name"
               required
               :rules="[v => !!v  || $t('type_required')]"
-              @change="updateType"
+              :menu-props="underlinedMenu"
+              @update:model-value="updateType"
+              data-testid="templateVaultDialog-type"
             />
 
             <v-select
               v-model="editedVault.vault_key_id"
               v-if="editedVault.type === 'password'"
               :label="$t('vaultPassword2')"
-              :items="vaultKeys"
+              :items="vaultKeys || []"
               item-value="id"
-              item-text="name"
+              item-title="name"
               required
               :rules="[(v) => !!v || $t('vaultRequired')]"
+              :menu-props="underlinedMenu"
+              data-testid="templateVaultDialog-vaultKeyId"
+              :data-state="keys == null ? 'loading' : 'ready'"
             ></v-select>
 
             <v-text-field
               v-model="editedVault.script"
               v-if="editedVault.type === 'script'"
               :label="$t('vaultScript')"
-              :rules="[v => this.vaultScriptRules(v)]"
+              :rules="[v => vaultScriptRules(v)]"
+              data-testid="templateVaultDialog-script"
             />
 
           </v-form>
@@ -61,22 +82,24 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn
-            color="blue darken-1"
-            text
+            color="blue-darken-1"
+            variant="text"
             @click="editDialog = false"
+            data-testid="templateVaultDialog-cancel"
           >
             {{ $t('cancel') }}
           </v-btn>
           <v-btn
-            color="blue darken-1"
-            text
+            color="blue-darken-1"
+            variant="text"
             @click="saveVault()"
+            data-testid="templateVaultDialog-save"
           >
             {{ editedVaultIndex == null ? $t('add') : $t('save') }}
           </v-btn>
         </v-card-actions>
       </v-card>
-    </v-dialog>
+    </HelpDialog>
     <fieldset style="padding: 0 10px 2px 10px;
                      border-width: 1px;
                      border-color: rgba(133, 133, 133, 0.4);
@@ -84,19 +107,27 @@
                      border-radius: 8px;
                      font-size: 12px;"
     >
-      <legend style="padding: 0 3px;">{{ $t('vaults') }}</legend>
+      <legend style="padding: 0 3px;" data-testid="templateVaults-title">{{ $t('vaults') }}</legend>
       <v-chip-group column style="margin-top: -4px;">
+        <!-- base-color: inside a v-chip-group Vuetify 4 shows `color` on a selected chip only;
+             the "coloured" chip of Vuetify 2 had its cross in the text colour -->
         <v-chip
           v-for="(v, i) in modifiedVaults"
-          close
+          closable
           @click:close="deleteVault(i)"
           :key="v.name"
           @click="editVault(i)"
-          color="gray"
+          base-color="gray"
+          class="TemplateVaults__chip"
+          :data-testid="`templateVaults-chip-${v.name || 'default'}`"
         >
           {{ v.name || 'default' }}
         </v-chip>
-        <v-chip @click="editVault(null)">
+        <v-chip
+          @click="editVault(null)"
+          class="TemplateVaults__chip"
+          data-testid="templateVaults-add"
+        >
           + <span class="ml-1" v-if="modifiedVaults.length === 0">{{ $t('vaultAdd') }}</span>
         </v-chip>
       </v-chip-group>
@@ -104,16 +135,28 @@
   </div>
 </template>
 <style lang="scss">
-
+// A chip never wraps its text (`.v-chip`: nowrap). The build puts `.v-slide-group__content > *`
+// (white-space: initial) after the chip styles, so a chip straight in the group would wrap.
+.TemplateVaults__chip.v-chip {
+  white-space: nowrap;
+}
 </style>
 <script>
 import axios from 'axios';
+import HelpButton from '@/components/HelpButton.vue';
+import HelpDialog from '@/components/HelpDialog.vue';
 
 export default {
+  components: {
+    HelpButton,
+    HelpDialog,
+  },
+
   props: {
     projectId: Number,
     vaults: Array,
   },
+  emits: ['change'],
   watch: {
     vaults(val) {
       this.var = val || [];
@@ -131,6 +174,9 @@ export default {
 
   data() {
     return {
+      // The list of an underlined select opens over the input, below the label (Vuetify 2: the
+      // menu covers `.v-input__slot`, 16 px under the top of the field), not over the label.
+      underlinedMenu: { location: 'top', origin: 'top', offset: -16 },
       editDialog: null,
       editedVault: null,
       editedVaultIndex: null,
@@ -206,10 +252,11 @@ export default {
       this.editDialog = true;
     },
 
-    saveVault() {
+    async saveVault() {
       this.formError = null;
 
-      if (!this.$refs.form.validate()) {
+      const { valid } = await this.$refs.form.validate();
+      if (!valid) {
         return;
       }
 

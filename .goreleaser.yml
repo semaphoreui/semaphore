@@ -50,6 +50,35 @@ archives:
       - goos: windows
         format: zip
 
+# CycloneDX SBOM for every release binary (community and Pro builds alike).
+# cyclonedx-gomod runs from the dist dir, so the module root is "../".
+# GOOS/GOARCH/GOFLAGS must match the build so the dependency graph is the
+# one actually linked into that binary.
+sboms:
+  - id: binary
+    artifacts: binary
+    documents:
+      - "{{ .Env.PROJECT_NAME }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}.cdx.json"
+    cmd: cyclonedx-gomod
+    args:
+      - app
+      - -main
+      - cli
+      - -licenses
+      - -json
+      - -output
+      - $document
+      - ../
+    env:
+      - GOOS={{ .Os }}
+      - GOARCH={{ .Arch }}
+      - GOFLAGS=-tags=netgo
+      - CGO_ENABLED=0
+      # goreleaser gives the SBOM command a fresh environment, so GOWORK must be
+      # forwarded explicitly or a local GOWORK=off (community) build would get a
+      # Pro dependency graph when go.work is present.
+      - GOWORK={{ envOrDefault "GOWORK" "" }}
+
 signs:
   -
     artifacts: checksum

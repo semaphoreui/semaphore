@@ -1,7 +1,12 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null && keys != null">
+<template>
+  <div
+    v-if="items != null && keys != null"
+    data-testid="proxies-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="proxiesDialog"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="`${itemId === 'new' ? $t('nnew') : $t('edit')} Proxy`"
       @save="loadItems()"
@@ -24,9 +29,11 @@
       :object-refs="itemRefs"
       :project-id="projectId"
       v-model="itemRefsDialog"
+      test-id="proxiesRefsDialog"
     />
 
     <YesNoDialog
+      test-id="proxiesDeleteDialog"
       :title="$t('deleteProxy')"
       :text="$t('askDeleteProxy')"
       v-model="deleteItemDialog"
@@ -34,13 +41,18 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('proxies') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="proxies-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title data-testid="proxies-title">{{ $t('proxies') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
+        variant="elevated"
         @click="editItem('new')"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
+        data-testid="proxies-new"
       >{{ $t('newProxy') }}</v-btn>
     </v-toolbar>
 
@@ -50,9 +62,9 @@
       :headers="headers"
       :items="items"
       hide-default-footer
-      class="mt-4"
-      :items-per-page="Number.MAX_VALUE"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px); margin: auto;"
+      class="mt-4 ProxiesTable"
+      :items-per-page="-1"
+      data-testid="proxies-table"
     >
       <template v-slot:item.host="{ item }">
         {{ item.user ? `${item.user}@${item.host}` : item.host }}<span
@@ -65,18 +77,25 @@
       </template>
 
       <template v-slot:item.actions="{ item }">
-        <v-btn-toggle dense :value-comparator="() => false">
-          <v-btn @click="askDeleteItem(item.id)">
+        <v-btn-group density="compact" data-testid="proxies-rowActions">
+          <v-btn @click="askDeleteItem(item.id)" data-testid="proxies-rowDelete">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
-          <v-btn @click="editItem(item.id)">
+          <v-btn @click="editItem(item.id)" data-testid="proxies-rowEdit">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-        </v-btn-toggle>
+        </v-btn-group>
       </template>
     </v-data-table>
   </div>
 </template>
+<style lang="scss">
+// Not an inline style: the utility `mt-4` has no `!important` and would lose to it.
+.ProxiesTable {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 100px);
+  margin: auto;
+}
+</style>
 <script>
 import ItemListPageBase from '@/components/ItemListPageBase';
 import ProxyForm from '@/components/ProxyForm.vue';
@@ -107,28 +126,28 @@ export default {
 
     getHeaders() {
       return [{
-        text: this.$i18n.t('name'),
-        value: 'name',
+        title: this.$t('name'),
+        key: 'name',
         width: '25%',
       },
       {
-        text: this.$i18n.t('type'),
-        value: 'type',
+        title: this.$t('type'),
+        key: 'type',
         width: '15%',
       },
       {
-        text: this.$i18n.t('proxyHost'),
-        value: 'host',
+        title: this.$t('proxyHost'),
+        key: 'host',
         width: '35%',
       },
       {
-        text: this.$i18n.t('accessKey'),
-        value: 'ssh_key_id',
+        title: this.$t('accessKey'),
+        key: 'ssh_key_id',
         width: '25%',
       },
       {
-        text: this.$i18n.t('actions'),
-        value: 'actions',
+        title: this.$t('actions'),
+        key: 'actions',
         sortable: false,
       }];
     },

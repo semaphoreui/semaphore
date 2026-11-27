@@ -1,14 +1,16 @@
 <template>
   <v-form
     ref="form"
-    lazy-validation
     v-model="formValid"
     v-if="item != null && keys != null"
+    data-testid="proxyForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
   >
     <v-alert
-      :value="formError"
+      :model-value="!!formError"
       color="error"
       class="pb-2"
+      data-testid="proxyForm-error"
     >{{ formError }}
     </v-alert>
 
@@ -18,8 +20,9 @@
       :rules="[v => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="proxyForm-name"
     ></v-text-field>
 
     <v-select
@@ -27,10 +30,11 @@
       :label="$t('type')"
       :items="proxyTypes"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="proxyForm-type"
     ></v-select>
 
     <v-text-field
@@ -39,8 +43,9 @@
       :rules="[v => !!v || $t('proxyHostRequired')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="proxyForm-host"
       placeholder="bastion.example.org"
     ></v-text-field>
 
@@ -50,8 +55,9 @@
       type="number"
       :rules="[v => v === '' || v == null || (v > 0 && v < 65536) || $t('proxyPortInvalid')]"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="proxyForm-port"
       placeholder="22"
     ></v-text-field>
 
@@ -59,8 +65,9 @@
       v-model.trim="item.user"
       :label="$t('proxyUser')"
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="proxyForm-user"
       placeholder="ansible-proxy"
     ></v-text-field>
 
@@ -69,13 +76,14 @@
       :label="$t('accessKey')"
       :items="sshKeys"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :hint="$t('proxyKeyHint')"
       persistent-hint
       clearable
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="proxyForm-sshKeyId"
     ></v-autocomplete>
 
     <v-autocomplete
@@ -84,13 +92,14 @@
       :label="$t('requiresProxy')"
       :items="otherProxies"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :hint="$t('requiresProxyHint')"
       persistent-hint
       clearable
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="proxyForm-requiresProxyId"
     ></v-autocomplete>
   </v-form>
 </template>

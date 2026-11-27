@@ -18,7 +18,6 @@ type SystemInfoController struct {
 
 type SystemInfo struct {
 	Version           string                  `json:"version"`
-	Ansible           string                  `json:"ansible"`
 	WebHost           string                  `json:"web_host"`
 	UseRemoteRunner   bool                    `json:"use_remote_runner"`
 	AuthMethods       LoginAuthMethods        `json:"auth_methods"`
@@ -66,7 +65,7 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 		timezone = "UTC"
 	}
 
-	roles, err := helpers.Store(r).GetGlobalRoles()
+	roles, err := helpers.Store(r).GetSharedRoles()
 	if err != nil {
 		log.WithFields(log.Fields{
 			"context": "system_info",
@@ -99,7 +98,6 @@ func (c *SystemInfoController) GetSystemInfo(w http.ResponseWriter, r *http.Requ
 
 	body := SystemInfo{
 		Version:           util.Version(),
-		Ansible:           util.AnsibleVersion(),
 		WebHost:           util.Config.WebHost,
 		UseRemoteRunner:   util.Config.IsUseRemoteRunner(),
 		AuthMethods:       authMethods,

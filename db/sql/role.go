@@ -7,7 +7,7 @@ import (
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 )
 
-func (d *SqlDb) GetGlobalRoleBySlug(slug string) (role db.Role, err error) {
+func (d *SqlDb) GetSharedRoleBySlug(slug string) (role db.Role, err error) {
 	err = d.selectOne(&role, "select * from `role` where lower(slug)=lower(?) and project_id is null", slug)
 	return
 }
@@ -17,8 +17,8 @@ func (d *SqlDb) GetProjectRole(projectID int, slug string) (role db.Role, err er
 	return
 }
 
-// GetProjectOrGlobalRoleBySlug prefers the project role when a global role has the same slug.
-func (d *SqlDb) GetProjectOrGlobalRoleBySlug(projectID int, slug string) (role db.Role, err error) {
+// GetProjectOrSharedRoleBySlug prefers the project role when a global role has the same slug.
+func (d *SqlDb) GetProjectOrSharedRoleBySlug(projectID int, slug string) (role db.Role, err error) {
 	err = d.selectOne(&role, `
 		select
 		  *
@@ -36,7 +36,7 @@ func (d *SqlDb) GetProjectRoles(projectID int) (roles []db.Role, err error) {
 	return
 }
 
-func (d *SqlDb) GetGlobalRoles() (roles []db.Role, err error) {
+func (d *SqlDb) GetSharedRoles() (roles []db.Role, err error) {
 	_, err = d.selectAll(&roles, "select * from `role` where project_id is null order by name")
 	return
 }
@@ -128,6 +128,10 @@ func (d *SqlDb) roleAssignments(q gorp.SqlExecutor, roleID int) (assigned db.Rol
 	if err != nil {
 		return
 	}
+	_, err = q.Select(&assigned.WorkflowGrants, d.PrepareQuery("select id, workflow_id, project_id from project__workflow_role where role_id=?"), roleID)
+	if err != nil {
+		return
+	}
 	_, err = q.Select(&assigned.Mappings, d.PrepareQuery(`
 		select
 		  m.*, p.name as project_name, r.slug as role_slug, r.name as role_name
@@ -151,7 +155,7 @@ func (d *SqlDb) roleAssignments(q gorp.SqlExecutor, roleID int) (assigned db.Rol
 	return
 }
 
-// DeleteRoleWithAssignments removes a custom role with its member assignments and template grants and returns
+// DeleteRoleWithAssignments removes a custom role with its member assignments and object grants and returns
 // what it removed. A member whose only role it was stops being a member. Without withMappings the foreign key
 // refuses a role that a group mapping uses, with db.ErrInvalidOperation, and nothing is removed.
 func (d *SqlDb) DeleteRoleWithAssignments(roleID int, withMappings bool) (db.RoleAssignments, error) {
@@ -176,6 +180,10 @@ func (d *SqlDb) DeleteRoleWithAssignments(roleID int, withMappings bool) (db.Rol
 		return db.RoleAssignments{}, err
 	}
 	if _, err = d.execTx(tx, "delete from project__template_role where role_id=?", roleID); err != nil {
+		_ = tx.Rollback()
+		return db.RoleAssignments{}, err
+	}
+	if _, err = d.execTx(tx, "delete from project__workflow_role where role_id=?", roleID); err != nil {
 		_ = tx.Rollback()
 		return db.RoleAssignments{}, err
 	}

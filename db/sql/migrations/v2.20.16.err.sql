@@ -1,1 +1,3 @@
-alter table `project__proxy` drop column `requires_proxy_id`;
+drop table `user__global_role`;
+drop table `global_role_state`;
+drop table `global_role`;

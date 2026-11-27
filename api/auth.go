@@ -51,7 +51,7 @@ func getSession(r *http.Request) (*db.Session, bool) {
 		return nil, false
 	}
 
-	if session.IsExpiredAt(tz.Now(), util.Config.MaxSessionLife(), db.SessionInactivityTimeout) {
+	if session.IsExpiredAt(tz.Now(), util.Config.MaxSessionLife(), util.Config.SessionInactivityTimeout()) {
 		// The session was unused for too long or outlived the configured
 		// absolute lifetime. Destroy it so it cannot be reused.
 		if err = helpers.Store(r).ExpireSession(userID, sessionID); err != nil {
@@ -367,20 +367,6 @@ func authenticationWithStore(next http.Handler) http.Handler {
 		if ok {
 			next.ServeHTTP(w, r)
 		}
-	})
-}
-
-func adminMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user := helpers.GetFromContext(r, "user").(*db.User)
-
-		if !user.Admin {
-			helpers.RecordDenied(r, "admin", 0)
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-
-		next.ServeHTTP(w, r)
 	})
 }
 

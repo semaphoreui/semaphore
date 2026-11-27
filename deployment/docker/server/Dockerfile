@@ -16,11 +16,12 @@ RUN --mount=type=cache,target=/go/pkg \
 ARG APP_BUILD_TYPE
 ARG TARGETOS
 ARG TARGETARCH
-ARG GH_TOKEN
 ARG PRO_BRANCH=main
 
-RUN if [ -n "$APP_BUILD_TYPE" ]; then \
-      git clone -b "$PRO_BRANCH" https://${GH_TOKEN}@github.com/semaphoreui/semaphorepro-module.git pro_impl && \
+RUN --mount=type=secret,id=gh_token \
+    if [ -n "$APP_BUILD_TYPE" ]; then \
+      GH_TOKEN="$(cat /run/secrets/gh_token)" && \
+      git clone -b "$PRO_BRANCH" "https://x-access-token:${GH_TOKEN}@github.com/semaphoreui/semaphorepro-module.git" pro_impl && \
       go work init . ./pro_impl; \
     fi
 
@@ -91,7 +92,7 @@ RUN apk add --no-cache -U python3-dev build-base openssl-dev libffi-dev cargo &&
      mkdir -p ${ANSIBLE_VENV_PATH} && \
      python3 -m venv ${ANSIBLE_VENV_PATH} --system-site-packages && \
      source ${ANSIBLE_VENV_PATH}/bin/activate && \
-     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests pywinrm passlib paramiko && \
+     pip3 install --upgrade pip ansible==${ANSIBLE_VERSION} boto3 botocore requests pywinrm libpass paramiko && \
      apk del python3-dev build-base openssl-dev libffi-dev cargo && \
      rm -rf /var/cache/apk/* && \
      find ${ANSIBLE_VENV_PATH} -iname __pycache__ | xargs rm -rf && \

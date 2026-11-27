@@ -36,10 +36,12 @@ tasks:
       SWAGGER_VERSION: v0.30.5
       GORELEASER_VERSION: v2.11.2
       GOLINTER_VERSION: v2.13.2
+      CYCLONEDX_GOMOD_VERSION: v1.12.0
     cmds:
       - go install github.com/go-swagger/go-swagger/cmd/swagger@latest
       - go install github.com/goreleaser/goreleaser/v2@{{ .GORELEASER_VERSION }}
       - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{ .GOLINTER_VERSION }}
+      - go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@{{ .CYCLONEDX_GOMOD_VERSION }}
     dir: /tmp
 
   deps:be:
@@ -83,23 +85,21 @@ tasks:
     sources:
       - src/*.*
       - src/**/*.*
-      - public/index.html
-      - public/favicon.ico
+      - public/**/*.*
+      - index.html
       - ../api-docs.yml
       - package.json
       - package-lock.json
-      - babel.config.js
-      - vue.config.js
+      - vite.config.mjs
+      - vite/**/*.*
     generates:
-      - ../api/public/css/*.css
-      - ../api/public/js/*.js
+      - ../api/public/assets/*.*
       - ../api/public/index.html
-      - ../api/public/favicon.ico
     cmds:
       - >-
         {{ if eq OS "windows" }}set VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }} && {{ else }}env VUE_APP_BUILD_TYPE={{ .APP_BUILD_TYPE }}{{ end }}
         npm run build
-      # vue-cli-service empties outputDir (../api/public) before every build,
+      # vite empties outDir (../api/public) before every build,
       # which deletes the tracked placeholder. Put it back: `go:embed public/*`
       # in api/router.go needs a match even when the frontend has not been
       # built, and the CI "Check modification" step fails if a build leaves the
@@ -171,9 +171,12 @@ tasks:
       - npm run test:unit
 
   test:be:
-    desc: Run go code tests
+    desc: Run go code tests, including pro_impl when a go.work workspace is active
     cmds:
-      - go test -v -coverprofile=coverage.out ./...
+      # `./...` stops at a nested go.mod, so it never reaches pro_impl. `go list -m`
+      # prints the directory of every module under test: the main module alone,
+      # or all modules of the go.work workspace when one is active.
+      - go test -v -coverprofile=coverage.out $(go list -m -f '{{ "{{.Dir}}/..." }}')
 
   dredd:goodman:
     desc: Installs goodman which is required by dredd

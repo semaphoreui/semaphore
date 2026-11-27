@@ -77,43 +77,64 @@ func (d *SqlDb) ImportUser(user db.UserWithPwd) (newUser db.User, err error) {
 	return
 }
 
+// DeleteUser removes the user, unless it is the last admin.
 func (d *SqlDb) DeleteUser(userID int) error {
-	res, err := d.exec("delete from `user` where id=?", userID)
-	return validateMutationResult(res, err)
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err = d.LockAdministratorState(tx); err != nil {
+		return err
+	}
+	if err = d.requireAnotherAdmin(tx, userID); err != nil {
+		return err
+	}
+	res, err := d.execTx(tx, "delete from `user` where id=?", userID)
+	if err = validateMutationResult(res, err); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
+// UpdateUser saves the user. Clearing the admin flag of the last admin is refused.
 func (d *SqlDb) UpdateUser(user db.UserWithPwd) error {
-	var err error
-
+	var pwdHash []byte
 	if user.Pwd != "" {
-		var pwdHash []byte
+		var err error
 		pwdHash, err = bcrypt.GenerateFromPassword([]byte(user.Pwd), 11)
 		if err != nil {
 			return err
 		}
-		_, err = d.exec(
-			"update `user` set name=?, username=?, email=?, alert=?, admin=?, pro=?, password=? where id=?",
-			user.Name,
-			user.Username,
-			user.Email,
-			user.Alert,
-			user.Admin,
-			user.Pro,
-			string(pwdHash),
-			user.ID)
-	} else {
-		_, err = d.exec(
-			"update `user` set name=?, username=?, email=?, alert=?, admin=?, pro=? where id=?",
-			user.Name,
-			user.Username,
-			user.Email,
-			user.Alert,
-			user.Admin,
-			user.Pro,
-			user.ID)
 	}
 
-	return err
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err = d.LockAdministratorState(tx); err != nil {
+		return err
+	}
+	if !user.Admin {
+		if err = d.requireAnotherAdmin(tx, user.ID); err != nil {
+			return err
+		}
+	}
+
+	if len(pwdHash) > 0 {
+		_, err = d.execTx(tx,
+			"update `user` set name=?, username=?, email=?, alert=?, admin=?, pro=?, password=? where id=?",
+			user.Name, user.Username, user.Email, user.Alert, user.Admin, user.Pro, string(pwdHash), user.ID)
+	} else {
+		_, err = d.execTx(tx,
+			"update `user` set name=?, username=?, email=?, alert=?, admin=?, pro=? where id=?",
+			user.Name, user.Username, user.Email, user.Alert, user.Admin, user.Pro, user.ID)
+	}
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (d *SqlDb) SetUserPassword(userID int, password string) error {

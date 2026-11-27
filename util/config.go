@@ -126,6 +126,15 @@ type RunnerConnectionConfig struct {
 	// SkipTLSVerify disables server certificate verification entirely.
 	// This is insecure (vulnerable to MITM) — use only for testing.
 	SkipTLSVerify bool `json:"skip_tls_verify,omitempty" env:"SEMAPHORE_RUNNER_SKIP_TLS_VERIFY"`
+	// TimeoutSeconds bounds how long a runner→server request may wait for the
+	// server to answer: the TCP connect, the TLS handshake and the wait for the
+	// response headers each get this budget. Without it a server that accepts
+	// the connection but never replies freezes the runner's poll loop — and
+	// with it the heartbeat — until the OS gives up.
+	// Uploading the request body is deliberately not bounded, so a large log
+	// batch on a slow link is not cut off.
+	// Plain int, not time.Duration, for env-binding simplicity.
+	TimeoutSeconds int `json:"timeout_seconds,omitempty" default:"3" env:"SEMAPHORE_RUNNER_CONNECTION_TIMEOUT_SECONDS"`
 }
 
 // ExecutorType identifies the strategy the runner uses to execute each task. The default
@@ -169,7 +178,7 @@ type RunnerConfig struct {
 
 	// CheckIntervalSeconds is how often the runner polls the server for new jobs.
 	// Plain int, not time.Duration, for env-binding simplicity.
-	CheckIntervalSeconds int `json:"check_interval_seconds,omitempty" default:"1" env:"SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS"`
+	CheckIntervalSeconds int `json:"check_interval_seconds,omitempty" default:"5" env:"SEMAPHORE_RUNNER_CHECK_INTERVAL_SECONDS"`
 
 	Connection *RunnerConnectionConfig `json:"connection,omitempty"`
 
@@ -187,21 +196,22 @@ type RunnerK8sConfig struct {
 	// Namespace is where ephemeral task Pods are created.
 	Namespace string `json:"namespace,omitempty" default:"semaphore" env:"SEMAPHORE_RUNNER_K8S_NAMESPACE"`
 
-	// Image is the default container image used for the build container of each
-	// task Pod. Templates may override this in a future phase.
+	// Image is the image of the build container of each task Pod. A template's
+	// Executor image overrides it.
 	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_K8S_IMAGE"`
 
-	// HelperImage is the image used for the git-clone init container (Phase 3+).
+	// HelperImage is the image of the git-clone init container that clones the repository.
 	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/helper:latest" env:"SEMAPHORE_RUNNER_K8S_HELPER_IMAGE"`
 
-	// ServiceAccount that task Pods run under. Defaults to the namespace's default SA.
+	// ServiceAccount is the service account task Pods run under. Use one without
+	// permissions and with automountServiceAccountToken disabled.
 	ServiceAccount string `json:"service_account,omitempty" default:"default" env:"SEMAPHORE_RUNNER_K8S_SERVICE_ACCOUNT"`
 
 	// PullSecrets is a comma-separated list of imagePullSecrets attached to each Pod.
 	PullSecrets string `json:"pull_secrets,omitempty" env:"SEMAPHORE_RUNNER_K8S_PULL_SECRETS"`
 
-	// PollIntervalSeconds controls how often the executor polls Pod status. Defaults
-	// to 3 seconds. Kept as a plain int (not time.Duration) for env-binding simplicity.
+	// PollIntervalSeconds is how often the executor reads the Pod status.
+	// Plain int, not time.Duration, for env-binding simplicity.
 	PollIntervalSeconds int `json:"poll_interval_seconds,omitempty" default:"3" env:"SEMAPHORE_RUNNER_K8S_POLL_INTERVAL_SECONDS"`
 
 	// CleanupGraceSeconds is the grace period when deleting Pods. Defaults to 30s.
@@ -218,17 +228,20 @@ type RunnerDockerConfig struct {
 	// socket are used.
 	Host string `json:"host,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_HOST"`
 
-	// TLSVerify enables TLS certificate verification for tcp:// connections.
+	// TLSVerify is reserved and not applied yet: setting CertPath is what enables
+	// TLS with certificate verification.
 	TLSVerify bool `json:"tls_verify,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_TLS_VERIFY"`
 
 	// CertPath is the directory holding ca.pem, cert.pem and key.pem for mutual TLS
 	// against a remote daemon.
 	CertPath string `json:"cert_path,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_CERT_PATH"`
 
-	// Image is the default image used for the build container of each task.
+	// Image is the image of the build container of each task. A template's
+	// Executor image overrides it.
 	Image string `json:"image,omitempty" default:"semaphoreui/job:latest" env:"SEMAPHORE_RUNNER_DOCKER_IMAGE"`
 
-	// HelperImage is the image used for the transient git-clone container.
+	// HelperImage is the image of the transient git-clone container; it also seeds
+	// the per-task secrets volume.
 	HelperImage string `json:"helper_image,omitempty" default:"semaphoreui/helper:latest" env:"SEMAPHORE_RUNNER_DOCKER_HELPER_IMAGE"`
 
 	// Network is the Docker network the build container joins. Defaults to "bridge".
@@ -243,7 +256,7 @@ type RunnerDockerConfig struct {
 	// MemoryLimit, when non-empty, caps the build container memory (e.g. "2g").
 	MemoryLimit string `json:"memory_limit,omitempty" env:"SEMAPHORE_RUNNER_DOCKER_MEMORY_LIMIT"`
 
-	// PollIntervalSeconds controls how often container status is polled. Defaults to 2s.
+	// PollIntervalSeconds is not used: the executor waits for the container to exit.
 	PollIntervalSeconds int `json:"poll_interval_seconds,omitempty" default:"2" env:"SEMAPHORE_RUNNER_DOCKER_POLL_INTERVAL_SECONDS"`
 
 	// CleanupGraceSeconds is the timeout passed to docker stop. Defaults to 30s.
@@ -349,35 +362,6 @@ type MetricsConfig struct {
 	Password string `json:"password,omitempty" env:"SEMAPHORE_METRICS_PASSWORD,sensitive"`
 }
 
-type ConfigProcess struct {
-	User       string  `json:"user,omitempty" env:"SEMAPHORE_PROCESS_USER"`
-	UID        *uint32 `json:"uid,omitempty" env:"SEMAPHORE_PROCESS_UID"`
-	Chroot     string  `json:"chroot,omitempty" env:"SEMAPHORE_PROCESS_CHROOT"`
-	GID        *uint32 `json:"gid,omitempty" env:"SEMAPHORE_PROCESS_GID"`
-	NoNewPrivs bool    `json:"no_new_privs,omitempty" env:"SEMAPHORE_PROCESS_NO_NEW_PRIVS"`
-
-	// AppNamespaces controls Linux namespace isolation for child apps
-	// (ansible, terraform, shell templates). Git is never isolated —
-	// SSH agent forwarding and credential helpers need host access.
-	AppNamespaces ConfigAppNamespaces `json:"app_namespaces"`
-}
-
-// ConfigAppNamespaces mirrors the CLONE_NEW* flags applied to app runs.
-// Each flag is a standard Linux namespace and is a no-op on non-Linux.
-type ConfigAppNamespaces struct {
-	// User isolates UIDs/GIDs (CLONE_NEWUSER). Enables unprivileged use
-	// of the other namespaces.
-	User bool `json:"user,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_USER"`
-	// Mount hides host mount points such as secret tmpfs (CLONE_NEWNS).
-	Mount bool `json:"mount,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_MOUNT"`
-	// PID hides host processes from child apps (CLONE_NEWPID).
-	PID bool `json:"pid,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_PID"`
-	// IPC isolates SysV IPC and POSIX message queues (CLONE_NEWIPC).
-	IPC bool `json:"ipc,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_IPC"`
-	// UTS isolates hostname and domain (CLONE_NEWUTS).
-	UTS bool `json:"uts,omitempty" env:"SEMAPHORE_PROCESS_APP_NS_UTS"`
-}
-
 type ScheduleConfig struct {
 	Timezone string `json:"timezone,omitempty" env:"SEMAPHORE_SCHEDULE_TIMEZONE" default:"UTC"`
 }
@@ -387,19 +371,124 @@ type DebuggingConfig struct {
 	PprofDumpDir string `json:"pprof_dump_dir,omitempty" env:"SEMAPHORE_PPROF_DUMP_DIR"`
 }
 
+// HAEngineType selects the backend that stores shared state and coordinates
+// the HA nodes.
+type HAEngineType string
+
+const (
+	// HAEngineRedis is a single Redis address, configured in ha.redis.
+	HAEngineRedis HAEngineType = "redis"
+	// HAEngineRedisSentinel is a Redis Sentinel deployment, configured in
+	// ha.redis_sentinel.
+	HAEngineRedisSentinel HAEngineType = "redis_sentinel"
+)
+
+// HARedisConfig connects the HA nodes to a single Redis server. Used when
+// ha.engine is `redis`.
 type HARedisConfig struct {
-	Addr          string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
-	DB            int    `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
-	Pass          string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS,sensitive"`
-	User          string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
-	TLS           bool   `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
-	TLSSkipVerify bool   `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
+	// Address of the Redis server, `host:port`. Default: `127.0.0.1:6379`.
+	Addr string `json:"addr,omitempty" env:"SEMAPHORE_HA_REDIS_ADDR"`
+	// Redis database number.
+	DB int `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_DB"`
+	// Password for the Redis server.
+	Pass string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_PASS,sensitive"`
+	// Username (ACL) for the Redis server.
+	User string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_USER"`
+	// Enable TLS for the Redis connection.
+	TLS bool `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_TLS"`
+	// Skip TLS certificate verification for the Redis connection.
+	TLSSkipVerify bool `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_TLS_SKIP_VERIFY"`
+}
+
+// HARedisSentinelConfig connects the HA nodes to a Redis Sentinel deployment:
+// the nodes ask the sentinels for the current master and follow a failover
+// without a restart. Used when ha.engine is `redis_sentinel`.
+type HARedisSentinelConfig struct {
+	// Name of the monitored master as configured in Sentinel (`sentinel monitor <name> ...`).
+	MasterName string `json:"master_name,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_MASTER_NAME"`
+	// Sentinel addresses, `host:port` each. As an environment variable, a JSON array string: `["s1:26379","s2:26379"]`.
+	Addrs []string `json:"addrs,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_ADDRS"`
+	// Username (ACL) for the Sentinel nodes themselves, not for the Redis data nodes.
+	SentinelUser string `json:"sentinel_user,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_SENTINEL_USER"`
+	// Password for the Sentinel nodes themselves (`requirepass` in sentinel.conf), not for the Redis data nodes.
+	SentinelPass string `json:"sentinel_pass,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_SENTINEL_PASS,sensitive"`
+	// Redis database number on the data nodes.
+	DB int `json:"db,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_DB"`
+	// Username (ACL) for the Redis data nodes.
+	User string `json:"user,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_USER"`
+	// Password for the Redis data nodes.
+	Pass string `json:"pass,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_PASS,sensitive"`
+	// Enable TLS for both the Sentinel and the Redis data-node connections.
+	TLS bool `json:"tls,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_TLS"`
+	// Skip TLS certificate verification for the Sentinel and Redis connections.
+	TLSSkipVerify bool `json:"tls_skip_verify,omitempty" env:"SEMAPHORE_HA_REDIS_SENTINEL_TLS_SKIP_VERIFY"`
+}
+
+// IsSet reports whether the block carries any Sentinel settings. The config
+// loader allocates every nested block, so a nil check is not enough.
+func (c *HARedisSentinelConfig) IsSet() bool {
+	return c != nil && (c.MasterName != "" || len(c.Addrs) > 0)
 }
 
 type HAConfig struct {
-	Enabled bool           `json:"enabled" env:"SEMAPHORE_HA_ENABLED"`
-	NodeID  string         `json:"node_id,omitempty" env:"SEMAPHORE_HA_NODE_ID"` // auto-generated if empty
-	Redis   *HARedisConfig `json:"redis,omitempty"`
+	// Enable High Availability (HA) mode.
+	Enabled bool `json:"enabled" env:"SEMAPHORE_HA_ENABLED"`
+	// Unique identifier of this node in the cluster. Auto-generated if empty.
+	NodeID string `json:"node_id,omitempty" env:"SEMAPHORE_HA_NODE_ID"`
+	// Backend that stores the shared state and coordinates the HA nodes: `redis` (single server, settings in `ha.redis`) or `redis_sentinel` (Redis Sentinel, settings in `ha.redis_sentinel`).
+	Engine        HAEngineType           `json:"engine,omitempty" default:"redis" rule:"^(redis|redis_sentinel)?$" env:"SEMAPHORE_HA_ENGINE"`
+	Redis         *HARedisConfig         `json:"redis,omitempty"`
+	RedisSentinel *HARedisSentinelConfig `json:"redis_sentinel,omitempty"`
+}
+
+// EngineType returns the configured engine, `redis` when the field is empty.
+func (c *HAConfig) EngineType() HAEngineType {
+	if c == nil || c.Engine == "" {
+		return HAEngineRedis
+	}
+	return c.Engine
+}
+
+// validateHAConfig checks the HA block. It returns a fatal error for an
+// unusable configuration and warnings for settings that are present but
+// ignored, so the caller can log them without util depending on a logger.
+// Only an enabled HA block is checked beyond the engine name: a disabled
+// block is inert whatever it contains.
+func validateHAConfig(c *HAConfig) (warnings []string, err error) {
+	if c == nil {
+		return nil, nil
+	}
+	if err = validate(c); err != nil {
+		return nil, err
+	}
+	if !c.Enabled {
+		return nil, nil
+	}
+
+	switch c.EngineType() {
+	case HAEngineRedisSentinel:
+		if c.RedisSentinel == nil || c.RedisSentinel.MasterName == "" {
+			return nil, fmt.Errorf("ha.redis_sentinel.master_name is required when ha.engine is %q", HAEngineRedisSentinel)
+		}
+		if len(c.RedisSentinel.Addrs) == 0 {
+			return nil, fmt.Errorf("ha.redis_sentinel.addrs must list at least one sentinel when ha.engine is %q", HAEngineRedisSentinel)
+		}
+		if c.Redis != nil && c.Redis.Addr != "" {
+			warnings = append(warnings, fmt.Sprintf("ha.redis.addr is ignored because ha.engine is %q", HAEngineRedisSentinel))
+		}
+	case HAEngineRedis:
+		if c.RedisSentinel.IsSet() {
+			warnings = append(warnings, fmt.Sprintf("ha.redis_sentinel is ignored because ha.engine is %q", HAEngineRedis))
+		}
+	}
+	return warnings, nil
+}
+
+// HAWarnings returns the non-fatal findings of the HA validation for the
+// loaded configuration, for the server to log at startup.
+func HAWarnings() []string {
+	warnings, _ := validateHAConfig(Config.HA)
+	return warnings
 }
 
 // HAEnabled returns true when high-availability mode is configured.
@@ -522,6 +611,41 @@ type SshConfig struct {
 	StrictHostKeyChecking SshStrictHostKeyChecking `json:"strict_host_key_checking,omitempty" env:"" default:"no"`
 }
 
+// ListenPort is the HTTP listen port of the server. In the config file it may
+// be given either as a string (`":3000"`, `"3000"`) or as a bare number (`3000`);
+// both decode to the string form so the rest of the code sees one shape.
+type ListenPort string
+
+// UnmarshalJSON accepts a JSON string or a JSON integer.
+func (p *ListenPort) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		*p = ListenPort(str)
+		return nil
+	}
+
+	var num int64
+	if err := json.Unmarshal(data, &num); err != nil {
+		return fmt.Errorf("port must be a string or an integer, got %s", string(data))
+	}
+
+	*p = ListenPort(strconv.FormatInt(num, 10))
+	return nil
+}
+
+func (p ListenPort) String() string {
+	return string(p)
+}
+
+// Addr returns the port in `:port` form, ready for net.Listen.
+func (p ListenPort) Addr() string {
+	port := strings.TrimPrefix(string(p), ":")
+	if port == "" {
+		port = "3000"
+	}
+	return ":" + port
+}
+
 // ConfigType mapping between Config and the json file that sets it
 type ConfigType struct {
 	MySQL    *DbConfig `json:"mysql,omitempty"`
@@ -530,9 +654,8 @@ type ConfigType struct {
 
 	Dialect string `json:"dialect,omitempty" default:"sqlite" rule:"^mysql|postgres|sqlite$" env:"SEMAPHORE_DB_DIALECT"`
 
-	// Format `:port_num` eg, :3000
-	// if : is missing it will be corrected
-	Port string     `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
+	// TCP port the HTTP server listens on, as `:port_num` (e.g. `:3000`) or a bare number (`3000`, quoted or not). A missing `:` is added automatically.
+	Port ListenPort `json:"port,omitempty" default:":3000" rule:"^:?([0-9]{1,5})$" env:"SEMAPHORE_PORT"`
 	TLS  *TLSConfig `json:"tls,omitempty"`
 
 	Auth *AuthConfig            `json:"auth,omitempty"`
@@ -550,13 +673,14 @@ type ConfigType struct {
 	SecretsPath string `json:"secrets_path,omitempty" env:"SEMAPHORE_SECRETS_PATH"`
 
 	// HomeDirMode controls how the HOME environment variable is set for tasks.
-	//   "template_home" (default) — HOME is set to a per-template directory,
-	//       isolating .ansible/ across parallel tasks. Repo is cloned into a
-	//       "src" subdirectory under HOME.
+	//   "template_dir" (default) — HOME is not overridden (keeps the HOME of the
+	//       server or runner process). Ansible tasks get ANSIBLE_HOME set to a
+	//       per-template "_home/.ansible" directory under the project temp
+	//       directory, isolating .ansible/ across parallel tasks.
 	//   "project_home" — HOME is set to the project temp directory (legacy
 	//       behavior). Parallel ansible-galaxy runs in the same project may conflict.
-	//   "user_home" — HOME is not overridden (keeps the real user HOME).
-	//       ANSIBLE_HOME is set per template to isolate .ansible/ for Ansible tasks.
+	//   "user_home" — HOME is not overridden (keeps the real user HOME) and
+	//       ANSIBLE_HOME is not set.
 	HomeDirMode string `json:"home_dir_mode,omitempty" rule:"^(user_home|project_home|template_dir)?$" env:"SEMAPHORE_HOME_DIR_MODE" default:"template_dir"`
 
 	// SshConfigPath is a path to the custom SSH config file.
@@ -627,6 +751,10 @@ type ConfigType struct {
 	// certificate for the legacy flat ldap_* config. Defaults to false
 	// (certificates are verified). See LdapProvider.TLSSkipVerify.
 	LdapTLSSkipVerify bool `json:"ldap_tls_skip_verify,omitempty" env:"SEMAPHORE_LDAP_TLS_SKIP_VERIFY"`
+	// LdapGroupSearchDN is the base DN of the group search. Empty: groups are not read.
+	LdapGroupSearchDN      string `json:"ldap_group_search_dn,omitempty" env:"SEMAPHORE_LDAP_GROUP_SEARCH_DN"`
+	LdapGroupSearchFilter  string `json:"ldap_group_search_filter,omitempty" env:"SEMAPHORE_LDAP_GROUP_SEARCH_FILTER"`
+	LdapGroupNameAttribute string `json:"ldap_group_name_attribute,omitempty" env:"SEMAPHORE_LDAP_GROUP_NAME_ATTRIBUTE"`
 
 	// LdapProviders configures multiple LDAP directories (like OidcProviders
 	// for OIDC). The key is the provider ID shown in identity records; the
@@ -706,8 +834,6 @@ type ConfigType struct {
 
 	Log *ConfigLog `json:"log,omitempty"`
 
-	Process *ConfigProcess `json:"process,omitempty"`
-
 	Schedule *ScheduleConfig `json:"schedule,omitempty"`
 
 	Debugging *DebuggingConfig `json:"debugging,omitempty"`
@@ -746,11 +872,19 @@ const (
 )
 
 // Default poll interval for a runner asking the server for work.
-const defaultRunnerCheckIntervalSec = 1
+const defaultRunnerCheckIntervalSec = 5
 
 // Larger overflows time.Duration and panics time.NewTicker. Kept as int64: the
 // value exceeds int on 32-bit release targets (386, arm).
 const maxRunnerCheckIntervalSec int64 = int64(math.MaxInt64) / int64(time.Second)
+
+// Default timeout for a runner→server request. Kept below the default poll
+// interval so a stuck request cannot outlive the cycle that started it.
+const defaultRunnerConnectionTimeoutSec = 3
+
+// Larger overflows time.Duration. Shares the bound with the poll interval:
+// both are seconds cast to a duration.
+const maxRunnerConnectionTimeoutSec = maxRunnerCheckIntervalSec
 
 // GetSecretsPath returns the secrets path from configuration.
 // Used for backward compatibility with legacy top-level secrets_path.
@@ -820,6 +954,21 @@ func (conf *ConfigType) RunnersTaskFailTimeout() time.Duration {
 	return res
 }
 
+// RunnerConnectionTimeout returns the per-request budget for the runner→server
+// connect, TLS handshake and response-header wait. Out-of-range values fall
+// back to the default: 0 is indistinguishable from "unset" after defaults are
+// applied, and oversized values overflow time.Duration.
+func (conf *ConfigType) RunnerConnectionTimeout() time.Duration {
+	sec := int64(defaultRunnerConnectionTimeoutSec)
+	if conf.Runner != nil && conf.Runner.Connection != nil {
+		if configured := int64(conf.Runner.Connection.TimeoutSeconds); configured > 0 &&
+			configured <= maxRunnerConnectionTimeoutSec {
+			sec = configured
+		}
+	}
+	return time.Duration(sec) * time.Second
+}
+
 // RunnerCheckInterval returns how often this runner polls the server for new
 // jobs. Out-of-range values fall back to the default: 0 is indistinguishable
 // from "unset" after defaults are applied, and oversized values overflow.
@@ -840,14 +989,6 @@ func (conf *ConfigType) RunnersReconcileInterval() time.Duration {
 		sec = conf.Runners.ReconcileIntervalSec
 	}
 	return time.Duration(sec) * time.Second
-}
-
-type SubscriptionConfig struct {
-	// Key is a subscription key or token that can be set via config.
-	// When this is set, subscription activation from the web interface is disabled.
-	Key       string `json:"key,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY,sensitive"`
-	KeyFile   string `json:"key_file,omitempty" db:"-" env:"SEMAPHORE_SUBSCRIPTION_KEY_FILE"`
-	ServerURL string `json:"server_url,omitempty" env:"SEMAPHORE_SUBSCRIPTION_SERVER_URL" default:"https://portal.semaphoreui.com/billing"`
 }
 
 func NewConfigType() *ConfigType {
@@ -927,6 +1068,12 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 		usedConfigPath = loadConfigFile(configPath)
 	}
 
+	// Refuse to start on the removed `process` settings: ignoring them would
+	// silently run tasks with the privileges of the Semaphore process.
+	if err := checkRemovedProcessSettings(usedConfigPath); err != nil {
+		exitOnConfigError("Configuration error: " + err.Error() + ".")
+	}
+
 	loadConfigEnvironment()
 	loadConfigDefaults()
 
@@ -936,12 +1083,6 @@ func ConfigInit(configPath string, noConfigFile bool) (usedConfigPath *string) {
 
 	//fmt.Println("Validating config")
 	validateConfig()
-
-	if Config.Process.NoNewPrivs {
-		if err := SetNoNewPrivs(); err != nil {
-			panic(fmt.Errorf("failed to set no_new_privs: %w", err))
-		}
-	}
 
 	var encryption []byte
 
@@ -1167,8 +1308,7 @@ func cloneStruct(origValue reflect.Value) reflect.Value {
 func assignMapToStructRecursive(m map[string]any, structValue reflect.Value) error {
 	structType := structValue.Type()
 
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
+	for field := range structType.Fields() {
 
 		// Skip fields with db:"-" tag
 		dbTag := field.Tag.Get("db")
@@ -1873,13 +2013,19 @@ func validateConfig() {
 		panic(err)
 	}
 
-	if Config.Auth != nil {
-		if err := validate(Config.Auth); err != nil {
-			panic(err)
-		}
+	if err := validate(Config.Auth); err != nil {
+		panic(err)
+	}
+
+	if _, err := validateHAConfig(Config.HA); err != nil {
+		panic(err)
 	}
 
 	if err := Config.Audit.Validate(); err != nil {
+		panic(err)
+	}
+
+	if err := Config.Subscription.Validate(); err != nil {
 		panic(err)
 	}
 
@@ -2296,6 +2442,8 @@ var appCommands = map[string]string{
 	"tofu":       "tofu",
 	"terragrunt": "terragrunt",
 	"bash":       "bash",
+	"claude":     "claude",
+	"codex":      "codex",
 }
 
 var appPriorities = map[string]int{
@@ -2306,6 +2454,8 @@ var appPriorities = map[string]int{
 	"bash":       700,
 	"powershell": 600,
 	"python":     500,
+	"claude":     450,
+	"codex":      440,
 }
 
 func LookupDefaultApps() {
@@ -2339,15 +2489,8 @@ func LookupDefaultApps() {
 
 func GetPublicHost() string {
 	aliasURL := Config.WebHost
-	port := Config.Port
-	if port == "" {
-		port = "3000"
-	}
-
-	port = strings.TrimPrefix(port, ":")
-
 	if aliasURL == "" {
-		aliasURL = "http://localhost:" + port
+		aliasURL = "http://localhost" + Config.Port.Addr()
 	}
 
 	return aliasURL

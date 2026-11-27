@@ -41,6 +41,7 @@ func setupSessionTest(t *testing.T) *sql.SqlDb {
 		util.Cookie = cookie
 	})
 	store := sql.InitConfigCreateTestStore()
+	util.Config.Auth = &util.AuthConfig{}
 	util.Config.Mfa = &util.MultifactorAuthConfig{Totp: &util.TotpConfig{Enabled: true, AllowRecovery: true}}
 	util.Cookie = securecookie.New(securecookie.GenerateRandomKey(32), nil)
 	return store

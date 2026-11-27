@@ -28,12 +28,16 @@ var globalRunner *db.Runner
 var workflow *db.WorkflowTemplate
 var workflowRun *db.WorkflowRun
 var workflowApproval *db.WorkflowApproval
+var globalRole *db.GlobalRole
+var globalRoleAssignment *db.GlobalRoleAssignment
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int
 var proxyID int
 var hostConfigID int
 var inventoryID int
+var inventoryHostID int
+var inventoryGroupID int
 var environmentID int
 var templateID int
 var integrationID int
@@ -43,6 +47,7 @@ var integrationAliasID int
 var workflowID int
 var workflowRunID int
 var workflowNodeID int
+var permID int
 
 var capabilities = map[string][]string{
 	"user":                    {},
@@ -51,6 +56,8 @@ var capabilities = map[string][]string{
 	"proxy":                   {"access_key"},
 	"host_config":             {"access_key"},
 	"inventory":               {"repository"},
+	"inventory_host":          {"repository"},
+	"inventory_group":         {"inventory_host"},
 	"environment":             {"repository"},
 	"template":                {"repository", "inventory", "environment", "view"},
 	"task":                    {"template"},
@@ -66,7 +73,11 @@ var capabilities = map[string][]string{
 	"global_runner":           {},
 	"workflow":                {"template"},
 	"workflow_run":            {"workflow"},
+	"workflow_run_finished":   {"workflow"},
 	"workflow_approval":       {"workflow_run"},
+	"template_perm":           {"template"},
+	"workflow_perm":           {"workflow"},
+	"global_role":             {"user"},
 }
 
 func capabilityWrapper(cap string) func(t *trans.Transaction) {
@@ -158,6 +169,30 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			})
 			printError(err)
 			inventoryID = res.ID
+		case "inventory_host":
+			res, err := store.CreateInventory(db.Inventory{
+				ProjectID: userProject.ID,
+				Name:      "ITM-" + uid,
+				Type:      db.InventoryManaged,
+			})
+			printError(err)
+			inventoryID = res.ID
+			host, err := store.CreateInventoryHost(db.InventoryHost{
+				ProjectID:   userProject.ID,
+				InventoryID: res.ID,
+				Name:        "ith-" + uid + ".example.org",
+				Enabled:     true,
+			}, nil)
+			printError(err)
+			inventoryHostID = host.ID
+		case "inventory_group":
+			group, err := store.CreateInventoryGroup(db.InventoryGroup{
+				ProjectID:   userProject.ID,
+				InventoryID: inventoryID,
+				Name:        "itg_" + uid,
+			}, nil)
+			printError(err)
+			inventoryGroupID = group.ID
 		case "environment":
 			pwd := "test-pass"
 			env := "{}"
@@ -201,7 +236,9 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 				ViewID:                  &view.ID,
 				App:                     db.AppAnsible,
 				GitBranch:               &branch,
-				SurveyVars:              []db.SurveyVar{},
+				// A non-required survey variable, so a workflow node can bind it to a
+				// workflow variable (survey_inputs) without blocking task creation.
+				SurveyVars: []db.SurveyVar{{Name: "dredd_var", Title: "Dredd var"}},
 			})
 
 			printError(err)
@@ -231,9 +268,19 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "workflow_run":
 			workflowRun = addWorkflowRun()
 			workflowRunID = workflowRun.ID
+		case "workflow_run_finished":
+			workflowRun = addWorkflowRunWithStatus(db.WorkflowRunFailed)
+			workflowRunID = workflowRun.ID
 		case "workflow_approval":
 			workflowApproval = addWorkflowApproval()
 			workflowNodeID = workflowApproval.WorkflowNodeID
+		case "template_perm":
+			permID = addTemplatePerm()
+		case "workflow_perm":
+			permID = addWorkflowPerm()
+		case "global_role":
+			globalRole = addGlobalRole()
+			globalRoleAssignment = addGlobalRoleAssignment(userPathTestUser.ID, globalRole.ID)
 		default:
 			panic("unknown capability " + v)
 		}
@@ -287,16 +334,30 @@ var pathSubPatterns = []func() string{
 	func() string {
 		return strconv.Itoa(workflowNodeID)
 	}, // node_id, x-example: 20
-	func() string {
-		return strconv.Itoa(proxyID)
-	}, // proxy_id, x-example: 21
-	func() string { return strconv.Itoa(hostConfigID) }, // host_config_id, x-example: 22
+	func() string { return strconv.Itoa(hostConfigID) }, // host_config_id, x-example: 21
 	func() string {
 		if workflow == nil {
 			return "0"
 		}
 		return strconv.Itoa(workflow.RevisionID)
-	}, // revision_id, x-example: 23
+	}, // revision_id, x-example: 22
+	func() string {
+		if globalRoleAssignment == nil {
+			return "0"
+		}
+		return strconv.Itoa(globalRoleAssignment.ID)
+	}, // assignment_id, x-example: 23
+	func() string {
+		if globalRole == nil {
+			return "0"
+		}
+		return strconv.Itoa(globalRole.ID)
+	}, // global role_id, x-example: 24
+	func() string { return strconv.Itoa(permID) },           // perm_id, x-example: 25
+	func() string { return "0" },                            // host_id, x-example: 26, the stand has no hosts
+	func() string { return strconv.Itoa(inventoryHostID) },  // inventory_host_id, x-example: 27
+	func() string { return strconv.Itoa(inventoryGroupID) }, // inventory_group_id, x-example: 28
+	func() string { return strconv.Itoa(proxyID) },          // proxy_id, x-example: 29
 }
 
 // alterRequestPath with the above slice of functions
@@ -349,6 +410,9 @@ func alterRequestBody(t *trans.Transaction) {
 	bodyFieldProcessor("repository_id", repoID, &request)
 	bodyFieldProcessor("template_id", templateID, &request)
 	bodyFieldProcessor("build_template_id", nil, &request)
+	// An integration runs either a template or a workflow; the generated body
+	// carries both ids, so the workflow one is cleared.
+	bodyFieldProcessor("workflow_id", nil, &request)
 	if task != nil {
 		bodyFieldProcessor("task_id", task.ID, &request)
 	}
@@ -381,7 +445,8 @@ func alterRequestBody(t *trans.Transaction) {
 			}
 			request["id"] = objectID
 
-		} else {
+		} else if !regexp.MustCompile(`/\d+/\w+$`).MatchString(t.FullPath) {
+			// A PUT of one field of an object, like /inventory/1/variables, carries no id
 			panic("Unexpected PUT request " + t.FullPath)
 		}
 	}

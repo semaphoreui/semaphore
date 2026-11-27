@@ -78,10 +78,12 @@ func DelayMiddleware(delay time.Duration) func(http.Handler) http.Handler {
 // Route declares all routes
 func Route(
 	store db.Store,
+	globalRoleStore db.GlobalRoleStore,
 	terraformStore db.TerraformStore,
 	workflowStore db.WorkflowManager,
 	roleMappingStore db.RoleMappingStore,
 	ansibleTaskRepo db.AnsibleTaskRepository,
+	hostRepo db.HostRepository,
 	taskPool *taskServices.TaskPool,
 	projectService server.ProjectService,
 	integrationService server.IntegrationService,
@@ -100,7 +102,8 @@ func Route(
 	projectController := &projects.ProjectController{ProjectService: projectService}
 	runnerController := runners.NewRunnerController(store, taskPool, encryptionService, jwtSigner)
 	jwksController := NewJwksController(jwtSigner)
-	integrationController := NewIntegrationController(store, integrationService)
+	integrationController := NewIntegrationController(store, integrationService, workflowStore, workflowService)
+	inventoryController := projects.NewInventoryController(encryptionService)
 	environmentController := projects.NewEnvironmentController(store, encryptionService, accessKeyService, environmentService, secretStorageService)
 	secretStorageController := projects.NewSecretStorageController(store, secretStorageService)
 	repositoryController := projects.NewRepositoryController(accessKeyInstallationService, encryptionService)
@@ -110,17 +113,22 @@ func Route(
 	terraformInventoryController := proProjects.NewTerraformInventoryController(terraformStore)
 	workflowController := proProjects.NewWorkflowController(workflowService, workflowStore)
 	workflowMiddlewareController := projects.NewWorkflowController(workflowStore)
-	backupController := projects.NewBackupController(workflowStore)
+	backupController := projects.NewBackupController(workflowStore, subscriptionService)
+	projectIntegrationController := projects.NewIntegrationController(subscriptionService)
+	scheduleController := projects.NewScheduleController(subscriptionService)
 	userController := NewUserController(subscriptionService)
 	usersController := NewUsersController(subscriptionService)
-	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore)
+	subscriptionController := proApi.NewSubscriptionController(store, store, store, terraformStore, hostRepo)
 	projectRunnerController := proProjects.NewProjectRunnerController(subscriptionService, runnerService)
 	globalRunnerController := NewGlobalRunnerController(runnerService)
 	taskController := projects.NewTaskController(store, ansibleTaskRepo)
+	hostController := proProjects.NewHostController(hostRepo, subscriptionService)
 	rolesController := proApi.NewRolesController(store)
+	globalRolesController := proApi.NewGlobalRolesController(globalRoleStore, store, subscriptionService)
 	roleMappingsController := proApi.NewRoleMappingsController(roleMappingStore, store)
 	auditController := proApi.NewAuditController(store, subscriptionService)
 	templateController := projects.NewTemplateController(store, store)
+	workflowPermController := projects.NewWorkflowPermController(store, subscriptionService)
 	systemInfoController := NewSystemInfoController(subscriptionService)
 
 	r := mux.NewRouter()
@@ -194,7 +202,7 @@ func Route(
 	authenticatedWS.Path("/ws").HandlerFunc(sockets.Handler).Methods("GET", "HEAD")
 
 	authenticatedAPI := r.PathPrefix(webPath + "api").Subrouter()
-	authenticatedAPI.Use(csrfProtectionMiddleware, StoreMiddleware, JSONMiddleware, authentication)
+	authenticatedAPI.Use(csrfProtectionMiddleware, StoreMiddleware, JSONMiddleware, globalRoleStoreMiddleware(globalRoleStore), authentication)
 
 	authenticatedAPI.Path("/info").HandlerFunc(systemInfoController.GetSystemInfo).Methods("GET", "HEAD")
 
@@ -210,7 +218,9 @@ func Route(
 	authenticatedAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
 
 	authenticatedAPI.Path("/users").HandlerFunc(usersController.GetUsers).Methods("GET", "HEAD")
-	authenticatedAPI.Path("/users").HandlerFunc(usersController.AddUser).Methods("POST")
+	authenticatedAPI.Path("/users").Handler(
+		globalPermissionMiddleware(db.CanManageGlobalUsers)(http.HandlerFunc(usersController.AddUser)),
+	).Methods("POST")
 	authenticatedAPI.Path("/user").HandlerFunc(userController.GetUser).Methods("GET", "HEAD")
 
 	authenticatedAPI.Path("/apps").HandlerFunc(getApps).Methods("GET", "HEAD")
@@ -228,26 +238,24 @@ func Route(
 	auditAPI.Path("/events").HandlerFunc(getAuditEvents(auditController.GetEvents)).Methods("GET")
 	auditAPI.Path("/events/export").HandlerFunc(auditController.ExportEvents).Methods("GET")
 
-	adminAPI := authenticatedAPI.NewRoute().Subrouter()
-	adminAPI.Use(adminMiddleware)
-	adminAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
-	adminAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
-	adminAPI.Path("/admin/info").HandlerFunc(getAdminInfo).Methods("GET", "HEAD")
+	// Instance settings: options, apps, runners, cluster, active tasks.
+	systemAPI := authenticatedAPI.NewRoute().Subrouter()
+	systemAPI.Use(globalPermissionMiddleware(db.CanManageGlobalSystem))
+	systemAPI.Path("/options").HandlerFunc(getOptions).Methods("GET", "HEAD")
+	systemAPI.Path("/options").HandlerFunc(setOption).Methods("POST")
+	systemAPI.Path("/admin/info").HandlerFunc(getAdminInfo).Methods("GET", "HEAD")
 
-	adminAPI.Path("/cluster").HandlerFunc(getClusterStatus).Methods("GET", "HEAD")
-	adminAPI.Path("/cluster/tasks").HandlerFunc(getClusterTasks).Methods("GET", "HEAD")
-	adminAPI.Path("/cluster/tasks").HandlerFunc(clearClusterTasks).Methods("DELETE")
+	systemAPI.Path("/cluster").HandlerFunc(getClusterStatus).Methods("GET", "HEAD")
+	systemAPI.Path("/cluster/tasks").HandlerFunc(getClusterTasks).Methods("GET", "HEAD")
+	systemAPI.Path("/cluster/tasks").HandlerFunc(clearClusterTasks).Methods("DELETE")
 
-	adminAPI.Path("/runners").HandlerFunc(globalRunnerController.GetRunners).Methods("GET", "HEAD")
-	adminAPI.Path("/runners").HandlerFunc(globalRunnerController.AddRunner).Methods("POST", "HEAD")
-	adminAPI.Path("/runner_tags").HandlerFunc(globalRunnerController.GetRunnerTags).Methods("GET", "HEAD")
+	systemAPI.Path("/runners").HandlerFunc(globalRunnerController.GetRunners).Methods("GET", "HEAD")
+	systemAPI.Path("/runners").HandlerFunc(globalRunnerController.AddRunner).Methods("POST", "HEAD")
+	systemAPI.Path("/runner_tags").HandlerFunc(globalRunnerController.GetRunnerTags).Methods("GET", "HEAD")
 
-	adminAPI.Path("/roles").HandlerFunc(rolesController.GetRoles).Methods("GET", "HEAD")
-	adminAPI.Path("/roles").HandlerFunc(rolesController.AddRole).Methods("POST", "HEAD")
+	systemAPI.Path("/cache").HandlerFunc(clearCache).Methods("DELETE", "HEAD")
 
-	adminAPI.Path("/cache").HandlerFunc(clearCache).Methods("DELETE", "HEAD")
-
-	globalRunnersAPI := adminAPI.PathPrefix("/runners").Subrouter()
+	globalRunnersAPI := systemAPI.PathPrefix("/runners").Subrouter()
 	globalRunnersAPI.Use(globalRunnerController.RunnerMiddleware)
 	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(globalRunnerController.GetRunner).Methods("GET", "HEAD")
 	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(globalRunnerController.UpdateRunner).Methods("PUT", "POST")
@@ -256,27 +264,55 @@ func Route(
 	globalRunnersAPI.Path("/{runner_id}").HandlerFunc(globalRunnerController.DeleteRunner).Methods("DELETE")
 	globalRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(globalRunnerController.ClearRunnerCache).Methods("DELETE")
 
-	rolesAPI := adminAPI.PathPrefix("/roles").Subrouter()
-	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.GetGlobalRole).Methods("GET", "HEAD")
-	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
-	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
+	systemAPI.Path("/role_mappings").HandlerFunc(roleMappingsController.GetMappings).Methods("GET", "HEAD")
+	systemAPI.Path("/role_mappings").HandlerFunc(roleMappingsController.AddMapping).Methods("POST")
+	systemAPI.Path("/role_mappings/{mapping_id}").HandlerFunc(roleMappingsController.DeleteMapping).Methods("DELETE")
 
-	adminAPI.Path("/role_mappings").HandlerFunc(roleMappingsController.GetMappings).Methods("GET", "HEAD")
-	adminAPI.Path("/role_mappings").HandlerFunc(roleMappingsController.AddMapping).Methods("POST")
-	adminAPI.Path("/role_mappings/{mapping_id}").HandlerFunc(roleMappingsController.DeleteMapping).Methods("DELETE")
-
-	appsAPI := adminAPI.PathPrefix("/apps").Subrouter()
+	appsAPI := systemAPI.PathPrefix("/apps").Subrouter()
 	appsAPI.Use(appMiddleware)
 	appsAPI.Path("/{app_id}").HandlerFunc(getApp).Methods("GET", "HEAD")
 	appsAPI.Path("/{app_id}").HandlerFunc(setApp).Methods("PUT", "POST")
 	appsAPI.Path("/{app_id}/active").HandlerFunc(setAppActive).Methods("POST")
 	appsAPI.Path("/{app_id}").HandlerFunc(deleteApp).Methods("DELETE")
 
-	adminAPI.Path("/tasks").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
-	tasksAPI := adminAPI.PathPrefix("/tasks").Subrouter()
+	systemAPI.Path("/hosts").HandlerFunc(hostController.GetHosts).Methods("GET", "HEAD")
+	systemAPI.Path("/hosts/{host_id}").HandlerFunc(hostController.GetHost).Methods("GET", "HEAD")
+	systemAPI.Path("/hosts/{host_id}/tasks").HandlerFunc(hostController.GetHostTasks).Methods("GET", "HEAD")
+	systemAPI.Path("/hosts/{host_id}/decommission").HandlerFunc(hostController.DecommissionHost).Methods("POST")
+
+	systemAPI.Path("/tasks").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
+	tasksAPI := systemAPI.PathPrefix("/tasks").Subrouter()
 	tasksAPI.Use(tasks.TaskMiddleware)
 	tasksAPI.Path("/{task_id}").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
 	tasksAPI.Path("/{task_id}").HandlerFunc(tasks.DeleteTask).Methods("DELETE")
+
+	// Global roles and who holds them. The catalog route comes before the role routes so that "permissions"
+	// is never read as a slug.
+	rolesAdminAPI := authenticatedAPI.NewRoute().Subrouter()
+	rolesAdminAPI.Use(globalPermissionMiddleware(db.CanManageGlobalRoles))
+	rolesAdminAPI.Path("/roles").HandlerFunc(rolesController.GetRoles).Methods("GET", "HEAD")
+	rolesAdminAPI.Path("/roles").HandlerFunc(rolesController.AddRole).Methods("POST", "HEAD")
+
+	rolesAPI := rolesAdminAPI.PathPrefix("/roles").Subrouter()
+	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.GetGlobalRole).Methods("GET", "HEAD")
+	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.UpdateRole).Methods("PUT", "POST")
+	rolesAPI.Path("/{role_slug}").HandlerFunc(rolesController.DeleteRole).Methods("DELETE")
+
+	// The catalog goes first so that "permissions" is never read as a role id.
+	rolesAdminAPI.Path("/global-roles/permissions").HandlerFunc(globalRolesController.GetGlobalPermissionCatalog).Methods("GET", "HEAD")
+	rolesAdminAPI.Path("/global-roles").HandlerFunc(globalRolesController.GetGlobalRoles).Methods("GET", "HEAD")
+	rolesAdminAPI.Path("/global-roles").HandlerFunc(globalRolesController.AddGlobalRole).Methods("POST")
+
+	globalRolesAPI := rolesAdminAPI.PathPrefix("/global-roles").Subrouter()
+	globalRolesAPI.Path("/{role_id}").HandlerFunc(globalRolesController.GetGlobalRole).Methods("GET", "HEAD")
+	globalRolesAPI.Path("/{role_id}").HandlerFunc(globalRolesController.UpdateGlobalRole).Methods("PUT", "POST")
+	globalRolesAPI.Path("/{role_id}").HandlerFunc(globalRolesController.DeleteGlobalRole).Methods("DELETE")
+
+	globalRoleAssignmentsAPI := rolesAdminAPI.PathPrefix("/users/{user_id}/global-roles").Subrouter()
+	globalRoleAssignmentsAPI.Path("").HandlerFunc(globalRolesController.GetGlobalRoleAssignments).Methods("GET", "HEAD")
+	globalRoleAssignmentsAPI.Path("").HandlerFunc(globalRolesController.AddGlobalRoleAssignment).Methods("POST")
+	globalRoleAssignmentsAPI.Path("/{assignment_id}").HandlerFunc(globalRolesController.DeleteGlobalRoleAssignment).Methods("DELETE")
+	rolesAdminAPI.Path("/users/{user_id}/global-permissions").HandlerFunc(globalRolesController.GetEffectiveGlobalPermissions).Methods("GET", "HEAD")
 
 	userUserAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
 	userUserAPI.Use(usersController.ReadonlyUserMiddleware)
@@ -315,10 +351,25 @@ func Route(
 
 	//
 	// Project resources CRUD
+	//
+	// Any member reads these: the lists answer only what the member may see
+	projectMemberAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectMemberAPI.Use(projects.ProjectMiddleware)
+	projectMemberAPI.Path("/role").HandlerFunc(projects.GetUserRole).Methods("GET", "HEAD")
+	projectMemberAPI.Path("/tasks").HandlerFunc(taskController.GetAllTasks).Methods("GET", "HEAD")
+	projectMemberAPI.HandleFunc("/tasks/last", taskController.GetLastTasks).Methods("GET", "HEAD")
+	projectMemberAPI.Path("/stats").HandlerFunc(taskController.GetTaskStats).Methods("GET", "HEAD")
+	projectMemberAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
+	projectMemberAPI.Path("/workflows").HandlerFunc(workflowController.GetWorkflows).Methods("GET", "HEAD")
+	projectMemberAPI.Path("/views").HandlerFunc(projects.GetViews).Methods("GET", "HEAD")
+	projectMemberAPI.Path("/roles/all").HandlerFunc(rolesController.GetProjectAndSharedRoles).Methods("GET", "HEAD")
+
+	projectMemberViews := projectMemberAPI.PathPrefix("/views").Subrouter()
+	projectMemberViews.Use(projects.ViewMiddleware)
+	projectMemberViews.HandleFunc("/{view_id}/templates", projects.GetViewTemplates).Methods("GET", "HEAD")
+
 	projectUserAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
 	projectUserAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanManageProjectResources))
-
-	projectUserAPI.Path("/role").HandlerFunc(projects.GetUserRole).Methods("GET", "HEAD")
 
 	projectUserAPI.Path("/events").HandlerFunc(getAllEvents).Methods("GET", "HEAD")
 	projectUserAPI.HandleFunc("/events/last", getLastEvents).Methods("GET", "HEAD")
@@ -337,8 +388,8 @@ func Route(
 	projectUserAPI.Path("/host_configs").HandlerFunc(projects.GetHostConfigs).Methods("GET", "HEAD")
 	projectUserAPI.Path("/host_configs").HandlerFunc(projects.AddHostConfig).Methods("POST")
 
-	projectUserAPI.Path("/inventory").HandlerFunc(projects.GetInventory).Methods("GET", "HEAD")
-	projectUserAPI.Path("/inventory").HandlerFunc(projects.AddInventory).Methods("POST")
+	projectUserAPI.Path("/inventory").HandlerFunc(inventoryController.GetInventory).Methods("GET", "HEAD")
+	projectUserAPI.Path("/inventory").HandlerFunc(inventoryController.AddInventory).Methods("POST")
 
 	projectUserAPI.Path("/proxies").HandlerFunc(projects.GetProxy).Methods("GET", "HEAD")
 	projectUserAPI.Path("/proxies").HandlerFunc(projects.AddProxy).Methods("POST")
@@ -346,26 +397,17 @@ func Route(
 	projectUserAPI.Path("/environment").HandlerFunc(projects.GetEnvironment).Methods("GET", "HEAD")
 	projectUserAPI.Path("/environment").HandlerFunc(environmentController.AddEnvironment).Methods("POST")
 
-	projectUserAPI.Path("/tasks").HandlerFunc(taskController.GetAllTasks).Methods("GET", "HEAD")
-	projectUserAPI.HandleFunc("/tasks/last", taskController.GetLastTasks).Methods("GET", "HEAD")
-
-	projectUserAPI.Path("/stats").HandlerFunc(taskController.GetTaskStats).Methods("GET", "HEAD")
-
-	projectUserAPI.Path("/templates").HandlerFunc(projects.GetTemplates).Methods("GET", "HEAD")
 	projectUserAPI.Path("/templates").HandlerFunc(projects.AddTemplate).Methods("POST")
-	projectUserAPI.Path("/workflows").HandlerFunc(workflowController.GetWorkflows).Methods("GET", "HEAD")
-	projectUserAPI.Path("/workflows").HandlerFunc(workflowController.AddWorkflow).Methods("POST")
 
 	projectUserAPI.Path("/schedules").HandlerFunc(projects.GetProjectSchedules).Methods("GET", "HEAD")
-	projectUserAPI.Path("/schedules").HandlerFunc(projects.AddSchedule).Methods("POST")
+	projectUserAPI.Path("/schedules").HandlerFunc(scheduleController.AddSchedule).Methods("POST")
 	projectUserAPI.Path("/schedules/validate").HandlerFunc(projects.ValidateScheduleCronFormat).Methods("POST")
 
-	projectUserAPI.Path("/views").HandlerFunc(projects.GetViews).Methods("GET", "HEAD")
 	projectUserAPI.Path("/views").HandlerFunc(projects.AddView).Methods("POST")
 	projectUserAPI.Path("/views/positions").HandlerFunc(projects.SetViewPositions).Methods("POST")
 
 	projectUserAPI.Path("/integrations").HandlerFunc(projects.GetIntegrations).Methods("GET", "HEAD")
-	projectUserAPI.Path("/integrations").HandlerFunc(projects.AddIntegration).Methods("POST")
+	projectUserAPI.Path("/integrations").HandlerFunc(projectIntegrationController.AddIntegration).Methods("POST")
 	projectUserAPI.Path("/backup").HandlerFunc(backupController.GetBackup).Methods("GET", "HEAD")
 	projectUserAPI.Path("/notifications/test").HandlerFunc(projectController.SendTestNotification).Methods("POST")
 
@@ -383,7 +425,6 @@ func Route(
 	projectRunnersAPI.Path("/{runner_id}/cache").HandlerFunc(projectRunnerController.ClearRunnerCache).Methods("DELETE")
 
 	projectUserAPI.Path("/roles").HandlerFunc(rolesController.GetProjectRoles).Methods("GET", "HEAD")
-	projectUserAPI.Path("/roles/all").HandlerFunc(rolesController.GetProjectAndGlobalRoles).Methods("GET", "HEAD")
 	projectUserAPI.Path("/roles").HandlerFunc(rolesController.AddProjectRole).Methods("POST")
 
 	projectRolesAPI := projectUserAPI.PathPrefix("/roles").Subrouter()
@@ -465,10 +506,26 @@ func Route(
 	projectInventoryManagement := projectUserAPI.PathPrefix("/inventory").Subrouter()
 	projectInventoryManagement.Use(projects.InventoryMiddleware)
 
-	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.GetInventory).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}", inventoryController.GetInventory).Methods("GET", "HEAD")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/refs", projects.GetInventoryRefs).Methods("GET", "HEAD")
-	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.UpdateInventory).Methods("PUT")
+	projectInventoryManagement.HandleFunc("/{inventory_id}", inventoryController.UpdateInventory).Methods("PUT")
 	projectInventoryManagement.HandleFunc("/{inventory_id}", projects.RemoveInventory).Methods("DELETE")
+
+	projectInventoryManagement.HandleFunc("/{inventory_id}/variables", projects.SetInventoryVariables).Methods("PUT")
+
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts", projects.GetInventoryHosts).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts", projects.AddInventoryHost).Methods("POST")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}", projects.GetInventoryHost).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}", projects.UpdateInventoryHost).Methods("PUT")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}", projects.RemoveInventoryHost).Methods("DELETE")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/hosts/{inventory_host_id}/enabled", projects.SetInventoryHostEnabled).Methods("PUT")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/host_groups", projects.SetInventoryHostGroups).Methods("PUT")
+
+	projectInventoryManagement.HandleFunc("/{inventory_id}/groups", projects.GetInventoryGroups).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/groups", projects.AddInventoryGroup).Methods("POST")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/groups/{inventory_group_id}", projects.GetInventoryGroup).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/groups/{inventory_group_id}", projects.UpdateInventoryGroup).Methods("PUT")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/groups/{inventory_group_id}", projects.RemoveInventoryGroup).Methods("DELETE")
 
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases", terraformInventoryController.GetTerraformInventoryAliases).Methods("GET", "HEAD")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases", terraformInventoryController.AddTerraformInventoryAlias).Methods("POST")
@@ -490,8 +547,10 @@ func Route(
 	projectEnvManagement.HandleFunc("/{environment_id}", environmentController.RemoveEnvironment).Methods("DELETE")
 	projectEnvManagement.HandleFunc("/{environment_id}/sync", environmentController.SyncEnvironment).Methods("POST")
 
-	projectTmplManagement := projectUserAPI.PathPrefix("/templates").Subrouter()
-	projectTmplManagement.Use(projects.TemplatesMiddleware)
+	//
+	// Objects load before the verb check: a template, workflow or task the member may not read is not there
+	projectTmplManagement := authenticatedAPI.PathPrefix("/project/{project_id}/templates").Subrouter()
+	projectTmplManagement.Use(projects.ProjectMiddleware, projects.TemplatesMiddleware, projects.GetMustCanMiddleware(db.CanManageProjectResources))
 
 	projectTmplManagement.HandleFunc("/{template_id}", projects.UpdateTemplate).Methods("PUT")
 	projectTmplManagement.HandleFunc("/{template_id}/description", projects.UpdateTemplateDescription).Methods("PUT")
@@ -516,16 +575,28 @@ func Route(
 	projectTmplInvManagement.HandleFunc("/{inventory_id}/attach", projects.AttachInventory).Methods("POST")
 	projectTmplInvManagement.HandleFunc("/{inventory_id}/detach", projects.DetachInventory).Methods("POST")
 
-	projectWorkflowManagement := projectUserAPI.PathPrefix("/workflows").Subrouter()
-	projectWorkflowManagement.Use(workflowMiddlewareController.WorkflowsMiddleware)
+	//
+	// Workflows have verbs of their own
+	projectWorkflowAPI := authenticatedAPI.PathPrefix("/project/{project_id}").Subrouter()
+	projectWorkflowAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanEditWorkflows))
+	projectWorkflowAPI.Path("/workflows").HandlerFunc(workflowController.AddWorkflow).Methods("POST")
+
+	projectWorkflowManagement := authenticatedAPI.PathPrefix("/project/{project_id}/workflows").Subrouter()
+	projectWorkflowManagement.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, projects.GetMustCanMiddleware(db.CanEditWorkflows))
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.UpdateWorkflow).Methods("PUT")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.RemoveWorkflow).Methods("DELETE")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}", workflowController.GetWorkflow).Methods("GET")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}/revisions", workflowController.GetWorkflowRevisions).Methods("GET", "HEAD")
 	projectWorkflowManagement.HandleFunc("/{workflow_id}/revisions/{revision_id}", workflowController.GetWorkflowRevision).Methods("GET", "HEAD")
 
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms", workflowPermController.GetWorkflowPerms).Methods("GET")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms", workflowPermController.AddWorkflowPerm).Methods("POST")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms/{perm_id}", workflowPermController.GetWorkflowPerm).Methods("GET")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms/{perm_id}", workflowPermController.UpdateWorkflowPerm).Methods("PUT")
+	projectWorkflowManagement.HandleFunc("/{workflow_id}/perms/{perm_id}", workflowPermController.DeleteWorkflowPerm).Methods("DELETE")
+
 	projectWorkflowRunAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows").Subrouter()
-	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, projects.GetMustCanMiddleware(db.CanRunProjectTasks))
+	projectWorkflowRunAPI.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, projects.GetMustCanMiddleware(db.CanRunWorkflows))
 	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.RunWorkflow).Methods("POST")
 	projectWorkflowRunAPI.HandleFunc("/{workflow_id}/runs", workflowController.GetWorkflowRuns).Methods("GET", "HEAD")
 
@@ -533,12 +604,16 @@ func Route(
 	projectWorkflowRunManagement.Use(workflowMiddlewareController.WorkflowRunsMiddleware)
 	projectWorkflowRunManagement.HandleFunc("/{run_id}", workflowController.GetWorkflowRun).Methods("GET", "HEAD")
 	projectWorkflowRunManagement.HandleFunc("/{run_id}/stop", workflowController.StopWorkflowRun).Methods("POST")
+	projectWorkflowRunManagement.HandleFunc("/{run_id}/rerun", workflowController.RerunWorkflowRun).Methods("POST")
 	projectWorkflowRunManagement.HandleFunc("/{run_id}/artifacts", workflowController.GetWorkflowRunArtifacts).Methods("GET", "HEAD")
 	projectWorkflowRunManagement.HandleFunc("/{run_id}/approvals", workflowController.GetWorkflowApprovals).Methods("GET", "HEAD")
-	projectWorkflowRunManagement.HandleFunc("/{run_id}/approvals/{node_id}", workflowController.ResolveWorkflowApproval).Methods("POST")
 
-	projectTaskManagement := projectUserAPI.PathPrefix("/tasks").Subrouter()
-	projectTaskManagement.Use(taskController.GetTaskMiddleware)
+	projectWorkflowApprovalAPI := authenticatedAPI.PathPrefix("/project/{project_id}/workflows/{workflow_id}/runs/{run_id}/approvals").Subrouter()
+	projectWorkflowApprovalAPI.Use(projects.ProjectMiddleware, workflowMiddlewareController.WorkflowsMiddleware, workflowMiddlewareController.WorkflowRunsMiddleware, projects.GetMustCanMiddleware(db.CanApproveWorkflows))
+	projectWorkflowApprovalAPI.HandleFunc("/{node_id}", workflowController.ResolveWorkflowApproval).Methods("POST")
+
+	projectTaskManagement := authenticatedAPI.PathPrefix("/project/{project_id}/tasks").Subrouter()
+	projectTaskManagement.Use(projects.ProjectMiddleware, taskController.GetTaskMiddleware, taskController.GetTaskPermissionsMiddleware, projects.GetMustCanMiddleware(db.CanManageProjectResources))
 
 	projectTaskManagement.HandleFunc("/{task_id}/output", taskController.GetTaskOutput).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}/raw_output", taskController.GetTaskRawOutput).Methods("GET", "HEAD")
@@ -548,10 +623,16 @@ func Route(
 	projectTaskManagement.HandleFunc("/{task_id}/ansible/hosts", taskController.GetAnsibleTaskHosts).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}/ansible/errors", taskController.GetAnsibleTaskErrors).Methods("GET", "HEAD")
 
+	projectHostsAPI := authenticatedAPI.PathPrefix("/project/{project_id}/hosts").Subrouter()
+	projectHostsAPI.Use(projects.ProjectMiddleware, projects.GetMustCanMiddleware(db.CanReadProject))
+	projectHostsAPI.HandleFunc("", hostController.GetProjectHosts).Methods("GET", "HEAD")
+	projectHostsAPI.HandleFunc("/{host_id}", hostController.GetProjectHost).Methods("GET", "HEAD")
+	projectHostsAPI.HandleFunc("/{host_id}/tasks", hostController.GetProjectHostTasks).Methods("GET", "HEAD")
+
 	projectScheduleManagement := projectUserAPI.PathPrefix("/schedules").Subrouter()
 	projectScheduleManagement.Use(projects.SchedulesMiddleware)
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.GetSchedule).Methods("GET", "HEAD")
-	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.UpdateSchedule).Methods("PUT")
+	projectScheduleManagement.HandleFunc("/{schedule_id}", scheduleController.UpdateSchedule).Methods("PUT")
 	projectScheduleManagement.HandleFunc("/{schedule_id}/active", projects.SetScheduleActive).Methods("PUT")
 	projectScheduleManagement.HandleFunc("/{schedule_id}", projects.RemoveSchedule).Methods("DELETE")
 
@@ -560,7 +641,6 @@ func Route(
 	projectViewManagement.HandleFunc("/{view_id}", projects.GetViews).Methods("GET", "HEAD")
 	projectViewManagement.HandleFunc("/{view_id}", projects.UpdateView).Methods("PUT")
 	projectViewManagement.HandleFunc("/{view_id}", projects.RemoveView).Methods("DELETE")
-	projectViewManagement.HandleFunc("/{view_id}/templates", projects.GetViewTemplates).Methods("GET", "HEAD")
 
 	projectIntegrationsAliasAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
 	projectIntegrationsAliasAPI.Use(projects.ProjectMiddleware)
@@ -570,7 +650,7 @@ func Route(
 
 	projectIntegrationsAPI := projectUserAPI.PathPrefix("/integrations").Subrouter()
 	projectIntegrationsAPI.Use(projects.ProjectMiddleware, projects.IntegrationMiddleware)
-	projectIntegrationsAPI.HandleFunc("/{integration_id}", projects.UpdateIntegration).Methods("PUT")
+	projectIntegrationsAPI.HandleFunc("/{integration_id}", projectIntegrationController.UpdateIntegration).Methods("PUT")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}", projects.DeleteIntegration).Methods("DELETE")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}", projects.GetIntegration).Methods("GET")
 	projectIntegrationsAPI.HandleFunc("/{integration_id}/refs", projects.GetIntegrationRefs).Methods("GET", "HEAD")

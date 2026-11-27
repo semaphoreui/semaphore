@@ -21,10 +21,14 @@ properties:
   # HTTP server
   # ==========================================================================
   port:
-    type: string
-    pattern: "^:?([0-9]{1,5})$"
+    oneOf:
+      - type: string
+        pattern: "^:?([0-9]{1,5})$"
+      - type: integer
+        minimum: 0
+        maximum: 65535
     default: ":3000"
-    description: TCP port the HTTP server listens on. Leading ':' optional.
+    description: TCP port the HTTP server listens on, as a string (leading ':' optional) or a bare integer.
   interface:
     type: string
     description: Bind address (empty = all interfaces).
@@ -134,6 +138,17 @@ properties:
     description: >
       Disable verification of the LDAP server's TLS certificate for the legacy
       flat ldap_* config. Defaults to false (certificates are verified).
+  ldap_group_search_dn:
+    type: string
+    description: "Base DN of the group search. Empty: groups are not read."
+  ldap_group_search_filter:
+    type: string
+    default: "(|(member={{ .dn }})(uniqueMember={{ .dn }})(memberUid={{ .username }}))"
+    description: Group search filter, with {{ .dn }} and {{ .username }} of the user.
+  ldap_group_name_attribute:
+    type: string
+    default: cn
+    description: Group attribute that holds the group name.
   ldap_providers:
     type: object
     additionalProperties: { $ref: "#/$defs/LdapProvider" }
@@ -237,7 +252,6 @@ properties:
   syslog:       { $ref: "#/$defs/SyslogConfig" }
   metrics:      { $ref: "#/$defs/MetricsConfig" }
   log:          { $ref: "#/$defs/ConfigLog" }
-  process:      { $ref: "#/$defs/ConfigProcess" }
   schedule:     { $ref: "#/$defs/ScheduleConfig" }
   debugging:    { $ref: "#/$defs/DebuggingConfig" }
   ha:           { $ref: "#/$defs/HAConfig" }
@@ -377,8 +391,16 @@ $defs:
         description: >-
           Absolute lifetime of a login session in hours, counted from login.
           Once exceeded the session is expired even if it was recently active.
-          0 means no absolute limit; sessions then expire only after 7 days
-          without activity.
+          0 means no absolute limit; sessions then expire only after the
+          inactivity timeout (session_inactivity_hours).
+      session_inactivity_hours:
+        type: integer
+        minimum: 0
+        default: 0
+        description: >-
+          How long a login session may stay unused, in hours, before it is
+          expired. Every authenticated request resets the counter. 0 means the
+          built-in 168 hours (7 days); the timeout cannot be disabled.
 
   MultifactorAuthConfig:
     type: object
@@ -434,6 +456,17 @@ $defs:
         description: LDAP bind password (sensitive).
       search_dn:     { type: string }
       search_filter: { type: string }
+      group_search_dn:
+        type: string
+        description: "Base DN of the group search. Empty: groups are not read."
+      group_search_filter:
+        type: string
+        default: "(|(member={{ .dn }})(uniqueMember={{ .dn }})(memberUid={{ .username }}))"
+        description: Group search filter, with {{ .dn }} and {{ .username }} of the user.
+      group_name_attribute:
+        type: string
+        default: cn
+        description: Group attribute that holds the group name.
       mappings:     { $ref: "#/$defs/LdapMappings" }
       color:        { type: string }
       icon:         { type: string, description: MDI icon name without the mdi- prefix. }
@@ -575,26 +608,6 @@ $defs:
       localtime: { type: boolean }
       compress:  { type: boolean }
 
-  ConfigProcess:
-    type: object
-    properties:
-      user:           { type: string }
-      uid:            { type: integer, minimum: 0 }
-      chroot:         { type: string }
-      gid:            { type: integer, minimum: 0 }
-      no_new_privs:   { type: boolean }
-      app_namespaces: { $ref: "#/$defs/ConfigAppNamespaces" }
-
-  ConfigAppNamespaces:
-    type: object
-    description: Linux CLONE_NEW* flags applied to app runs. No-op on non-Linux.
-    properties:
-      user:  { type: boolean }
-      mount: { type: boolean }
-      pid:   { type: boolean }
-      ipc:   { type: boolean }
-      uts:   { type: boolean }
-
   ScheduleConfig:
     type: object
     properties:
@@ -615,10 +628,17 @@ $defs:
       node_id:
         type: string
         description: Cluster node id; auto-generated if empty.
-      redis: { $ref: "#/$defs/HARedisConfig" }
+      engine:
+        type: string
+        enum: [redis, redis_sentinel]
+        default: redis
+        description: Backend that stores the shared state and coordinates the HA nodes. `redis` reads `redis`, `redis_sentinel` reads `redis_sentinel`.
+      redis:          { $ref: "#/$defs/HARedisConfig" }
+      redis_sentinel: { $ref: "#/$defs/HARedisSentinelConfig" }
 
   HARedisConfig:
     type: object
+    description: Single Redis server, used when engine is `redis`.
     properties:
       addr: { type: string }
       db:   { type: integer, minimum: 0 }
@@ -627,6 +647,35 @@ $defs:
         type: string
         description: Redis password (sensitive).
       tls:             { type: boolean }
+      tls_skip_verify: { type: boolean }
+
+  HARedisSentinelConfig:
+    type: object
+    description: Redis Sentinel deployment, used when engine is `redis_sentinel`.
+    properties:
+      master_name:
+        type: string
+        description: Name of the monitored master as configured in Sentinel.
+      addrs:
+        type: array
+        items: { type: string }
+        description: Sentinel addresses, host:port each.
+      sentinel_user:
+        type: string
+        description: Username for the Sentinel nodes themselves.
+      sentinel_pass:
+        type: string
+        description: Password for the Sentinel nodes themselves (sensitive).
+      db:   { type: integer, minimum: 0 }
+      user:
+        type: string
+        description: Username for the Redis data nodes.
+      pass:
+        type: string
+        description: Password for the Redis data nodes (sensitive).
+      tls:
+        type: boolean
+        description: TLS for both the Sentinel and the Redis data-node connections.
       tls_skip_verify: { type: boolean }
 
   AuditConfig:
@@ -700,6 +749,27 @@ $defs:
         type: string
         format: uri
         default: "https://portal.semaphoreui.com/billing"
+      proxy: { $ref: "#/$defs/SubscriptionProxyConfig" }
+
+  SubscriptionProxyConfig:
+    type: object
+    description: >-
+      HTTP proxy used to reach the subscription server. Affects only those
+      requests. Unset falls back to the proxy variables of the server process
+      (HTTP_PROXY, HTTPS_PROXY, NO_PROXY).
+    properties:
+      url:
+        type: string
+        format: uri
+        description: >-
+          Proxy endpoint, for example http://proxy.example.com:3128. Schemes
+          http, https, socks5 and socks5h are supported.
+      username:
+        type: string
+        description: Proxy user name. Overrides a user name given in url.
+      password:
+        type: string
+        description: Proxy password (sensitive). Overrides a password given in url.
 
   ConfigDirs:
     type: object
@@ -731,11 +801,12 @@ $defs:
       check_interval_seconds:
         type: integer
         minimum: 1
-        default: 1
+        default: 5
         description: >
-          How often the runner polls the server for new jobs and reports progress.
-          Raising it reduces request volume on a server with many runners, at the
-          cost of jobs starting slightly later.
+          How often the runner polls the server for new jobs. Raising it reduces
+          request volume on a server with many runners, at the cost of jobs
+          starting slightly later. Progress reporting keeps its own fixed
+          one-second cadence, because it doubles as the runner heartbeat.
       connection: { $ref: "#/$defs/RunnerConnectionConfig" }
       executor:   { $ref: "#/$defs/ExecutorConfig" }
 
@@ -754,6 +825,16 @@ $defs:
         description: >
           Disables server certificate verification entirely. Insecure
           (vulnerable to MITM) — use only for testing.
+      timeout_seconds:
+        type: integer
+        minimum: 1
+        default: 3
+        description: >
+          Per-request budget for waiting on the server: the TCP connect, the TLS
+          handshake and the wait for response headers each get this many seconds.
+          Keep it below check_interval_seconds so a stuck request cannot outlive
+          the poll cycle that started it. Uploading the request body is not
+          bounded, so a large log batch is never cut off.
 
   ExecutorConfig:
     type: object

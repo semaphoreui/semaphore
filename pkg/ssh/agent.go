@@ -77,18 +77,10 @@ func (a *Agent) Listen() error {
 
 	// Anyone able to connect to the socket can authenticate with the key it
 	// holds. The directory is shared with the repository checkout and stays
-	// traversable, so the restriction goes on the socket itself. git may run as
-	// the configured process user, which then has to own it.
+	// traversable, so the restriction goes on the socket itself.
 	if err := os.Chmod(a.SocketFile, 0o600); err != nil {
 		_ = l.Close()
 		return fmt.Errorf("securing socket %q: %w", a.SocketFile, err)
-	}
-
-	if util.Config != nil && util.Config.Process != nil {
-		if err := util.ChownDir(a.SocketFile); err != nil {
-			_ = l.Close()
-			return fmt.Errorf("securing socket %q: %w", a.SocketFile, err)
-		}
 	}
 
 	l.SetUnlinkOnClose(true)

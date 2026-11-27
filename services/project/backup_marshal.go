@@ -1,11 +1,17 @@
 package project
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 
 	"github.com/semaphoreui/semaphore/db"
 )
+
+// surveyDefaultValueType keeps its values in untagged fields and defines the
+// JSON shape itself (a string or a list of strings), so the backup goes
+// through its JSON codec instead of walking its fields.
+var surveyDefaultValueType = reflect.TypeOf(db.SurveyVarDefaultValue{})
 
 func marshalValue(v reflect.Value) (any, error) {
 	// Handle pointers
@@ -14,6 +20,18 @@ func marshalValue(v reflect.Value) (any, error) {
 			return nil, nil
 		}
 		return marshalValue(v.Elem())
+	}
+
+	if v.Type() == surveyDefaultValueType {
+		raw, err := json.Marshal(v.Interface())
+		if err != nil {
+			return nil, err
+		}
+		var out any
+		if err = json.Unmarshal(raw, &out); err != nil {
+			return nil, err
+		}
+		return out, nil
 	}
 
 	// Handle structs
@@ -188,6 +206,17 @@ func unmarshalValueWithBackupTags(data any, v reflect.Value) error {
 			v.Set(reflect.New(v.Type().Elem()))
 		}
 		return unmarshalValueWithBackupTags(data, v.Elem())
+	}
+
+	if v.Type() == surveyDefaultValueType {
+		raw, err := json.Marshal(data)
+		if err != nil {
+			return err
+		}
+		if !v.CanAddr() {
+			return fmt.Errorf("cannot set survey default value")
+		}
+		return v.Addr().Interface().(json.Unmarshaler).UnmarshalJSON(raw)
 	}
 
 	// Handle structs

@@ -8,20 +8,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetProjectOrGlobalRoleBySlug_IgnoresCase(t *testing.T) {
+func TestGetProjectOrSharedRoleBySlug_IgnoresCase(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	project, err := store.CreateProject(db.Project{Name: "proj"})
 	require.NoError(t, err)
 	_, err = store.CreateRole(db.Role{Slug: "Deployer", Name: "D", ProjectID: &project.ID})
 	require.NoError(t, err)
 
-	role, err := store.GetProjectOrGlobalRoleBySlug(project.ID, "deployer")
+	role, err := store.GetProjectOrSharedRoleBySlug(project.ID, "deployer")
 
 	require.NoError(t, err)
 	assert.Equal(t, "Deployer", role.Slug)
 }
 
-func TestGetProjectOrGlobalRoleBySlug_ProjectRoleWins(t *testing.T) {
+func TestGetProjectOrSharedRoleBySlug_ProjectRoleWins(t *testing.T) {
 	store := InitConfigCreateTestStore()
 	project, err := store.CreateProject(db.Project{Name: "proj"})
 	require.NoError(t, err)
@@ -31,7 +31,7 @@ func TestGetProjectOrGlobalRoleBySlug_ProjectRoleWins(t *testing.T) {
 	_, err = store.exec("insert into `role` (slug, name, permissions, project_id, scope, builtin) values ('ci', 'Project', 0, ?, ?, false)", project.ID, project.ID)
 	require.NoError(t, err)
 
-	role, err := store.GetProjectOrGlobalRoleBySlug(project.ID, "ci")
+	role, err := store.GetProjectOrSharedRoleBySlug(project.ID, "ci")
 
 	require.NoError(t, err)
 	assert.Equal(t, "Project", role.Name)
@@ -52,7 +52,7 @@ func TestGetProjectRole_IgnoresGlobalAndOtherProjects(t *testing.T) {
 	assert.ErrorIs(t, err, db.ErrNotFound)
 	_, err = store.GetProjectRole(project.ID, "foreign")
 	assert.ErrorIs(t, err, db.ErrNotFound)
-	_, err = store.GetProjectOrGlobalRoleBySlug(project.ID, "foreign")
+	_, err = store.GetProjectOrSharedRoleBySlug(project.ID, "foreign")
 	assert.ErrorIs(t, err, db.ErrNotFound)
 }
 
@@ -65,7 +65,7 @@ func TestGetGlobalRoles_IncludesBuiltins(t *testing.T) {
 	_, err = store.CreateRole(db.Role{Slug: "local", Name: "Local", ProjectID: &project.ID})
 	require.NoError(t, err)
 
-	globals, err := store.GetGlobalRoles()
+	globals, err := store.GetSharedRoles()
 	require.NoError(t, err)
 	projectRoles, err := store.GetProjectRoles(project.ID)
 	require.NoError(t, err)
@@ -116,13 +116,13 @@ func TestUpdateRole_ChangesNameAndPermissionsOnly(t *testing.T) {
 
 func TestBuiltinRolesCannotChange(t *testing.T) {
 	store := InitConfigCreateTestStore()
-	owner, err := store.GetGlobalRoleBySlug("owner")
+	owner, err := store.GetSharedRoleBySlug("owner")
 	require.NoError(t, err)
 
 	require.NoError(t, store.UpdateRole(db.Role{ID: owner.ID, Name: "Changed", Permissions: 0}))
 	assert.ErrorIs(t, store.DeleteRole(owner.ID), db.ErrNotFound)
 
-	got, err := store.GetGlobalRoleBySlug("owner")
+	got, err := store.GetSharedRoleBySlug("owner")
 	require.NoError(t, err)
 	assert.Equal(t, owner, got)
 }
@@ -134,7 +134,7 @@ func TestDeleteRole(t *testing.T) {
 
 	require.NoError(t, store.DeleteRole(role.ID))
 
-	_, err = store.GetGlobalRoleBySlug("custom")
+	_, err = store.GetSharedRoleBySlug("custom")
 	assert.ErrorIs(t, err, db.ErrNotFound)
 	assert.ErrorIs(t, store.DeleteRole(role.ID), db.ErrNotFound)
 }
@@ -143,12 +143,15 @@ func TestDeleteRoleWithAssignments(t *testing.T) {
 	store, projectID, templateID := newTemplatePermissionTest(t)
 	role, err := store.CreateRole(db.Role{Slug: "deployer", Name: "Deployer"})
 	require.NoError(t, err)
-	guest, err := store.GetGlobalRoleBySlug("guest")
+	guest, err := store.GetSharedRoleBySlug("guest")
 	require.NoError(t, err)
 	only := createTemplatePermissionTestUser(t, store, projectID, "only", role.ID)
 	both := createTemplatePermissionTestUser(t, store, projectID, "both", role.ID)
 	require.NoError(t, store.SetProjectUserRoles(projectID, both.ID, []int{role.ID, guest.ID}))
 	grant, err := store.CreateTemplateRole(db.TemplateRolePerm{ProjectID: projectID, TemplateID: templateID, RoleID: role.ID, Permissions: db.CanRunProjectTasks})
+	require.NoError(t, err)
+	workflowID := insertWorkflow(t, store, projectID, "release")
+	workflowGrant, err := store.CreateWorkflowRole(db.WorkflowRolePerm{ProjectID: projectID, WorkflowID: workflowID, RoleID: role.ID, Permissions: db.CanRunWorkflows})
 	require.NoError(t, err)
 	check := func(assigned db.RoleAssignments) {
 		t.Helper()
@@ -159,7 +162,9 @@ func TestDeleteRoleWithAssignments(t *testing.T) {
 		assert.ElementsMatch(t, []string{"deployer", "guest"}, slugsOf(assigned.Members[1].Roles))
 		require.Len(t, assigned.Grants, 1)
 		assert.Equal(t, grant.ID, assigned.Grants[0].ID)
-		assert.Equal(t, db.RoleImpact{Members: 2, Projects: 1, TemplateGrants: 1}, assigned.Impact())
+		require.Len(t, assigned.WorkflowGrants, 1)
+		assert.Equal(t, workflowGrant.ID, assigned.WorkflowGrants[0].ID)
+		assert.Equal(t, db.RoleImpact{Members: 2, Projects: 1, TemplateGrants: 1, WorkflowGrants: 1}, assigned.Impact())
 	}
 
 	assigned, err := store.GetRoleAssignments(role.ID)
@@ -171,7 +176,7 @@ func TestDeleteRoleWithAssignments(t *testing.T) {
 
 	require.NoError(t, err)
 	check(removed)
-	_, err = store.GetGlobalRoleBySlug("deployer")
+	_, err = store.GetSharedRoleBySlug("deployer")
 	assert.ErrorIs(t, err, db.ErrNotFound)
 	_, err = store.GetProjectUser(projectID, only.ID)
 	assert.ErrorIs(t, err, db.ErrNotFound, "a member whose only role it was leaves the project")
@@ -181,11 +186,14 @@ func TestDeleteRoleWithAssignments(t *testing.T) {
 	grants, err := store.GetTemplateRoles(projectID, templateID)
 	require.NoError(t, err)
 	assert.Empty(t, grants)
+	workflowGrants, err := store.GetWorkflowRoles(projectID, workflowID)
+	require.NoError(t, err)
+	assert.Empty(t, workflowGrants, "the workflow grants go with the role")
 }
 
 func TestDeleteRoleWithAssignments_BuiltinRole(t *testing.T) {
 	store, projectID, _ := newTemplatePermissionTest(t)
-	owner, err := store.GetGlobalRoleBySlug("owner")
+	owner, err := store.GetSharedRoleBySlug("owner")
 	require.NoError(t, err)
 	user := createTemplatePermissionTestUser(t, store, projectID, "u", owner.ID)
 
@@ -199,7 +207,7 @@ func TestDeleteRoleWithAssignments_BuiltinRole(t *testing.T) {
 
 func TestDeleteRoleWithAssignments_Mappings(t *testing.T) {
 	store, projectID, _ := newTemplatePermissionTest(t)
-	guest, err := store.GetGlobalRoleBySlug("guest")
+	guest, err := store.GetSharedRoleBySlug("guest")
 	require.NoError(t, err)
 	dev, err := store.CreateRole(db.Role{Slug: "dev", Name: "Dev", ProjectID: &projectID})
 	require.NoError(t, err)

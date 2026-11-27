@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/semaphoreui/semaphore/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,13 +32,13 @@ func TestSession_IsExpiredAt(t *testing.T) {
 		},
 		{
 			name:     "unused longer than inactivity timeout is expired",
-			session:  Session{Created: now.Add(-8 * 24 * time.Hour), LastActive: now.Add(-SessionInactivityTimeout - time.Second)},
+			session:  Session{Created: now.Add(-8 * 24 * time.Hour), LastActive: now.Add(-util.DefaultSessionInactivityTimeout - time.Second)},
 			maxLife:  0,
 			expected: true,
 		},
 		{
 			name:     "unused exactly inactivity timeout is still valid",
-			session:  Session{Created: now.Add(-8 * 24 * time.Hour), LastActive: now.Add(-SessionInactivityTimeout)},
+			session:  Session{Created: now.Add(-8 * 24 * time.Hour), LastActive: now.Add(-util.DefaultSessionInactivityTimeout)},
 			maxLife:  0,
 			expected: false,
 		},
@@ -69,7 +70,7 @@ func TestSession_IsExpiredAt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, tt.session.IsExpiredAt(now, tt.maxLife, SessionInactivityTimeout))
+			assert.Equal(t, tt.expected, tt.session.IsExpiredAt(now, tt.maxLife, util.DefaultSessionInactivityTimeout))
 		})
 	}
 }

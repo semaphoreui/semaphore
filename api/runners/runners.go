@@ -2,6 +2,7 @@ package runners
 
 import (
 	"errors"
+	"fmt"
 	"maps"
 	"net/http"
 	"strings"
@@ -64,6 +65,18 @@ func RunnerMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// maxRunnerTouchInterval caps how stale the stored heartbeat of a polling
+// runner may get before GetRunner writes it again.
+const maxRunnerTouchInterval = 45 * time.Second
+
+// runnerTouchInterval is how often GetRunner persists the heartbeat of a
+// runner that keeps polling. It stays well below the offline timeout, so
+// skipping writes in between never makes a live runner look offline.
+func runnerTouchInterval() time.Duration {
+	interval := min(util.Config.RunnersOfflineTimeout()/3, maxRunnerTouchInterval)
+	return interval
+}
+
 type RunnerController struct {
 	runnerRepo        db.RunnerManager
 	taskPool          *tasks.TaskPool
@@ -88,6 +101,8 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 	})
 
 	clearCache := false
+	startedAtChanged := false
+	now := tz.Now()
 
 	// The runner reports its process start time on every poll. It changes on
 	// every restart and is persisted next to "touched", so the task reconciler
@@ -97,26 +112,42 @@ func (c *RunnerController) GetRunner(w http.ResponseWriter, r *http.Request) {
 			if runner.StartedAt != nil && startedAt.After(*runner.StartedAt) {
 				runnerLog.Debug("Runner process restart detected")
 			}
+			startedAtChanged = runner.StartedAt == nil || !startedAt.Equal(*runner.StartedAt)
 			runner.StartedAt = &startedAt
 		} else {
 			runnerLog.WithError(parseErr).Warn("invalid X-Runner-Started-At header")
 		}
 	}
 
-	wasOffline := !runner.IsOnline(tz.Now(), util.Config.RunnersOfflineTimeout())
+	wasOffline := !runner.IsOnline(now, util.Config.RunnersOfflineTimeout())
 
-	if err := c.runnerRepo.TouchRunner(runner); err != nil {
-		runnerLog.WithError(err).Error("runner touch failed")
-		helpers.WriteError(w, err)
-		return
+	if runner.CleaningRequested != nil && (runner.Touched == nil || runner.CleaningRequested.After(*runner.Touched)) {
+		clearCache = true
+	}
+
+	// A clean request is pending until "touched" passes it, so touch right away
+	// to deliver it only once. Otherwise skip the write while the stored
+	// heartbeat is fresh enough.
+	lastTouch := time.Duration(0)
+	if runner.Touched != nil {
+		lastTouch = now.Sub(*runner.Touched)
+	}
+
+	if wasOffline ||
+		startedAtChanged ||
+		clearCache ||
+		runner.Touched == nil ||
+		lastTouch >= runnerTouchInterval() {
+
+		if err := c.runnerRepo.TouchRunner(runner); err != nil {
+			runnerLog.WithError(err).Error("runner touch failed")
+			helpers.WriteError(w, err)
+			return
+		}
 	}
 
 	if wasOffline {
 		runnerLog.Debug("Runner became online")
-	}
-
-	if runner.CleaningRequested != nil && (runner.Touched == nil || runner.CleaningRequested.After(*runner.Touched)) {
-		clearCache = true
 	}
 
 	data := runners.RunnerState{
@@ -236,7 +267,11 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 	// aborting the poll for the whole runner, and none of its keys
 	// leak into the response of a job that is not dispatched.
 	taskKeys := make(map[int]db.AccessKey)
-	if kerr := c.collectTaskAccessKeys(tsk, runner.ID, taskKeys); kerr != nil {
+	kerr := c.collectTaskAccessKeys(tsk, runner.ID, taskKeys)
+	if kerr == nil {
+		jobData.AccessKeys, kerr = c.collectMcpTokenKeys(tsk, runner.ID)
+	}
+	if kerr != nil {
 		tsk.Log("Failed to decrypt access keys of the task. More details in the server logs.")
 		tsk.FailDispatch()
 		c.taskPool.FinalizeRemoteTask(tsk, runner)
@@ -245,6 +280,9 @@ func (c *RunnerController) prepareRemoteJob(tsk *tasks.TaskRunner, runner *db.Ru
 
 	maps.Copy(data.AccessKeys, taskKeys)
 	data.NewJobs = append(data.NewJobs, jobData)
+
+	// The job comes from this node's copy of the task, so record what it sends.
+	tsk.RecordInventory()
 }
 
 // collectTaskAccessKeys decrypts every access key the dispatched task needs
@@ -346,6 +384,47 @@ func (c *RunnerController) collectTaskAccessKeys(tsk *tasks.TaskRunner, runnerID
 	keys[tsk.Repository.SSHKeyID] = tsk.Repository.SSHKey
 
 	return nil
+}
+
+// collectMcpTokenKeys returns the tokens of the task's MCP servers as access
+// keys, by key ID. They go into the task's own job and never into the keys the
+// jobs of a response share: a token is a snapshot taken with the server's URL
+// when the task was loaded (InventoryService), and editing a server changes
+// its URL and token but keeps the key ID. In a shared map the token of one
+// task would replace the token of another and be sent to that task's URL.
+//
+// The tokens are already decrypted; they never travel in the serialized
+// inventory (McpServer.Token is json:"-").
+func (c *RunnerController) collectMcpTokenKeys(tsk *tasks.TaskRunner, runnerID int) (map[int]db.AccessKey, error) {
+	var keys map[int]db.AccessKey
+
+	for _, server := range tsk.Inventory.McpServers {
+		if server.TokenKeyID == nil {
+			continue
+		}
+		if server.Token == "" {
+			log.WithFields(log.Fields{
+				"runner_id":     runnerID,
+				"task_id":       tsk.Task.ID,
+				"inventory_id":  tsk.Inventory.ID,
+				"access_key_id": *server.TokenKeyID,
+				"context":       "runner",
+			}).Error("MCP server token is not decrypted")
+			return nil, fmt.Errorf("the token of mcp server %s is not decrypted", server.Name)
+		}
+		if keys == nil {
+			keys = make(map[int]db.AccessKey)
+		}
+		keys[*server.TokenKeyID] = db.AccessKey{
+			ID:        *server.TokenKeyID,
+			ProjectID: &tsk.Inventory.ProjectID,
+			Type:      db.AccessKeyString,
+			Owner:     db.AccessKeyMcp,
+			String:    server.Token,
+		}
+	}
+
+	return keys, nil
 }
 
 func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) {
@@ -471,6 +550,14 @@ func (c *RunnerController) UpdateRunner(w http.ResponseWriter, r *http.Request) 
 				jobLog.WithError(err).Warn("runner reported invalid task outputs")
 				tsk.Log("Invalid task outputs reported by the runner: " + err.Error())
 				job.Status = task_logger.TaskFailStatus
+			}
+		}
+
+		// Host stats arrive with any final status and never fail the task.
+		if job.Hosts != nil && job.Status.IsFinished() {
+			if err = taskPool.StoreTaskHosts(tsk, *job.Hosts); err != nil {
+				jobLog.WithError(err).Warn("runner reported invalid host stats")
+				tsk.Log("Invalid host stats reported by the runner: " + err.Error())
 			}
 		}
 
