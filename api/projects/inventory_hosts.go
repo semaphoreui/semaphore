@@ -118,6 +118,27 @@ func managedInventory(w http.ResponseWriter, r *http.Request) (db.Inventory, boo
 	return inventory, true
 }
 
+// manualGroups answers 400 when one of the groups belongs to an inventory source, its links are the source's
+func manualGroups(w http.ResponseWriter, r *http.Request, inventory db.Inventory, groupIDs []int) bool {
+	if len(groupIDs) == 0 {
+		return true
+	}
+
+	groups, err := helpers.Store(r).GetInventoryGroups(inventory.ProjectID, inventory.ID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return false
+	}
+
+	for _, group := range groups {
+		if group.SourceID != nil && slices.Contains(groupIDs, group.ID) {
+			helpers.WriteErrorStatus(w, "managed by an inventory source", http.StatusBadRequest)
+			return false
+		}
+	}
+	return true
+}
+
 // GetInventoryHosts returns a page of the hosts of a managed inventory
 func GetInventoryHosts(w http.ResponseWriter, r *http.Request) {
 	inventory, ok := managedInventory(w, r)
@@ -150,6 +171,14 @@ func GetInventoryHosts(w http.ResponseWriter, r *http.Request) {
 	if s := r.URL.Query().Get("ungrouped"); s != "" {
 		if params.Ungrouped, err = strconv.ParseBool(s); err != nil {
 			helpers.WriteErrorStatus(w, "invalid ungrouped", http.StatusBadRequest)
+			return
+		}
+	}
+	if s := r.URL.Query().Get("source"); s == "manual" {
+		params.Manual = true
+	} else if s != "" {
+		if params.SourceID, err = strconv.Atoi(s); err != nil || params.SourceID <= 0 {
+			helpers.WriteErrorStatus(w, "invalid source", http.StatusBadRequest)
 			return
 		}
 	}
@@ -200,11 +229,16 @@ func AddInventoryHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !manualGroups(w, r, inventory, body.AddGroups) {
+		return
+	}
+
 	host := body.InventoryHost
 	host.ID = 0
 	host.InventoryID = inventory.ID
 	host.ProjectID = inventory.ProjectID
 	host.LastStatus, host.LastRun, host.LastTaskID, host.HostID = nil, nil, nil, nil
+	host.SourceID = nil
 
 	newHost, err := helpers.Store(r).CreateInventoryHost(host, body.AddGroups)
 	if err != nil {
@@ -276,10 +310,21 @@ func UpdateInventoryHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The web form sends the name and the variables back unchanged, only a change is refused
+	if oldHost.SourceID != nil && (body.Name != oldHost.Name || body.Variables != oldHost.Variables) {
+		helpers.WriteErrorStatus(w, "managed by an inventory source", http.StatusBadRequest)
+		return
+	}
+
+	if !manualGroups(w, r, inventory, slices.Concat(body.AddGroups, body.RemoveGroups)) {
+		return
+	}
+
 	host := body.InventoryHost
 	host.ID = hostID
 	host.InventoryID = inventory.ID
 	host.ProjectID = inventory.ProjectID
+	host.SourceID = oldHost.SourceID
 
 	addedGroups, removedGroups, err := helpers.Store(r).UpdateInventoryHost(host, body.AddGroups, body.RemoveGroups)
 	if err != nil {
@@ -388,6 +433,11 @@ func RemoveInventoryHost(w http.ResponseWriter, r *http.Request) {
 	host, err := helpers.Store(r).GetInventoryHost(inventory.ProjectID, inventory.ID, hostID)
 	if err != nil {
 		helpers.WriteError(w, err)
+		return
+	}
+
+	if host.SourceID != nil {
+		helpers.WriteErrorStatus(w, "managed by an inventory source", http.StatusBadRequest)
 		return
 	}
 
