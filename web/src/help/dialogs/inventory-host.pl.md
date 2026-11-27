@@ -7,6 +7,10 @@ form: src/components/InventoryHostForm.vue
 Host zarządzanego inwentarza. Zadanie, które używa inwentarza, jest uruchamiane na tych hostach,
 które są włączone na liście hostów.
 
+Host zaimportowany ze źródła inwentarza jest zarządzany przez to źródło. Jego nazwa i zmienne są tylko
+do odczytu i są aktualizowane przy każdej synchronizacji. Opis, grupy niezaimportowane i przełącznik
+Enabled nadal można edytować.
+
 ## Nazwa {#inventoryHostForm-name}
 
 Nazwa, pod którą Ansible zna host, oraz adres, z którym się łączy, o ile zmienne nie ustawiają

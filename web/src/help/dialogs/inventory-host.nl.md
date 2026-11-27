@@ -7,6 +7,10 @@ form: src/components/InventoryHostForm.vue
 Een host van een beheerde inventaris. Een taak die de inventaris gebruikt, wordt uitgevoerd op de
 hosts die in de lijst met hosts zijn ingeschakeld.
 
+Een host die uit een inventarisbron is geïmporteerd, wordt door die bron beheerd. De naam en de
+variabelen zijn alleen-lezen en worden bij elke synchronisatie bijgewerkt. De beschrijving, de niet
+geïmporteerde groepen en de schakelaar Enabled blijven bewerkbaar.
+
 ## Naam {#inventoryHostForm-name}
 
 De naam waaronder Ansible de host kent, en het adres waarmee het verbinding maakt, tenzij de

@@ -9,6 +9,9 @@ tramite il nome del gruppo, e una variabile del gruppo si imposta una volta per 
 Gli host si mettono in un gruppo nella scheda Hosts, nella finestra dell'host o con le azioni sulla
 selezione.
 
+Un gruppo importato da una sorgente di inventario è gestito da quella sorgente. Tutti i suoi campi
+sono in sola lettura e vengono aggiornati a ogni sincronizzazione.
+
 ## Nome {#inventoryGroupForm-name}
 
 Il nome con cui Ansible conosce il gruppo, per esempio in `hosts: web` di un playbook. Il campo è

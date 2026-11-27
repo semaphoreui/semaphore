@@ -7,6 +7,10 @@ form: src/components/InventoryHostForm.vue
 Ein Host eines verwalteten Inventorys. Eine Aufgabe, die das Inventory verwendet, läuft auf
 denjenigen Hosts, die in der Hostliste eingeschaltet sind.
 
+Ein aus einer Inventarquelle importierter Host wird von dieser Quelle verwaltet. Name und Variablen
+sind schreibgeschützt und werden bei jeder Synchronisierung aktualisiert. Beschreibung, nicht
+importierte Gruppen und der Schalter Enabled bleiben bearbeitbar.
+
 ## Name {#inventoryHostForm-name}
 
 Der Name, unter dem Ansible den Host kennt, und die Adresse, mit der es sich verbindet, sofern die

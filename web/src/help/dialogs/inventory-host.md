@@ -7,6 +7,10 @@ form: src/components/InventoryHostForm.vue
 A host of a managed inventory. A task that uses the inventory runs on its hosts that are switched on
 in the list of hosts.
 
+A host imported from an inventory source is managed by that source. Its name and variables are
+read-only and are updated on every sync. The description, the groups that are not imported, and the
+Enabled switch stay editable.
+
 ## Name {#inventoryHostForm-name}
 
 The name Ansible knows the host by, and the address it connects to unless the variables set

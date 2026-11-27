@@ -7,6 +7,10 @@ form: src/components/InventoryHostForm.vue
 Host spravovaného inventáře. Úloha, která inventář používá, běží na těch hostech, které jsou v
 seznamu hostů zapnuté.
 
+Host importovaný ze zdroje inventáře spravuje tento zdroj. Jeho název a proměnné jsou jen pro čtení
+a aktualizují se při každé synchronizaci. Popis, neimportované skupiny a přepínač Enabled lze dál
+upravovat.
+
 ## Název {#inventoryHostForm-name}
 
 Název, pod kterým Ansible hosta zná, a adresa, ke které se připojuje, pokud proměnné nenastavují

@@ -8,6 +8,9 @@ A group of hosts in a managed inventory. A playbook runs on a part of the hosts 
 group, and a variable of the group is set once for all its hosts. Hosts are put into a group on the
 Hosts tab, in the host dialog or with the selection actions.
 
+A group imported from an inventory source is managed by that source. All its fields are read-only
+and are updated on every sync.
+
 ## Name {#inventoryGroupForm-name}
 
 The name Ansible knows the group by, for example in `hosts: web` of a playbook. The field is

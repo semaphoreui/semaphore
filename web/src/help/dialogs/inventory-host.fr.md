@@ -7,6 +7,10 @@ form: src/components/InventoryHostForm.vue
 Un hôte d'un inventaire géré. Une tâche qui utilise l'inventaire s'exécute sur les hôtes qui sont
 activés dans la liste des hôtes.
 
+Un hôte importé depuis une source d'inventaire est géré par cette source. Son nom et ses variables
+sont en lecture seule et sont mis à jour à chaque synchronisation. La description, les groupes non
+importés et l'interrupteur Enabled restent modifiables.
+
 ## Nom {#inventoryHostForm-name}
 
 Le nom sous lequel Ansible connaît l'hôte, et l'adresse à laquelle il se connecte, sauf si les
