@@ -1,6 +1,7 @@
 package export
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/semaphoreui/semaphore/db"
@@ -8,6 +9,7 @@ import (
 
 type InventoryHostExporter struct {
 	ValueMap[db.InventoryHost]
+	contents *inventoryContents
 }
 
 func (e *InventoryHostExporter) load(store db.Store, exporter DataExporter, progress Progress) (err error) {
@@ -26,11 +28,11 @@ func (e *InventoryHostExporter) load(store db.Store, exporter DataExporter, prog
 		hostsArr := make([]db.InventoryHost, 0)
 
 		for _, inventoryId := range inventories {
-			hosts, _, err := store.GetInventoryHosts(projId, inventoryId, db.InventoryHostListParams{Count: 0})
+			content, err := e.contents.get(store, projId, inventoryId)
 			if err != nil {
 				return err
 			}
-			hostsArr = append(hostsArr, hosts...)
+			hostsArr = append(hostsArr, content.Hosts...)
 		}
 
 		err = e.appendValues(hostsArr, strconv.Itoa(projId))
@@ -59,6 +61,16 @@ func (e *InventoryHostExporter) restoreValue(val EntityObject[db.InventoryHost],
 		return err
 	}
 
+	sourceID := old.SourceID
+	old.SourceID, err = exporter.getNewKeyIntRef(InventorySource, val.scope, old.SourceID, e)
+	if err != nil {
+		return err
+	}
+	// Without its source the row would come back as a manual one
+	if sourceID != nil && old.SourceID == nil {
+		return fmt.Errorf("the source of host %s is not restored", old.Name)
+	}
+
 	newObj, err := store.CreateInventoryHost(old, nil)
 	if err != nil {
 		return err
@@ -72,7 +84,7 @@ func (e *InventoryHostExporter) getName() string {
 }
 
 func (e *InventoryHostExporter) importDependsOn() []string {
-	return []string{Project, Inventory}
+	return []string{Project, Inventory, InventorySource}
 }
 
 func (e *InventoryHostExporter) exportDependsOn() []string {

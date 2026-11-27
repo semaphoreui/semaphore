@@ -11,7 +11,8 @@ import (
 type InventoryGroupExporter struct {
 	ValueMap[db.InventoryGroup]
 	// hosts holds the old host ids of each old group id
-	hosts map[int][]int
+	hosts    map[int][]int
+	contents *inventoryContents
 }
 
 func (e *InventoryGroupExporter) load(store db.Store, exporter DataExporter, progress Progress) (err error) {
@@ -32,17 +33,13 @@ func (e *InventoryGroupExporter) load(store db.Store, exporter DataExporter, pro
 		groupsArr := make([]db.InventoryGroup, 0)
 
 		for _, inventoryId := range inventories {
-			groups, err := store.GetInventoryGroups(projId, inventoryId)
+			content, err := e.contents.get(store, projId, inventoryId)
 			if err != nil {
 				return err
 			}
-			groupsArr = append(groupsArr, groups...)
+			groupsArr = append(groupsArr, content.Groups...)
 
-			links, err := store.GetInventoryGroupHosts(projId, inventoryId)
-			if err != nil {
-				return err
-			}
-			for _, link := range links {
+			for _, link := range content.Members {
 				e.hosts[link.GroupID] = append(e.hosts[link.GroupID], link.HostID)
 			}
 		}
@@ -76,6 +73,10 @@ func (e *InventoryGroupExporter) restore(store db.Store, exporter DataExporter, 
 			continue
 		}
 		group.ProjectID, err = exporter.getNewKeyInt(Project, GlobalScope, val.value.ProjectID)
+		if err != nil {
+			continue
+		}
+		group.SourceID, err = exporter.getNewKeyIntRef(InventorySource, val.scope, val.value.SourceID, e)
 		if err != nil {
 			continue
 		}
@@ -130,6 +131,16 @@ func (e *InventoryGroupExporter) restoreValue(val EntityObject[db.InventoryGroup
 		return err
 	}
 
+	sourceID := old.SourceID
+	old.SourceID, err = exporter.getNewKeyIntRef(InventorySource, val.scope, old.SourceID, e)
+	if err != nil {
+		return err
+	}
+	// Without its source the row would come back as a manual one
+	if sourceID != nil && old.SourceID == nil {
+		return fmt.Errorf("the source of group %s is not restored", old.Name)
+	}
+
 	newObj, err := store.CreateInventoryGroup(old, nil)
 	if err != nil {
 		return err
@@ -143,7 +154,7 @@ func (e *InventoryGroupExporter) getName() string {
 }
 
 func (e *InventoryGroupExporter) importDependsOn() []string {
-	return []string{Project, Inventory, InventoryHost}
+	return []string{Project, Inventory, InventoryHost, InventorySource}
 }
 
 func (e *InventoryGroupExporter) exportDependsOn() []string {
