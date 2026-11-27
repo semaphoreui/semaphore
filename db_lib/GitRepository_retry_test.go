@@ -177,7 +177,12 @@ func TestCmdGitClient_CloneStopsAtDeadline(t *testing.T) {
 		t.Skip("git is not installed")
 	}
 	setupGitRetryTest(t, 1)
+	reached := make(chan struct{}, 1)
 	silent := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		select {
+		case reached <- struct{}{}:
+		default:
+		}
 		<-r.Context().Done()
 	}))
 	repo := GitRepository{
@@ -190,9 +195,12 @@ func TestCmdGitClient_CloneStopsAtDeadline(t *testing.T) {
 
 	started := time.Now()
 	err := repo.Clone()
-	// Close waits for the connection of the git helper process
+	elapsed := time.Since(started)
+	// Close waits for every handler, a helper process left alive would keep one open
+	silent.CloseClientConnections()
 	silent.Close()
 
 	require.Error(t, err)
-	assert.Less(t, time.Since(started), 20*time.Second)
+	assert.Len(t, reached, 1, "git did not reach the server")
+	assert.Less(t, elapsed, 20*time.Second)
 }
