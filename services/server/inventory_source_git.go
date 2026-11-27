@@ -221,12 +221,15 @@ func rejectOutsideLinks(root string) error {
 			return nil
 		}
 
+		rel, _ := filepath.Rel(realRoot, path)
 		target, err := filepath.EvalSymlinks(path)
-		if err == nil && isInside(realRoot, target) {
+		if err != nil {
+			return fmt.Errorf("repository has a link that leads nowhere: %s", rel)
+		}
+		if isInside(realRoot, target) {
 			return nil
 		}
 
-		rel, _ := filepath.Rel(realRoot, path)
 		return fmt.Errorf("repository has a link that points outside of it: %s", rel)
 	})
 }

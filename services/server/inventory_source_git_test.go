@@ -67,6 +67,15 @@ func TestRejectOutsideLinks(t *testing.T) {
 	assert.EqualError(t, err, "repository has a link that points outside of it: "+filepath.Join("group_vars", "all.yml"))
 }
 
+func TestRejectOutsideLinks_BrokenLink(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Symlink("missing.yml", filepath.Join(root, "generated.yml")))
+
+	err := rejectOutsideLinks(root)
+
+	assert.EqualError(t, err, "repository has a link that leads nowhere: generated.yml")
+}
+
 func TestStripServerPaths(t *testing.T) {
 	got := stripServerPaths("/private/var/x/repo/hosts.yml:2: bad", "/var/x/repo/", "/private/var/x/repo/")
 
