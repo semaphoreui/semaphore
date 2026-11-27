@@ -24,9 +24,13 @@ func TestInventoryVariablesText_IsStable(t *testing.T) {
 	assert.Equal(t, firstText, secondText)
 	_, err = ParseInventoryVariables(firstText)
 	assert.NoError(t, err)
-	empty, err := InventoryVariablesText(map[string]any{})
+}
+
+func TestInventoryVariablesText_EmptyMap(t *testing.T) {
+	text, err := InventoryVariablesText(map[string]any{})
+
 	require.NoError(t, err)
-	assert.Empty(t, empty)
+	assert.Empty(t, text)
 }
 
 func TestInventoryVariablesText_KeepsVault(t *testing.T) {

@@ -57,23 +57,31 @@ func TestParseAnsibleInventory(t *testing.T) {
 }
 
 func TestParseAnsibleInventory_Empty(t *testing.T) {
-	doc, err := ParseAnsibleInventory([]byte(`{"_meta":{"hostvars":{}},"all":{"children":["ungrouped"]}}`))
-	require.NoError(t, err)
+	tests := []struct {
+		name   string
+		output string
+		groups []db.InventoryDocumentGroup
+	}{
+		{"no hosts and no groups", `{"_meta":{"hostvars":{}},"all":{"children":["ungrouped"]}}`, nil},
+		{
+			"groups without hosts",
+			`{"_meta":{"hostvars":{}},"all":{"children":["ungrouped","web","spare"]},"web":{"hosts":["a"],"children":["empty"]},"ungrouped":{"hosts":[]}}`,
+			[]db.InventoryDocumentGroup{
+				{Name: "empty"},
+				{Name: "spare"},
+				{Name: "web", Hosts: []string{"a"}, Children: []string{"empty"}},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			doc, err := ParseAnsibleInventory([]byte(tt.output))
 
-	assert.Empty(t, doc.Hosts)
-	assert.Empty(t, doc.Groups)
-	assert.Empty(t, doc.Variables)
-}
-
-func TestParseAnsibleInventory_EmptyGroup(t *testing.T) {
-	doc, err := ParseAnsibleInventory([]byte(`{"_meta":{"hostvars":{}},"all":{"children":["ungrouped","web","spare"]},"web":{"hosts":["a"],"children":["empty"]},"ungrouped":{"hosts":[]}}`))
-	require.NoError(t, err)
-
-	assert.Equal(t, []db.InventoryDocumentGroup{
-		{Name: "empty"},
-		{Name: "spare"},
-		{Name: "web", Hosts: []string{"a"}, Children: []string{"empty"}},
-	}, doc.Groups)
+			require.NoError(t, err)
+			assert.Equal(t, tt.groups, doc.Groups)
+			assert.Empty(t, doc.Variables)
+		})
+	}
 }
 
 func TestParseAnsibleInventory_UngroupedVariablesTooLargeToCopy(t *testing.T) {
