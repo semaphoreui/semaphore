@@ -21,6 +21,7 @@ import (
 
 func loginRequest(store db.Store, body string) *http.Request {
 	r := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(body))
+	r = helpers.SetContextValue(r, "role_sync", fakeRoleSync{})
 	return helpers.SetContextValue(r, "store", store)
 }
 
@@ -231,4 +232,77 @@ func TestResolveExternalUser_LinkSurvivesFailedSync(t *testing.T) {
 	ids, err := store.GetUserExternalIdentities(legacy.ID)
 	require.NoError(t, err)
 	assert.Len(t, ids, 1, "the link is stored")
+}
+
+type fakeRoleSync struct {
+	added, removed []db.MappedRole
+	err            error
+	provider       *string
+}
+
+func (f fakeRoleSync) SyncLoginRoles(userID int, provider string, claims map[string]any) ([]db.MappedRole, []db.MappedRole, error) {
+	if f.provider != nil {
+		*f.provider = provider
+	}
+	return f.added, f.removed, f.err
+}
+
+func TestSyncLoginRoles(t *testing.T) {
+	user := db.User{ID: 5, Username: "jdoe"}
+	row := db.MappedRole{ProjectID: 2, UserID: 5, Username: "jdoe", MappingID: 7, Provider: "okta", Group: "devops", RoleID: 3, RoleSlug: "dev"}
+
+	t.Run("each change is recorded by the server", func(t *testing.T) {
+		r, rec := withAuditRecorder(httptest.NewRequest(http.MethodGet, "/api/auth/oidc/okta/redirect", nil))
+		r = helpers.SetContextValue(r, "role_sync", fakeRoleSync{added: []db.MappedRole{row}, removed: []db.MappedRole{row}})
+
+		require.NoError(t, syncLoginRoles(r, user, "okta", map[string]any{}))
+
+		kinds, err := rec.Kinds()
+		require.NoError(t, err)
+		assert.Equal(t, []audit.Kind{audit.IAMMappedRoleAdd, audit.IAMMappedRoleRemove}, kinds)
+		got := rec.All()[0]
+		assert.Equal(t, audit.ActorSystem, got.Actor.Type)
+		assert.Equal(t, 2, got.Event.ProjectID)
+		assert.Equal(t, audit.MappedRoleMetadata{Role: audit.RoleRef{ID: 3, Slug: "dev"}, Provider: "okta", Group: "devops", MappingID: 7, Cause: audit.MappedRoleCauseLogin}, got.Event.Metadata)
+	})
+	t.Run("a failed sync records nothing", func(t *testing.T) {
+		r, rec := withAuditRecorder(httptest.NewRequest(http.MethodGet, "/api/auth/oidc/okta/redirect", nil))
+		r = helpers.SetContextValue(r, "role_sync", fakeRoleSync{err: errors.New("boom")})
+
+		assert.Error(t, syncLoginRoles(r, user, "okta", map[string]any{}))
+		assert.Empty(t, rec.All())
+	})
+}
+
+func TestLogin_PasswordSignInTakesAwayMappedRoles(t *testing.T) {
+	store := setupSessionTest(t)
+	createUserOptionsTestUser(t, store, "alice")
+	row := db.MappedRole{ProjectID: 2, UserID: 1, Username: "alice", MappingID: 7, Provider: "okta", Group: "devops", RoleID: 3, RoleSlug: "dev"}
+
+	t.Run("the mapped roles go away", func(t *testing.T) {
+		provider := "unset"
+		r, rec := withAuditRecorder(loginRequest(store, `{"auth":"alice","password":"verystrongpassword1","method":"password"}`))
+		r = helpers.SetContextValue(r, "role_sync", fakeRoleSync{removed: []db.MappedRole{row}, provider: &provider})
+		w := httptest.NewRecorder()
+
+		login(w, r)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.Empty(t, provider, "a sign-in without groups")
+		kinds, err := rec.Kinds()
+		require.NoError(t, err)
+		assert.Equal(t, []audit.Kind{audit.IAMMappedRoleRemove, audit.AuthLogin}, kinds)
+	})
+	t.Run("a failed sync refuses the sign-in", func(t *testing.T) {
+		r, rec := withAuditRecorder(loginRequest(store, `{"auth":"alice","password":"verystrongpassword1","method":"password"}`))
+		r = helpers.SetContextValue(r, "role_sync", fakeRoleSync{err: errors.New("boom")})
+		w := httptest.NewRecorder()
+
+		login(w, r)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		assert.Empty(t, w.Result().Cookies())
+		got := onlyEvent(t, rec, audit.AuthLogin)
+		assert.Equal(t, audit.ReasonInternalError, got.Event.Reason)
+	})
 }

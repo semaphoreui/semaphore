@@ -351,4 +351,7 @@ export default {
   project_stats: '統計',
   allow_override_branch: 'ブランチ',
   template_common_options: '共通オプション',
+  projectRoles: 'プロジェクトロール',
+  globalRoles: 'グローバルロール',
+  builtInRoles: '組み込みロール',
 };

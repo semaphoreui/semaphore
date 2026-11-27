@@ -35,6 +35,10 @@ func (e *ProjectUserExporter) load(store db.Store, exporter DataExporter, progre
 
 		values := make([]projectMember, 0)
 		for _, user := range users {
+			// Mapped roles come back at the next login, there is nothing manual to copy.
+			if len(user.Roles) == 0 {
+				continue
+			}
 			member := projectMember{ProjectID: projId, UserID: user.ID}
 			for _, role := range user.Roles {
 				member.RoleIDs = append(member.RoleIDs, role.ID)

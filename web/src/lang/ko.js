@@ -351,4 +351,7 @@ export default {
   project_stats: '통계',
   allow_override_branch: '브랜치',
   template_common_options: '공통 옵션',
+  projectRoles: '프로젝트 역할',
+  globalRoles: '전역 역할',
+  builtInRoles: '기본 제공 역할',
 };

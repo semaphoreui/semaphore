@@ -351,4 +351,7 @@ export default {
   project_stats: 'Statistieken',
   allow_override_branch: 'Tak',
   template_common_options: 'Gemeenschappelijke opties',
+  projectRoles: 'Projectrollen',
+  globalRoles: 'Globale rollen',
+  builtInRoles: 'Ingebouwde rollen',
 };

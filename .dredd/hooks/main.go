@@ -77,6 +77,10 @@ func main() {
 		transaction.Request.Body = "{ \"user_id\": " + strconv.Itoa(userPathTestUser.ID) + ",\"role\": \"owner\"}"
 	})
 
+	h.Before("project > /api/project/{project_id}/users/{user_id} > Update user roles > 204 > application/json", func(transaction *trans.Transaction) {
+		transaction.Request.Body = "{\"roles\":[\"manager\",\"task_runner\"]}"
+	})
+
 	h.Before("project > /api/project/{project_id}/invites > Get invitations for project > 200 > application/json", capabilityWrapper("invite"))
 	h.Before("project > /api/project/{project_id}/invites > Create project invitation > 201 > application/json", capabilityWrapper("invite"))
 	h.Before("project > /api/project/{project_id}/invites/{invite_id} > Get specific project invitation > 200 > application/json", capabilityWrapper("invite"))

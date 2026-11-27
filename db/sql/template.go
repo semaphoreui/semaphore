@@ -374,9 +374,16 @@ func (d *SqlDb) getTemplates(
 			select
 			  ptr.template_id, ptr.permissions
 			from project__template_role ptr
-			join project__user_role pur on pur.project_id = ptr.project_id and pur.role_id = ptr.role_id
-			where ptr.project_id = ? and pur.user_id = ?
-		`, projectID, *userID)
+			where ptr.project_id = ?
+			  and ptr.role_id in (
+			    select pur.role_id from project__user_role pur where pur.project_id = ? and pur.user_id = ?
+			    union
+			    select m.role_id
+			    from project__user_mapped_role mr
+			    join group_role_mapping m on m.id = mr.mapping_id
+			    where mr.project_id = ? and mr.user_id = ?
+			  )
+		`, projectID, projectID, *userID, projectID, *userID)
 		if err != nil {
 			return
 		}
@@ -553,9 +560,16 @@ func (d *SqlDb) GetTemplatePermission(projectID int, templateID int, userID int)
 		select
 		  ptr.permissions
 		from project__template_role ptr
-		join project__user_role pur on pur.project_id = ptr.project_id and pur.role_id = ptr.role_id
-		where ptr.project_id = ? and ptr.template_id = ? and pur.user_id = ?
-	`, projectID, templateID, userID)
+		where ptr.project_id = ? and ptr.template_id = ?
+		  and ptr.role_id in (
+		    select pur.role_id from project__user_role pur where pur.project_id = ? and pur.user_id = ?
+		    union
+		    select m.role_id
+		    from project__user_mapped_role mr
+		    join group_role_mapping m on m.id = mr.mapping_id
+		    where mr.project_id = ? and mr.user_id = ?
+		  )
+	`, projectID, templateID, projectID, userID, projectID, userID)
 	if err != nil {
 		return 0, err
 	}

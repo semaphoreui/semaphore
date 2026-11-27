@@ -159,8 +159,27 @@ definitions:
         type: string
       role:
         type: string
-        description: "Role slug: a built-in role (owner, manager, task_runner, guest) or a custom role"
+        description: "Role slug when the member has exactly one role, otherwise empty"
         example: manager
+      roles:
+        type: array
+        items:
+          type: string
+        description: "Slugs of all roles of the member. `role` is set only when this list has one role"
+        example: [manager]
+      mapped_roles:
+        type: array
+        readOnly: true
+        description: Roles from IdP group mappings, present only when the member has some. They cannot be changed through this API.
+        items:
+          type: object
+          properties:
+            role:
+              type: string
+            provider:
+              type: string
+            group:
+              type: string
 
   ProjectInvite:
     type: object
@@ -2481,7 +2500,13 @@ paths:
             properties:
               role:
                 type: string
+                description: "Role slug when the user has exactly one role, otherwise empty"
                 example: owner
+              roles:
+                type: array
+                items:
+                  type: string
+                example: [owner]
               permissions:
                 type: number
                 example: 0
@@ -2550,6 +2575,11 @@ paths:
                 type: string
                 description: "Role slug: a built-in role (owner, manager, task_runner, guest) or a custom role"
                 example: manager
+              roles:
+                type: array
+                items:
+                  type: string
+                description: "Several role slugs. Send either role or roles"
       responses:
         204:
           description: User added
@@ -2576,7 +2606,12 @@ paths:
                 type: string
                 description: "Role slug: a built-in role (owner, manager, task_runner, guest) or a custom role"
                 example: manager
-      summary: Update user role
+              roles:
+                type: array
+                items:
+                  type: string
+                description: "Several role slugs. Send either role or roles"
+      summary: Update user roles
       tags:
         - project
       responses:

@@ -16,3 +16,7 @@ func NewAnsibleTaskRepository(store db.Store) db.AnsibleTaskRepository {
 func NewWorkflowStore(store db.Store) db.WorkflowManager {
 	return &sql.WorkflowStoreImpl{}
 }
+
+func NewRoleMappingStore(store db.Store) db.RoleMappingStore {
+	return &sql.RoleMappingStoreImpl{}
+}

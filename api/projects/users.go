@@ -8,6 +8,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/services/audit"
 )
 
@@ -20,13 +21,9 @@ func UserMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		memberRoles, err := helpers.Store(r).GetProjectUserRoles(project.ID, userID)
+		member, err := helpers.Store(r).GetProjectMember(project.ID, userID)
 		if err != nil {
 			helpers.WriteError(w, err)
-			return
-		}
-		if len(memberRoles) == 0 {
-			helpers.WriteError(w, db.ErrNotFound)
 			return
 		}
 
@@ -38,31 +35,72 @@ func UserMiddleware(next http.Handler) http.Handler {
 		}
 
 		r = helpers.SetContextValue(r, "projectUser", user)
-		r = helpers.SetContextValue(r, "projectMemberRoles", memberRoles)
+		r = helpers.SetContextValue(r, "projectUserMember", member)
 		next.ServeHTTP(w, r)
 	})
 }
 
-type projUser struct {
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-	Name     string `json:"name"`
+type mappedRole struct {
 	Role     string `json:"role"`
+	Provider string `json:"provider"`
+	Group    string `json:"group"`
 }
 
-func callerIsProjectOwner(r *http.Request) bool {
-	roles, _ := helpers.GetFromContext(r, "projectRoles").([]db.Role)
-	return slices.ContainsFunc(roles, func(role db.Role) bool {
-		return role.Builtin && role.Slug == string(db.ProjectOwner)
-	})
+type projUser struct {
+	ID          int          `json:"id"`
+	Username    string       `json:"username"`
+	Name        string       `json:"name"`
+	Role        string       `json:"role"`
+	Roles       []string     `json:"roles"`
+	MappedRoles []mappedRole `json:"mapped_roles,omitempty"`
 }
 
-func roleRefs(roles []db.Role) []audit.RoleRef {
-	refs := make([]audit.RoleRef, 0, len(roles))
-	for _, role := range roles {
-		refs = append(refs, audit.NewRoleRef(role))
+// takesLastOwner reports whether the change takes the owner role from the only owner of the project.
+func takesLastOwner(store db.Store, projectID int, oldRoles []db.Role, newRoles []db.Role) (bool, error) {
+	isOwner := func(role db.Role) bool { return role.Builtin && role.Slug == string(db.ProjectOwner) }
+	if !slices.ContainsFunc(oldRoles, isOwner) || slices.ContainsFunc(newRoles, isOwner) {
+		return false, nil
 	}
-	return refs
+	owners, err := store.CountProjectOwners(projectID)
+	return owners == 1, err
+}
+
+// resolveRoles finds the slugs among the project and global roles, a role of another project counts as unknown.
+func resolveRoles(store db.Store, projectID int, role string, roles []string) ([]db.Role, error) {
+	slugs := roles
+	if role != "" {
+		if len(roles) > 0 {
+			return nil, &common_errors.ValidationError{Message: "Send either role or roles, not both"}
+		}
+		slugs = []string{role}
+	}
+	// An empty list is a request to drop the manual roles, the store decides whether the member keeps access.
+	if slugs == nil {
+		return nil, &common_errors.ValidationError{Message: "Send role or roles"}
+	}
+	result := make([]db.Role, 0, len(slugs))
+	for _, slug := range slugs {
+		found, err := store.GetProjectOrGlobalRoleBySlug(projectID, slug)
+		if errors.Is(err, db.ErrNotFound) {
+			return nil, &common_errors.ValidationError{Message: "Role does not exist in this project"}
+		}
+		if err != nil {
+			return nil, err
+		}
+		// Slugs in another case name the same role.
+		if !slices.ContainsFunc(result, func(r db.Role) bool { return r.ID == found.ID }) {
+			result = append(result, found)
+		}
+	}
+	return result, nil
+}
+
+func roleIDs(roles []db.Role) []int {
+	ids := make([]int, 0, len(roles))
+	for _, role := range roles {
+		ids = append(ids, role.ID)
+	}
+	return ids
 }
 
 // GetUsers returns all users in a project
@@ -84,16 +122,18 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	result := make([]projUser, 0)
 
 	for _, user := range users {
-		role := ""
-		if len(user.Roles) > 0 {
-			role = user.Roles[0].Slug
+		item := projUser{ID: user.ID, Name: user.Name, Username: user.Username, Roles: make([]string, 0, len(user.Roles))}
+		for _, role := range user.Roles {
+			item.Roles = append(item.Roles, role.Slug)
 		}
-		result = append(result, projUser{
-			ID:       user.ID,
-			Name:     user.Name,
-			Username: user.Username,
-			Role:     role,
-		})
+		// One value would hide the other roles, so old clients see it only for a single role.
+		if len(item.Roles) == 1 {
+			item.Role = item.Roles[0]
+		}
+		for _, mapped := range user.MappedRoles {
+			item.MappedRoles = append(item.MappedRoles, mappedRole{Role: mapped.RoleSlug, Provider: mapped.Provider, Group: mapped.Group})
+		}
+		result = append(result, item)
 	}
 
 	helpers.WriteJSON(w, http.StatusOK, result)
@@ -104,28 +144,30 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	store := helpers.Store(r)
 	var projectUser struct {
-		UserID int    `json:"user_id" binding:"required"`
-		Role   string `json:"role"`
+		UserID int      `json:"user_id" binding:"required"`
+		Role   string   `json:"role"`
+		Roles  []string `json:"roles"`
 	}
 
 	if !helpers.Bind(w, r, &projectUser) {
 		return
 	}
 
-	role, err := store.GetProjectOrGlobalRoleBySlug(project.ID, projectUser.Role)
-	if errors.Is(err, db.ErrNotFound) {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	roles, err := resolveRoles(store, project.ID, projectUser.Role, projectUser.Roles)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	err = store.CreateProjectUser(project.ID, projectUser.UserID, []int{role.ID})
+	member, err := store.GetProjectMember(project.ID, projectUser.UserID)
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		helpers.WriteError(w, err)
+		return
+	}
 
+	err = store.CreateProjectUser(project.ID, projectUser.UserID, roleIDs(roles))
 	if err != nil {
-		w.WriteHeader(http.StatusConflict)
+		helpers.WriteError(w, err)
 		return
 	}
 
@@ -141,34 +183,60 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	if added, err := helpers.Store(r).GetUser(projectUser.UserID); err == nil {
 		target.Name = added.Username
 	}
-	helpers.Audit(r).Record(r.Context(), audit.Event{
+	event := audit.Event{
 		Kind:      audit.IAMMembershipAdd,
 		Target:    target,
 		ProjectID: project.ID,
-		Metadata:  audit.MembershipMetadata{Roles: []audit.RoleRef{audit.NewRoleRef(role)}},
-	})
+		Metadata:  audit.MembershipMetadata{Roles: audit.NewRoleRefs(roles)},
+	}
+	// Mapped roles already made the user a member, so only the manual roles change.
+	if len(member.MappedRoles) > 0 {
+		event.Kind = audit.IAMProjectRoleChange
+		event.Metadata = audit.ProjectRoleMetadata{OldRoles: []audit.RoleRef{}, NewRoles: audit.NewRoleRefs(roles)}
+	}
+	helpers.Audit(r).Record(r.Context(), event)
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // removeUser removes a user from a project team
-func removeUser(targetUser db.User, roles []db.Role, w http.ResponseWriter, r *http.Request) {
+func removeUser(targetUser db.User, member db.ProjectMember, w http.ResponseWriter, r *http.Request) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
+
+	if len(member.Roles) == 0 && len(member.MappedRoles) > 0 {
+		helpers.WriteError(w, &common_errors.ValidationError{Message: "Access comes from group mappings. An admin can change the mappings."})
+		return
+	}
 
 	event := audit.Event{
 		Kind:      audit.IAMMembershipRemove,
 		Target:    audit.UserTarget(targetUser.ID, targetUser.Username),
 		ProjectID: project.ID,
-		Metadata:  audit.MembershipMetadata{Roles: roleRefs(roles), SelfRemoval: targetUser.ID == me.ID},
+		Metadata:  audit.MembershipMetadata{Roles: audit.NewRoleRefs(member.Roles), SelfRemoval: targetUser.ID == me.ID},
+	}
+	// Mapped roles keep the user in the project, so only the manual roles change.
+	if len(member.MappedRoles) > 0 {
+		event.Kind = audit.IAMProjectRoleChange
+		event.Metadata = audit.ProjectRoleMetadata{OldRoles: audit.NewRoleRefs(member.Roles), NewRoles: []audit.RoleRef{}}
 	}
 
-	if !me.Admin && targetUser.ID == me.ID && callerIsProjectOwner(r) {
-		event.Outcome = audit.OutcomeFailure
-		event.Reason = audit.ReasonOwnerSelfChange
-		helpers.Audit(r).Record(r.Context(), event)
-		helpers.WriteError(w, fmt.Errorf("owner can not left the project"))
-		return
+	if !me.Admin {
+		last, err := takesLastOwner(helpers.Store(r), project.ID, member.Roles, nil)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		if last {
+			event.Outcome = audit.OutcomeFailure
+			event.Reason = audit.ReasonLastOwner
+			if len(member.MappedRoles) > 0 {
+				event.Metadata = audit.ProjectRoleMetadata{OldRoles: audit.NewRoleRefs(member.Roles)}
+			}
+			helpers.Audit(r).Record(r.Context(), event)
+			helpers.WriteError(w, &common_errors.ValidationError{Message: "The project needs at least one Owner"})
+			return
+		}
 	}
 
 	err := helpers.Store(r).DeleteProjectUser(project.ID, targetUser.ID)
@@ -197,15 +265,13 @@ func removeUser(targetUser db.User, roles []db.Role, w http.ResponseWriter, r *h
 // LeftProject removes a user from a project team
 func LeftProject(w http.ResponseWriter, r *http.Request) {
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
-	roles, _ := helpers.GetFromContext(r, "projectRoles").([]db.Role)
-	removeUser(*me, roles, w, r)
+	removeUser(*me, helpers.GetFromContext(r, "projectMember").(db.ProjectMember), w, r)
 }
 
 // RemoveUser removes a user from a project team
 func RemoveUser(w http.ResponseWriter, r *http.Request) {
 	targetUser := helpers.GetFromContext(r, "projectUser").(db.User) // target user
-	roles, _ := helpers.GetFromContext(r, "projectMemberRoles").([]db.Role)
-	removeUser(targetUser, roles, w, r)
+	removeUser(targetUser, helpers.GetFromContext(r, "projectUserMember").(db.ProjectMember), w, r)
 }
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -213,42 +279,46 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	store := helpers.Store(r)
 	me := helpers.GetFromContext(r, "user").(*db.User) // logged in user
 	targetUser := helpers.GetFromContext(r, "projectUser").(db.User)
-	oldRoles, _ := helpers.GetFromContext(r, "projectMemberRoles").([]db.Role)
+	oldRoles := helpers.GetFromContext(r, "projectUserMember").(db.ProjectMember).Roles
 
 	event := audit.Event{
 		Kind:      audit.IAMProjectRoleChange,
 		Target:    audit.UserTarget(targetUser.ID, targetUser.Username),
 		ProjectID: project.ID,
-		Metadata:  audit.ProjectRoleMetadata{OldRoles: roleRefs(oldRoles)},
-	}
-
-	if !me.Admin && targetUser.ID == me.ID && callerIsProjectOwner(r) {
-		event.Outcome = audit.OutcomeFailure
-		event.Reason = audit.ReasonOwnerSelfChange
-		helpers.Audit(r).Record(r.Context(), event)
-		helpers.WriteError(w, fmt.Errorf("owner can not change his role in the project"))
-		return
+		Metadata:  audit.ProjectRoleMetadata{OldRoles: audit.NewRoleRefs(oldRoles)},
 	}
 
 	var projectUser struct {
-		Role string `json:"role"`
+		Role  string   `json:"role"`
+		Roles []string `json:"roles"`
 	}
 
 	if !helpers.Bind(w, r, &projectUser) {
 		return
 	}
 
-	newRole, err := store.GetProjectOrGlobalRoleBySlug(project.ID, projectUser.Role)
-	if errors.Is(err, db.ErrNotFound) {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	newRoles, err := resolveRoles(store, project.ID, projectUser.Role, projectUser.Roles)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	err = store.SetProjectUserRoles(project.ID, targetUser.ID, []int{newRole.ID})
+	if !me.Admin {
+		last, err := takesLastOwner(store, project.ID, oldRoles, newRoles)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+		if last {
+			event.Outcome = audit.OutcomeFailure
+			event.Reason = audit.ReasonLastOwner
+			helpers.Audit(r).Record(r.Context(), event)
+			helpers.WriteError(w, &common_errors.ValidationError{Message: "The project needs at least one Owner"})
+			return
+		}
+	}
+
+	err = store.SetProjectUserRoles(project.ID, targetUser.ID, roleIDs(newRoles))
 
 	if err != nil {
 		helpers.WriteError(w, err)
@@ -263,8 +333,8 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		Description: fmt.Sprintf("Changed role for User ID %d", targetUser.ID),
 	})
 	event.Metadata = audit.ProjectRoleMetadata{
-		OldRoles: roleRefs(oldRoles),
-		NewRoles: []audit.RoleRef{audit.NewRoleRef(newRole)},
+		OldRoles: audit.NewRoleRefs(oldRoles),
+		NewRoles: audit.NewRoleRefs(newRoles),
 	}
 	helpers.Audit(r).Record(r.Context(), event)
 
