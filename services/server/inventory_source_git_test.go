@@ -134,7 +134,7 @@ func TestRunInventoryCommand_Environment(t *testing.T) {
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	assert.Contains(t, lines, "ANSIBLE_FORCE_COLOR=false")
 	assert.Contains(t, lines, "ANSIBLE_INVENTORY_ENABLED=yaml,ini")
-	assert.Contains(t, lines, "ANSIBLE_INVENTORY_IGNORE_EXTS=.pyc,.pyo,.swp,.bak,~,.rpm,.md,.txt,.rst,.orig,.cfg,.retry")
+	assert.Contains(t, lines, "ANSIBLE_INVENTORY_IGNORE=.pyc,.pyo,.swp,.bak,~,.rpm,.md,.txt,.rst,.orig,.cfg,.retry")
 	assert.NotContains(t, lines, "ANSIBLE_INVENTORY_ENABLED=script")
 	assert.NotContains(t, lines, "INVENTORY_TEST_SECRET=hidden")
 }

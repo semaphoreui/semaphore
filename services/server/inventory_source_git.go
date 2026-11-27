@@ -292,7 +292,7 @@ func runInventoryCommand(ctx context.Context, root string, limit int, name strin
 		"ANSIBLE_INVENTORY_UNPARSED_FAILED=true",
 		"ANSIBLE_INVENTORY_ANY_UNPARSED_IS_FAILED=true",
 		// Older Ansible also skips .ini in a directory, the list is fixed so every version reads the same files
-		"ANSIBLE_INVENTORY_IGNORE_EXTS=.pyc,.pyo,.swp,.bak,~,.rpm,.md,.txt,.rst,.orig,.cfg,.retry",
+		"ANSIBLE_INVENTORY_IGNORE=.pyc,.pyo,.swp,.bak,~,.rpm,.md,.txt,.rst,.orig,.cfg,.retry",
 		"HOME="+home,
 	)
 
