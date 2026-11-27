@@ -91,7 +91,7 @@ func TestCappedBuffer(t *testing.T) {
 	_, err = errors.Write([]byte("def"))
 
 	require.NoError(t, err)
-	assert.Equal(t, "cdef", errors.String())
+	assert.Empty(t, errors.String())
 
 	lines := cappedBuffer{limit: 12}
 	_, err = lines.Write([]byte("https://bob:s3cr3t@host failed\nsecond\nthird"))

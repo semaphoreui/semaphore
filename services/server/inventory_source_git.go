@@ -261,11 +261,12 @@ func (b *cappedBuffer) Bytes() []byte {
 }
 
 func (b *cappedBuffer) String() string {
-	text := b.buf.String()
-	if _, rest, found := strings.Cut(text, "\n"); b.cut && found {
-		return rest
+	if !b.cut {
+		return b.buf.String()
 	}
-	return text
+	// Without a line break the whole text is one cut line
+	_, rest, _ := strings.Cut(b.buf.String(), "\n")
+	return rest
 }
 
 func runAnsibleInventory(ctx context.Context, root, path string) ([]byte, error) {
