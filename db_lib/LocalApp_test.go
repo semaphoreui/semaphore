@@ -26,7 +26,7 @@ func TestGetEnvironmentVars_ExplicitForwardingOnly(t *testing.T) {
 		},
 	}
 
-	res := getEnvironmentVars()
+	res := BaseEnvironmentVars()
 
 	// Explicitly forwarded vars must be present
 	assert.True(t, containsPrefix(res, "SEMAPHORE_TEST=test123"), "expected SEMAPHORE_TEST in result, got %v", res)
@@ -57,7 +57,7 @@ func TestGetEnvironmentVars_EnvVarsOverrideForwarded(t *testing.T) {
 		},
 	}
 
-	res := getEnvironmentVars()
+	res := BaseEnvironmentVars()
 
 	// Config.EnvVars must win over ForwardedEnvVars (ambient)
 	assert.True(t, containsPrefix(res, "HTTP_PROXY=http://override.proxy:9090"), "Config.EnvVars should override ambient, got %v", res)
@@ -82,7 +82,7 @@ func TestGetEnvironmentVars_EmptyConfig(t *testing.T) {
 		EnvVars:          map[string]string{},
 	}
 
-	res := getEnvironmentVars()
+	res := BaseEnvironmentVars()
 
 	// Only PATH should be forwarded
 	assert.True(t, containsPrefix(res, "PATH="), "PATH must always be present")

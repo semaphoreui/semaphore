@@ -2,6 +2,10 @@ package db_lib
 
 import (
 	"errors"
+	"github.com/semaphoreui/semaphore/db"
+	"net/http"
+	"net/http/httptest"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -154,4 +158,41 @@ func TestGitRetryDelayFor(t *testing.T) {
 			assert.Greater(t, delay, time.Duration(0), "a non-positive delay does not wait at all")
 		})
 	}
+}
+
+func TestGitRepositoryRetryStopsAtDeadline(t *testing.T) {
+	setupGitRetryTest(t, 5)
+	client := &flakyGitClient{failures: 10}
+	repo := newRetryTestRepo(client)
+	repo.Deadline = time.Now()
+
+	err := repo.Pull()
+
+	require.Error(t, err)
+	assert.Equal(t, 1, client.calls)
+}
+
+func TestCmdGitClient_CloneStopsAtDeadline(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+	setupGitRetryTest(t, 1)
+	silent := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	repo := GitRepository{
+		Repository: db.Repository{ProjectID: 1, GitURL: silent.URL + "/x.git", GitBranch: "main"},
+		Logger:     task_logger.NopLogger{},
+		Client:     CmdGitClient{keyInstaller: nopKeyInstaller{}},
+		TmpDirName: "stalled",
+		Deadline:   time.Now().Add(time.Second),
+	}
+
+	started := time.Now()
+	err := repo.Clone()
+	// Close waits for the connection of the git helper process
+	silent.Close()
+
+	require.Error(t, err)
+	assert.Less(t, time.Since(started), 20*time.Second)
 }

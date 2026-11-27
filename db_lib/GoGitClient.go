@@ -124,7 +124,10 @@ func (c GoGitClient) Clone(r GitRepository) error {
 		cloneOpt.Depth = 1
 	}
 
-	_, err := git.PlainClone(r.GetFullPath(), false, cloneOpt)
+	ctx, cancel := r.deadlineContext()
+	defer cancel()
+
+	_, err := git.PlainCloneContext(ctx, r.GetFullPath(), false, cloneOpt)
 	if err != nil {
 		r.Logger.Log("Unable to clone repository: " + err.Error())
 	}
@@ -150,8 +153,11 @@ func (c GoGitClient) Pull(r GitRepository) error {
 		return authErr
 	}
 
+	ctx, cancel := r.deadlineContext()
+	defer cancel()
+
 	// Pull the latest changes from the origin remote and merge into the current branch
-	err = wt.Pull(&git.PullOptions{RemoteName: "origin",
+	err = wt.PullContext(ctx, &git.PullOptions{RemoteName: "origin",
 		ReferenceName:     plumbing.NewBranchReferenceName(r.Repository.GitBranch),
 		Auth:              authMethod,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth})
