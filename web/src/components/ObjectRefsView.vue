@@ -87,6 +87,12 @@ export default {
         pageless: true,
         title: 'Host config',
         icon: 'server-network',
+      }, {
+        slug: 'inventory_sources',
+        path: 'inventory',
+        pageless: true,
+        title: 'Inventory sources',
+        icon: 'source-branch',
       }].filter((s) => (this.objectRefs[s.slug] || []).length > 0);
     },
   },
