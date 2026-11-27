@@ -28,11 +28,28 @@ func variableNode(text string) (*yaml.Node, error) {
 	return &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}, nil
 }
 
-// buildManagedInventory renders the inventory variables, enabled hosts and groups as a static YAML inventory
-func buildManagedInventory(variables string, hosts []db.InventoryHost, groups []db.InventoryGroup, members []db.InventoryGroupHost) (string, error) {
+// buildManagedInventory renders the inventory and source variables, enabled hosts and groups as a static YAML inventory
+func buildManagedInventory(variables string, sourceVariables []string, hosts []db.InventoryHost, groups []db.InventoryGroup, members []db.InventoryGroupHost) (string, error) {
 	inventoryVars, err := variableNode(variables)
 	if err != nil {
 		return "", fmt.Errorf("inventory variables: %w", err)
+	}
+
+	keys := map[string]bool{}
+	for i := 0; i < len(inventoryVars.Content); i += 2 {
+		keys[inventoryVars.Content[i].Value] = true
+	}
+	for _, text := range sourceVariables {
+		sourceVars, err := variableNode(text)
+		if err != nil {
+			return "", fmt.Errorf("source variables: %w", err)
+		}
+		for i := 0; i < len(sourceVars.Content); i += 2 {
+			if !keys[sourceVars.Content[i].Value] {
+				keys[sourceVars.Content[i].Value] = true
+				inventoryVars.Content = append(inventoryVars.Content, sourceVars.Content[i], sourceVars.Content[i+1])
+			}
+		}
 	}
 
 	hostsMap := map[string]any{}

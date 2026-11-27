@@ -691,9 +691,12 @@ func (t *TaskRunner) populateDetails() error {
 		}
 
 		hosts := slices.DeleteFunc(content.Hosts, func(host db.InventoryHost) bool { return !host.Enabled })
-		groups, members := content.Groups, content.Members
+		var sourceVariables []string
+		for _, source := range content.Sources {
+			sourceVariables = append(sourceVariables, source.Variables)
+		}
 
-		t.Inventory.Inventory, err = buildManagedInventory(t.Inventory.VariablesText(), hosts, groups, members)
+		t.Inventory.Inventory, err = buildManagedInventory(t.Inventory.VariablesText(), sourceVariables, hosts, content.Groups, content.Members)
 		if err != nil {
 			t.Log("Managed inventory is invalid: " + err.Error())
 			return err
