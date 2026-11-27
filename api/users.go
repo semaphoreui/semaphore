@@ -510,7 +510,7 @@ func (c *UsersController) EnableTotp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      "Semaphore",
+		Issuer:      util.Config.Mfa.Totp.Issuer,
 		AccountName: user.Email,
 	})
 

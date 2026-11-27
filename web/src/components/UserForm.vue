@@ -2,6 +2,7 @@
   <div
     data-testid="user-root"
     :data-state="formError ? 'error' : ((item == null || formSaving) ? 'loading' : 'ready')"
+    v-if="item"
   >
     <EditDialog
       v-model="passwordDialog"

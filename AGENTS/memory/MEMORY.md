@@ -167,5 +167,6 @@ only when the task touches that topic. Keep this file under 150 lines.
 | When you need it | Read |
 | --- | --- |
 | Editing or building the docs submodule: build/verification commands, webpack cache trap, generated reference pages, locale rules, MDX/image conventions, where executor docs live, docs research pointers | `docs-site.md` |
+| Documenting or changing 2FA (TOTP, e-mail OTP): what is actually wired, divergences from the config docs, Playwright trap on the code input | `two-factor.md` |
 | Spinning up a throwaway Semaphore stand, shooting UI screenshots with Playwright, using the public demo stand, running a hot-reload dev server against a stand | `ui-stands.md` |
 | Running or extending integration tests: SMTP/Mailpit tests, subscription-proxy container tests (MockServer + mitmproxy), Dredd alert hooks and local Dredd runs, the Bookwright `integration-tests/` repo | `integration-testing.md` |
