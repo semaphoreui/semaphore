@@ -7,17 +7,18 @@ import (
 )
 
 type BackupDB struct {
-	meta            db.Project
-	templates       []db.Template
-	repositories    []db.Repository
-	hostConfigs     []db.HostConfig
-	keys            []db.AccessKey
-	views           []db.View
-	inventories     []db.Inventory
-	inventoryHosts  map[int][]db.InventoryHost
-	inventoryGroups map[int][]db.InventoryGroup
-	environments    []db.Environment
-	schedules       []db.Schedule
+	meta             db.Project
+	templates        []db.Template
+	repositories     []db.Repository
+	hostConfigs      []db.HostConfig
+	keys             []db.AccessKey
+	views            []db.View
+	inventories      []db.Inventory
+	inventoryHosts   map[int][]db.InventoryHost
+	inventoryGroups  map[int][]db.InventoryGroup
+	inventorySources map[int][]db.InventorySource
+	environments     []db.Environment
+	schedules        []db.Schedule
 
 	integrationProjAliases   []db.IntegrationAlias
 	integrations             []db.Integration
@@ -44,10 +45,11 @@ type BackupDB struct {
 	workflowStore db.WorkflowManager
 }
 
-// BackupFormatVersion is 5: version 2 gave roles slugs, 3 added the workflow verbs and grants on workflows,
+// BackupFormatVersion is 6: version 2 gave roles slugs, 3 added the workflow verbs and grants on workflows,
 // 4 writes read_project, so a role or a grant without it is meant that way, 5 carries the hosts and groups
-// of a managed inventory, which an older server would drop without a word.
-const BackupFormatVersion = 5
+// of a managed inventory, which an older server would drop without a word, 6 carries the inventory sources
+// and which source owns each host and group.
+const BackupFormatVersion = 6
 
 // CleanupError says the project stayed behind after a failed restore.
 type CleanupError struct {
@@ -147,26 +149,40 @@ type BackupView struct {
 
 type BackupInventory struct {
 	db.Inventory
-	SSHKey    *string                `backup:"ssh_key"`
-	BecomeKey *string                `backup:"become_key"`
-	Hosts     []BackupInventoryHost  `backup:"hosts"`
-	Groups    []BackupInventoryGroup `backup:"groups"`
+	SSHKey    *string                 `backup:"ssh_key"`
+	BecomeKey *string                 `backup:"become_key"`
+	Sources   []BackupInventorySource `backup:"sources"`
+	Hosts     []BackupInventoryHost   `backup:"hosts"`
+	Groups    []BackupInventoryGroup  `backup:"groups"`
 }
 
+// BackupInventorySource leaves the sync state behind, the next sync fills it
+type BackupInventorySource struct {
+	Name       string                 `backup:"name"`
+	Type       db.InventorySourceType `backup:"type"`
+	Repository *string                `backup:"repository"`
+	Key        *string                `backup:"key"`
+	Params     db.MapStringAnyField   `backup:"params"`
+	Variables  string                 `backup:"variables"`
+}
+
+// BackupInventoryHost names its source, nil for a manual host
 type BackupInventoryHost struct {
-	Name        string `backup:"name"`
-	Description string `backup:"description"`
-	Enabled     bool   `backup:"enabled"`
-	Variables   string `backup:"variables"`
+	Name        string  `backup:"name"`
+	Description string  `backup:"description"`
+	Enabled     bool    `backup:"enabled"`
+	Variables   string  `backup:"variables"`
+	Source      *string `backup:"source"`
 }
 
-// BackupInventoryGroup refers to hosts and child groups of its inventory by name
+// BackupInventoryGroup refers to hosts, child groups and the source of its inventory by name
 type BackupInventoryGroup struct {
 	Name        string   `backup:"name"`
 	Description string   `backup:"description"`
 	Variables   string   `backup:"variables"`
 	Hosts       []string `backup:"hosts"`
 	Children    []string `backup:"children"`
+	Source      *string  `backup:"source"`
 }
 
 type BackupRepository struct {

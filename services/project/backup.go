@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
+	"strings"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/pkg/random"
@@ -194,18 +196,28 @@ func (b *BackupDB) load(projectID int, store db.Store, workflowStore db.Workflow
 
 	b.inventoryHosts = make(map[int][]db.InventoryHost)
 	b.inventoryGroups = make(map[int][]db.InventoryGroup)
+	b.inventorySources = make(map[int][]db.InventorySource)
 	for _, inv := range b.inventories {
 		if inv.Type != db.InventoryManaged {
 			continue
 		}
-		b.inventoryHosts[inv.ID], _, err = store.GetInventoryHosts(projectID, inv.ID, db.InventoryHostListParams{Count: 0})
+		// A sync between separate reads would leave a host without its owner or its group
+		var content db.InventoryContent
+		content, err = store.GetInventoryContent(projectID, inv.ID)
 		if err != nil {
 			return
 		}
-		b.inventoryGroups[inv.ID], err = store.GetInventoryGroups(projectID, inv.ID)
-		if err != nil {
-			return
+		groups := make(map[int][]int)
+		for _, member := range content.Members {
+			groups[member.HostID] = append(groups[member.HostID], member.GroupID)
 		}
+		for i, host := range content.Hosts {
+			content.Hosts[i].Groups = groups[host.ID]
+		}
+		slices.SortFunc(content.Hosts, func(a, b db.InventoryHost) int { return strings.Compare(a.Name, b.Name) })
+		slices.SortFunc(content.Groups, func(a, b db.InventoryGroup) int { return strings.Compare(a.Name, b.Name) })
+		// The restore numbers the sources again in the order of their ids, a task prefers the variables of the lower number
+		b.inventoryHosts[inv.ID], b.inventoryGroups[inv.ID], b.inventorySources[inv.ID] = content.Hosts, content.Groups, content.Sources
 	}
 
 	b.environments, err = store.GetEnvironments(projectID, db.RetrieveQueryParams{})
@@ -381,10 +393,28 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 		if o.BecomeKeyID != nil {
 			BecomeKey, _ = findNameByID[db.AccessKey](*o.BecomeKeyID, b.keys)
 		}
+		var sources []BackupInventorySource
+		sourceNames := make(map[int]*string)
+		for _, src := range b.inventorySources[o.ID] {
+			var repository *string
+			if src.RepositoryID != nil {
+				repository, _ = findNameByID[db.Repository](*src.RepositoryID, b.repositories)
+			}
+			var key *string
+			if src.KeyID != nil {
+				key, _ = findNameByID[db.AccessKey](*src.KeyID, b.keys)
+			}
+			sources = append(sources, BackupInventorySource{Name: src.Name, Type: src.Type, Repository: repository, Key: key, Params: src.Params, Variables: src.Variables})
+			sourceNames[src.ID] = &src.Name
+		}
 		var hosts []BackupInventoryHost
 		groupHosts := make(map[int][]string)
 		for _, h := range b.inventoryHosts[o.ID] {
-			hosts = append(hosts, BackupInventoryHost{Name: h.Name, Description: h.Description, Enabled: h.Enabled, Variables: h.Variables})
+			var source *string
+			if h.SourceID != nil {
+				source = sourceNames[*h.SourceID]
+			}
+			hosts = append(hosts, BackupInventoryHost{Name: h.Name, Description: h.Description, Enabled: h.Enabled, Variables: h.Variables, Source: source})
 			for _, g := range h.Groups {
 				groupHosts[g] = append(groupHosts[g], h.Name)
 			}
@@ -402,12 +432,17 @@ func (b *BackupDB) format() (*BackupFormat, error) {
 					children = append(children, name)
 				}
 			}
-			groups = append(groups, BackupInventoryGroup{Name: g.Name, Description: g.Description, Variables: g.Variables, Hosts: groupHosts[g.ID], Children: children})
+			var source *string
+			if g.SourceID != nil {
+				source = sourceNames[*g.SourceID]
+			}
+			groups = append(groups, BackupInventoryGroup{Name: g.Name, Description: g.Description, Variables: g.Variables, Hosts: groupHosts[g.ID], Children: children, Source: source})
 		}
 		inventories[i] = BackupInventory{
 			Inventory: o,
 			SSHKey:    SSHKey,
 			BecomeKey: BecomeKey,
+			Sources:   sources,
 			Hosts:     hosts,
 			Groups:    groups,
 		}
