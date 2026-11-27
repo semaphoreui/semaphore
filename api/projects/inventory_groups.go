@@ -363,7 +363,7 @@ func SetInventoryHostGroups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	added, removed, err := helpers.Store(r).ChangeInventoryHostGroups(inventory.ProjectID, inventory.ID, body.Hosts, body.Add, body.Remove)
+	added, removed, err := helpers.Store(r).ChangeInventoryHostGroups(inventory.ProjectID, inventory.ID, body.Hosts, body.Add, body.Remove, true)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

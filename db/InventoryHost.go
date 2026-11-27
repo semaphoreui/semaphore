@@ -35,6 +35,9 @@ type InventoryHost struct {
 	LastRun    *time.Time `db:"last_run" json:"last_run" backup:"-"`
 	LastTaskID *int       `db:"last_task_id" json:"last_task_id" backup:"-"`
 	HostID     *int       `db:"host_id" json:"host_id" backup:"-"`
+
+	// SourceID is the source that owns the host, nil for a manual host
+	SourceID *int `db:"source_id" json:"source_id" backup:"-"`
 }
 
 // ParseInventoryVariables parses YAML or JSON text into a mapping

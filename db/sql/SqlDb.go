@@ -694,6 +694,13 @@ func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectI
 		return
 	}
 
+	refs.InventorySources = make([]db.ObjectReferrer, 0)
+
+	// Sources go with their inventory, so only a repository and an access key are held by them.
+	if objectProps.Type == db.RepositoryProps.Type || objectProps.Type == db.AccessKeyProps.Type {
+		refs.InventorySources, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.InventorySourceProps)
+	}
+
 	return
 }
 

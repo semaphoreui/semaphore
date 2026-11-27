@@ -26,6 +26,9 @@ type InventoryGroup struct {
 
 	// VariableCount is the number of top-level variables, set when the group is saved
 	VariableCount int `db:"variable_count" json:"variable_count" backup:"-"`
+
+	// SourceID is the source that owns the group, nil for a manual group
+	SourceID *int `db:"source_id" json:"source_id" backup:"-"`
 }
 
 // InventoryGroupHost is a membership of a host in a group

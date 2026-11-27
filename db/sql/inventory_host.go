@@ -1,7 +1,6 @@
 package sql
 
 import (
-	"database/sql"
 	"errors"
 	"slices"
 	"strings"
@@ -53,6 +52,14 @@ func (d *SqlDb) GetInventoryHosts(projectID, inventoryID int, params db.Inventor
 
 	if params.IDs != nil {
 		where = append(where, sq.Eq{"id": params.IDs})
+	}
+
+	if params.SourceID != 0 {
+		where = append(where, sq.Eq{"source_id": params.SourceID})
+	}
+
+	if params.Manual {
+		where = append(where, sq.Eq{"source_id": nil})
 	}
 
 	if params.Ungrouped {
@@ -134,19 +141,6 @@ func (d *SqlDb) GetInventoryHost(projectID, inventoryID, hostID int) (host db.In
 	return
 }
 
-func (d *SqlDb) GetEnabledInventoryHosts(projectID, inventoryID int) (hosts []db.InventoryHost, err error) {
-	query, args, err := sq.Select("*").From("project__inventory_host").
-		Where(sq.Eq{"project_id": projectID, "inventory_id": inventoryID, "enabled": true}).
-		OrderBy("name").
-		ToSql()
-	if err != nil {
-		return
-	}
-
-	_, err = d.selectAll(&hosts, query, args...)
-	return
-}
-
 // inventoryHostWriteError returns the name error when a concurrent request took the name, older nodes write hosts without the lock
 func (d *SqlDb) inventoryHostWriteError(host db.InventoryHost, err error) error {
 	var nameErr *common_errors.ValidationError
@@ -176,24 +170,14 @@ func (d *SqlDb) CreateInventoryHost(host db.InventoryHost, addGroups []int) (db.
 			"variables":      host.Variables,
 			"variable_count": host.VariableCount,
 			"created":        host.Created,
+			"source_id":      host.SourceID,
 		}).
 		ToSql()
 	if err != nil {
 		return db.InventoryHost{}, err
 	}
 
-	// Only a change of links takes the inventory lock
-	if len(addGroups) == 0 {
-		if err = d.validateInventoryHostNameIsFree(d.Sql(), host); err != nil {
-			return db.InventoryHost{}, err
-		}
-		host.ID, err = d.insert("id", query, args...)
-		if err != nil {
-			return db.InventoryHost{}, d.inventoryHostWriteError(host, err)
-		}
-		return host, nil
-	}
-
+	// Every write of a host takes the inventory lock first, so a sync and a task report never wait for each other
 	tx, err := d.Sql().Begin()
 	if err != nil {
 		return db.InventoryHost{}, err
@@ -204,7 +188,14 @@ func (d *SqlDb) CreateInventoryHost(host db.InventoryHost, addGroups []int) (db.
 		return db.InventoryHost{}, err
 	}
 
-	if _, err = d.inventoryGroupChildren(tx, host.ProjectID, host.InventoryID, addGroups); err != nil {
+	if len(addGroups) > 0 {
+		if _, err = d.inventoryGroupChildren(tx, host.ProjectID, host.InventoryID, addGroups); err != nil {
+			_ = tx.Rollback()
+			return db.InventoryHost{}, err
+		}
+	}
+
+	if err = d.requireManualInventoryGroups(tx, host.ProjectID, host.InventoryID, addGroups); err != nil {
 		_ = tx.Rollback()
 		return db.InventoryHost{}, err
 	}
@@ -240,44 +231,22 @@ func (d *SqlDb) UpdateInventoryHost(host db.InventoryHost, addGroups, removeGrou
 		return
 	}
 
-	query, args, err := sq.Update("project__inventory_host").
-		SetMap(map[string]any{
-			"name":           host.Name,
-			"description":    host.Description,
-			"variables":      host.Variables,
-			"variable_count": db.CountInventoryVariables(host.Variables),
-		}).
-		Where(sq.Eq{"id": host.ID, "inventory_id": host.InventoryID, "project_id": host.ProjectID}).
-		ToSql()
-	if err != nil {
-		return
+	set := map[string]any{
+		"name":           host.Name,
+		"description":    host.Description,
+		"variables":      host.Variables,
+		"variable_count": db.CountInventoryVariables(host.Variables),
+	}
+	// The caller may hold the name and the variables from before a sync
+	if host.SourceID != nil {
+		set = map[string]any{"description": host.Description}
 	}
 
-	// Only a change of links takes the inventory lock
-	if len(addGroups) == 0 && len(removeGroups) == 0 {
-		if err = d.validateInventoryHostNameIsFree(d.Sql(), host); err != nil {
-			return
-		}
-		var res sql.Result
-		if res, err = d.exec(query, args...); err != nil {
-			err = d.inventoryHostWriteError(host, err)
-		}
-		if err = validateMutationResult(res, err); err != nil {
-			return
-		}
-		var affected int64
-		if affected, err = res.RowsAffected(); err != nil || affected > 0 {
-			return
-		}
-
-		// MySQL counts only changed rows, so an update without changes also affects none
-		var count int
-		err = d.selectOne(&count,
-			"select count(*) from project__inventory_host where id=? and inventory_id=? and project_id=?",
-			host.ID, host.InventoryID, host.ProjectID)
-		if err == nil && count == 0 {
-			err = db.ErrNotFound
-		}
+	query, args, err := sq.Update("project__inventory_host").
+		SetMap(set).
+		Where(sq.Eq{"id": host.ID, "inventory_id": host.InventoryID, "project_id": host.ProjectID, "source_id": host.SourceID}).
+		ToSql()
+	if err != nil {
 		return
 	}
 
@@ -298,21 +267,25 @@ func (d *SqlDb) UpdateInventoryHost(host db.InventoryHost, addGroups, removeGrou
 		}
 	}
 
-	count, err := tx.SelectInt(
-		d.PrepareQuery("select count(*) from project__inventory_host where id=? and inventory_id=? and project_id=?"),
-		host.ID, host.InventoryID, host.ProjectID)
+	err = d.requireInventoryRowOwner(tx,
+		"select source_id from project__inventory_host where id=? and inventory_id=? and project_id=?",
+		host.SourceID, host.ID, host.InventoryID, host.ProjectID)
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, nil, err
 	}
-	if count == 0 {
-		_ = tx.Rollback()
-		return nil, nil, db.ErrNotFound
-	}
 
-	if err = d.validateInventoryHostNameIsFree(tx, host); err != nil {
+	if err = d.requireManualInventoryGroups(tx, host.ProjectID, host.InventoryID, slices.Concat(addGroups, removeGroups)); err != nil {
 		_ = tx.Rollback()
 		return nil, nil, err
+	}
+
+	// The name of an imported host is not written
+	if host.SourceID == nil {
+		if err = d.validateInventoryHostNameIsFree(tx, host); err != nil {
+			_ = tx.Rollback()
+			return nil, nil, err
+		}
 	}
 
 	var current []int
@@ -358,7 +331,17 @@ func (d *SqlDb) UpdateInventoryHost(host db.InventoryHost, addGroups, removeGrou
 }
 
 func (d *SqlDb) SetInventoryHostEnabled(projectID, inventoryID, hostID int, enabled bool) (bool, error) {
-	res, err := d.exec(
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	if err = d.lockInventory(tx, projectID, inventoryID); err != nil {
+		return false, err
+	}
+
+	res, err := d.execTx(tx,
 		"update project__inventory_host set enabled=? where id=? and inventory_id=? and project_id=? and enabled<>?",
 		enabled, hostID, inventoryID, projectID, enabled)
 	if err != nil {
@@ -366,11 +349,51 @@ func (d *SqlDb) SetInventoryHostEnabled(projectID, inventoryID, hostID int, enab
 	}
 
 	affected, err := res.RowsAffected()
-	return affected > 0, err
+	if err != nil {
+		return false, err
+	}
+	return affected > 0, tx.Commit()
 }
 
 func (d *SqlDb) DeleteInventoryHost(projectID, inventoryID, hostID int) error {
-	return requireDeletedRow(d.exec(
-		"delete from project__inventory_host where id=? and inventory_id=? and project_id=?",
-		hostID, inventoryID, projectID))
+	tx, err := d.Sql().Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	if err = d.lockInventory(tx, projectID, inventoryID); err != nil {
+		return err
+	}
+
+	err = d.requireInventoryRowOwner(tx,
+		"select source_id from project__inventory_host where id=? and inventory_id=? and project_id=?",
+		nil, hostID, inventoryID, projectID)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.execTx(tx, "delete from project__inventory_host where id=? and inventory_id=? and project_id=?",
+		hostID, inventoryID, projectID)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// requireInventoryRowOwner returns ErrNotFound when the query finds no row and ErrInventoryRowOwnerChanged when its source_id is not owner
+func (d *SqlDb) requireInventoryRowOwner(q gorp.SqlExecutor, query string, owner *int, args ...any) error {
+	var rows []struct {
+		SourceID *int `db:"source_id"`
+	}
+	if _, err := q.Select(&rows, d.PrepareQuery(query), args...); err != nil {
+		return err
+	}
+	if len(rows) == 0 {
+		return db.ErrNotFound
+	}
+	if found := rows[0].SourceID; (found == nil) != (owner == nil) || owner != nil && *found != *owner {
+		return db.ErrInventoryRowOwnerChanged
+	}
+	return nil
 }

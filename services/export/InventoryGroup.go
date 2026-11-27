@@ -107,7 +107,7 @@ func (e *InventoryGroupExporter) restore(store db.Store, exporter DataExporter, 
 		}
 		// Batches keep the host id list of one call within database parameter limits
 		for batch := range slices.Chunk(hosts, 1000) {
-			_, _, err = store.ChangeInventoryHostGroups(group.ProjectID, group.InventoryID, batch, []int{group.ID}, nil)
+			_, _, err = store.ChangeInventoryHostGroups(group.ProjectID, group.InventoryID, batch, []int{group.ID}, nil, false)
 			if err != nil {
 				e.onError(fmt.Sprintf("Unable to restore %s links: %s", e.getName(), err.Error()))
 			}

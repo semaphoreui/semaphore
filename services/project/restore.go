@@ -385,7 +385,7 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 		}
 		// Batches keep the host id list of one call within database parameter limits
 		for batch := range slices.Chunk(members, 1000) {
-			if _, _, err = b.store.ChangeInventoryHostGroups(b.meta.ID, newInventory.ID, batch, []int{group.ID}, nil); err != nil {
+			if _, _, err = b.store.ChangeInventoryHostGroups(b.meta.ID, newInventory.ID, batch, []int{group.ID}, nil, false); err != nil {
 				return fmt.Errorf("group %q of inventory %q: %w", g.Name, e.Name, err)
 			}
 		}

@@ -51,6 +51,30 @@ func (d *SqlDb) inventoryGroupChildren(q gorp.SqlExecutor, projectID, inventoryI
 }
 
 // insertInventoryGroupHosts writes links with multi-row inserts of at most 500 rows
+// requireManualInventoryGroups returns ErrInventoryRowOwnerChanged when a source owns one of the groups
+func (d *SqlDb) requireManualInventoryGroups(tx *gorp.Transaction, projectID, inventoryID int, groupIDs []int) error {
+	if len(groupIDs) == 0 {
+		return nil
+	}
+
+	query, args, err := sq.Select("count(*)").From("project__inventory_group").
+		Where(sq.Eq{"id": groupIDs, "inventory_id": inventoryID, "project_id": projectID}).
+		Where(sq.NotEq{"source_id": nil}).
+		ToSql()
+	if err != nil {
+		return err
+	}
+
+	imported, err := tx.SelectInt(d.PrepareQuery(query), args...)
+	if err != nil {
+		return err
+	}
+	if imported > 0 {
+		return db.ErrInventoryRowOwnerChanged
+	}
+	return nil
+}
+
 func (d *SqlDb) insertInventoryGroupHosts(tx *gorp.Transaction, links []db.InventoryGroupHost) error {
 	for chunk := range slices.Chunk(links, 500) {
 		insert := sq.Insert("project__inventory_group_host").Columns("group_id", "host_id")
@@ -225,6 +249,7 @@ func (d *SqlDb) CreateInventoryGroup(group db.InventoryGroup, addChildren []int)
 			"variables":      group.Variables,
 			"variable_count": group.VariableCount,
 			"created":        group.Created,
+			"source_id":      group.SourceID,
 		}).
 		ToSql()
 	if err != nil {
@@ -280,9 +305,20 @@ func (d *SqlDb) UpdateInventoryGroup(group db.InventoryGroup, addChildren, remov
 		return nil, nil, db.ErrNotFound
 	}
 
-	if err = d.validateInventoryGroupNameIsFree(tx, group); err != nil {
+	err = d.requireInventoryRowOwner(tx,
+		"select source_id from project__inventory_group where id=? and inventory_id=? and project_id=?",
+		group.SourceID, group.ID, group.InventoryID, group.ProjectID)
+	if err != nil {
 		_ = tx.Rollback()
 		return nil, nil, err
+	}
+
+	// The name of an imported group is not written
+	if group.SourceID == nil {
+		if err = d.validateInventoryGroupNameIsFree(tx, group); err != nil {
+			_ = tx.Rollback()
+			return nil, nil, err
+		}
 	}
 
 	for _, id := range addChildren {
@@ -304,13 +340,19 @@ func (d *SqlDb) UpdateInventoryGroup(group db.InventoryGroup, addChildren, remov
 		}
 	}
 
+	set := map[string]any{
+		"name":           group.Name,
+		"description":    group.Description,
+		"variables":      group.Variables,
+		"variable_count": db.CountInventoryVariables(group.Variables),
+	}
+	// The caller may hold the name and the variables from before a sync
+	if group.SourceID != nil {
+		set = map[string]any{"description": group.Description}
+	}
+
 	query, args, err := sq.Update("project__inventory_group").
-		SetMap(map[string]any{
-			"name":           group.Name,
-			"description":    group.Description,
-			"variables":      group.Variables,
-			"variable_count": db.CountInventoryVariables(group.Variables),
-		}).
+		SetMap(set).
 		Where(sq.Eq{"id": group.ID, "inventory_id": group.InventoryID, "project_id": group.ProjectID}).
 		ToSql()
 	if err != nil {
@@ -356,6 +398,14 @@ func (d *SqlDb) DeleteInventoryGroup(projectID, inventoryID, groupID int) error 
 		return err
 	}
 
+	err = d.requireInventoryRowOwner(tx,
+		"select source_id from project__inventory_group where id=? and inventory_id=? and project_id=?",
+		nil, groupID, inventoryID, projectID)
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
 	err = requireDeletedRow(d.execTx(tx,
 		"delete from project__inventory_group where id=? and inventory_id=? and project_id=?",
 		groupID, inventoryID, projectID))
@@ -367,7 +417,7 @@ func (d *SqlDb) DeleteInventoryGroup(projectID, inventoryID, groupID int) error 
 	return tx.Commit()
 }
 
-func (d *SqlDb) ChangeInventoryHostGroups(projectID, inventoryID int, hostIDs, add, remove []int) (added, removed map[int][]int, err error) {
+func (d *SqlDb) ChangeInventoryHostGroups(projectID, inventoryID int, hostIDs, add, remove []int, manual bool) (added, removed map[int][]int, err error) {
 	if add, remove, err = addRemoveIDs(add, remove); err != nil {
 		return
 	}
@@ -386,6 +436,13 @@ func (d *SqlDb) ChangeInventoryHostGroups(projectID, inventoryID int, hostIDs, a
 	if _, err = d.inventoryGroupChildren(tx, projectID, inventoryID, add); err != nil {
 		_ = tx.Rollback()
 		return nil, nil, err
+	}
+
+	if manual {
+		if err = d.requireManualInventoryGroups(tx, projectID, inventoryID, slices.Concat(add, remove)); err != nil {
+			_ = tx.Rollback()
+			return nil, nil, err
+		}
 	}
 
 	query, args, err := sq.Select("id").From("project__inventory_host").

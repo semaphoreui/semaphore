@@ -23,9 +23,9 @@ func TestExportKeepsInventoryGroups(t *testing.T) {
 	require.NoError(t, err)
 	edge, err := src.CreateInventoryGroup(db.InventoryGroup{ProjectID: proj.ID, InventoryID: inv.ID, Name: "edge", Description: "front", Variables: "tier: front"}, []int{web.ID})
 	require.NoError(t, err)
-	_, _, err = src.ChangeInventoryHostGroups(proj.ID, inv.ID, []int{web1.ID}, []int{edge.ID}, nil)
+	_, _, err = src.ChangeInventoryHostGroups(proj.ID, inv.ID, []int{web1.ID}, []int{edge.ID}, nil, false)
 	require.NoError(t, err)
-	_, _, err = src.ChangeInventoryHostGroups(proj.ID, inv.ID, []int{web2.ID}, []int{web.ID}, nil)
+	_, _, err = src.ChangeInventoryHostGroups(proj.ID, inv.ID, []int{web2.ID}, []int{web.ID}, nil, false)
 	require.NoError(t, err)
 
 	dst := sql.InitConfigCreateTestStore()

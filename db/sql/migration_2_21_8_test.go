@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/tz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,9 +15,9 @@ func TestMigration_2_21_8_AddsLastRunOfInventoryHost(t *testing.T) {
 	project, err := store.CreateProject(db.Project{Name: "test project"})
 	require.NoError(t, err)
 	inventory := createTestManagedInventory(t, store, project.ID, "managed")
-	_, err = store.CreateInventoryHost(db.InventoryHost{
-		ProjectID: project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true,
-	}, nil)
+	_, err = store.Sql().Exec(
+		"insert into project__inventory_host (inventory_id, project_id, name, description, enabled, variables, created) values (?, ?, 'web1', '', 1, '', ?)",
+		inventory.ID, project.ID, tz.Now())
 	require.NoError(t, err)
 
 	target := "2.21.8"

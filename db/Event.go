@@ -58,6 +58,7 @@ const (
 	EventInventory               EventObjectType = "inventory"
 	EventInventoryHost           EventObjectType = "inventory_host"
 	EventInventoryGroup          EventObjectType = "inventory_group"
+	EventInventorySource         EventObjectType = "inventory_source"
 	EventKey                     EventObjectType = "key"
 	EventProject                 EventObjectType = "project"
 	EventRepository              EventObjectType = "repository"
