@@ -7,6 +7,7 @@ import (
 )
 
 // inventoryContents reads each inventory once, so its hosts, groups and sources come from one state
+// It is never read again, so a chain of exporters is loaded only once
 type inventoryContents struct {
 	byInventory map[int]db.InventoryContent
 }
