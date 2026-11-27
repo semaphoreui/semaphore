@@ -40,6 +40,13 @@ son mot de passe est celui qu'Ansible fournit à l'invite.
 Laissez le champ vide lorsque les plays n'élèvent pas leurs privilèges, ou lorsque l'utilisateur
 ci-dessus n'a pas besoin de mot de passe pour le faire.
 
+## Proxy {#inventoryForm-proxyId}
+
+Facultatif. Un proxy du projet par lequel Ansible atteint les hôtes de l'inventaire : chaque
+connexion SSH de la tâche vers ces hôtes passe par lui et par les proxys qu'il requiert. Le proxy
+se connecte avec sa propre **Clé d'accès**, les hôtes gardent donc la clé de
+**Identifiants de l'utilisateur**.
+
 ## Type {#inventoryForm-type}
 
 D'où vient l'inventaire :

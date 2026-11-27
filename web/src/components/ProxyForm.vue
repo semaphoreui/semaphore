@@ -51,13 +51,13 @@
 
     <v-text-field
       v-model.number="item.port"
+      data-testid="proxyForm-port"
       :label="$t('proxyPort')"
       type="number"
       :rules="[v => v === '' || v == null || (v > 0 && v < 65536) || $t('proxyPortInvalid')]"
       :disabled="formSaving"
       variant="outlined"
       density="compact"
-      data-testid="proxyForm-port"
       placeholder="22"
     ></v-text-field>
 

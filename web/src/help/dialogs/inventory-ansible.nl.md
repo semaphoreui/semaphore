@@ -42,6 +42,13 @@ Ansible wordt, en het wachtwoord ervan is het wachtwoord waarmee Ansible de prom
 Laat het veld leeg wanneer de plays geen rechten verhogen, of wanneer de gebruiker hierboven
 daarvoor geen wachtwoord nodig heeft.
 
+## Proxy {#inventoryForm-proxyId}
+
+Optioneel. Een proxy van het project waarlangs Ansible de hosts van de inventaris bereikt: elke
+SSH-verbinding van de taak met die hosts loopt via de proxy en via de proxy's die hij vereist. De
+proxy logt in met zijn eigen **Toegangssleutel**, dus de hosts houden de sleutel van
+**Gebruikersreferenties**.
+
 ## Type {#inventoryForm-type}
 
 Waar de inventaris vandaan komt:

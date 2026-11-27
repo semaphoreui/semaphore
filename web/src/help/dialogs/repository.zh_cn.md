@@ -51,3 +51,10 @@ Git 登录仓库时使用的、来自密钥存储的密钥。此字段为必填�
 - **无**用于公共仓库、`git` 或 `file` URL，或者绝对路径。
 
 与 URL 不匹配的密钥不会向 Git 提供任何凭据，此时私有仓库将无法克隆。
+
+## Proxy {#repository-proxyId}
+
+可选。Git 访问存储库服务器时经过的项目代理。**SSH (jump host)** 代理适用于 `ssh` URL；
+**SOCKS5**、**HTTP** 或 **HTTPS** 代理适用于 `ssh` 和 `https` URL。对于 `https` URL，Git 不使用跳板机。
+
+代理需要服务器的默认 Git 客户端 `cmd_git`：使用 `go_git` 时，存储库的每次克隆和更新都会失败。

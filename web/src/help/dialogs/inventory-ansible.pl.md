@@ -40,6 +40,12 @@ to hasło, którym Ansible odpowiada na monit.
 Pozostaw pole puste, gdy żaden play nie podnosi uprawnień lub gdy powyższy użytkownik nie
 potrzebuje do tego hasła.
 
+## Proxy {#inventoryForm-proxyId}
+
+Opcjonalne. Proxy projektu, przez które Ansible dociera do hostów inwentarza: każde połączenie
+SSH zadania z tymi hostami przechodzi przez nie i przez proxy, których ono wymaga. Proxy loguje się
+własnym **Klucz dostępu**, więc hosty zachowują klucz z pola **Dane logowania użytkownika**.
+
 ## Typ {#inventoryForm-type}
 
 Skąd pochodzi inwentarz:

@@ -40,6 +40,12 @@ senha com que o Ansible responde ao prompt.
 Deixe o campo vazio quando os plays não elevam privilégios, ou quando o usuário acima não precisa
 de senha para isso.
 
+## Proxy {#inventoryForm-proxyId}
+
+Opcional. Um proxy do projeto pelo qual o Ansible chega aos hosts do inventário: toda conexão SSH
+da tarefa com esses hosts passa por ele e pelos proxies que ele exige. O proxy faz login com sua
+própria **Chave de Acesso**, então os hosts mantêm a chave de **Credenciais do Usuário**.
+
 ## Tipo {#inventoryForm-type}
 
 De onde vem o inventário:
