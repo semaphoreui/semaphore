@@ -56,6 +56,37 @@ func TestTemplateValidate_SurveyVarTarget(t *testing.T) {
 	}
 }
 
+func TestTemplateValidate_Type(t *testing.T) {
+	tests := []struct {
+		name     string
+		typ      TemplateType
+		wantType TemplateType
+		wantErr  string
+	}{
+		{"empty is task", TemplateTask, TemplateTask, ""},
+		{"build is valid", TemplateBuild, TemplateBuild, ""},
+		{"deploy is valid", TemplateDeploy, TemplateDeploy, ""},
+		{"task alias normalizes to empty", "task", TemplateTask, ""},
+		{"unknown type is rejected", "foo", "foo", "template type must be empty"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tpl := Template{
+				Name:     "test",
+				Playbook: "playbook.yml",
+				Type:     tt.typ,
+			}
+			err := tpl.Validate()
+			if tt.wantErr != "" {
+				assert.ErrorContains(t, err, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.wantType, tpl.Type)
+		})
+	}
+}
+
 func TestTemplateNormalizedExecutorImage(t *testing.T) {
 	t.Run("no override is stored as NULL", func(t *testing.T) {
 		for _, image := range []*string{nil, new(""), new("   ")} {
