@@ -98,9 +98,11 @@ describe('InventoryView.vue', () => {
   describe('the numbers of hosts and groups', () => {
     let hostTotal;
     let groupList;
+    let sourceList;
 
     beforeEach(() => {
       hostTotal = '137';
+      sourceList = [{ id: 1 }, { id: 2 }, { id: 3 }];
       groupList = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }];
       http = mockAxios();
       const adapter = axios.defaults.adapter;
@@ -113,6 +115,7 @@ describe('InventoryView.vue', () => {
       http.respond((c) => {
         if (c.url.endsWith('/hosts')) return [];
         if (c.url.endsWith('/groups')) return groupList;
+        if (c.url.endsWith('/sources')) return sourceList;
         return { id: 3, type: 'managed', variable_count: 3 };
       });
     });
@@ -128,7 +131,17 @@ describe('InventoryView.vue', () => {
       expect(text(wrapper, 'hostCount')).to.equal('137');
       expect(text(wrapper, 'groupCount')).to.equal('4');
       expect(text(wrapper, 'variableCount')).to.equal('3');
+      expect(text(wrapper, 'sourceCount')).to.equal('3');
       expect(wrapper.find('[data-testid="inventoryView-tab-groups"]').exists()).to.equal(true);
+    });
+
+    it('has a Sources tab that leads to the sources', async () => {
+      const wrapper = mountView();
+      await flush();
+
+      const tab = wrapper.findComponent('[data-testid="inventoryView-tab-sources"]');
+      expect(tab.text()).to.contain('inventory_tab_sources');
+      expect(tab.props('to')).to.equal('/project/7/inventory/3/sources');
     });
 
     it('counts again when a tab asks for it', async () => {
@@ -154,6 +167,7 @@ describe('InventoryView.vue', () => {
       http.respond((c) => {
         if (c.url.endsWith('/hosts')) throw httpError(500, { error: 'boom' });
         if (c.url.endsWith('/groups')) return groupList;
+        if (c.url.endsWith('/sources')) return sourceList;
         return { id: 3, type: 'managed', variables: '' };
       });
       const wrapper = mountView();
@@ -178,11 +192,9 @@ describe('InventoryView.vue', () => {
       groupList = [{ id: 1 }];
       EventBus.$emit('i-inventory-counts');
       await flush();
-      releases[2]();
-      releases[3]();
+      releases.slice(3).forEach((release) => release());
       await flush();
-      releases[0]();
-      releases[1]();
+      releases.slice(0, 3).forEach((release) => release());
       await flush();
 
       expect(text(wrapper, 'groupCount')).to.equal('1');
