@@ -103,7 +103,7 @@ Status (2026-10-21): implemented on branch `prod-10-logs-for-intergrations`, not
 
 ## Key files and references
 
-- `db/sql/migrations/v2.21.9.sql` (+ `.err.sql`), registered in `db/Migration.go`
+- `db/sql/migrations/v2.21.10.sql` (+ `.err.sql`), registered in `db/Migration.go`
 - `db/IntegrationCall.go`, `db/sql/integration_call.go`, `db/Store.go` (`IntegrationManager`)
 - `api/integration.go` (`recordCall`, `sourceIP`, `verifyIntegrationAuth`, `IntegrationRunResult.Reason`)
 - `api/projects/integration_call.go`, route in `api/router.go` (`/integrations/calls`, kept out of
