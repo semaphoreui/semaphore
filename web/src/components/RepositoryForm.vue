@@ -53,6 +53,17 @@
         :key="x"
         :data-testid="`repository-urlType-${x}`"
       >{{ x }}</v-chip>
+      <span class="text-body-small ml-3">svn:</span>
+      <v-chip
+        v-for="x in ['svn', 'svn+ssh']"
+        size="x-small"
+        class="ml-1 RepositoryForm__urlType"
+        :color="type ===x ? 'primary' : ''"
+        @click="setType(x)"
+        style="font-weight: bold;"
+        :key="x"
+        :data-testid="`repository-urlType-${x}`"
+      >{{ x }}</v-chip>
       <span class="text-body-small ml-3">local:</span>
       <v-chip
         size="x-small"
@@ -228,7 +239,7 @@ export default {
     setType(type) {
       let url;
 
-      const m = this.item.git_url.match(/^\w+:\/\/(.*)$/);
+      const m = this.item.git_url.match(/^[\w+]+:\/\/(.*)$/);
       if (m != null) {
         url = m[1];
       } else {

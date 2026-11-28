@@ -68,21 +68,25 @@ func (r GitRepository) GetFullPath() string {
 	if r.TmpDirName != "" {
 		return path.Join(util.Config.GetProjectTmpDir(r.Repository.ProjectID), r.TmpDirName)
 	}
-	return r.Repository.GetFullPath(r.TemplateID)
+	return r.Repository.GetCheckoutPath(r.TemplateID)
 }
 
 // ErrNotGitRepository is returned by ValidateRepo when the checkout directory
-// exists but holds no git metadata, e.g. after a clone which was interrupted
-// before git created it. Callers tell it apart from a missing directory
-// (os.IsNotExist) because the fix is different: a missing directory is
-// cloned, a broken one is removed first.
-var ErrNotGitRepository = errors.New("directory is not a git repository")
+// exists but holds no repository metadata, e.g. after a clone which was
+// interrupted before git or svn created it. Callers tell it apart from a
+// missing directory (os.IsNotExist) because the fix is different: a missing
+// directory is cloned, a broken one is removed first.
+var ErrNotGitRepository = errors.New("directory is not a git repository or a Subversion working copy")
 
-// ValidateRepo reports whether the checkout directory holds a git repository.
+// ValidateRepo reports whether the checkout directory holds a repository.
 // Checking the directory alone is not enough: Clone() creates it before git
-// runs, so an interrupted clone leaves a directory which would otherwise be
-// taken for a repository and then fail on every pull with
+// or svn runs, so an interrupted clone leaves a directory which would
+// otherwise be taken for a repository and then fail on every pull with
 // "fatal: not a git repository".
+//
+// The metadata of either client is accepted. The client is chosen by URL, not
+// by what is on disk, and CanBePulled checks that the checkout belongs to the
+// repository's URL before it is pulled.
 func (r GitRepository) ValidateRepo() error {
 	fullPath := r.GetFullPath()
 
@@ -90,16 +94,19 @@ func (r GitRepository) ValidateRepo() error {
 		return err
 	}
 
-	// .git is a directory for a clone and a file for a worktree or submodule;
-	// either one marks a repository.
-	if _, err := os.Stat(path.Join(fullPath, ".git")); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("%w: %s", ErrNotGitRepository, fullPath)
+	// .git is a directory for a git clone and a file for a worktree or
+	// submodule; .svn is the administrative directory of a working copy.
+	for _, name := range []string{".git", ".svn"} {
+		_, err := os.Stat(path.Join(fullPath, name))
+		if err == nil {
+			return nil
 		}
-		return err
+		if !os.IsNotExist(err) {
+			return err
+		}
 	}
 
-	return nil
+	return fmt.Errorf("%w: %s", ErrNotGitRepository, fullPath)
 }
 
 // CloneOrPull brings the checkout directory up to date with the remote branch.

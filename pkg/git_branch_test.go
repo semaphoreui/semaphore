@@ -64,7 +64,7 @@ func TestTask_ValidateNewTask_InvalidBranch_ReturnsError(t *testing.T) {
 		GitBranch: &branch,
 	}
 
-	err := task.ValidateNewTask(db.Template{})
+	err := task.ValidateNewTask(db.Template{}, db.Repository{})
 
 	assert.EqualError(t, err, "task branch name is invalid")
 }
@@ -75,7 +75,7 @@ func TestTask_ValidateNewTask_ValidBranch_ReturnsNoError(t *testing.T) {
 		GitBranch: &branch,
 	}
 
-	err := task.ValidateNewTask(db.Template{})
+	err := task.ValidateNewTask(db.Template{}, db.Repository{})
 
 	assert.NoError(t, err)
 }
@@ -116,7 +116,7 @@ func TestTask_ValidateNewTask_InvalidCommitHash_ReturnsError(t *testing.T) {
 		CommitHash: &hash,
 	}
 
-	err := task.ValidateNewTask(db.Template{})
+	err := task.ValidateNewTask(db.Template{}, db.Repository{})
 
 	assert.EqualError(t, err, "task commit hash is invalid")
 }

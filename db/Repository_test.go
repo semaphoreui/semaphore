@@ -37,6 +37,79 @@ func TestRepository_GetType_CaseInsensitiveScheme(t *testing.T) {
 	}
 }
 
+func TestRepository_GetType_Subversion(t *testing.T) {
+	tests := []struct {
+		name     string
+		gitURL   string
+		expected RepositoryType
+	}{
+		{"svn", "svn://svn.example.com/repo/trunk", RepositorySVN},
+		{"uppercase SVN", "SVN://svn.example.com/repo/trunk", RepositorySVN},
+		{"svn+ssh", "svn+ssh://user@svn.example.com/repo/trunk", RepositorySVNSSH},
+		{"uppercase svn+ssh", "SVN+SSH://svn.example.com/repo/trunk", RepositorySVNSSH},
+		{"git+ssh is not subversion", "git+ssh://git@example.com/repo.git", RepositorySSH},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := Repository{GitURL: tt.gitURL}
+			assert.Equal(t, tt.expected, repo.GetType())
+			assert.Equal(t, tt.expected != RepositorySSH, repo.IsSubversion())
+		})
+	}
+}
+
+func TestRepository_Validate_SubversionBranchPath(t *testing.T) {
+	tests := []struct {
+		name    string
+		branch  string
+		wantErr bool
+	}{
+		{"trunk", "trunk", false},
+		{"branch", "branches/release", false},
+		{"tag", "tags/v1.0", false},
+		{"empty", "", true},
+		{"parent directory", "../other", true},
+		{"option injection", "--config-dir=/tmp", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := Repository{Name: "r", GitURL: "svn://svn.example.com/repo", GitBranch: tt.branch}.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestRepository_ValidateCommitRef(t *testing.T) {
+	git := Repository{GitURL: "https://example.com/repo.git"}
+	svn := Repository{GitURL: "svn://svn.example.com/repo"}
+
+	tests := []struct {
+		name    string
+		repo    Repository
+		ref     string
+		wantErr bool
+	}{
+		{"git hash", git, "a1b2c3d", false},
+		{"git rejects a revision", git, "42", true},
+		{"svn revision", svn, "42", false},
+		{"svn rejects a git hash", svn, "a1b2c3d", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.repo.ValidateCommitRef(tt.ref, "task")
+			if tt.wantErr {
+				assert.EqualError(t, err, "task commit hash is invalid")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestRepository_GetType_WindowsLocalPath(t *testing.T) {
 	assert.Equal(t, RepositoryLocal, Repository{GitURL: `D:\repo`}.GetType())
 	assert.Equal(t, RepositoryLocal, Repository{GitURL: `D:/repo`}.GetType())
@@ -376,4 +449,61 @@ func TestRepository_MonorepoKeepsPerTemplateHome(t *testing.T) {
 
 	assert.NotEqual(t, repo.GetHomePath(1), repo.GetHomePath(2))
 	assert.NotEqual(t, repo.GetInternalPath(1), repo.GetInternalPath(2))
+}
+
+// Only a Subversion monorepo gives each task its own copy: a git repository and
+// a Subversion repository checked out per template keep running in the checkout.
+func TestRepository_UsesTaskRunDir(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		monorepo bool
+		expected bool
+	}{
+		{"svn monorepo", "svn://svn.example.com/repo", true, true},
+		{"svn+ssh monorepo", "svn+ssh://svn.example.com/repo", true, true},
+		{"svn per template", "svn://svn.example.com/repo", false, false},
+		{"git monorepo", "https://example.com/x.git", true, false},
+		{"git per template", "https://example.com/x.git", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := Repository{GitURL: tt.url, Monorepo: tt.monorepo}
+			assert.Equal(t, tt.expected, repo.UsesTaskRunDir())
+		})
+	}
+}
+
+// A task with its own copy finds the code there, while git and svn keep
+// working in the checkout.
+func TestRepository_RunDir(t *testing.T) {
+	previous := util.Config
+	util.Config = &util.ConfigType{TmpPath: t.TempDir()}
+	t.Cleanup(func() { util.Config = previous })
+
+	repo := Repository{ID: 7, ProjectID: 1, GitURL: "svn://svn.example.com/repo", GitBranch: "trunk", Monorepo: true}
+	checkout := repo.GetCheckoutPath(3)
+	assert.Equal(t, checkout, repo.GetFullPath(3), "no copy: the task runs in the checkout")
+
+	repo.RunDir = repo.GetTaskRunPath(42)
+	assert.Equal(t, repo.RunDir, repo.GetFullPath(3))
+	assert.Equal(t, checkout, repo.GetCheckoutPath(3))
+
+	assert.Equal(t, path.Join(util.Config.TmpPath, "project_1", "repository_7_task_42"), repo.RunDir)
+	assert.NotEqual(t, repo.GetTaskRunPath(42), repo.GetTaskRunPath(43))
+}
+
+// A copy left behind by a crash is removed with the rest of the repository's
+// cache.
+func TestRepository_ClearCacheRemovesTaskRunDir(t *testing.T) {
+	previous := util.Config
+	util.Config = &util.ConfigType{TmpPath: t.TempDir()}
+	t.Cleanup(func() { util.Config = previous })
+
+	repo := Repository{ID: 7, ProjectID: 1}
+	runDir := repo.GetTaskRunPath(42)
+	require.NoError(t, os.MkdirAll(runDir, 0755))
+
+	require.NoError(t, repo.ClearCache())
+	assert.NoDirExists(t, runDir)
 }

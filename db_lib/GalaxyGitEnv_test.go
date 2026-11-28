@@ -422,3 +422,24 @@ func TestAnsibleApp_GalaxyEnv_KeepsRepositoryAgent(t *testing.T) {
 	assert.Equal(t, "/tmp/galaxy-key.sock", sshSock, "the repository key must still be reachable")
 	assert.Contains(t, sshCmd, "-F "+generated, "the mappings' config must be the one git uses")
 }
+
+// A task running in its own copy of the checkout installs its requirements
+// every time, and leaves no hash behind: the copy is new on every task, so a
+// hash keyed by its path would pile up and never be read again.
+func TestInstallRequirements_TaskRunDirInstallsEveryTime(t *testing.T) {
+	setupGalaxyConfig(t)
+
+	repo := db.Repository{ID: 7, ProjectID: 1, GitURL: "svn://svn.example.com/repo", Monorepo: true}
+	repo.RunDir = repo.GetTaskRunPath(42)
+	app := newGalaxyApp(repo)
+	writeRequirements(t, app)
+	galaxyRuns := stubGalaxy(t)
+
+	require.NoError(t, app.InstallRequirements(LocalAppInstallingArgs{Installer: &fakeInstaller{}}))
+	first := galaxyRuns()
+	require.Positive(t, first)
+
+	require.NoError(t, app.InstallRequirements(LocalAppInstallingArgs{Installer: &fakeInstaller{}}))
+	assert.Equal(t, 2*first, galaxyRuns(), "nothing is skipped on the second task")
+	assert.NoDirExists(t, repo.GetInternalPath(app.Template.ID))
+}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/git"
+	"github.com/semaphoreui/semaphore/pkg/svn"
 	"github.com/semaphoreui/semaphore/util"
 
 	log "github.com/sirupsen/logrus"
@@ -24,6 +25,11 @@ const (
 	RepositoryHTTP  RepositoryType = "https"
 	RepositoryFile  RepositoryType = "file"
 	RepositoryLocal RepositoryType = "local"
+
+	// RepositorySVN and RepositorySVNSSH are Subversion repositories, served by
+	// svnserve directly or tunnelled through ssh.
+	RepositorySVN    RepositoryType = "svn"
+	RepositorySVNSSH RepositoryType = "svn+ssh"
 )
 
 // Repository is the model for code stored in a git repository
@@ -41,6 +47,11 @@ type Repository struct {
 	Monorepo bool `db:"monorepo" json:"monorepo"`
 
 	SSHKey AccessKey `db:"-" json:"-" backup:"-"`
+
+	// RunDir is the directory a task runs in when that is not the checkout:
+	// the copy of a shared Subversion checkout made for one task (see
+	// UsesTaskRunDir). Set per task, never stored or sent.
+	RunDir string `db:"-" json:"-" backup:"-"`
 }
 
 func (r Repository) ClearCache() error {
@@ -110,10 +121,18 @@ func (r Repository) GetInternalPath(templateID int) string {
 	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.GetDirName(templateID)+"_internal")
 }
 
-// GetFullPath returns the path where the repository source code lives.
-// The repository is cloned directly into its branch-specific checkout
-// directory (e.g. repository_15_template_114_main_1a2b3c4d).
+// GetFullPath returns the path where a task finds the repository source code:
+// the task's own copy when it has one (RunDir), the checkout otherwise.
 func (r Repository) GetFullPath(templateID int) string {
+	if r.RunDir != "" {
+		return r.RunDir
+	}
+	return r.GetCheckoutPath(templateID)
+}
+
+// GetCheckoutPath returns the path the repository is cloned into: its
+// branch-specific checkout directory (e.g. repository_15_template_114_main_1a2b3c4d).
+func (r Repository) GetCheckoutPath(templateID int) string {
 	if r.GetType() == RepositoryLocal {
 		return r.GetLocalPath()
 	}
@@ -124,6 +143,21 @@ func (r Repository) GetFullPath(templateID int) string {
 // field, not from GetGitURL, so nothing built from it can carry credentials.
 func (r Repository) GetLocalPath() string {
 	return util.NormalizeLocalFilesystemPath(r.GitURL)
+}
+
+// UsesTaskRunDir reports whether each task runs in its own copy of the
+// checkout. A Subversion monorepo does: its one working copy is reverted,
+// cleaned and updated when a task starts, which would remove the files a
+// running task writes into it and change its files under it.
+func (r Repository) UsesTaskRunDir() bool {
+	return r.Monorepo && r.IsSubversion()
+}
+
+// GetTaskRunPath returns the directory of the task's own copy of the
+// checkout. It carries the repository prefix, so ClearCache removes it too.
+// It can not be taken for a checkout: a checkout name ends with a hash.
+func (r Repository) GetTaskRunPath(taskID int) string {
+	return path.Join(util.Config.GetProjectTmpDir(r.ProjectID), r.getDirNamePrefix()+"task_"+strconv.Itoa(taskID))
 }
 
 // GetGitURL returns the URL git is invoked with. With embedCredentials set,
@@ -232,6 +266,10 @@ func (r Repository) GetType() RepositoryType {
 		return RepositoryLocal
 	}
 
+	if svn.IsSvnSSHURL(r.GitURL) {
+		return RepositorySVNSSH
+	}
+
 	re := regexp.MustCompile(`^(\w+)://`)
 	m := re.FindStringSubmatch(r.GitURL)
 	if m == nil {
@@ -274,4 +312,24 @@ func (r Repository) Validate() error {
 	}
 
 	return nil
+}
+
+// ValidateCommitRef rejects a commit a task can not be checked out at: a hex
+// object name for git, a revision number for Subversion.
+func (r Repository) ValidateCommitRef(ref string, objectName string) error {
+	if r.IsSubversion() {
+		return svn.ValidateRevision(ref, objectName)
+	}
+	return git.ValidateCommitHash(ref, objectName)
+}
+
+// IsSubversion reports whether the repository is served by Subversion rather
+// than git.
+func (r Repository) IsSubversion() bool {
+	switch r.GetType() {
+	case RepositorySVN, RepositorySVNSSH:
+		return true
+	default:
+		return false
+	}
 }
