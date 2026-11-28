@@ -8,7 +8,7 @@
   "dingtalk_url": "Dingtalk messenger webhook URL.",
   "dirs.repos": "Path to directory where repositories are stored.",
   "dirs.secrets": "Path to directory where secrets are stored (for example Vault token files). Default: `/tmp/semaphore`. Legacy top-level `secrets_path` is still accepted when `dirs.secrets` is unset or left at the default.",
-  "dirs.ssh_agent_sockets": "Path to directory where SSH agent sockets are stored. Default: /tmp/semaphore",
+  "dirs.ssh_agent_sockets": "Path to directory where SSH agent sockets are stored. Default: empty, which keeps them under tmp_path",
   "email_host": "SMTP server hostname.",
   "email_password": "Password used to authenticate against the SMTP server.",
   "email_port": "SMTP server port.",
