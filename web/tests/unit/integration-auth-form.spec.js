@@ -1,13 +1,10 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { mount } from '@vue/test-utils';
 import IntegrationAuthForm from '@/components/IntegrationAuthForm.vue';
 import EndpointForm from '@/components/EndpointForm.vue';
 import IntegrationGroupForm from '@/components/IntegrationGroupForm.vue';
 import mockAxios from './helpers/axiosMock';
-
-const localVue = createLocalVue();
 
 async function flush() {
   await new Promise((resolve) => { setTimeout(resolve, 0); });
@@ -28,11 +25,16 @@ function respondTo(url, item) {
   return {};
 }
 
-const mountOptions = {
-  localVue,
-  vuetify: new Vuetify(),
-  mocks: { $t: (k) => k },
-};
+/** Mount options: `$t` answers with the key; `stubs` are added to it. */
+function mountOptions(props, stubs = {}) {
+  return {
+    props,
+    global: {
+      mocks: { $t: (k) => k },
+      stubs,
+    },
+  };
+}
 
 describe('IntegrationAuthForm.vue', () => {
   let http;
@@ -47,49 +49,44 @@ describe('IntegrationAuthForm.vue', () => {
   });
 
   it('offers only login/password keys for BasicAuth and string keys too for the rest', async () => {
-    const wrapper = mount(IntegrationAuthForm, {
-      ...mountOptions,
-      propsData: { projectId: 7, value: { auth_method: 'token', auth_secret_id: null } },
-      stubs: { HighlightedCard: true },
-    });
+    const wrapper = mount(IntegrationAuthForm, mountOptions(
+      { projectId: 7, modelValue: { auth_method: 'token', auth_secret_id: null } },
+      { HighlightedCard: true },
+    ));
     await flush();
 
     expect(wrapper.vm.authSecretKeys.map((k) => k.id)).to.deep.equal([1, 2]);
 
-    await wrapper.setProps({ value: { auth_method: 'basic', auth_secret_id: null } });
+    await wrapper.setProps({ modelValue: { auth_method: 'basic', auth_secret_id: null } });
     expect(wrapper.vm.authSecretKeys.map((k) => k.id)).to.deep.equal([1]);
   });
 
   it('drops a secret that no longer fits the method and emits the change', async () => {
-    const wrapper = mount(IntegrationAuthForm, {
-      ...mountOptions,
-      propsData: { projectId: 7, value: { auth_method: 'token', auth_secret_id: 2 } },
-      stubs: { HighlightedCard: true },
-    });
+    const wrapper = mount(IntegrationAuthForm, mountOptions(
+      { projectId: 7, modelValue: { auth_method: 'token', auth_secret_id: 2 } },
+      { HighlightedCard: true },
+    ));
     await flush();
-    expect(wrapper.emitted('input')).to.equal(undefined);
+    expect(wrapper.emitted('update:modelValue')).to.equal(undefined);
 
-    await wrapper.setProps({ value: { auth_method: 'basic', auth_secret_id: 2 } });
+    await wrapper.setProps({ modelValue: { auth_method: 'basic', auth_secret_id: 2 } });
     await flush();
 
-    const emitted = wrapper.emitted('input');
-    expect(emitted, 'input event').to.not.equal(undefined);
+    const emitted = wrapper.emitted('update:modelValue');
+    expect(emitted, 'update:modelValue event').to.not.equal(undefined);
     expect(emitted[emitted.length - 1][0]).to.deep.equal({ auth_method: 'basic', auth_secret_id: null });
   });
 
   it('shows the header field only for header-based methods', async () => {
-    const wrapper = mount(IntegrationAuthForm, {
-      ...mountOptions,
-      propsData: { projectId: 7, value: { auth_method: 'hmac' } },
-    });
+    const wrapper = mount(IntegrationAuthForm, mountOptions({ projectId: 7, modelValue: { auth_method: 'hmac' } }));
     await flush();
     expect(wrapper.find('.IntegrationAuthForm__header').exists()).to.equal(true);
 
-    await wrapper.setProps({ value: { auth_method: 'github' } });
+    await wrapper.setProps({ modelValue: { auth_method: 'github' } });
     expect(wrapper.find('.IntegrationAuthForm__header').exists()).to.equal(false);
     expect(wrapper.find('.IntegrationAuthForm__secret').exists()).to.equal(true);
 
-    await wrapper.setProps({ value: { auth_method: '' } });
+    await wrapper.setProps({ modelValue: { auth_method: '' } });
     expect(wrapper.find('.IntegrationAuthForm__secret').exists()).to.equal(false);
   });
 });
@@ -107,10 +104,7 @@ describe('EndpointForm.vue', () => {
 
   it('creates an endpoint with its authorization', async () => {
     http.respond((c) => (c.method === 'post' ? { id: 9 } : respondTo(c.url)));
-    const wrapper = mount(EndpointForm, {
-      ...mountOptions,
-      propsData: { projectId: 7, itemId: 'new' },
-    });
+    const wrapper = mount(EndpointForm, mountOptions({ projectId: 7, itemId: 'new' }));
     await flush();
 
     wrapper.vm.item.name = 'hooks';
@@ -132,10 +126,7 @@ describe('EndpointForm.vue', () => {
 
   it('fills the fields the API omits so the inputs can bind', async () => {
     http.respond((c) => respondTo(c.url, { id: 4, name: 'Public hooks' }));
-    const wrapper = mount(EndpointForm, {
-      ...mountOptions,
-      propsData: { projectId: 7, itemId: 4 },
-    });
+    const wrapper = mount(EndpointForm, mountOptions({ projectId: 7, itemId: 4 }));
     await flush();
 
     expect(wrapper.vm.item.auth_method).to.equal('');
@@ -157,10 +148,7 @@ describe('IntegrationGroupForm.vue', () => {
 
   it('loads the endpoints and hides the auth block until authorization is overridden', async () => {
     http.respond((c) => respondTo(c.url));
-    const wrapper = mount(IntegrationGroupForm, {
-      ...mountOptions,
-      propsData: { projectId: 7, itemId: 'new' },
-    });
+    const wrapper = mount(IntegrationGroupForm, mountOptions({ projectId: 7, itemId: 'new' }));
     await flush();
 
     expect(http.requests.map((r) => r.url)).to.include('/api/project/7/endpoints');
@@ -179,10 +167,7 @@ describe('IntegrationGroupForm.vue', () => {
         id: 3, name: 'hooks', endpoint_id: 4, auth_override: true, auth_method: 'token', auth_header: 'X', auth_secret_id: 2,
       });
     });
-    const wrapper = mount(IntegrationGroupForm, {
-      ...mountOptions,
-      propsData: { projectId: 7, itemId: 3 },
-    });
+    const wrapper = mount(IntegrationGroupForm, mountOptions({ projectId: 7, itemId: 3 }));
     await flush();
 
     wrapper.vm.item.auth_override = false;
@@ -202,10 +187,7 @@ describe('IntegrationGroupForm.vue', () => {
 
   it('refuses to save without an endpoint', async () => {
     http.respond((c) => respondTo(c.url));
-    const wrapper = mount(IntegrationGroupForm, {
-      ...mountOptions,
-      propsData: { projectId: 7, itemId: 'new' },
-    });
+    const wrapper = mount(IntegrationGroupForm, mountOptions({ projectId: 7, itemId: 'new' }));
     await flush();
 
     wrapper.vm.item.name = 'hooks';

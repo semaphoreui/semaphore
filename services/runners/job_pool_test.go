@@ -2,10 +2,13 @@ package runners
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -257,13 +260,11 @@ func TestJobPool_ConcurrentAccess(t *testing.T) {
 	start := make(chan struct{})
 
 	// Running-jobs map mutators/readers.
-	for w := 0; w < workers; w++ {
+	for w := range workers {
 		base := w
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
-			for i := 0; i < iterations; i++ {
+			for i := range iterations {
 				id := base*iterations + i
 				p.addRunningJob(id, &runningJob{
 					job:    &tasks.LocalExecutor{Task: db.Task{ID: id}},
@@ -275,24 +276,22 @@ func TestJobPool_ConcurrentAccess(t *testing.T) {
 				p.hasRunningJobs()
 				p.deleteRunningJob(id)
 			}
-		}()
+		})
 	}
 
 	// Queue mutators/readers.
-	for w := 0; w < workers; w++ {
+	for w := range workers {
 		base := w
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
-			for i := 0; i < iterations; i++ {
+			for i := range iterations {
 				id := base*iterations + i
 				p.enqueue(newTestJob(id))
 				p.existsInQueue(id)
 				p.queueLen()
 				p.dequeue()
 			}
-		}()
+		})
 	}
 
 	close(start)
@@ -330,7 +329,7 @@ func TestJobPool_ReusesConnections(t *testing.T) {
 
 	p := NewJobPool(nil)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		require.True(t, p.sendProgress())
 		p.checkNewJobs()
 	}
@@ -441,7 +440,7 @@ func TestJobPool_TaskOutputs(t *testing.T) {
 		rj := newTestRunningJob(1)
 
 		assert.Nil(t, p.taskOutputs(&job{workflowTask: true}, rj))
-		_, logs, _, _ := rj.getProgress()
+		_, logs, _, _, _ := rj.getProgress()
 		assert.Empty(t, logs)
 	})
 
@@ -456,7 +455,7 @@ func TestJobPool_TaskOutputs(t *testing.T) {
 
 		assert.Nil(t, p.taskOutputs(&job{workflowTask: true}, rj))
 
-		_, logs, _, _ := rj.getProgress()
+		_, logs, _, _, _ := rj.getProgress()
 		require.Len(t, logs, 1)
 		assert.Contains(t, logs[0].Message, "not captured by this runner's executor")
 	})
@@ -505,6 +504,60 @@ func TestJobPool_SendProgressIncludesOutputs(t *testing.T) {
 	assert.Equal(t, document, *received.Jobs[0].Outputs)
 	// The terminal report was accepted, so the job leaves the running list.
 	assert.Nil(t, p.getRunningJob(7))
+}
+
+// hostsExecutor is an executor that captured a host stats document and then
+// failed, as the local executor does when a playbook fails on some hosts.
+type hostsExecutor struct {
+	*tasks.LocalExecutor
+	hosts *string
+}
+
+func (e *hostsExecutor) Run(string, *string, string) error { return errors.New("playbook failed") }
+
+func (e *hostsExecutor) Hosts() *string { return e.hosts }
+
+func TestJobPool_ProgressIncludesHostsOfFailedJob(t *testing.T) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	var mu sync.Mutex
+	var received RunnerProgress
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			mu.Lock()
+			defer mu.Unlock()
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&received))
+		}
+		_, _ = w.Write([]byte("{}"))
+	}))
+	t.Cleanup(srv.Close)
+
+	util.Config = &util.ConfigType{
+		WebHost: srv.URL,
+		Runner: &util.RunnerConfig{
+			Token:      "test-token",
+			Executor:   &util.ExecutorConfig{},
+			Connection: &util.RunnerConnectionConfig{},
+		},
+	}
+
+	p := NewJobPool(nil)
+	document := `{"version":1,"hosts":{"web1":{"ok":3,"failed":1}}}`
+	executor := &hostsExecutor{LocalExecutor: &tasks.LocalExecutor{Task: db.Task{ID: 7}}, hosts: &document}
+	rj := &runningJob{job: executor, taskID: 7, status: task_logger.TaskStartingStatus}
+	executor.SetLogger(rj)
+	p.addRunningJob(7, rj)
+
+	p.runJob(&job{job: executor, taskID: 7}, rj)
+	require.True(t, p.sendProgress())
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, received.Jobs, 1)
+	assert.Equal(t, task_logger.TaskFailStatus, received.Jobs[0].Status)
+	require.NotNil(t, received.Jobs[0].Hosts)
+	assert.Equal(t, document, *received.Jobs[0].Hosts)
 }
 
 func TestJobProgress_OutputsOmittedWhenAbsent(t *testing.T) {
@@ -687,4 +740,86 @@ func TestJobPoolDoRequestDoesNotBoundUpload(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, "{}", string(body))
+}
+
+func newRegistrationServer(t *testing.T, body string) *httptest.Server {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/api/internal/runners", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func setRegistrationConfig(t *testing.T, webHost string, tokenFile string) {
+	prevCfg := util.Config
+	t.Cleanup(func() { util.Config = prevCfg })
+
+	util.Config = &util.ConfigType{
+		WebHost: webHost,
+		Runner: &util.RunnerConfig{
+			RegistrationToken: "registration-token",
+			TokenFile:         tokenFile,
+			Connection:        &util.RunnerConnectionConfig{},
+		},
+	}
+}
+
+func TestJobPool_RegisterKeepsTokenInMemory_TokenFile(t *testing.T) {
+	srv := newRegistrationServer(t, `{"token":"runner-token"}`)
+	tokenFile := filepath.Join(t.TempDir(), "runner_token.txt")
+	setRegistrationConfig(t, srv.URL, tokenFile)
+
+	p := &JobPool{client: newHTTPClient()}
+
+	require.NoError(t, p.Register(nil))
+
+	assert.Equal(t, "runner-token", util.Config.Runner.Token)
+
+	saved, err := os.ReadFile(tokenFile)
+	require.NoError(t, err)
+	assert.Equal(t, "runner-token", string(saved))
+}
+
+func TestJobPool_RegisterKeepsTokenInMemory_ConfigFile(t *testing.T) {
+	srv := newRegistrationServer(t, `{"token":"runner-token"}`)
+	configFile := filepath.Join(t.TempDir(), "config.json")
+	require.NoError(t, os.WriteFile(configFile, []byte(`{"web_host":"`+srv.URL+`","runner":{}}`), 0600))
+	setRegistrationConfig(t, srv.URL, "")
+
+	p := &JobPool{client: newHTTPClient()}
+
+	require.NoError(t, p.Register(&configFile))
+
+	assert.Equal(t, "runner-token", util.Config.Runner.Token)
+
+	saved, err := os.ReadFile(configFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(saved), `"token": "runner-token"`)
+}
+
+func TestJobPool_RegisterRejectsEmptyToken(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{"no token field", `{}`},
+		{"empty token", `{"token":""}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newRegistrationServer(t, tt.body)
+			tokenFile := filepath.Join(t.TempDir(), "runner_token.txt")
+			setRegistrationConfig(t, srv.URL, tokenFile)
+
+			p := &JobPool{client: newHTTPClient()}
+
+			require.Error(t, p.Register(nil))
+
+			assert.Empty(t, util.Config.Runner.Token)
+			assert.NoFileExists(t, tokenFile)
+		})
+	}
 }

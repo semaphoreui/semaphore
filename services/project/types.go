@@ -7,15 +7,18 @@ import (
 )
 
 type BackupDB struct {
-	meta         db.Project
-	templates    []db.Template
-	repositories []db.Repository
-	hostConfigs  []db.HostConfig
-	keys         []db.AccessKey
-	views        []db.View
-	inventories  []db.Inventory
-	environments []db.Environment
-	schedules    []db.Schedule
+	meta             db.Project
+	templates        []db.Template
+	repositories     []db.Repository
+	hostConfigs      []db.HostConfig
+	keys             []db.AccessKey
+	views            []db.View
+	inventories      []db.Inventory
+	inventoryHosts   map[int][]db.InventoryHost
+	inventoryGroups  map[int][]db.InventoryGroup
+	inventorySources map[int][]db.InventorySource
+	environments     []db.Environment
+	schedules        []db.Schedule
 
 	endpoints                []db.Endpoint
 	endpointAliases          map[int][]db.EndpointAlias
@@ -28,8 +31,11 @@ type BackupDB struct {
 	roles          []db.Role
 	unassigned     []UnassignedRole
 	templateRoles  map[int][]db.TemplateRolePerm
+	workflowRoles  map[int][]db.WorkflowRolePerm
 	runners        []db.Runner
 	workflows      []db.WorkflowTemplate
+	// version is the format version of the file being restored.
+	version int
 
 	// store is the main store every entity restores into. Held here so Restore
 	// implementations read it from BackupDB instead of taking it as a parameter.
@@ -40,8 +46,11 @@ type BackupDB struct {
 	workflowStore db.WorkflowManager
 }
 
-// BackupFormatVersion is 2: files before it carry no version and refer to roles by name.
-const BackupFormatVersion = 2
+// BackupFormatVersion is 6: version 2 gave roles slugs, 3 added the workflow verbs and grants on workflows,
+// 4 writes read_project, so a role or a grant without it is meant that way, 5 carries the hosts and groups
+// of a managed inventory, which an older server would drop without a word, 6 carries the inventory sources
+// and which source owns each host and group.
+const BackupFormatVersion = 6
 
 // CleanupError says the project stayed behind after a failed restore.
 type CleanupError struct {
@@ -63,6 +72,13 @@ type UnassignedTemplate struct {
 	Permissions db.ProjectUserPermission `json:"permissions"`
 }
 
+// UnassignedWorkflow is a workflow whose grant to the role was not restored.
+type UnassignedWorkflow struct {
+	ID          int                      `json:"id"`
+	Name        string                   `json:"name"`
+	Permissions db.ProjectUserPermission `json:"permissions"`
+}
+
 // Why a role is in the report.
 const (
 	ReasonNotInFile = "not_in_file"
@@ -76,6 +92,7 @@ type UnassignedRole struct {
 	Name        string                   `json:"name,omitempty"`
 	Permissions db.ProjectUserPermission `json:"permissions,omitempty"`
 	Templates   []UnassignedTemplate     `json:"templates"`
+	Workflows   []UnassignedWorkflow     `json:"workflows"`
 }
 
 // RestoredProject is the restore result: the project and what it did not restore.
@@ -122,9 +139,13 @@ type BackupAccessKey struct {
 	Storage       *string `backup:"storage"`
 }
 
+// BackupSchedule stores the schedule's target by name: exactly one of
+// Template and Workflow is set. Backups written before workflow targets
+// existed carry "template" only and restore unchanged.
 type BackupSchedule struct {
 	db.Schedule
-	Template            string  `backup:"template"`
+	Template            *string `backup:"template"`
+	Workflow            *string `backup:"workflow"`
 	CheckableRepository *string `backup:"checkable_repository"`
 }
 
@@ -134,8 +155,40 @@ type BackupView struct {
 
 type BackupInventory struct {
 	db.Inventory
-	SSHKey    *string `backup:"ssh_key"`
-	BecomeKey *string `backup:"become_key"`
+	SSHKey    *string                 `backup:"ssh_key"`
+	BecomeKey *string                 `backup:"become_key"`
+	Sources   []BackupInventorySource `backup:"sources"`
+	Hosts     []BackupInventoryHost   `backup:"hosts"`
+	Groups    []BackupInventoryGroup  `backup:"groups"`
+}
+
+// BackupInventorySource leaves the sync state behind, the next sync fills it
+type BackupInventorySource struct {
+	Name       string                 `backup:"name"`
+	Type       db.InventorySourceType `backup:"type"`
+	Repository *string                `backup:"repository"`
+	Key        *string                `backup:"key"`
+	Params     db.MapStringAnyField   `backup:"params"`
+	Variables  string                 `backup:"variables"`
+}
+
+// BackupInventoryHost names its source, nil for a manual host
+type BackupInventoryHost struct {
+	Name        string  `backup:"name"`
+	Description string  `backup:"description"`
+	Enabled     bool    `backup:"enabled"`
+	Variables   string  `backup:"variables"`
+	Source      *string `backup:"source"`
+}
+
+// BackupInventoryGroup refers to hosts, child groups and the source of its inventory by name
+type BackupInventoryGroup struct {
+	Name        string   `backup:"name"`
+	Description string   `backup:"description"`
+	Variables   string   `backup:"variables"`
+	Hosts       []string `backup:"hosts"`
+	Children    []string `backup:"children"`
+	Source      *string  `backup:"source"`
 }
 
 type BackupRepository struct {
@@ -230,6 +283,12 @@ type BackupRunner struct {
 type BackupWorkflow struct {
 	db.WorkflowTemplate
 	Nodes []BackupWorkflowNode `backup:"nodes"`
+	Roles []BackupWorkflowRole `backup:"roles"`
+}
+
+type BackupWorkflowRole struct {
+	Slug        string                   `backup:"slug"`
+	Permissions db.ProjectUserPermission `backup:"permissions"`
 }
 
 // BackupWorkflowNode wraps a workflow node, replacing its template_id with a

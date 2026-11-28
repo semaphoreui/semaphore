@@ -1,6 +1,7 @@
 package db_lib
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -60,8 +61,19 @@ type GitRepository struct {
 	// cloned with their full history.
 	ShallowClone bool
 
+	// Deadline is when a running git operation is stopped, the zero value sets no limit.
+	Deadline time.Time
+
 	// retryDelay overrides gitRetryDelay so tests do not have to wait for it.
 	retryDelay time.Duration
+}
+
+// deadlineContext ends at Deadline, the caller must call the returned function when the operation ends.
+func (r GitRepository) deadlineContext() (context.Context, context.CancelFunc) {
+	if r.Deadline.IsZero() {
+		return context.Background(), func() {}
+	}
+	return context.WithDeadline(context.Background(), r.Deadline)
 }
 
 func (r GitRepository) GetFullPath() string {
@@ -169,6 +181,11 @@ func (r GitRepository) retry(name string, op func() error) (err error) {
 		}
 
 		delay := gitRetryDelayFor(base, attempt)
+		// The next attempt would start after the deadline.
+		if !r.Deadline.IsZero() && time.Now().Add(delay).After(r.Deadline) {
+			return
+		}
+
 		r.Logger.Log(fmt.Sprintf("Git %s failed (%s), retrying in %s", name, err, delay))
 		time.Sleep(delay)
 	}

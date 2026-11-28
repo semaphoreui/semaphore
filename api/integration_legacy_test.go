@@ -31,7 +31,7 @@ type legacyWebhooks struct {
 
 func seedLegacyWebhooks(t *testing.T) legacyWebhooks {
 	t.Helper()
-	before := "2.20.16"
+	before := "2.21.10"
 	base := sql.InitConfigCreateTestStoreAt(&before)
 	store := &templateProbeStore{Store: base, failTemplate: true}
 	exec := func(query string, args ...any) {

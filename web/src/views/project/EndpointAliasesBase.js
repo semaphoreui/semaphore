@@ -29,7 +29,7 @@ export default {
         url: this.aliasPath(endpointId),
         responseType: 'json',
       })).data;
-      this.$set(this.aliases, endpointId, data || []);
+      this.aliases[endpointId] = data || [];
     },
 
     async deleteAlias(endpointId, aliasId) {

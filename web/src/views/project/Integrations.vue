@@ -1,7 +1,13 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="isLoaded">
+  <div
+    v-if="isLoaded"
+    data-testid="integrations-page"
+    :data-state="groups.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="integrationsDialog"
+      help-doc="integration"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="itemId === 'new' ? $t('NewIntegration') : $t('EditIntegration')"
       :max-width="450"
@@ -24,6 +30,8 @@
 
     <EditDialog
       v-model="groupEditDialog"
+      test-id="integrationGroupsDialog"
+      help-doc="integration-group"
       :save-button-text="groupId === 'new' ? $t('create') : $t('save')"
       :title="groupId === 'new' ? $t('NewIntegrationGroup') : $t('EditIntegrationGroup')"
       :max-width="450"
@@ -43,6 +51,7 @@
     </EditDialog>
 
     <ObjectRefsDialog
+      test-id="integrationsRefsDialog"
       object-title="integration"
       :object-refs="itemRefs"
       :project-id="projectId"
@@ -50,6 +59,7 @@
     />
 
     <YesNoDialog
+      test-id="integrationsDeleteDialog"
       :title="$t('DeleteIntegration')"
       :text="$t('DeleteIntegrationMsg')"
       v-model="deleteItemDialog"
@@ -57,6 +67,7 @@
     />
 
     <YesNoDialog
+      test-id="integrationGroupsDeleteDialog"
       :title="$t('DeleteIntegrationGroup')"
       :text="$t('DeleteIntegrationGroupMsg')"
       v-model="deleteGroupDialog"
@@ -64,32 +75,47 @@
     />
 
     <v-toolbar flat>
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('integrations') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="integrations-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="integrations-title"
+      >{{ $t('integrations') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         v-if="tab === 'integrations' && can(USER_PERMISSIONS.manageProjectResources)"
         color="primary"
+        variant="elevated"
         @click="editGroup('new')"
-        data-testid="integrations-new-group"
+        data-testid="integrations-newGroup"
         >{{ $t('NewIntegrationGroup') }}
       </v-btn>
       <v-btn
         v-if="tab === 'endpoints' && can(USER_PERMISSIONS.manageProjectResources)"
         color="primary"
+        variant="elevated"
         @click="$refs.endpoints.editItem('new')"
         data-testid="endpoints-new"
         >{{ $t('NewEndpoint') }}
       </v-btn>
     </v-toolbar>
 
-    <v-tabs class="pl-4" :value="tab === 'endpoints' ? 1 : 0">
-      <v-tab :to="`/project/${projectId}/integrations`" exact data-testid="integrations-tab">
-        {{ $t('integrations') }}
-      </v-tab>
-      <v-tab :to="`/project/${projectId}/integrations/endpoints`" data-testid="endpoints-tab">
-        {{ $t('endpoints') }}
-      </v-tab>
+    <v-tabs>
+      <v-tab
+        :to="`/project/${projectId}/integrations`"
+        exact
+        data-testid="integrations-tab"
+      >{{ $t('integrations') }}</v-tab>
+      <v-tab
+        :to="`/project/${projectId}/integrations/endpoints`"
+        data-testid="integrations-endpointsTab"
+      >{{ $t('endpoints') }}</v-tab>
+      <v-tab
+        :to="`/project/${projectId}/integrations/history`"
+        data-testid="integrations-historyTab"
+      >{{ $t('history') }}</v-tab>
     </v-tabs>
 
     <v-divider />
@@ -108,41 +134,63 @@
     <div
       v-else
       class="px-4 py-4 Integrations__groups"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
+      data-testid="integrations-groups"
     >
-      <div v-if="groups.length === 0" class="text--secondary py-6 text-center">
+      <div
+        v-if="groups.length === 0"
+        class="text-medium-emphasis py-6 text-center"
+        data-testid="integrations-groupsEmpty"
+      >
         {{ $t('noIntegrationGroups') }}
       </div>
 
       <v-card
         v-for="group of groups"
         :key="group.id"
-        outlined
+        flat
+        border
         class="mb-4 Integrations__group"
         :data-testid="`integration-group-${group.id}`"
       >
-        <v-card-title class="pb-2 Integrations__groupHeader">
+        <v-card-title class="d-flex align-center pb-2 Integrations__groupHeader">
           <v-icon class="mr-2">mdi-folder-outline</v-icon>
-          <span class="Integrations__groupName">{{ group.name }}</span>
+          <span
+            class="Integrations__groupName"
+            data-testid="integrations-groupName"
+          >{{ group.name }}</span>
 
           <v-spacer></v-spacer>
 
           <template v-if="can(USER_PERMISSIONS.manageProjectResources)">
             <v-btn
               color="primary"
-              small
-              text
+              size="small"
+              variant="text"
               class="mr-1"
               @click="newIntegration(group.id)"
+              data-testid="integrations-new"
             >
-              <v-icon small left>mdi-plus</v-icon>
+              <v-icon size="small" start>mdi-plus</v-icon>
               {{ $t('NewIntegration') }}
             </v-btn>
-            <v-btn icon small class="mr-1" @click="editGroup(group.id)">
-              <v-icon small>mdi-pencil</v-icon>
+            <v-btn
+              icon
+              size="small"
+              variant="text"
+              class="mr-1"
+              @click="editGroup(group.id)"
+              data-testid="integrations-groupEdit"
+            >
+              <v-icon size="small">mdi-pencil</v-icon>
             </v-btn>
-            <v-btn icon small @click="askDeleteGroup(group.id)">
-              <v-icon small>mdi-delete</v-icon>
+            <v-btn
+              icon
+              size="small"
+              variant="text"
+              @click="askDeleteGroup(group.id)"
+              data-testid="integrations-groupDelete"
+            >
+              <v-icon size="small">mdi-delete</v-icon>
             </v-btn>
           </template>
         </v-card-title>
@@ -151,13 +199,14 @@
           <router-link
             :to="`/project/${projectId}/integrations/endpoints`"
             class="mr-4 Integrations__groupEndpoint"
+            data-testid="integrations-groupEndpoint"
           >
-            <v-icon small class="mr-1">mdi-webhook</v-icon>
+            <v-icon size="small" class="mr-1">mdi-webhook</v-icon>
             {{ $t('endpoint') }}: {{ endpointName(group.endpoint_id) }}
           </router-link>
 
-          <span class="Integrations__groupAuth">
-            <v-icon small class="mr-1">mdi-shield-key-outline</v-icon>
+          <span class="Integrations__groupAuth" data-testid="integrations-groupAuth">
+            <v-icon size="small" class="mr-1">mdi-shield-key-outline</v-icon>
             {{ groupAuthLabel(group) }}
           </span>
         </v-card-subtitle>
@@ -167,14 +216,18 @@
         <v-data-table
           :headers="headers"
           :items="groupIntegrations(group.id)"
-          :items-per-page="Number.MAX_VALUE"
+          :items-per-page="-1"
           hide-default-footer
-          dense
+          density="compact"
           :no-data-text="$t('noIntegrationsInGroup')"
           class="Integrations__table"
+          data-testid="integrations-table"
+          :data-state="groupIntegrations(group.id).length === 0 ? 'empty' : 'ready'"
         >
           <template v-slot:item.name="{ item }">
-            <router-link :to="`/project/${projectId}/integrations/${item.id}`"
+            <router-link
+              :to="`/project/${projectId}/integrations/${item.id}`"
+              data-testid="integrations-rowName"
               >{{ item.name }}
             </router-link>
           </template>
@@ -183,34 +236,61 @@
               v-if="item.workflow_id"
               :to="`/project/${projectId}/workflows/${item.workflow_id}`"
               class="IntegrationsTarget IntegrationsTarget--workflow"
+              data-testid="integrations-rowTarget-workflow"
             >
-              <v-icon small class="mr-1">mdi-graph-outline</v-icon>
+              <v-icon size="small" class="mr-1">mdi-graph-outline</v-icon>
               {{ (workflows.find((w) => w.id === item.workflow_id) || { name: '—' }).name }}
             </router-link>
             <router-link
               v-else
               :to="`/project/${projectId}/templates/${item.template_id}`"
               class="IntegrationsTarget IntegrationsTarget--template"
+              data-testid="integrations-rowTarget-template"
             >
-              <v-icon small class="mr-1">mdi-check-all</v-icon>
+              <v-icon size="small" class="mr-1">mdi-check-all</v-icon>
               {{ (templates.find((t) => t.id === item.template_id) || { name: '—' }).name }}
             </router-link>
           </template>
           <template v-slot:item.actions="{ item }">
-            <v-btn-toggle dense :value-comparator="() => false">
-              <v-btn @click="askDeleteItem(item.id)">
+            <v-btn-group
+              density="compact"
+              data-testid="integrations-rowActions"
+            >
+              <v-btn
+                @click="askDeleteItem(item.id)"
+                data-testid="integrations-rowDelete"
+              >
                 <v-icon>mdi-delete</v-icon>
               </v-btn>
-              <v-btn @click="editItem(item.id)">
+              <v-btn
+                @click="editItem(item.id)"
+                data-testid="integrations-rowEdit"
+              >
                 <v-icon>mdi-pencil</v-icon>
               </v-btn>
-            </v-btn-toggle>
+            </v-btn-group>
           </template>
         </v-data-table>
       </v-card>
     </div>
   </div>
 </template>
+<style lang="scss">
+.Integrations__groups {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+
+  // The icon in front of the run target: an icon of the theme (`.theme--light.v-icon`: .54, white
+  // in the dark one), not the link colour.
+  .IntegrationsTarget > .v-icon.v-theme--light {
+    color: rgba(0, 0, 0, .54);
+  }
+
+  .IntegrationsTarget > .v-icon.v-theme--dark {
+    color: #fff;
+  }
+}
+</style>
 <script>
 import axios from 'axios';
 
@@ -293,19 +373,19 @@ export default {
     getHeaders() {
       return [
         {
-          text: this.$i18n.t('name'),
-          value: 'name',
+          title: this.$t('name'),
+          key: 'name',
           width: '40%',
           sortable: true,
         },
         {
-          text: this.$i18n.t('template'),
-          value: 'target',
+          title: this.$t('template'),
+          key: 'target',
           width: '60%',
           sortable: false,
         },
         {
-          value: 'actions',
+          key: 'actions',
           sortable: false,
           width: '0%',
         },

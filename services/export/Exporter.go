@@ -18,6 +18,9 @@ const (
 	TemplateRole            = "TemplateRole"
 	SecretStorage           = "SecretStorage"
 	Inventory               = "Inventory"
+	InventoryHost           = "InventoryHost"
+	InventoryGroup          = "InventoryGroup"
+	InventorySource         = "InventorySource"
 	Repository              = "Repository"
 	HostConfig              = "HostConfig"
 	View                    = "View"
@@ -30,6 +33,7 @@ const (
 	IntegrationGroup        = "IntegrationGroup"
 	IntegrationExtractValue = "IntegrationExtractValue"
 	IntegrationMatcher      = "IntegrationMatcher"
+	IntegrationCall         = "IntegrationCall"
 	Schedule                = "Schedule"
 	Task                    = "Task"
 	TaskStage               = "TaskStage"
@@ -257,11 +261,12 @@ func (t *ValueMap[T]) appendValuesAndCheck(values []T, scope string, checkDuplic
 	}
 	for _, v := range values {
 		if checkDuplicates {
-			_, ok := t.keyScopeMap[scope+v.GetDbKey()]
-			if ok {
+			// A scope is a project id or empty, so the slash keeps 1 and 23 apart from 12 and 3
+			key := scope + "/" + v.GetDbKey()
+			if t.keyScopeMap[key] {
 				return fmt.Errorf("duplicate key %s", v.GetDbKey())
 			}
-			t.keyScopeMap[scope+v.GetDbKey()] = true
+			t.keyScopeMap[key] = true
 		}
 		t.values = append(t.values, EntityObject[T]{value: v, scope: scope})
 	}
@@ -412,6 +417,8 @@ func getUniqueKeys(exporters map[string]TypeExporter) map[string]bool {
 
 func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUsers bool) *ExporterChain {
 
+	contents := &inventoryContents{byInventory: map[int]db.InventoryContent{}}
+
 	exporters := map[string]TypeExporter{
 		User:                    &UserExporter{MergeExisting: mergeExistingUsers},
 		Project:                 &ProjectExporter{},
@@ -424,6 +431,9 @@ func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUs
 		HostConfig:              &HostConfigExporter{},
 		SecretStorage:           &SecretStorageExporter{},
 		Inventory:               &InventoryExporter{},
+		InventoryHost:           &InventoryHostExporter{contents: contents},
+		InventoryGroup:          &InventoryGroupExporter{contents: contents},
+		InventorySource:         &InventorySourceExporter{contents: contents},
 		View:                    &ViewExporter{},
 		Role:                    &RoleExporter{},
 		RoleMapping:             &RoleMappingExporter{},
@@ -435,6 +445,7 @@ func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUs
 		Integration:             &IntegrationExporter{},
 		IntegrationExtractValue: &IntegrationExtractValueExporter{},
 		IntegrationMatcher:      &IntegrationMatcherExporter{},
+		IntegrationCall:         &IntegrationCallExporter{},
 		Task:                    &TaskExporter{},
 		//TaskStage:               &TaskStageExporter{},
 		Option: &OptionExporter{},

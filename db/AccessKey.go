@@ -24,7 +24,11 @@ const (
 	// single task. Such keys are bound to the task via TaskID, expire via
 	// ExpireAt, and are hidden from the project secrets list (non-empty owner).
 	AccessKeyTaskSecret AccessKeyOwner = "task"
-	AccessKeyShared     AccessKeyOwner = ""
+	// AccessKeyMcp marks the authorization token of one MCP server of an
+	// inventory. Such keys are bound to the server via McpID, deleted with it,
+	// and managed only through the inventory API, never through /keys.
+	AccessKeyMcp    AccessKeyOwner = "mcp"
+	AccessKeyShared AccessKeyOwner = ""
 )
 
 // IsValid reports whether t is one of the known key types. The API checks it
@@ -71,6 +75,10 @@ type AccessKey struct {
 
 	// EnvironmentID is an ID of environment which owns the access key.
 	EnvironmentID *int `db:"environment_id" json:"-" backup:"-"`
+
+	// McpID is set for keys with owner AccessKeyMcp: the MCP server
+	// (project__inventory_mcp) whose token this key holds.
+	McpID *int `db:"mcp_id" json:"-" backup:"-"`
 
 	// UserID is an ID of a user which owns the access key.
 	UserID *int `db:"user_id" json:"-" backup:"-"`
@@ -188,4 +196,28 @@ func (key *AccessKey) Validate(validateSecretFields bool) error {
 
 func (key *AccessKey) IsEnvironmentVariable() bool {
 	return key.SourceStorageID == nil && key.SourceStorageKey != nil
+}
+
+// VerificationToken is the shared secret an incoming webhook is verified
+// against by the token, HMAC, GitHub and Bitbucket methods: the value of a
+// string key, or the password of a login/password key.
+//
+// ok is false when the auth method needs that secret and the key cannot
+// provide it — wrong key type, unloaded key or an empty value — so the
+// request must be refused. It is never reported as an empty secret: with
+// the token method that would match a request carrying no header at all.
+// For none and BasicAuth, which do not use a shared secret, the secret is
+// empty and ok is true.
+func (key *AccessKey) VerificationToken() (secret string, ok bool) {
+
+	switch key.Type {
+	case AccessKeyString:
+		secret = key.String
+		ok = true
+	case AccessKeyLoginPassword:
+		secret = key.LoginPassword.Password
+		ok = true
+	}
+
+	return
 }

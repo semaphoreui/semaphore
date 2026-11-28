@@ -1,6 +1,17 @@
 <template>
-  <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null && endpoints != null">
-    <v-alert :value="formError" color="error" class="pb-2">{{ formError }} </v-alert>
+  <v-form
+    ref="form"
+    v-model="formValid"
+    v-if="item != null && endpoints != null"
+    data-testid="integrationGroupForm-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
+  >
+    <v-alert
+      :model-value="!!formError"
+      color="error"
+      class="pb-2"
+      data-testid="integrationGroupForm-error"
+    >{{ formError }} </v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -8,22 +19,26 @@
       :rules="[(v) => !!v || $t('name_required')]"
       required
       :disabled="formSaving"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
+      data-testid="integrationGroupForm-name"
     ></v-text-field>
 
+    <!-- The list 1 px under the field and at most 304 px high, as in the integration form. -->
     <v-autocomplete
       v-model="item.endpoint_id"
       :label="$t('endpoint')"
       :items="endpoints"
       item-value="id"
-      item-text="name"
+      item-title="name"
       :rules="[(v) => !!v || $t('endpointRequired')]"
       :disabled="formSaving"
       :no-data-text="$t('noEndpoints')"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       class="IntegrationGroupForm__endpoint"
+      :menu-props="{ maxHeight: 304, offset: 1 }"
+      data-testid="integrationGroupForm-endpointId"
     ></v-autocomplete>
 
     <v-checkbox
@@ -32,7 +47,8 @@
       :hint="$t('overrideAuthHint')"
       persistent-hint
       :disabled="formSaving"
-      class="mt-0 mb-4 IntegrationGroupForm__override"
+      class="mt-0 mb-6 IntegrationGroupForm__override"
+      data-testid="integrationGroupForm-authOverride"
     ></v-checkbox>
 
     <IntegrationAuthForm
@@ -89,17 +105,17 @@ export default {
     },
 
     afterLoadData() {
-      // The API omits empty fields; add them reactively so the inputs can bind.
+      // The API omits empty fields; add them so the inputs can bind.
       ['auth_method', 'auth_header'].forEach((field) => {
         if (this.item[field] === undefined) {
-          this.$set(this.item, field, '');
+          this.item[field] = '';
         }
       });
       if (this.item.auth_secret_id === undefined) {
-        this.$set(this.item, 'auth_secret_id', null);
+        this.item.auth_secret_id = null;
       }
       if (this.item.auth_override === undefined) {
-        this.$set(this.item, 'auth_override', false);
+        this.item.auth_override = false;
       }
     },
 

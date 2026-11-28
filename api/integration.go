@@ -11,9 +11,11 @@ import (
 	"hash"
 	"io"
 	"maps"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/conv"
 	"github.com/semaphoreui/semaphore/pro_interfaces"
@@ -77,44 +79,82 @@ func NewIntegrationController(
 
 // IntegrationRunResult is what one matching integration started: a task for
 // a template integration, a workflow run for a workflow integration, neither
-// when the start failed (the reason is in the log).
+// when the start failed.
 type IntegrationRunResult struct {
 	Task *db.Task
 	Run  *db.WorkflowRun
+	// Reason is why nothing started, empty when a task or a run did. It is
+	// logged and stored with the call so a failed webhook can be debugged.
+	Reason string
+}
+
+// sourceIP is the address the call came from: the one the audit middleware
+// resolved against the trusted proxies when audit logging is on, otherwise the
+// peer address of the connection.
+func sourceIP(r *http.Request) string {
+	if info, ok := audit.RequestFrom(r.Context()); ok && info.IP != "" {
+		return info.IP
+	}
+
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+
+	return r.RemoteAddr
+}
+
+// recordCall stores one call in the project's integration history. A failure to
+// store it is logged and otherwise ignored: the integration has already run.
+// The alias is a bearer secret and stays out of the log.
+func (c *IntegrationController) recordCall(
+	call db.IntegrationCall, started time.Time, outcome db.IntegrationCallOutcome, reason string,
+) {
+	call.Created = started
+	call.Duration = int(time.Since(started).Milliseconds())
+	call.Outcome = outcome
+	call.Reason = reason
+
+	if err := c.store.CreateIntegrationCall(call); err != nil {
+		log.WithFields(log.Fields{
+			"context":    "integrations",
+			"project_id": call.ProjectID,
+		}).WithError(err).Error("Failed to record the integration call")
+	}
 }
 
 // verifyAuth reports whether the request passes auth, whose key must already
-// be loaded (AuthSecret). The reason names what failed for the log; it is
-// never sent to the caller, who always gets 204. Every secret comparison is
-// constant-time, so a wrong token or password costs the same as a right one.
+// be loaded (AuthSecret). The reason names what failed for the log and the
+// call history; it is never sent to the caller, who always gets 204. Every
+// secret comparison is constant-time, so a wrong token or password costs the
+// same as a right one.
 func verifyAuth(r *http.Request, payload []byte, auth db.IntegrationAuth) (ok bool, reason string) {
 	// A key that cannot provide the shared secret refuses the request here,
 	// before the method-specific check.
 	secret, ok := auth.VerificationSecret()
 	if !ok {
-		return false, "auth secret is empty or its key type does not fit the auth method"
+		return false, "Auth secret is empty or its key type does not fit the auth method"
 	}
 
 	switch auth.AuthMethod {
 	case db.IntegrationAuthGitHub:
 		if !isValidHmacPayload(secret, r.Header.Get("X-Hub-Signature-256"), payload, "sha256=", sha256.New) {
-			return false, "invalid GitHub signature"
+			return false, "Invalid GitHub signature"
 		}
 	case db.IntegrationAuthBitbucket:
 		if !isValidHmacPayload(secret, r.Header.Get("x-hub-signature"), payload, "sha256=", sha256.New) {
-			return false, "invalid Bitbucket signature"
+			return false, "Invalid Bitbucket signature"
 		}
 	case db.IntegrationAuthHmac:
 		if !isValidHmacPayload(secret, r.Header.Get(auth.AuthHeader), payload, "", sha256.New) {
-			return false, "invalid HMAC-SHA256 signature"
+			return false, "Invalid HMAC-SHA256 signature"
 		}
 	case db.IntegrationAuthHmacSha512:
 		if !isValidHmacPayload(secret, r.Header.Get(auth.AuthHeader), payload, "", sha512.New) {
-			return false, "invalid HMAC-SHA512 signature"
+			return false, "Invalid HMAC-SHA512 signature"
 		}
 	case db.IntegrationAuthToken:
 		if !hmac.Equal([]byte(secret), []byte(r.Header.Get(auth.AuthHeader))) {
-			return false, "invalid verification token"
+			return false, "Invalid verification token"
 		}
 	case db.IntegrationAuthBasic:
 		if auth.AuthSecret.Type != db.AccessKeyLoginPassword {
@@ -125,19 +165,19 @@ func verifyAuth(r *http.Request, payload []byte, auth db.IntegrationAuth) (ok bo
 		}
 		login, password, present := r.BasicAuth()
 		if !present {
-			return false, "no BasicAuth credentials in the request"
+			return false, "No BasicAuth credentials in the request"
 		}
 		// Both are compared, whatever the first says, so the response time
 		// does not tell a wrong login from a wrong password.
 		loginOk := subtle.ConstantTimeCompare([]byte(login), []byte(auth.AuthSecret.LoginPassword.Login))
 		passwordOk := subtle.ConstantTimeCompare([]byte(password), []byte(auth.AuthSecret.LoginPassword.Password))
 		if loginOk&passwordOk != 1 {
-			return false, "invalid BasicAuth: incorrect login or password"
+			return false, "Invalid BasicAuth: incorrect login or password"
 		}
 	case db.IntegrationAuthNone:
 		// Nothing to check.
 	default:
-		return false, "unknown verification method: " + string(auth.AuthMethod)
+		return false, "Unknown verification method: " + string(auth.AuthMethod)
 	}
 
 	return true, ""
@@ -155,20 +195,31 @@ func matchAll(matchers []db.IntegrationMatcher, header http.Header, payload []by
 	return true
 }
 
+// authCheck is what checking the request against one auth configuration
+// gave. When the request did not pass, outcome and reason are what the call
+// history records for every integration behind that configuration.
+type authCheck struct {
+	ok      bool
+	outcome db.IntegrationCallOutcome
+	reason  string
+}
+
 // authorize loads the key of auth and checks the request against it. A
-// failure is logged, never reported to the caller.
-func (c *IntegrationController) authorize(r *http.Request, payload []byte, projectID int, auth db.IntegrationAuth, logger *log.Entry) bool {
+// failure is logged and recorded in the call history, never reported to the
+// caller.
+func (c *IntegrationController) authorize(r *http.Request, payload []byte, projectID int, auth db.IntegrationAuth, logger *log.Entry) authCheck {
 	if err := c.integrationService.FillAuthSecret(projectID, &auth); err != nil {
 		logger.WithError(err).Error("Could not load the auth secret")
-		return false
+		return authCheck{outcome: db.IntegrationCallError, reason: "Could not load the auth secret"}
 	}
 
 	ok, reason := verifyAuth(r, payload, auth)
 	if !ok {
 		logger.Warn("Webhook refused: " + reason)
+		return authCheck{outcome: db.IntegrationCallUnauthorized, reason: reason}
 	}
 
-	return ok
+	return authCheck{ok: true}
 }
 
 // ReceiveIntegration is the public webhook: the alias names an endpoint,
@@ -177,12 +228,19 @@ func (c *IntegrationController) authorize(r *http.Request, payload []byte, proje
 // each integration of an authorized group whose matchers all accept the
 // request runs. Whatever happens the caller gets 204: the alias is a bearer
 // secret and the response must not help guessing anything behind it.
+//
+// Every integration the call reached gets one row in the project's call
+// history, whatever it did with the call. A call to an unknown alias is not
+// recorded: the route is public, and recording it would let anyone fill the
+// table. The request body is kept only for a call that passed authorization.
 func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *http.Request) {
 
 	alias, ok := helpers.GetStrParamOrAbort("integration_alias", w, r)
 	if !ok {
 		return
 	}
+
+	received := time.Now()
 
 	// The alias itself is never logged.
 	logger := log.WithFields(log.Fields{
@@ -207,6 +265,7 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 		"endpoint_id": endpoint.ID,
 	})
 
+	// Read only once the alias resolved: an unknown alias never gets its body read.
 	payload, err := io.ReadAll(r.Body)
 	if err != nil {
 		logger.WithError(err).Error("Could not read the webhook body")
@@ -214,9 +273,24 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// unverified is a call nothing has authorized yet, so it carries no body:
+	// anyone who knows the URL can send one.
+	unverified := db.IntegrationCall{
+		ProjectID:   endpoint.ProjectID,
+		Alias:       alias,
+		SourceIP:    sourceIP(r),
+		Method:      r.Method,
+		RequestSize: len(payload),
+	}
+
+	body := string(payload)
+	verified := unverified
+	verified.RequestBody = &body
+
 	project, err := c.store.GetProject(endpoint.ProjectID)
 	if err != nil {
 		logger.WithError(err).Error("Could not load the endpoint's project")
+		c.recordCall(unverified, received, db.IntegrationCallError, "Could not retrieve the project")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -224,50 +298,108 @@ func (c *IntegrationController) ReceiveIntegration(w http.ResponseWriter, r *htt
 	groups, err := c.store.GetIntegrationGroupsByEndpoint(endpoint.ProjectID, endpoint.ID)
 	if err != nil {
 		logger.WithError(err).Error("Could not load the endpoint's integration groups")
+		c.recordCall(unverified, received, db.IntegrationCallError, "Could not retrieve the integration groups")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
 	// The endpoint's own auth is checked at most once per request, when the
-	// first group that inherits it comes up.
-	endpointChecked, endpointAuthorized := false, false
+	// first thing that needs it comes up.
+	var endpointAuth *authCheck
+	checkEndpointAuth := func() authCheck {
+		if endpointAuth == nil {
+			check := c.authorize(r, payload, endpoint.ProjectID, endpoint.IntegrationAuth, logger)
+			endpointAuth = &check
+		}
+		return *endpointAuth
+	}
+
+	recorded := false
 
 	for _, group := range groups {
+		groupStarted := time.Now()
 		groupLogger := logger.WithField("integration_group_id", group.ID)
-
-		var authorized bool
-		if group.AuthOverride {
-			authorized = c.authorize(r, payload, group.ProjectID, group.IntegrationAuth, groupLogger)
-		} else {
-			if !endpointChecked {
-				endpointAuthorized = c.authorize(r, payload, endpoint.ProjectID, endpoint.IntegrationAuth, logger)
-				endpointChecked = true
-			}
-			authorized = endpointAuthorized
-		}
-		if !authorized {
-			continue
-		}
 
 		integrations, err := c.store.GetIntegrationsByGroup(group.ProjectID, group.ID, true)
 		if err != nil {
 			groupLogger.WithError(err).Error("Could not load the group's integrations")
+			c.recordCall(unverified, groupStarted, db.IntegrationCallError, "Could not retrieve the integrations of an integration group")
+			recorded = true
+			continue
+		}
+
+		if len(integrations) == 0 {
+			// Nothing can run, so there is nothing to authorize or to record.
+			continue
+		}
+
+		var auth authCheck
+		if group.AuthOverride {
+			auth = c.authorize(r, payload, group.ProjectID, group.IntegrationAuth, groupLogger)
+		} else {
+			auth = checkEndpointAuth()
+		}
+
+		if !auth.ok {
+			for _, integration := range integrations {
+				call := unverified
+				call.IntegrationID = &integration.ID
+				call.IntegrationName = integration.Name
+				c.recordCall(call, groupStarted, auth.outcome, auth.reason)
+			}
+			recorded = true
 			continue
 		}
 
 		for _, integration := range integrations {
+			started := time.Now()
+
+			call := verified
+			call.IntegrationID = &integration.ID
+			call.IntegrationName = integration.Name
+			recorded = true
+
 			matchers, err := c.store.GetIntegrationMatchers(integration.ProjectID, db.RetrieveQueryParams{}, integration.ID)
 			if err != nil {
 				groupLogger.WithField("integration_id", integration.ID).WithError(err).Error("Could not retrieve matchers")
+				c.recordCall(call, started, db.IntegrationCallError, "Could not retrieve matchers")
 				continue
 			}
 
 			if !matchAll(matchers, r.Header, payload) {
+				c.recordCall(call, started, db.IntegrationCallSkipped, "No matcher matched the request")
 				continue
 			}
 
 			result := c.RunIntegration(integration, project, r, payload)
 			writeRunHeaders(w, endpoint, group, integration, result)
+
+			if task := result.Task; task != nil {
+				call.TaskID = &task.ID
+			}
+
+			if run := result.Run; run != nil {
+				call.RunID = &run.ID
+				call.WorkflowID = &run.WorkflowTemplateID
+				call.TaskID = run.RootTaskID
+			}
+
+			if result.Reason != "" {
+				c.recordCall(call, started, db.IntegrationCallError, result.Reason)
+			} else {
+				c.recordCall(call, started, db.IntegrationCallOK, "")
+			}
+		}
+	}
+
+	if !recorded {
+		// A real alias that starts nothing is the case a webhook author most
+		// needs to see. The endpoint's auth still decides whether the body is
+		// kept and how the call is named.
+		if auth := checkEndpointAuth(); auth.ok {
+			c.recordCall(verified, received, db.IntegrationCallSkipped, "The endpoint has no integrations")
+		} else {
+			c.recordCall(unverified, received, auth.outcome, auth.reason)
 		}
 	}
 
@@ -484,15 +616,15 @@ func (c *IntegrationController) RunIntegration(integration db.Integration, proje
 	log.Info(fmt.Sprintf("Running integration %d", integration.ID))
 
 	if integration.RunsWorkflow() {
-		result.Run = c.runWorkflowIntegration(integration, r, payload)
+		result.Run, result.Reason = c.runWorkflowIntegration(integration, r, payload)
 		return
 	}
 
-	result.Task = c.runTemplateIntegration(integration, r, payload)
+	result.Task, result.Reason = c.runTemplateIntegration(integration, r, payload)
 	return
 }
 
-func (c *IntegrationController) runTemplateIntegration(integration db.Integration, r *http.Request, payload []byte) *db.Task {
+func (c *IntegrationController) runTemplateIntegration(integration db.Integration, r *http.Request, payload []byte) (*db.Task, string) {
 	logger := log.WithFields(log.Fields{
 		"context":        "integrations",
 		"integration_id": integration.ID,
@@ -500,7 +632,7 @@ func (c *IntegrationController) runTemplateIntegration(integration db.Integratio
 
 	if integration.TemplateID == nil {
 		logger.Error("integration has no template")
-		return nil
+		return nil, "Integration has no template"
 	}
 
 	taskDefinition, err := GetTaskDefinition(
@@ -509,13 +641,13 @@ func (c *IntegrationController) runTemplateIntegration(integration db.Integratio
 		})
 	if err != nil {
 		logger.WithError(err).Error("Failed to get task definition")
-		return nil
+		return nil, "Failed to build the task definition"
 	}
 
 	tpl, err := c.store.GetTemplate(integration.ProjectID, *integration.TemplateID)
 	if err != nil {
-		log.Error(err)
-		return nil
+		logger.WithError(err).Error("Failed to get template")
+		return nil, "Failed to retrieve the template"
 	}
 
 	applyGitBranchParam(&taskDefinition, tpl.AllowOverrideBranchInTask)
@@ -526,11 +658,11 @@ func (c *IntegrationController) runTemplateIntegration(integration db.Integratio
 	ctx := audit.WithActor(r.Context(), audit.IntegrationActor(integration.ID, integration.Name))
 	task, err := pool.AddTaskFrom(ctx, audit.TriggerIntegration, taskDefinition, nil, "", integration.ProjectID, tpl.App.NeedTaskAlias())
 	if err != nil {
-		log.Error(err)
-		return nil
+		logger.WithError(err).Error("Failed to add task")
+		return nil, "Failed to start the task: " + err.Error()
 	}
 
-	return &task
+	return &task, ""
 }
 
 // runWorkflowIntegration starts a run of the integration's workflow. The
@@ -539,7 +671,7 @@ func (c *IntegrationController) runTemplateIntegration(integration db.Integratio
 // the webhook did not provide, a workflow without a root — is logged, and
 // the webhook still answers 204 like every other silently skipped
 // integration.
-func (c *IntegrationController) runWorkflowIntegration(integration db.Integration, r *http.Request, payload []byte) *db.WorkflowRun {
+func (c *IntegrationController) runWorkflowIntegration(integration db.Integration, r *http.Request, payload []byte) (*db.WorkflowRun, string) {
 	logger := log.WithFields(log.Fields{
 		"context":        "integrations",
 		"integration_id": integration.ID,
@@ -549,13 +681,13 @@ func (c *IntegrationController) runWorkflowIntegration(integration db.Integratio
 	workflow, err := c.workflowRepo.GetWorkflowTemplate(integration.ProjectID, *integration.WorkflowID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to load the integration's workflow")
-		return nil
+		return nil, "Failed to load the workflow"
 	}
 	if workflow.ID == 0 {
 		// The open-source workflow store answers every lookup with an empty
 		// template and no error: workflows are a Pro feature.
 		logger.Error("Workflows are not available in this build")
-		return nil
+		return nil, "Workflows are not available in this build"
 	}
 
 	params, err := GetWorkflowRunParams(
@@ -564,17 +696,17 @@ func (c *IntegrationController) runWorkflowIntegration(integration db.Integratio
 		})
 	if err != nil {
 		logger.WithError(err).Error("Failed to get workflow run params")
-		return nil
+		return nil, "Failed to build the workflow run parameters"
 	}
 
 	ctx := audit.WithActor(r.Context(), audit.IntegrationActor(integration.ID, integration.Name))
 	run, err := c.workflowService.StartWorkflow(ctx, workflow, params, nil)
 	if err != nil {
 		logger.WithError(err).Error("Failed to start workflow")
-		return nil
+		return nil, "Failed to start the workflow: " + err.Error()
 	}
 
-	return &run
+	return &run, ""
 }
 
 func Extract(extractValues []db.IntegrationExtractValue, h http.Header, payload []byte) (result map[string]any) {

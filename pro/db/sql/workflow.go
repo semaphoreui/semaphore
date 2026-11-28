@@ -15,7 +15,7 @@ func (d *WorkflowStoreImpl) GetWorkflowRunTasks(projectID int, runID int, params
 	return
 }
 
-func (d *WorkflowStoreImpl) GetWorkflowTemplates(projectID int, params db.RetrieveQueryParams) (res []db.WorkflowTemplate, err error) {
+func (d *WorkflowStoreImpl) GetWorkflowTemplates(projectID int, viewer *db.Viewer, params db.RetrieveQueryParams) (res []db.WorkflowTemplate, err error) {
 	return
 }
 
@@ -60,6 +60,14 @@ func (d *WorkflowStoreImpl) GetActiveWorkflowRuns() (res []db.WorkflowRun, err e
 }
 
 func (d *WorkflowStoreImpl) CreateWorkflowRun(run db.WorkflowRun) (res db.WorkflowRun, err error) {
+	return
+}
+
+func (d *WorkflowStoreImpl) CreateWorkflowRerun(run db.WorkflowRun, carries []db.WorkflowRunCarry) (res db.WorkflowRun, err error) {
+	return
+}
+
+func (d *WorkflowStoreImpl) GetWorkflowRunCarries(projectID int, runID int) (res []db.WorkflowRunCarry, err error) {
 	return
 }
 

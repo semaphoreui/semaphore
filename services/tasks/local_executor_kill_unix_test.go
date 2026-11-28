@@ -37,7 +37,7 @@ import (
 //  9. Wait for LocalExecutor.Run to return.
 func Test_LocalExecutor_KillIsIdempotent(t *testing.T) {
 	previousConfig := util.Config
-	util.Config = &util.ConfigType{Process: &util.ConfigProcess{}}
+	util.Config = &util.ConfigType{}
 	t.Cleanup(func() {
 		util.Config = previousConfig
 	})

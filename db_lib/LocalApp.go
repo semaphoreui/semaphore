@@ -5,14 +5,15 @@ import (
 	"os"
 
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/agentprompt"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 	"github.com/semaphoreui/semaphore/util"
 )
 
-// getHomeDir returns the HOME directory value for a task based on the configured
+// GetHomeDir returns the HOME directory value for a task based on the configured
 // HomeDirMode. For "project_home" it returns the project tmp directory.
 // For "template_dir" and "user_home" it returns the real user HOME (no override).
-func getHomeDir(repo db.Repository, templateID int) string {
+func GetHomeDir(repo db.Repository, templateID int) string {
 	switch util.Config.HomeDirMode {
 	case util.HomeDirModeProjectHome:
 		return util.Config.GetProjectTmpDir(repo.ProjectID)
@@ -23,12 +24,12 @@ func getHomeDir(repo db.Repository, templateID int) string {
 	}
 }
 
-// getEnvironmentVars builds the environment for child Git/tool processes.
+// BaseEnvironmentVars builds the environment for child Git/tool processes.
 // Only PATH, Config.ForwardedEnvVars, and Config.EnvVars are forwarded.
 // To forward proxy or SSL vars, add them to forwarded_env_vars in the config
 // (e.g. ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"])
 // or set the SEMAPHORE_FORWARDED_ENV_VARS environment variable.
-func getEnvironmentVars() []string {
+func BaseEnvironmentVars() []string {
 	envMap := make(map[string]string)
 
 	setEnvVar(envMap, "PATH", os.Getenv("PATH"))
@@ -52,7 +53,7 @@ func getEnvironmentVars() []string {
 }
 
 // BaseEnvironmentVar returns the value a child tool process gets for name from
-// the base environment (see getEnvironmentVars): Config.EnvVars, or the server
+// the base environment (see BaseEnvironmentVars): Config.EnvVars, or the server
 // environment when the variable is forwarded. Empty when it is not set there.
 func BaseEnvironmentVar(name string) string {
 	if v, ok := util.Config.EnvVars[name]; ok {
@@ -74,7 +75,10 @@ type LocalAppRunningArgs struct {
 	Inputs          map[string]string
 	TaskParams      any
 	TemplateParams  any
-	StopCh          <-chan struct{}
+	// AgentPromptValues are the variables and secrets the prompt of an AI
+	// agent can name in ${{ … }}; only an agent app reads them.
+	AgentPromptValues agentprompt.Values
+	StopCh            <-chan struct{}
 }
 
 type LocalAppInstallingArgs struct {

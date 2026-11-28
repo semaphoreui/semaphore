@@ -731,10 +731,16 @@ type stubIntegrationService struct {
 	password string
 	key      *db.AccessKey
 	calls    int
+
+	// failMethod is the auth method whose secret cannot be loaded, empty for none.
+	failMethod db.IntegrationAuthMethod
 }
 
 func (s *stubIntegrationService) FillAuthSecret(projectID int, auth *db.IntegrationAuth) error {
 	s.calls++
+	if s.failMethod != "" && auth.AuthMethod == s.failMethod {
+		return errors.New("secret unavailable")
+	}
 	if s.key != nil {
 		auth.AuthSecret = *s.key
 		return nil
@@ -995,6 +1001,215 @@ func TestGetTaskDefinitionGitBranchParam(t *testing.T) {
 	assert.Equal(t, "release/1.0", task.Params[db.TaskParamGitBranch])
 }
 
+// receivedCalls returns the call history recorded for the alias's project.
+func receivedCalls(t *testing.T, store db.Store, alias string) []db.IntegrationCall {
+	t.Helper()
+	endpoint, err := store.GetEndpointByAlias(alias)
+	require.NoError(t, err)
+
+	calls, err := store.GetIntegrationCalls(endpoint.ProjectID, db.RetrieveQueryParams{}, "", nil, false)
+	require.NoError(t, err)
+	return calls
+}
+
+// send posts payload to the alias and returns the response.
+func send(ctrl *IntegrationController, alias string, payload string, headers map[string]string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/api/integrations/"+alias, bytes.NewReader([]byte(payload)))
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	req = mux.SetURLVars(req, map[string]string{"integration_alias": alias})
+	w := httptest.NewRecorder()
+	ctrl.ReceiveIntegration(w, req)
+	return w
+}
+
+func TestReceiveIntegration_RecordsRejectedCall(t *testing.T) {
+	ctrl, store, alias, authHeader := setupHmacSha512ReceiveIntegration(t)
+
+	send(ctrl, alias, `{}`, map[string]string{authHeader: "deadbeef"})
+
+	calls := receivedCalls(t, store, alias)
+	require.Len(t, calls, 1)
+	assert.Equal(t, db.IntegrationCallUnauthorized, calls[0].Outcome)
+	assert.Equal(t, "Invalid HMAC-SHA512 signature", calls[0].Reason)
+	assert.Equal(t, alias, calls[0].Alias)
+	assert.Equal(t, http.MethodPost, calls[0].Method)
+	assert.Equal(t, "192.0.2.1", calls[0].SourceIP)
+	assert.Nil(t, calls[0].TaskID)
+	assert.Equal(t, 2, calls[0].RequestSize)
+	require.NotNil(t, calls[0].IntegrationID, "the call is filed under the integration it was meant for")
+	assert.Equal(t, "hmac-sha512 integration", calls[0].IntegrationName)
+
+	call, err := store.GetIntegrationCall(calls[0].ProjectID, calls[0].ID)
+	require.NoError(t, err)
+	assert.Nil(t, call.RequestBody, "a caller that failed auth does not get its body stored")
+}
+
+// A group that refuses the request records the refusal for each of its
+// integrations, so the history can be filtered by any of them.
+func TestReceiveIntegration_RecordsRejectedCallForEveryIntegrationOfTheGroup(t *testing.T) {
+	f := newReceiveFixture(t, db.IntegrationAuthToken, "X-Token", "token-alias")
+	group := f.addGroup(t, "group", nil)
+	first := f.addIntegration(t, group, "first", nil)
+	second := f.addIntegration(t, group, "second", nil)
+
+	svc := &stubIntegrationService{key: &db.AccessKey{Type: db.AccessKeyString, String: "s3cret"}}
+	ctrl := NewIntegrationController(f.store, svc, nil, nil)
+
+	send(ctrl, f.alias, `{}`, map[string]string{"X-Token": "wrong"})
+
+	calls := receivedCalls(t, f.store, f.alias)
+	require.Len(t, calls, 2)
+
+	var ids []int
+	for _, call := range calls {
+		assert.Equal(t, db.IntegrationCallUnauthorized, call.Outcome)
+		assert.Equal(t, "Invalid verification token", call.Reason)
+		require.NotNil(t, call.IntegrationID)
+		ids = append(ids, *call.IntegrationID)
+	}
+	assert.ElementsMatch(t, []int{first.ID, second.ID}, ids)
+	assert.Equal(t, 1, svc.calls, "the endpoint's auth is still checked once")
+	assert.Empty(t, f.store.ran)
+}
+
+// The template lookup is stubbed to fail, which is the last step before the
+// task pool: the call must be recorded with the reason the start failed.
+func TestReceiveIntegration_RecordsFailedStart(t *testing.T) {
+	ctrl, store, alias, authHeader := setupHmacSha512ReceiveIntegration(t)
+
+	payload := `{"event":"deploy"}`
+	send(ctrl, alias, payload, map[string]string{authHeader: hmacHashPayload("webhook-secret", []byte(payload), sha512.New)})
+
+	calls := receivedCalls(t, store, alias)
+	require.Len(t, calls, 1)
+	assert.Equal(t, db.IntegrationCallError, calls[0].Outcome)
+	assert.Equal(t, "Failed to retrieve the template", calls[0].Reason)
+	assert.Nil(t, calls[0].TaskID)
+}
+
+// An integration whose matchers refuse the request is recorded as skipped.
+func TestReceiveIntegration_RecordsSkippedCall(t *testing.T) {
+	f := newReceiveFixture(t, db.IntegrationAuthNone, "", "skip-alias")
+	group := f.addGroup(t, "group", nil)
+	integration := f.addIntegration(t, group, "push only", map[string]string{"X-Event": "push"})
+
+	ctrl := NewIntegrationController(f.store, &stubIntegrationService{}, nil, nil)
+
+	send(ctrl, f.alias, `{}`, map[string]string{"X-Event": "ping"})
+
+	calls := receivedCalls(t, f.store, f.alias)
+	require.Len(t, calls, 1)
+	assert.Equal(t, db.IntegrationCallSkipped, calls[0].Outcome)
+	assert.Equal(t, "No matcher matched the request", calls[0].Reason)
+	require.NotNil(t, calls[0].IntegrationID)
+	assert.Equal(t, integration.ID, *calls[0].IntegrationID)
+	assert.Empty(t, f.store.ran)
+}
+
+// A real alias that starts nothing must still show up in the history — that is
+// the case a webhook author debugs. An unknown alias stays unrecorded.
+func TestReceiveIntegration_RecordsAliasThatMatchedNothing(t *testing.T) {
+	f := newReceiveFixture(t, db.IntegrationAuthNone, "", "empty-endpoint-alias")
+	// A group without integrations starts nothing either.
+	f.addGroup(t, "empty group", nil)
+
+	ctrl := NewIntegrationController(f.store, &stubIntegrationService{}, nil, nil)
+
+	w := send(ctrl, f.alias, `{}`, nil)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	w = send(ctrl, "alias-that-does-not-exist", `{}`, nil)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	calls, err := f.store.GetIntegrationCalls(f.project.ID, db.RetrieveQueryParams{}, "", nil, false)
+	require.NoError(t, err)
+	require.Len(t, calls, 1, "only the real alias is recorded")
+	assert.Equal(t, db.IntegrationCallSkipped, calls[0].Outcome)
+	assert.Equal(t, "The endpoint has no integrations", calls[0].Reason)
+	assert.Equal(t, f.alias, calls[0].Alias)
+	assert.Nil(t, calls[0].IntegrationID)
+}
+
+// An endpoint that starts nothing still checks its auth: a caller who fails
+// it is recorded as refused, and its body is not kept.
+func TestReceiveIntegration_RecordsRejectedCallOfAnEmptyEndpoint(t *testing.T) {
+	f := newReceiveFixture(t, db.IntegrationAuthToken, "X-Token", "empty-token-alias")
+
+	svc := &stubIntegrationService{key: &db.AccessKey{Type: db.AccessKeyString, String: "s3cret"}}
+	ctrl := NewIntegrationController(f.store, svc, nil, nil)
+
+	send(ctrl, f.alias, `{"secret":"payload"}`, map[string]string{"X-Token": "wrong"})
+
+	calls := receivedCalls(t, f.store, f.alias)
+	require.Len(t, calls, 1)
+	assert.Equal(t, db.IntegrationCallUnauthorized, calls[0].Outcome)
+	assert.Equal(t, "Invalid verification token", calls[0].Reason)
+	assert.Nil(t, calls[0].IntegrationID)
+
+	call, err := f.store.GetIntegrationCall(f.project.ID, calls[0].ID)
+	require.NoError(t, err)
+	assert.Nil(t, call.RequestBody)
+}
+
+// One alias can fan out to several integrations. A failure on one must not hide
+// the rest from the history, nor stop them from running.
+func TestReceiveIntegration_FailureOnOneIntegrationDoesNotHideTheOthers(t *testing.T) {
+	f := newReceiveFixture(t, db.IntegrationAuthNone, "", "fan-out-alias")
+
+	// The first group checks the request with its own secret, which cannot be
+	// loaded; the second inherits the endpoint's auth.
+	brokenGroup := f.addGroup(t, "broken", &db.IntegrationAuth{AuthMethod: db.IntegrationAuthToken, AuthHeader: "X-Token"})
+	broken := f.addIntegration(t, brokenGroup, "broken", nil)
+	healthy := f.addIntegration(t, f.addGroup(t, "healthy", nil), "healthy", nil)
+
+	ctrl := NewIntegrationController(f.store, &stubIntegrationService{failMethod: db.IntegrationAuthToken}, nil, nil)
+
+	w := send(ctrl, f.alias, `{}`, nil)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	calls, err := f.store.GetIntegrationCalls(f.project.ID, db.RetrieveQueryParams{}, "", nil, false)
+	require.NoError(t, err)
+	require.Len(t, calls, 2, "both integrations are recorded, not just the one that failed")
+
+	byIntegration := map[int]db.IntegrationCall{}
+	for _, call := range calls {
+		require.NotNil(t, call.IntegrationID)
+		byIntegration[*call.IntegrationID] = call
+	}
+
+	assert.Equal(t, db.IntegrationCallError, byIntegration[broken.ID].Outcome)
+	assert.Equal(t, "Could not load the auth secret", byIntegration[broken.ID].Reason)
+
+	// The healthy one got as far as its template, which the fixture makes fail.
+	assert.Equal(t, []int{healthy.ID}, f.store.ran)
+	assert.Equal(t, "Failed to retrieve the template", byIntegration[healthy.ID].Reason)
+}
+
+// The body is the part of a call someone debugging a webhook needs most — and
+// it must reach the row of an alias that started nothing, too.
+func TestReceiveIntegration_RecordsRequestBody(t *testing.T) {
+	f := newReceiveFixture(t, db.IntegrationAuthNone, "", "body-alias")
+
+	ctrl := NewIntegrationController(f.store, &stubIntegrationService{}, nil, nil)
+
+	payload := `{"ref":"refs/heads/main","after":"abc123"}`
+	send(ctrl, f.alias, payload, map[string]string{"X-Hub-Signature-256": "sha256=must-not-be-stored"})
+
+	calls, err := f.store.GetIntegrationCalls(f.project.ID, db.RetrieveQueryParams{}, "", nil, false)
+	require.NoError(t, err)
+	require.Len(t, calls, 1)
+	assert.Equal(t, len(payload), calls[0].RequestSize)
+
+	call, err := f.store.GetIntegrationCall(f.project.ID, calls[0].ID)
+	require.NoError(t, err)
+	require.NotNil(t, call.RequestBody)
+	assert.Equal(t, payload, *call.RequestBody)
+	assert.NotContains(t, *call.RequestBody, "must-not-be-stored", "headers carry the secret and are not kept")
+}
+
 // receive posts payload to the integration alias with the given headers and
 // returns the status and whether the integration ran (reached GetTemplate).
 func receive(t *testing.T, ctrl *IntegrationController, store *templateProbeStore, alias string, payload []byte, headers map[string]string, basic *[2]string) (int, bool) {
@@ -1091,33 +1306,4 @@ func TestReceiveIntegration_Basic_RejectsStringKey(t *testing.T) {
 	ctrl, store, alias = setupReceiveIntegration(t, db.IntegrationAuthBasic, "", &stubIntegrationService{key: loginKey})
 	_, ran := receive(t, ctrl, store, alias, payload, nil, &[2]string{"bob", "pw"})
 	assert.True(t, ran)
-}
-
-// A key that holds no usable secret (wrong type, or never filled) must not
-// let a request through: with the token method an empty secret would
-// otherwise equal a missing header.
-func TestReceiveIntegration_EmptyOrUnfitSecretIsRefused(t *testing.T) {
-	payload := []byte(`{"event":"deploy"}`)
-	tests := []struct {
-		name string
-		key  *db.AccessKey
-	}{
-		{"ssh key", &db.AccessKey{Type: db.AccessKeySSH, SshKey: db.SshKey{PrivateKey: "k"}}},
-		{"none key", &db.AccessKey{Type: db.AccessKeyNone}},
-		{"empty string key", &db.AccessKey{Type: db.AccessKeyString}},
-		{"login/password key without a password", &db.AccessKey{Type: db.AccessKeyLoginPassword, LoginPassword: db.LoginPassword{Login: "bob"}}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl, store, alias := setupReceiveIntegration(t, db.IntegrationAuthToken, "X-Token", &stubIntegrationService{key: tt.key})
-
-			code, ran := receive(t, ctrl, store, alias, payload, map[string]string{}, nil)
-			assert.Equal(t, http.StatusNoContent, code)
-			assert.False(t, ran, "no header and an empty secret must not match")
-
-			code, ran = receive(t, ctrl, store, alias, payload, map[string]string{"X-Token": ""}, nil)
-			assert.Equal(t, http.StatusNoContent, code)
-			assert.False(t, ran, "an empty header and an empty secret must not match")
-		})
-	}
 }

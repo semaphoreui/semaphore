@@ -28,7 +28,8 @@ type SqlDbConnection struct {
 }
 
 type SqlDb struct {
-	connection SqlDbConnection
+	connection  SqlDbConnection
+	runnerCache db.RunnerCache
 }
 
 func (d *SqlDb) Sql() *gorp.DbMap {
@@ -143,7 +144,6 @@ func InitConfigCreateTestStoreAt(targetVersion *string) *SqlDb {
 			Events: &util.EventLogType{},
 			Tasks:  &util.TaskLogType{},
 		},
-		Process: &util.ConfigProcess{},
 		Runners: &util.RunnersConfig{},
 		Apps: map[string]util.App{
 			"ansible": {},
@@ -402,7 +402,14 @@ func CreateDb(dialect string) *SqlDb {
 		connection: SqlDbConnection{
 			dialect: dialect,
 		},
+		runnerCache: newMemoryRunnerCache(),
 	}
+}
+
+// SetRunnerCache replaces the in-memory runner cache, which is only correct
+// on a single node. Call it before the store serves requests.
+func (d *SqlDb) SetRunnerCache(cache db.RunnerCache) {
+	d.runnerCache = cache
 }
 
 func (d *SqlDbConnection) GetDialect() string {
@@ -703,6 +710,13 @@ func (d *SqlDb) getObjectRefs(projectID int, objectProps db.ObjectProps, objectI
 		return
 	}
 
+	refs.InventorySources = make([]db.ObjectReferrer, 0)
+
+	// Sources go with their inventory, so only a repository and an access key are held by them.
+	if objectProps.Type == db.RepositoryProps.Type || objectProps.Type == db.AccessKeyProps.Type {
+		refs.InventorySources, err = d.getObjectRefsFrom(projectID, objectProps, objectID, db.InventorySourceProps)
+	}
+
 	return
 }
 
@@ -744,7 +758,7 @@ func (d *SqlDb) getObjectRefsFrom(
 
 	if referringObjectProps.Type == db.ScheduleProps.Type {
 		var referringSchedules []db.Schedule
-		_, err = d.selectAll(&referringSchedules, "select template_id id from project__schedule where project_id = ? and ("+cond+")", vals...)
+		_, err = d.selectAll(&referringSchedules, "select template_id id from project__schedule where project_id = ? and template_id is not null and ("+cond+")", vals...)
 		if err != nil {
 			return
 		}
@@ -1073,6 +1087,11 @@ func (d *SqlDb) GetTaskStats(projectID int, templateID *int, unit db.TaskStatUni
 
 	if templateID != nil {
 		q = q.Where("template_id=?", *templateID)
+	}
+
+	if filtered(filter.Viewer) {
+		where, args := visibleTasksWhere(projectID, filter.Viewer.UserID)
+		q = q.Where(where, args...)
 	}
 
 	if filter.UserID != nil {

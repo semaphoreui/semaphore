@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -317,6 +318,8 @@ func (t *TaskRunner) run() {
 		}
 	}
 
+	t.RecordInventory()
+
 	err = t.job.Run(username, incomingVersion, t.Alias)
 
 	// Remote jobs only dispatch the task to a runner; their completion is
@@ -326,6 +329,8 @@ func (t *TaskRunner) run() {
 		handedOff = true
 		return
 	}
+
+	t.saveHosts()
 
 	// A SIGTERM handler may exit successfully, so cancellation is independent
 	// of whether Run returns a nil or non-nil error.
@@ -370,6 +375,30 @@ func (t *TaskRunner) run() {
 	t.startAutorunTasks()
 }
 
+// RecordInventory stores the inventory this copy of the task hands to execution, the template may change later.
+func (t *TaskRunner) RecordInventory() {
+	var inventoryID *int
+	if t.Inventory.ID != 0 {
+		id := t.Inventory.ID
+		inventoryID = &id
+	}
+
+	recorded := t.Task.EffectiveInventoryID
+	if recorded == nil && inventoryID == nil {
+		return
+	}
+	if recorded != nil && inventoryID != nil && *recorded == *inventoryID {
+		return
+	}
+
+	if err := t.pool.store.UpdateTaskEffectiveInventory(t.Task.ProjectID, t.Task.ID, inventoryID); err != nil {
+		log.WithError(err).WithField("task_id", t.Task.ID).Error("failed to record the task inventory")
+		return
+	}
+
+	t.Task.EffectiveInventoryID = inventoryID
+}
+
 // saveOutputs stores the outputs of a locally run workflow task on its row.
 // It runs before the task is marked successful: in HA mode any node may
 // progress the workflow run as soon as it sees the terminal status in the
@@ -392,6 +421,28 @@ func (t *TaskRunner) saveOutputs() error {
 	t.Task.Artifacts = outputs
 
 	return nil
+}
+
+// saveHosts stores the host stats of a locally run task. It runs for every
+// outcome, and a failure to store them never changes the task status.
+func (t *TaskRunner) saveHosts() {
+	provider, ok := t.job.(HostsProvider)
+	if !ok {
+		return
+	}
+
+	hosts := provider.Hosts()
+	if hosts == nil {
+		return
+	}
+
+	if err := t.pool.StoreTaskHosts(t, *hosts); err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"task_id": t.Task.ID,
+			"context": "task_hosts",
+		}).Error("failed to save task hosts")
+		t.Log("Host stats were not saved. More details in the server logs.")
+	}
 }
 
 // finishRun records the end of a task run, persists it, and notifies the pool
@@ -571,6 +622,10 @@ func (t *TaskRunner) populateWorkflowDetails() error {
 		t.Task.WorkflowTemplateID = &run.WorkflowTemplateID
 	}
 
+	if run.Version != nil && *run.Version != "" {
+		t.Task.WorkflowVersion = run.Version
+	}
+
 	return nil
 }
 
@@ -597,30 +652,10 @@ func (t *TaskRunner) populateDetails() error {
 	t.alert = project.Alert
 	t.alertChat = project.AlertChat
 
-	// get project users
-	projectUsers, err := t.pool.store.GetProjectUsers(t.Template.ProjectID, db.RetrieveQueryParams{})
+	// Live updates and alerts go to whoever may see the task.
+	t.users, err = t.pool.store.GetTaskViewers(t.Template.ProjectID, t.Template.ID, t.Task.WorkflowRunID)
 	if err != nil {
 		return t.prepareError(err, "Users not found!")
-	}
-
-	users := make(map[int]bool)
-
-	for _, user := range projectUsers {
-		users[user.ID] = true
-	}
-
-	admins, err := t.pool.store.GetAllAdmins()
-	if err != nil {
-		return err
-	}
-
-	for _, admin := range admins {
-		users[admin.ID] = true
-	}
-
-	t.users = []int{}
-	for userID := range users {
-		t.users = append(t.users, userID)
 	}
 
 	// get inventory
@@ -646,6 +681,28 @@ func (t *TaskRunner) populateDetails() error {
 				return t.prepareError(err, "Template Inventory not found!")
 			}
 		}
+	}
+
+	if t.Inventory.Type == db.InventoryManaged {
+		var content db.InventoryContent
+		content, err = t.pool.store.GetInventoryContent(t.Inventory.ProjectID, t.Inventory.ID)
+		if err != nil {
+			return err
+		}
+
+		hosts := slices.DeleteFunc(content.Hosts, func(host db.InventoryHost) bool { return !host.Enabled })
+		var sourceVariables []string
+		for _, source := range content.Sources {
+			sourceVariables = append(sourceVariables, source.Variables)
+		}
+
+		t.Inventory.Inventory, err = buildManagedInventory(t.Inventory.VariablesText(), sourceVariables, hosts, content.Groups, content.Members)
+		if err != nil {
+			t.Log("Managed inventory is invalid: " + err.Error())
+			return err
+		}
+		t.Inventory.Type = db.InventoryStaticYaml
+		t.Inventory.Variables = nil
 	}
 
 	// get repository

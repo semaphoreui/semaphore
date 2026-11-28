@@ -1,5 +1,8 @@
-<template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="integration != null">
+<template>
+  <div
+    v-if="integration != null"
+    data-testid="integration-page"
+  >
     <IntegrationExtractorCrumb
       :integration="integration"
       :group="group"
@@ -7,16 +10,23 @@
     />
 
     <div class="px-4 pt-3 pb-4 IntegrationExtractor__meta">
-      <div v-if="endpoint != null" class="mb-3">
-        <v-icon small class="mr-1">mdi-webhook</v-icon>
+      <div v-if="endpoint != null" class="mb-3" data-testid="integration-endpoint">
+        <v-icon size="small" class="mr-1">mdi-webhook</v-icon>
         {{ $t('endpoint') }}:
         <router-link
           :to="`/project/${projectId}/integrations/endpoints`"
           class="IntegrationExtractor__endpoint"
+          data-testid="integration-endpointLink"
         >{{ endpoint.name }}</router-link>
       </div>
 
-      <v-alert type="info" text dense class="d-inline-block mb-0 IntegrationExtractor__hint">
+      <v-alert
+        type="info"
+        variant="tonal"
+        density="compact"
+        class="mb-0 IntegrationExtractorInfo"
+        data-testid="integration-matchersInfo"
+      >
         {{ $t('matchersHint') }}
       </v-alert>
     </div>
@@ -37,6 +47,14 @@
     />
   </div>
 </template>
+<style lang="scss">
+// The info alert as wide as its text, the icon in front of it (Vuetify 2 `d-inline-block` on a
+// flex wrapper). The alert of Vuetify 4 is a grid: `d-inline-block` would drop the grid and put
+// the icon over the text, so it is an inline grid instead.
+.IntegrationExtractorInfo {
+  display: inline-grid;
+}
+</style>
 <script>
 import axios from 'axios';
 

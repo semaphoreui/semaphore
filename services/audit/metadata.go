@@ -126,6 +126,12 @@ type TemplatePermissionMetadata struct {
 	Permissions []string `json:"permissions,omitempty"`
 }
 
+type WorkflowPermissionMetadata struct {
+	WorkflowID  int      `json:"workflow_id"`
+	Role        RoleRef  `json:"role,omitzero"`
+	Permissions []string `json:"permissions,omitempty"`
+}
+
 type SettingsMetadata struct {
 	// Keys only, never values.
 	Keys []string `json:"keys"`
@@ -162,6 +168,9 @@ func GlobalPermissionNames(p db.GlobalPermission) []string {
 
 func PermissionNames(p db.ProjectUserPermission) []string {
 	names := []string{}
+	if p&db.CanReadProject != 0 {
+		names = append(names, "read_project")
+	}
 	if p&db.CanRunProjectTasks != 0 {
 		names = append(names, "run_tasks")
 	}
@@ -173,6 +182,15 @@ func PermissionNames(p db.ProjectUserPermission) []string {
 	}
 	if p&db.CanManageProjectUsers != 0 {
 		names = append(names, "manage_users")
+	}
+	if p&db.CanRunWorkflows != 0 {
+		names = append(names, "run_workflows")
+	}
+	if p&db.CanEditWorkflows != 0 {
+		names = append(names, "edit_workflows")
+	}
+	if p&db.CanApproveWorkflows != 0 {
+		names = append(names, "approve_workflows")
 	}
 	return names
 }
@@ -196,8 +214,11 @@ type TemplateInventoryMetadata struct {
 	InventoryID int `json:"inventory_id"`
 }
 
+// ScheduleMetadata names what the schedule starts: exactly one of
+// TemplateID and WorkflowID is set.
 type ScheduleMetadata struct {
-	TemplateID int `json:"template_id"`
+	TemplateID int `json:"template_id,omitempty"`
+	WorkflowID int `json:"workflow_id,omitempty"`
 }
 
 // IntegrationMetadata names the integration's group and what it starts:
@@ -234,6 +255,21 @@ type IntegrationGroupMetadata struct {
 
 type HostConfigMetadata struct {
 	Type string `json:"type"`
+}
+
+// InventoryMetadata names the inventory type. For an mcp inventory it also
+// counts its MCP servers after the save and the token changes the save made;
+// never a URL or a token. For a managed inventory it names the top-level
+// variable keys the save changed; never their values.
+type InventoryMetadata struct {
+	Type             string   `json:"type"`
+	McpServers       int      `json:"mcp_servers,omitempty"`
+	TokensCreated    int      `json:"tokens_created,omitempty"`
+	TokensUpdated    int      `json:"tokens_updated,omitempty"`
+	TokensDeleted    int      `json:"tokens_deleted,omitempty"`
+	AddedVariables   []string `json:"added_variables,omitempty"`
+	RemovedVariables []string `json:"removed_variables,omitempty"`
+	ChangedVariables []string `json:"changed_variables,omitempty"`
 }
 
 type EnvironmentMetadata struct {
@@ -278,6 +314,87 @@ type TaskMetadata struct {
 	TemplateID int `json:"template_id"`
 }
 
+// The target of a workflow approval event is the workflow; the run and the node say which step.
+type WorkflowApprovalMetadata struct {
+	RunID  int `json:"run_id"`
+	NodeID int `json:"node_id"`
+}
+
 type RunnerRegisterMetadata struct {
 	Token string `json:"token"`
+}
+
+// InventoryVariablesMetadata names the top-level variable keys that changed, never their values.
+// It is not the metadata of an event by itself: InventoryMetadata and InventoryHostMetadata carry its fields.
+type InventoryVariablesMetadata struct {
+	AddedVariables   []string `json:"added_variables,omitempty"`
+	RemovedVariables []string `json:"removed_variables,omitempty"`
+	ChangedVariables []string `json:"changed_variables,omitempty"`
+}
+
+type InventoryHostMetadata struct {
+	InventoryID   int    `json:"inventory_id"`
+	InventoryName string `json:"inventory_name"`
+	// Field names only: name, description, variables.
+	ChangedFields    []string `json:"changed_fields,omitempty"`
+	OldName          string   `json:"old_name,omitempty"`
+	AddedVariables   []string `json:"added_variables,omitempty"`
+	RemovedVariables []string `json:"removed_variables,omitempty"`
+	ChangedVariables []string `json:"changed_variables,omitempty"`
+	// Names of the groups a deleted host was in.
+	Groups []string `json:"groups,omitempty"`
+	// A list too long for one record is split, part runs from 1 to parts.
+	Part  int `json:"part,omitempty"`
+	Parts int `json:"parts,omitempty"`
+}
+
+type InventoryGroupMetadata struct {
+	InventoryID   int    `json:"inventory_id"`
+	InventoryName string `json:"inventory_name"`
+	// Field names only: name, description, variables.
+	ChangedFields    []string `json:"changed_fields,omitempty"`
+	OldName          string   `json:"old_name,omitempty"`
+	AddedVariables   []string `json:"added_variables,omitempty"`
+	RemovedVariables []string `json:"removed_variables,omitempty"`
+	ChangedVariables []string `json:"changed_variables,omitempty"`
+	// Names of the hosts whose link changed.
+	Hosts []string `json:"hosts,omitempty"`
+	// Names of the child groups whose link changed, or of all children of a deleted group.
+	Children []string `json:"children,omitempty"`
+	// Names of the groups a deleted group was a direct child of.
+	Parents []string `json:"parents,omitempty"`
+	// Direct hosts of a deleted group are only counted, there may be thousands.
+	HostCount int `json:"host_count,omitempty"`
+	// A list too long for one record is split, part runs from 1 to parts.
+	Part  int `json:"part,omitempty"`
+	Parts int `json:"parts,omitempty"`
+}
+
+type InventorySourceMetadata struct {
+	InventoryID   int    `json:"inventory_id"`
+	InventoryName string `json:"inventory_name"`
+	Type          string `json:"type"`
+	// Name of the repository, empty for a source without one.
+	Repository string `json:"repository,omitempty"`
+	// Settings of the type, the path for git. Secrets are not among them.
+	Params map[string]any `json:"params,omitempty"`
+	// Hosts and groups a deleted source took with it, only counted as there may be thousands.
+	Hosts  int `json:"hosts,omitempty"`
+	Groups int `json:"groups,omitempty"`
+}
+
+// InventorySourceSyncMetadata counts what a sync changed, adopted rows are also counted as changed.
+type InventorySourceSyncMetadata struct {
+	InventoryID   int    `json:"inventory_id"`
+	InventoryName string `json:"inventory_name"`
+	HostsAdded    int    `json:"hosts_added"`
+	HostsChanged  int    `json:"hosts_changed"`
+	HostsRemoved  int    `json:"hosts_removed"`
+	GroupsAdded   int    `json:"groups_added"`
+	GroupsChanged int    `json:"groups_changed"`
+	GroupsRemoved int    `json:"groups_removed"`
+	Adopted       int    `json:"adopted"`
+	Skipped       int    `json:"skipped"`
+	// VariablesChanged is true when the variables of the source changed
+	VariablesChanged bool `json:"variables_changed"`
 }

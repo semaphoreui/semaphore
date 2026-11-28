@@ -83,3 +83,47 @@ func TestStartService_ExporterError(t *testing.T) {
 	assert.ErrorContains(t, err, "bad ca")
 	assert.Empty(t, store.rows)
 }
+
+// The caller's address must be resolved even with audit recording off: other
+// features store it, and `handlers.ProxyHeaders` has already overwritten
+// RemoteAddr from X-Forwarded-For by the time a handler runs.
+func TestWrap_ResolvesClientAddrWhenDisabled(t *testing.T) {
+	s, err := StartService(&fakeStore{}, &util.AuditConfig{}, "", &fakeExporter{})
+	require.NoError(t, err)
+
+	var got RequestInfo
+	var ok bool
+
+	handler := s.Wrap(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		got, ok = RequestFrom(r.Context())
+	}))
+
+	r := httptest.NewRequest(http.MethodPost, "/api/integrations/some-alias", nil)
+	r.RemoteAddr = "198.51.100.7:51234"
+	r.Header.Set("X-Forwarded-For", "1.2.3.4")
+
+	handler.ServeHTTP(httptest.NewRecorder(), r)
+
+	require.True(t, ok, "the request info must be in the context")
+	assert.Equal(t, "198.51.100.7", got.IP, "an untrusted peer cannot forge its address")
+	assert.Empty(t, got.ID, "the request id stays an audit concern")
+}
+
+func TestWrap_HonoursForwardedForFromATrustedProxy(t *testing.T) {
+	s, err := StartService(&fakeStore{},
+		&util.AuditConfig{TrustedProxyCIDRs: []string{"198.51.100.0/24"}}, "", &fakeExporter{})
+	require.NoError(t, err)
+
+	var got RequestInfo
+	handler := s.Wrap(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		got, _ = RequestFrom(r.Context())
+	}))
+
+	r := httptest.NewRequest(http.MethodPost, "/api/integrations/some-alias", nil)
+	r.RemoteAddr = "198.51.100.7:51234"
+	r.Header.Set("X-Forwarded-For", "203.0.113.9")
+
+	handler.ServeHTTP(httptest.NewRecorder(), r)
+
+	assert.Equal(t, "203.0.113.9", got.IP)
+}

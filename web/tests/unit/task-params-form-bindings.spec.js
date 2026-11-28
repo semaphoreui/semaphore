@@ -1,7 +1,6 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { mount } from '@vue/test-utils';
 import TaskParamsForm from '@/components/TaskParamsForm.vue';
 import SurveyFields from '@/components/SurveyFields.vue';
 
@@ -21,13 +20,13 @@ const template = {
 const workflowVars = [{ name: 'tag', title: 'Release tag', type: '' }];
 
 function mountForm(props = {}) {
-  const localVue = createLocalVue();
   return mount(TaskParamsForm, {
-    localVue,
-    vuetify: new Vuetify(),
-    propsData: { value: { environment: '{"image_tag":"static"}' }, template, ...props },
-    mocks: { $t: (k, params) => (params ? `${k}:${JSON.stringify(params)}` : k) },
-    stubs: { SurveyFields: true, ArgsPicker: true },
+    // v-model of a Vue 3 component: modelValue / update:modelValue (Vue 2: value / input)
+    props: { modelValue: { environment: '{"image_tag":"static"}' }, template, ...props },
+    global: {
+      mocks: { $t: (k, params) => (params ? `${k}:${JSON.stringify(params)}` : k) },
+      stubs: { SurveyFields: true, ArgsPicker: true },
+    },
   });
 }
 
@@ -58,13 +57,13 @@ describe('TaskParamsForm.vue — survey fields and bindings', () => {
     expect(w.emitted('unbind')).to.deep.equal([['image_tag']]);
   });
 
-  it('still emits input with the environment when a survey value changes', async () => {
+  it('still emits update:modelValue with the environment when a survey value changes', async () => {
     const w = mountForm();
     await settle();
-    const before = (w.emitted('input') || []).length;
+    const before = (w.emitted('update:modelValue') || []).length;
     w.vm.editedEnvironment.image_tag = '1.2.3';
     await w.vm.$nextTick();
-    const emitted = w.emitted('input');
+    const emitted = w.emitted('update:modelValue');
     expect(emitted.length).to.be.greaterThan(before);
     expect(JSON.parse(emitted[emitted.length - 1][0].environment).image_tag).to.equal('1.2.3');
   });

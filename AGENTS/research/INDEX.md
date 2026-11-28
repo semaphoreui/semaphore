@@ -35,6 +35,8 @@ maintained, not a full export of the MCP catalogue.
 | `RESEARCH@e5c7579df7` | Progressive disclosure rules for rare options in the template form (used for Galaxy args). |
 | `RESEARCH@702f04c19a` | In-app contextual help panel: offline, build-embedded docs in the Vue app. |
 | `RESEARCH@7732ef5556` | How GitLab documents Docker/Kubernetes runner executors — model for the Pro executor docs. |
+| `RESEARCH@8e21867f35` | Ограничение роста истории входящих вебхуков: сроки хранения у GitLab/GitHub/Stripe/Svix, CWE-779 и механика batch-удаления — читать перед изменением лимитов `project__integration_call`. |
+| `RESEARCH@0942dcc2ba` | Защита публичного endpoint интеграций: авто-блокировка после N ошибок (GitLab, Bitbucket, Svix, Zapier), rate limiting, HMAC и единообразные ответы — читать перед изменением блокировки и лимитов вызовов интеграций (TASK@ED649B82EB). |
 | `RESEARCH@d8d16e3974` | Per-job secret delivery to remote workers in HA systems — basis for task-bound survey secrets. |
 | `RESEARCH@6a7e8ecd1b` | Encryption key separation for secrets at rest (one key vs purpose-specific keys, rotation). |
 | `RESEARCH@c81c73d4f9` | How competitors deliver audit logs to SIEM reliably (retries, buffering, integrity). |
@@ -42,4 +44,5 @@ maintained, not a full export of the MCP catalogue.
 | `RESEARCH@61d07ff4d6` | New Ansible features relevant to Semaphore (ANSIBLE_SECRETS_INPUT_FILES and later). |
 | `RESEARCH@84146f310f` | Overview of the separate `integration-tests` Java/Bookwright repo: libraries, layout, pipeline. |
 | `RESEARCH@037925c6fb` | Distributing the GPG signing key for release artifacts. |
+| `RESEARCH@0d78729623` | How other products keep a stored secret from being sent to a user-chosen URL (CI/CD credential stores, webhooks and data sources, MCP clients and gateways) — read before changing who may attach a Key Store secret to an MCP server or any other outbound URL (TASK@C315B29E9C). |
 | `RESEARCH@68b3ce04ef` | Best practices of CLI-clients (gh, glab, doctl, kubectl, aws, clig.dev): command tree, config, exit codes — based on `semaphore client` (TASK@F7CC584F59). |

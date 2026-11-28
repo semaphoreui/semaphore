@@ -55,6 +55,11 @@ func truncateAll() {
 		"task",
 		"session",
 		"project__environment",
+		"project__inventory_group_child",
+		"project__inventory_group_host",
+		"project__inventory_group",
+		"project__inventory_host",
+		"project__inventory_source",
 		"project__inventory",
 		"project__repository",
 		"project__template",
@@ -194,6 +199,40 @@ func addUser() *db.User {
 }
 
 // addGlobalRole creates a global role that grants the audit log, so that it can be assigned to a user.
+func addTemplatePerm() int {
+	role, err := store.GetSharedRoleBySlug("task_runner")
+	if err != nil {
+		panic(err)
+	}
+	perm, err := store.CreateTemplateRole(db.TemplateRolePerm{
+		ProjectID:   userProject.ID,
+		TemplateID:  templateID,
+		RoleID:      role.ID,
+		Permissions: db.CanRunProjectTasks,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return perm.ID
+}
+
+func addWorkflowPerm() int {
+	role, err := store.GetSharedRoleBySlug("task_runner")
+	if err != nil {
+		panic(err)
+	}
+	perm, err := store.CreateWorkflowRole(db.WorkflowRolePerm{
+		ProjectID:   userProject.ID,
+		WorkflowID:  workflowID,
+		RoleID:      role.ID,
+		Permissions: db.CanRunWorkflows,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return perm.ID
+}
+
 func addGlobalRole() *db.GlobalRole {
 	uid := getUUID()
 	role, err := globalRoleStore.CreateGlobalRole(db.GlobalRole{
@@ -251,8 +290,9 @@ func addInvite() *db.ProjectInvite {
 }
 
 func addSchedule() *db.Schedule {
+	tplID := int(templateID)
 	schedule, err := store.CreateSchedule(db.Schedule{
-		TemplateID: int(templateID),
+		TemplateID: &tplID,
 		CronFormat: "* * * 1 *",
 		ProjectID:  userProject.ID,
 	})
@@ -430,10 +470,14 @@ func addWorkflow() *db.WorkflowTemplate {
 }
 
 func addWorkflowRun() *db.WorkflowRun {
+	return addWorkflowRunWithStatus(db.WorkflowRunRunning)
+}
+
+func addWorkflowRunWithStatus(status db.WorkflowRunStatus) *db.WorkflowRun {
 	run, err := workflowStore.CreateWorkflowRun(db.WorkflowRun{
 		ProjectID:          userProject.ID,
 		WorkflowTemplateID: workflowID,
-		Status:             db.WorkflowRunRunning,
+		Status:             status,
 		Start:              new(tz.Now()),
 	})
 	if err != nil {
@@ -496,6 +540,18 @@ func isProBuild() bool {
 // implementation enables them only for an active PRO plan, which the Dredd stand does not have.
 func globalRolesEnabled() bool {
 	return proFeatures.GetFeatures(&db.User{}, "").GlobalRolesManagement
+}
+
+// customRolesEnabled reports whether the server under test lets the test user write object grants: the PRO
+// implementation enables them only for an active Enterprise plan, which the Dredd stand does not have.
+func customRolesEnabled() bool {
+	return proFeatures.GetFeatures(&db.User{}, "").CustomRolesManagement
+}
+
+// hostsEnabled reports whether the server under test offers the hosts registry: the PRO implementation enables it
+// only for an active PRO plan, which the Dredd stand does not have.
+func hostsEnabled() bool {
+	return proFeatures.GetFeatures(&db.User{}, "").Hosts
 }
 
 // HELPERS

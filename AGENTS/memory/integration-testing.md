@@ -65,6 +65,10 @@
   a fresh DB), `GOWORK=off go build -o bin/semaphore ./cli` and the hooks, `PATH=$HOME/go/bin:$PATH`
   for goodman, then `dredd --config .dredd/dredd.testing.yml` (server-wrapper starts the server on
   58427 itself). 54 skips (ws, login, OIDC, 400s, Pro workflow endpoints) are the normal baseline.
+- A path parameter's `x-example` in `api-docs.yml` is its 1-based index in `pathSubPatterns`
+  (`.dredd/hooks/capabilities.go`), so two branches that each add parameters take the same numbers
+  and merge without a textual clash in `api-docs.yml`: renumber one side in both files (2026-11-28,
+  `endpoint_id` / `group_id` moved 25/26 → 30/31).
 - A field the server nulls (e.g. `Inventory.repository_id` for non-file types since `6a4a04ba`)
   must be `x-nullable: true` in `api-docs.yml`; the openapi2 parser Dredd uses honours it.
 - Pro Dredd run (2026-10-15, exercises the 14 workflow endpoints the OSS run skips): build server

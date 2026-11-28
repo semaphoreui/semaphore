@@ -3,12 +3,14 @@
     <v-chip
       v-for="p in ROLE_PERMISSIONS[scope].filter(x => permissions & x.permission)"
       :key="p.permission"
-      small
+      size="small"
+      variant="flat"
       :color="p.color"
-      :text-color="p.textColor"
+      :class="p.textColor && `text-${p.textColor}`"
+      :data-testid="`permissionChips-${p.permission}`"
     >{{ $t(p.label) }}</v-chip>
 
-    <span v-if="permissions === 0" class="text--secondary">
+    <span v-if="permissions === 0" class="text-medium-emphasis" data-testid="permissionChips-none">
       &mdash;
     </span>
   </div>
@@ -41,5 +43,10 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+/* A small chip of Vuetify 2 is 24 px high (`$chip-sizes`), Vuetify 4 makes it 26 px. */
+.v-chip.v-chip--size-small {
+  --v-chip-height: 24px;
 }
 </style>

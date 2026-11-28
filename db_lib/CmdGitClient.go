@@ -1,12 +1,14 @@
 package db_lib
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 
@@ -21,22 +23,29 @@ type CmdGitClient struct {
 }
 
 func (c CmdGitClient) makeCmd(
+	ctx context.Context,
 	r GitRepository,
 	targetDir GitRepositoryDirType,
 	installation ssh.AccessKeyInstallation,
 	args ...string,
 ) *exec.Cmd {
-	cmd := exec.Command("git") //nolint:gosec
+	cmd := exec.CommandContext(ctx, "git") //nolint:gosec
+	if !r.Deadline.IsZero() {
+		// git leaves the transfer to helper processes, which outlive it when only git is killed
+		cmd.SysProcAttr = appSysProcAttr()
+		cmd.Cancel = func() error { return killCommandTree(cmd) }
+		cmd.WaitDelay = 10 * time.Second
+	}
 
-	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnvWithHostConfigs(r.HostConfigs)...)
+	cmd.Env = append(BaseEnvironmentVars(), installation.GetGitEnvWithHostConfigs(r.HostConfigs)...)
 
 	// Unlike the app runners, git gets HOME only when nothing has set it already,
-	// and never gets an empty one: getHomeDir returns "" for an out-of-range
+	// and never gets an empty one: GetHomeDir returns "" for an out-of-range
 	// home_dir_mode, and `HOME=` would hide the user's ~/.gitconfig and credential
 	// helper, which is the difference between a working and a failing clone. An
 	// explicit env_vars: {"HOME": ""} is treated the same way, for the same reason.
 	if !hasNonEmptyEnvVar(cmd.Env, "HOME") {
-		if homeDir := getHomeDir(r.Repository, r.TemplateID); homeDir != "" {
+		if homeDir := GetHomeDir(r.Repository, r.TemplateID); homeDir != "" {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", homeDir))
 		} else if h := os.Getenv("HOME"); h != "" {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", h))
@@ -70,8 +79,6 @@ func (c CmdGitClient) makeCmd(
 
 	cmd.Args = append(cmd.Args, args...)
 
-	cmd.SysProcAttr = util.Config.GetSysProcAttr()
-
 	return cmd
 }
 
@@ -85,7 +92,10 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 
 	defer keyInstallation.Destroy() //nolint: errcheck
 
-	cmd := c.makeCmd(r, targetDir, keyInstallation, args...)
+	ctx, cancel := r.deadlineContext()
+	defer cancel()
+
+	cmd := c.makeCmd(ctx, r, targetDir, keyInstallation, args...)
 
 	finishLog := r.Logger.LogCmd(cmd)
 	defer finishLog()
@@ -101,7 +111,10 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 
 	defer keyInstallation.Destroy() //nolint: errcheck
 
-	bytes, err := c.makeCmd(r, targetDir, keyInstallation, args...).Output()
+	ctx, cancel := r.deadlineContext()
+	defer cancel()
+
+	bytes, err := c.makeCmd(ctx, r, targetDir, keyInstallation, args...).Output()
 	if err != nil {
 		return
 	}
@@ -135,9 +148,6 @@ func (c CmdGitClient) Clone(r GitRepository) error {
 
 	targetPath := r.GetFullPath()
 	if err := os.MkdirAll(targetPath, 0755); err != nil {
-		return err
-	}
-	if err := util.ChownDir(targetPath); err != nil {
 		return err
 	}
 

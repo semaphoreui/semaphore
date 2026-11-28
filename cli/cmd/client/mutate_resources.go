@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -533,14 +534,21 @@ func scheduleMutable(res resource[db.ScheduleWithTpl]) mutable[db.ScheduleWithTp
   semaphore client schedule create -p 1 --template 12 --cron "@hourly" --inactive`,
 		updateExample: `  semaphore client schedule update nightly --cron "0 4 * * *"`,
 		validate: func(cmd *cobra.Command, s db.ScheduleWithTpl) error {
-			return requireFields(cmd, "--template", nz(s.TemplateID), "--cron", s.CronFormat)
+			// A schedule runs a template or a workflow; one of the two is enough.
+			target := nzRef(s.TemplateID)
+			if target == "" {
+				target = nzRef(s.WorkflowID)
+			}
+			return requireFields(cmd, "--template or --workflow", target, "--cron", s.CronFormat)
 		},
 		bind: func(cmd *cobra.Command) applyFunc[db.ScheduleWithTpl] {
 			var name, template, cron string
+			var workflow int
 			var inactive bool
 			fl := cmd.Flags()
 			fl.StringVar(&name, "name", "", "Schedule name")
 			fl.StringVar(&template, "template", "", "Template id or name to run")
+			fl.IntVar(&workflow, "workflow", 0, "Workflow id to run instead of a template (Pro)")
 			fl.StringVar(&cron, "cron", "", "Cron expression, e.g. \"0 3 * * *\" or @daily")
 			fl.BoolVar(&inactive, "inactive", false, "Create the schedule disabled")
 			return func(cmd *cobra.Command, r *runtime, api *apiclient.Client, p int, s *db.ScheduleWithTpl) error {
@@ -556,12 +564,23 @@ func scheduleMutable(res resource[db.ScheduleWithTpl]) mutable[db.ScheduleWithTp
 				if fl.Changed("cron") {
 					s.CronFormat = cron
 				}
+				if template != "" && fl.Changed("workflow") {
+					return errors.New("--template and --workflow are mutually exclusive")
+				}
 				if template != "" {
 					id, err := resolveRef(cmd, r, api, p, templateResource(), template)
 					if err != nil {
 						return err
 					}
-					s.TemplateID = id
+					s.TemplateID = &id
+					s.WorkflowID = nil
+				}
+				if fl.Changed("workflow") {
+					if workflow <= 0 {
+						return errors.New("--workflow must be a positive workflow id")
+					}
+					s.WorkflowID = &workflow
+					s.TemplateID = nil
 				}
 				return nil
 			}
@@ -1344,4 +1363,12 @@ func nz(n int) string {
 		return ""
 	}
 	return fmt.Sprint(n)
+}
+
+// nzRef is nz for an optional id: empty when unset or zero.
+func nzRef(n *int) string {
+	if n == nil {
+		return ""
+	}
+	return nz(*n)
 }

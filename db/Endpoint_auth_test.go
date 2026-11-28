@@ -74,6 +74,38 @@ func TestIntegrationAuth_VerificationSecret(t *testing.T) {
 	}
 }
 
+// The key alone does not refuse an empty value: IntegrationAuth.VerificationSecret
+// does, and it is what the webhook receiver asks.
+func TestAccessKey_VerificationToken(t *testing.T) {
+	stringKey := AccessKey{Type: AccessKeyString, String: "tok"}
+	loginKey := AccessKey{Type: AccessKeyLoginPassword, LoginPassword: LoginPassword{Login: "bob", Password: "pw"}}
+	sshKey := AccessKey{Type: AccessKeySSH, SshKey: SshKey{PrivateKey: "k"}}
+
+	tests := []struct {
+		name           string
+		key            AccessKey
+		expectedSecret string
+		expectedOk     bool
+	}{
+		{"a string key gives its value", stringKey, "tok", true},
+		{"a login/password key gives the password", loginKey, "pw", true},
+		{"an empty string key gives an empty token", AccessKey{Type: AccessKeyString}, "", true},
+		{"a login/password key without a password gives an empty token", AccessKey{Type: AccessKeyLoginPassword, LoginPassword: LoginPassword{Login: "bob"}}, "", true},
+		{"an ssh key gives no token", sshKey, "", false},
+		{"a none key gives no token", AccessKey{Type: AccessKeyNone}, "", false},
+		{"an unloaded key gives no token", AccessKey{}, "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got, ok := tt.key.VerificationToken()
+
+			assert.Equal(t, tt.expectedSecret, got)
+			assert.Equal(t, tt.expectedOk, ok)
+		})
+	}
+}
+
 func TestEndpoint_Validate(t *testing.T) {
 	assert.NoError(t, (&Endpoint{Name: "hooks"}).Validate())
 	assert.ErrorContains(t, (&Endpoint{}).Validate(), "No Name set for endpoint")

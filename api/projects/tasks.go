@@ -11,6 +11,7 @@ import (
 
 	"github.com/semaphoreui/semaphore/api/helpers"
 	"github.com/semaphoreui/semaphore/db"
+	"github.com/semaphoreui/semaphore/pkg/agentlog"
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/services/audit"
 	"github.com/semaphoreui/semaphore/services/tasks"
@@ -76,6 +77,7 @@ func sanitizeClientTask(task db.Task) db.Task {
 	task.WorkflowRunID = nil
 	task.WorkflowNodeID = nil
 	task.WorkflowTemplateID = nil
+	task.WorkflowVersion = nil
 	task.Artifacts = nil
 	task.RunnerID = nil
 	return task
@@ -107,6 +109,12 @@ func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var validationErr *common_errors.ValidationError
+	if errors.As(err, &validationErr) {
+		helpers.WriteErrorStatus(w, validationErr.Error(), http.StatusBadRequest)
+		return
+	}
+
 	if err != nil {
 		log.WithFields(log.Fields{
 			"context":     "AddTask",
@@ -133,6 +141,11 @@ func (c *TaskController) AddTask(w http.ResponseWriter, r *http.Request) {
 func (c *TaskController) writeTasksList(w http.ResponseWriter, r *http.Request, params db.RetrieveQueryParams, pageSize int) {
 	project := helpers.GetFromContext(r, "project").(db.Project)
 	tpl := helpers.GetFromContext(r, "template")
+	user := helpers.UserFromContext(r)
+	if params.TaskFilter == nil {
+		params.TaskFilter = &db.TaskFilter{}
+	}
+	params.TaskFilter.Viewer = &db.Viewer{UserID: user.ID, Admin: user.Admin}
 
 	var err error
 	var taskList []db.TaskWithTpl
@@ -231,8 +244,22 @@ func (c *TaskController) GetTaskPermissionsMiddleware(next http.Handler) http.Ha
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-
 		permissions |= perm
+
+		if task.WorkflowRunID != nil {
+			perm, err = c.store.GetWorkflowRunPermission(project.ID, *task.WorkflowRunID, user.ID)
+			if err != nil {
+				helpers.WriteError(w, err)
+				return
+			}
+			permissions |= perm
+		}
+
+		// A task the member may not read is not there for them.
+		if !user.Admin && permissions&db.CanReadProject == 0 {
+			helpers.WriteError(w, db.ErrNotFound)
+			return
+		}
 
 		r = helpers.SetContextValue(r, "permissions", permissions)
 		next.ServeHTTP(w, r)
@@ -251,8 +278,7 @@ func (c *TaskController) GetTaskMiddleware(next http.Handler) http.Handler {
 
 		task, err := c.store.GetTask(project.ID, taskID)
 		if err != nil {
-			util.LogErrorF(err, log.Fields{"error": "Bad request. Cannot get task from database"})
-			w.WriteHeader(http.StatusBadRequest)
+			helpers.WriteError(w, err)
 			return
 		}
 
@@ -268,6 +294,16 @@ func (c *TaskController) NewTaskMiddleware(next http.Handler) http.Handler {
 		var taskObj db.Task
 
 		if !helpers.Bind(w, r, &taskObj) {
+			return
+		}
+
+		// Cleared before the permission check: a run named in the body must not lend its grants.
+		taskObj = sanitizeClientTask(taskObj)
+
+		// A template named in the body is resolved here, so the grant lookup sees its id.
+		project := helpers.GetFromContext(r, "project").(db.Project)
+		if _, err := c.resolveTaskTemplate(project.ID, &taskObj); err != nil {
+			helpers.WriteError(w, err)
 			return
 		}
 
@@ -345,12 +381,15 @@ func (c *TaskController) GetTaskOutput(w http.ResponseWriter, r *http.Request) {
 	helpers.WriteJSON(w, http.StatusOK, output)
 }
 
+// outputToBytes makes the plain text of the log lines: without ANSI codes,
+// and with an agent's events (see agentlog) as the text they stand for.
 func outputToBytes(lines []db.TaskOutput) []byte {
 	var buffer bytes.Buffer
 	for _, line := range lines {
-		output := util.ClearFromAnsiCodes(line.Output)
-		buffer.WriteString(output)
-		buffer.WriteByte('\n')
+		for _, text := range agentlog.Lines(line.Output) {
+			buffer.WriteString(util.ClearFromAnsiCodes(text))
+			buffer.WriteByte('\n')
+		}
 	}
 	return buffer.Bytes()
 }
@@ -547,7 +586,8 @@ func (c *TaskController) GetTaskStats(w http.ResponseWriter, r *http.Request) {
 		tplID = &id
 	}
 
-	filter := db.TaskFilter{}
+	user := helpers.UserFromContext(r)
+	filter := db.TaskFilter{Viewer: &db.Viewer{UserID: user.ID, Admin: user.Admin}}
 
 	if start := r.URL.Query().Get("start"); start != "" {
 		d, err := time.Parse("2006-01-02", start)

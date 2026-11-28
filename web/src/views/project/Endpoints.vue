@@ -1,7 +1,13 @@
 <template xmlns:v-slot="http://www.w3.org/1999/XSL/Transform">
-  <div v-if="items != null">
+  <div
+    v-if="items != null"
+    data-testid="endpoints-page"
+    :data-state="items.length === 0 ? 'empty' : 'ready'"
+  >
     <EditDialog
       v-model="editDialog"
+      test-id="endpointsDialog"
+      help-doc="endpoint"
       :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
       :title="itemId === 'new' ? $t('NewEndpoint') : $t('EditEndpoint')"
       :max-width="450"
@@ -21,6 +27,7 @@
     </EditDialog>
 
     <ObjectRefsDialog
+      test-id="endpointsRefsDialog"
       :object-title="$t('endpoint')"
       :object-refs="itemRefs"
       :project-id="projectId"
@@ -28,6 +35,7 @@
     />
 
     <YesNoDialog
+      test-id="endpointsDeleteDialog"
       :title="$t('DeleteEndpoint')"
       :text="$t('DeleteEndpointMsg')"
       v-model="deleteItemDialog"
@@ -36,11 +44,18 @@
 
     <!-- Shown on the Endpoints tab of the Integrations page, the toolbar is that page's. -->
     <v-toolbar flat v-if="!embedded">
-      <v-app-bar-nav-icon @click="showDrawer()"></v-app-bar-nav-icon>
-      <v-toolbar-title>{{ $t('endpoints') }}</v-toolbar-title>
+      <v-app-bar-nav-icon
+        @click="showDrawer()"
+        data-testid="endpoints-drawerToggle"
+      ></v-app-bar-nav-icon>
+      <v-toolbar-title
+        class="flex-0-1"
+        data-testid="endpoints-title"
+      >{{ $t('endpoints') }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn
         color="primary"
+        variant="elevated"
         v-if="can(USER_PERMISSIONS.manageProjectResources)"
         @click="editItem('new')"
         data-testid="endpoints-new"
@@ -51,63 +66,88 @@
     <v-divider v-if="!embedded" />
 
     <!-- One card per endpoint, laid out like the integrations: header, meta line, its items. -->
-    <div
-      class="px-4 py-4 Endpoints__list"
-      style="max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px); margin: auto"
-    >
-      <div class="pb-4 text--secondary" style="font-size: 14px">
+    <div class="px-4 py-4 Endpoints__list" data-testid="endpoints-list">
+      <div class="pb-4 text-medium-emphasis" style="font-size: 14px">
         {{ $t('endpointDescription') }}
       </div>
 
-      <div v-if="items.length === 0" class="text--secondary py-6 text-center">
+      <div
+        v-if="items.length === 0"
+        class="text-medium-emphasis py-6 text-center"
+        data-testid="endpoints-empty"
+      >
         {{ $t('noEndpoints') }}
       </div>
 
       <v-card
         v-for="item of items"
         :key="item.id"
-        outlined
+        flat
+        border
         class="mb-4 Endpoints__card"
         :data-testid="`endpoint-${item.id}`"
       >
-        <v-card-title class="pb-2 Endpoints__cardHeader">
+        <v-card-title class="d-flex align-center pb-2 Endpoints__cardHeader">
           <v-icon class="mr-2">mdi-webhook</v-icon>
-          <span class="Endpoints__name">{{ item.name }}</span>
+          <span class="Endpoints__name" data-testid="endpoints-name">{{ item.name }}</span>
 
           <v-spacer></v-spacer>
 
           <template v-if="can(USER_PERMISSIONS.manageProjectResources)">
             <v-btn
               color="primary"
-              small
-              text
+              size="small"
+              variant="text"
               class="mr-1"
               :disabled="endpointAliases(item.id) == null"
               @click="addAlias(item.id)"
+              data-testid="endpoints-addAlias"
             >
-              <v-icon small left>mdi-plus</v-icon>
+              <v-icon size="small" start>mdi-plus</v-icon>
               {{ $t('AddAlias') }}
             </v-btn>
-            <v-btn icon small class="mr-1" @click="editItem(item.id)">
-              <v-icon small>mdi-pencil</v-icon>
+            <v-btn
+              icon
+              size="small"
+              variant="text"
+              class="mr-1"
+              @click="editItem(item.id)"
+              data-testid="endpoints-edit"
+            >
+              <v-icon size="small">mdi-pencil</v-icon>
             </v-btn>
-            <v-btn icon small @click="askDeleteItem(item.id)">
-              <v-icon small>mdi-delete</v-icon>
+            <v-btn
+              icon
+              size="small"
+              variant="text"
+              @click="askDeleteItem(item.id)"
+              data-testid="endpoints-delete"
+            >
+              <v-icon size="small">mdi-delete</v-icon>
             </v-btn>
           </template>
         </v-card-title>
 
         <v-card-subtitle class="pb-2 Endpoints__cardMeta">
-          <span class="mr-4">
-            <v-icon small class="mr-1">mdi-shield-key-outline</v-icon>
+          <span class="mr-4" data-testid="endpoints-auth">
+            <v-icon size="small" class="mr-1">mdi-shield-key-outline</v-icon>
             {{ $t('authMethod') }}: {{ authMethodTitle(item.auth_method) }}
           </span>
-          <span v-if="item.description" class="Endpoints__description">{{ item.description }}</span>
+          <span
+            v-if="item.description"
+            class="Endpoints__description"
+            data-testid="endpoints-description"
+          >{{ item.description }}</span>
         </v-card-subtitle>
 
         <v-divider />
 
-        <v-card-text class="Endpoints__aliases">
+        <v-card-text
+          class="Endpoints__aliases"
+          data-testid="endpoints-aliases"
+          :data-state="endpointAliases(item.id) == null
+            ? 'loading' : (endpointAliases(item.id).length === 0 ? 'empty' : 'ready')"
+        >
           <v-progress-circular
             v-if="endpointAliases(item.id) == null"
             indeterminate
@@ -117,33 +157,48 @@
 
           <div
             v-else-if="endpointAliases(item.id).length === 0"
-            class="text--secondary"
+            class="text-medium-emphasis"
+            data-testid="endpoints-aliasesEmpty"
           >{{ $t('noAliases') }}</div>
 
-          <div
-            v-else
-            v-for="alias of endpointAliases(item.id)"
-            :key="alias.id"
-            class="Endpoints__alias d-flex align-center"
-          >
-            <code class="mr-2">{{ alias.url }}</code>
-
-            <CopyClipboardButton :text="alias.url" :success-message="$t('aliasUrlCopied')" />
-
-            <v-btn
-              v-if="can(USER_PERMISSIONS.manageProjectResources)"
-              icon
-              small
-              @click="deleteAlias(item.id, alias.id)"
+          <template v-else>
+            <div
+              v-for="alias of endpointAliases(item.id)"
+              :key="alias.id"
+              class="Endpoints__alias d-flex align-center"
+              data-testid="endpoints-alias"
             >
-              <v-icon small>mdi-delete</v-icon>
-            </v-btn>
-          </div>
+              <code class="mr-2" data-testid="endpoints-aliasUrl">{{ alias.url }}</code>
+
+              <CopyClipboardButton
+                :text="alias.url"
+                :success-message="$t('aliasUrlCopied')"
+                test-id="endpoints-aliasCopy"
+              />
+
+              <v-btn
+                v-if="can(USER_PERMISSIONS.manageProjectResources)"
+                icon
+                size="small"
+                variant="text"
+                @click="deleteAlias(item.id, alias.id)"
+                data-testid="endpoints-aliasDelete"
+              >
+                <v-icon size="small">mdi-delete</v-icon>
+              </v-btn>
+            </div>
+          </template>
         </v-card-text>
       </v-card>
     </div>
   </div>
 </template>
+<style lang="scss">
+.Endpoints__list {
+  max-width: calc(var(--breakpoint-xl) - var(--nav-drawer-width) - 200px);
+  margin: auto;
+}
+</style>
 <script>
 import axios from 'axios';
 

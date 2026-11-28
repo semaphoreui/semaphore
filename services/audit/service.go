@@ -27,13 +27,15 @@ func StartService(
 	nodeID string,
 	exporter pro_interfaces.AuditExporter,
 ) (*Service, error) {
-	if !conf.IsEnabled() {
-		return &Service{recorder: Nop{}}, nil
-	}
-
+	// Parsed before the enabled check: the trusted proxies decide the caller's
+	// address, which is resolved whether or not audit recording is on.
 	trusted, err := conf.TrustedProxies()
 	if err != nil {
 		return nil, err
+	}
+
+	if !conf.IsEnabled() {
+		return &Service{recorder: Nop{}, trusted: trusted}, nil
 	}
 
 	// Started first, so it exports the start event.
@@ -82,7 +84,7 @@ func (s *Service) Recorder() Recorder {
 
 func (s *Service) Wrap(h http.Handler) http.Handler {
 	if !s.enabled {
-		return h
+		return ClientAddrMiddleware(s.trusted)(h)
 	}
 	return RequestMiddleware(s.trusted)(h)
 }

@@ -1,43 +1,44 @@
 <template>
-  <div class="IntegrationAuthForm">
+  <div class="IntegrationAuthForm" data-testid="integrationAuthForm">
     <v-select
       v-model="authMethod"
       :label="$t('authMethod')"
       :items="authMethods"
       item-value="id"
-      item-text="title"
+      item-title="title"
       :disabled="disabled"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       class="IntegrationAuthForm__method"
+      data-testid="integrationAuthForm-authMethod"
     ></v-select>
 
-    <HighlightedCard v-if="authMethod">
-      <template>
-        <v-text-field
-          v-if="HEADER_AUTH_METHODS.includes(authMethod)"
-          v-model="authHeader"
-          :label="$t('authHeader')"
-          :disabled="disabled"
-          outlined
-          dense
-          class="IntegrationAuthForm__header"
-        ></v-text-field>
+    <HighlightedCard v-if="authMethod" data-testid="integrationAuthForm-auth">
+      <v-text-field
+        v-if="HEADER_AUTH_METHODS.includes(authMethod)"
+        v-model="authHeader"
+        :label="$t('authHeader')"
+        :disabled="disabled"
+        variant="outlined"
+        density="compact"
+        class="IntegrationAuthForm__header"
+        data-testid="integrationAuthForm-authHeader"
+      ></v-text-field>
 
-        <v-select
-          v-model="authSecretId"
-          :label="$t('integrationAuthSecret')"
-          clearable
-          :items="authSecretKeys || []"
-          :loading="keys == null"
-          item-value="id"
-          item-text="name"
-          :disabled="disabled"
-          outlined
-          dense
-          class="IntegrationAuthForm__secret"
-        ></v-select>
-      </template>
+      <v-select
+        v-model="authSecretId"
+        :label="$t('integrationAuthSecret')"
+        clearable
+        :items="authSecretKeys || []"
+        :loading="keys == null"
+        item-value="id"
+        item-title="name"
+        :disabled="disabled"
+        variant="outlined"
+        density="compact"
+        class="IntegrationAuthForm__secret"
+        data-testid="integrationAuthForm-authSecretId"
+      ></v-select>
     </HighlightedCard>
   </div>
 </template>
@@ -54,10 +55,11 @@ import { authMethods, allowedSecretKeyTypes, HEADER_AUTH_METHODS } from '@/lib/i
 export default {
   components: { HighlightedCard },
   props: {
-    value: { type: Object, required: true },
+    modelValue: { type: Object, required: true },
     projectId: [Number, String],
     disabled: Boolean,
   },
+  emits: ['update:modelValue'],
   data() {
     return {
       keys: null,
@@ -85,7 +87,7 @@ export default {
   computed: {
     authMethod: {
       get() {
-        return this.value.auth_method || '';
+        return this.modelValue.auth_method || '';
       },
       set(method) {
         this.update({ auth_method: method });
@@ -93,7 +95,7 @@ export default {
     },
     authHeader: {
       get() {
-        return this.value.auth_header || '';
+        return this.modelValue.auth_header || '';
       },
       set(header) {
         this.update({ auth_header: header });
@@ -101,7 +103,7 @@ export default {
     },
     authSecretId: {
       get() {
-        return this.value.auth_secret_id == null ? null : this.value.auth_secret_id;
+        return this.modelValue.auth_secret_id == null ? null : this.modelValue.auth_secret_id;
       },
       set(id) {
         this.update({ auth_secret_id: id == null ? null : id });
@@ -117,7 +119,7 @@ export default {
   },
   methods: {
     update(patch) {
-      this.$emit('input', { ...this.value, ...patch });
+      this.$emit('update:modelValue', { ...this.modelValue, ...patch });
     },
 
     dropUnfitSecret() {

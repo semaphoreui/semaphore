@@ -37,6 +37,9 @@ var globalRoleAssignment *db.GlobalRoleAssignment
 var repoID int
 var hostConfigID int
 var inventoryID int
+var inventoryHostID int
+var inventoryGroupID int
+var inventorySourceID int
 var environmentID int
 var templateID int
 var endpointID int
@@ -48,18 +51,22 @@ var endpointAliasID int
 var workflowID int
 var workflowRunID int
 var workflowNodeID int
+var permID int
 
 var capabilities = map[string][]string{
-	"user":        {},
-	"project":     {"user"},
-	"repository":  {"access_key"},
-	"host_config": {"access_key"},
-	"inventory":   {"repository"},
-	"environment": {"repository"},
-	"template":    {"repository", "inventory", "environment", "view"},
-	"task":        {"template"},
-	"schedule":    {"template"},
-	"view":        {},
+	"user":             {},
+	"project":          {"user"},
+	"repository":       {"access_key"},
+	"host_config":      {"access_key"},
+	"inventory":        {"repository"},
+	"inventory_host":   {"repository"},
+	"inventory_group":  {"inventory_host"},
+	"inventory_source": {"repository"},
+	"environment":      {"repository"},
+	"template":         {"repository", "inventory", "environment", "view"},
+	"task":             {"template"},
+	"schedule":         {"template"},
+	"view":             {},
 	// The generated body carries auth_secret_id, which alterRequestBody points at userKey.
 	"endpoint":                {"project", "access_key"},
 	"endpoint_alias":          {"endpoint"},
@@ -72,7 +79,10 @@ var capabilities = map[string][]string{
 	"global_runner":           {},
 	"workflow":                {"template"},
 	"workflow_run":            {"workflow"},
+	"workflow_run_finished":   {"workflow"},
 	"workflow_approval":       {"workflow_run"},
+	"template_perm":           {"template"},
+	"workflow_perm":           {"workflow"},
 	"global_role":             {"user"},
 }
 
@@ -151,6 +161,48 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			})
 			printError(err)
 			inventoryID = res.ID
+		case "inventory_host":
+			res, err := store.CreateInventory(db.Inventory{
+				ProjectID: userProject.ID,
+				Name:      "ITM-" + uid,
+				Type:      db.InventoryManaged,
+			})
+			printError(err)
+			inventoryID = res.ID
+			host, err := store.CreateInventoryHost(db.InventoryHost{
+				ProjectID:   userProject.ID,
+				InventoryID: res.ID,
+				Name:        "ith-" + uid + ".example.org",
+				Enabled:     true,
+			}, nil)
+			printError(err)
+			inventoryHostID = host.ID
+		case "inventory_group":
+			group, err := store.CreateInventoryGroup(db.InventoryGroup{
+				ProjectID:   userProject.ID,
+				InventoryID: inventoryID,
+				Name:        "itg_" + uid,
+			}, nil)
+			printError(err)
+			inventoryGroupID = group.ID
+		case "inventory_source":
+			res, err := store.CreateInventory(db.Inventory{
+				ProjectID: userProject.ID,
+				Name:      "ITS-" + uid,
+				Type:      db.InventoryManaged,
+			})
+			printError(err)
+			inventoryID = res.ID
+			source, err := store.CreateInventorySource(db.InventorySource{
+				ProjectID:    userProject.ID,
+				InventoryID:  res.ID,
+				Name:         "its-" + uid,
+				Type:         db.InventorySourceGit,
+				RepositoryID: &repoID,
+				Params:       db.MapStringAnyField{"path": "hosts.yml"},
+			})
+			printError(err)
+			inventorySourceID = source.ID
 		case "environment":
 			pwd := "test-pass"
 			env := "{}"
@@ -230,9 +282,16 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 		case "workflow_run":
 			workflowRun = addWorkflowRun()
 			workflowRunID = workflowRun.ID
+		case "workflow_run_finished":
+			workflowRun = addWorkflowRunWithStatus(db.WorkflowRunFailed)
+			workflowRunID = workflowRun.ID
 		case "workflow_approval":
 			workflowApproval = addWorkflowApproval()
 			workflowNodeID = workflowApproval.WorkflowNodeID
+		case "template_perm":
+			permID = addTemplatePerm()
+		case "workflow_perm":
+			permID = addWorkflowPerm()
 		case "global_role":
 			globalRole = addGlobalRole()
 			globalRoleAssignment = addGlobalRoleAssignment(userPathTestUser.ID, globalRole.ID)
@@ -308,8 +367,13 @@ var pathSubPatterns = []func() string{
 		}
 		return strconv.Itoa(globalRole.ID)
 	}, // global role_id, x-example: 24
-	func() string { return strconv.Itoa(endpointID) },         // endpoint_id, x-example: 25
-	func() string { return strconv.Itoa(integrationGroupID) }, // group_id, x-example: 26
+	func() string { return strconv.Itoa(permID) },             // perm_id, x-example: 25
+	func() string { return "0" },                              // host_id, x-example: 26, the stand has no hosts
+	func() string { return strconv.Itoa(inventoryHostID) },    // inventory_host_id, x-example: 27
+	func() string { return strconv.Itoa(inventoryGroupID) },   // inventory_group_id, x-example: 28
+	func() string { return strconv.Itoa(inventorySourceID) },  // inventory_source_id, x-example: 29
+	func() string { return strconv.Itoa(endpointID) },         // endpoint_id, x-example: 30
+	func() string { return strconv.Itoa(integrationGroupID) }, // group_id, x-example: 31
 }
 
 // alterRequestPath with the above slice of functions
@@ -399,7 +463,8 @@ func alterRequestBody(t *trans.Transaction) {
 			}
 			request["id"] = objectID
 
-		} else {
+		} else if !regexp.MustCompile(`/\d+/\w+$`).MatchString(t.FullPath) {
+			// A PUT of one field of an object, like /inventory/1/variables, carries no id
 			panic("Unexpected PUT request " + t.FullPath)
 		}
 	}

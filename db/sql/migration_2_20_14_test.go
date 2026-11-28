@@ -44,9 +44,10 @@ func TestMigration_2_20_14(t *testing.T) {
 		"insert into project__integration_extract_value (name, integration_id, value_source, body_data_type, `key`, `variable`, variable_type) values (?, ?, 'header', '', 'X-Ref', 'ref', 'environment')"),
 		"v", integration.ID)
 	require.NoError(t, err)
-	task, err := store.CreateTask(db.Task{
-		ProjectID: project.ID, TemplateID: templateID, IntegrationID: &integration.ID, Status: "success",
-	}, 0)
+	// SqlDb.CreateTask writes effective_inventory_id, which appears only in 2.21.8.
+	taskID, err := store.insert("id",
+		"insert into task (template_id, project_id, integration_id, status, playbook, environment, created) values (?, ?, ?, 'success', '', '', ?)",
+		templateID, project.ID, integration.ID, time.Now())
 	require.NoError(t, err)
 
 	require.NoError(t, db.Migrate(store, nil))
@@ -61,7 +62,7 @@ func TestMigration_2_20_14(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, want, count, table)
 	}
-	migratedTask, err := store.GetTask(project.ID, task.ID)
+	migratedTask, err := store.GetTask(project.ID, taskID)
 	require.NoError(t, err)
 	require.NotNil(t, migratedTask.IntegrationID)
 	assert.Equal(t, integration.ID, *migratedTask.IntegrationID)
@@ -90,7 +91,7 @@ func TestMigration_2_20_14(t *testing.T) {
 		require.NoError(t, err)
 		assert.Zero(t, count, table)
 	}
-	orphanedTask, err := store.GetTask(project.ID, task.ID)
+	orphanedTask, err := store.GetTask(project.ID, taskID)
 	require.NoError(t, err)
 	assert.Nil(t, orphanedTask.IntegrationID, "task.integration_id must be set null, not cascade-deleted")
 }

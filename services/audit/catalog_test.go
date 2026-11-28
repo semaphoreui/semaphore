@@ -132,7 +132,7 @@ func TestKnownReasonsExcludeEmpty(t *testing.T) {
 func TestPermissionNames(t *testing.T) {
 	assert.Equal(t, []string{}, PermissionNames(0))
 	assert.Equal(t, []string{"run_tasks", "manage_users"}, PermissionNames(db.CanRunProjectTasks|db.CanManageProjectUsers))
-	assert.Equal(t, []string{"run_tasks", "update_project", "manage_resources", "manage_users"}, PermissionNames(db.KnownRolePermissions))
+	assert.Equal(t, []string{"read_project", "run_tasks", "update_project", "manage_resources", "manage_users", "run_workflows", "edit_workflows", "approve_workflows"}, PermissionNames(db.KnownRolePermissions))
 }
 
 func TestTruncateName(t *testing.T) {
@@ -219,5 +219,32 @@ func TestTaskAndRunnerEntries(t *testing.T) {
 				assert.NoError(t, err)
 			}
 		})
+	}
+}
+
+func TestCatalogInventoryHostKinds(t *testing.T) {
+	for _, kind := range []Kind{ResourceInventoryHostCreate, ResourceInventoryHostUpdate, ResourceInventoryHostEnable, ResourceInventoryHostDisable, ResourceInventoryHostDelete} {
+		entry, ok := Lookup(kind)
+		require.True(t, ok, kind)
+		assert.Equal(t, InventoryHostMetadata{}, entry.Metadata, kind)
+	}
+}
+
+func TestCatalogInventorySourceKinds(t *testing.T) {
+	for _, kind := range []Kind{ResourceInventorySourceCreate, ResourceInventorySourceUpdate, ResourceInventorySourceDelete} {
+		entry, ok := Lookup(kind)
+		require.True(t, ok, kind)
+		assert.Equal(t, InventorySourceMetadata{}, entry.Metadata, kind)
+	}
+	entry, ok := Lookup(ResourceInventorySourceSync)
+	require.True(t, ok)
+	assert.Equal(t, InventorySourceSyncMetadata{}, entry.Metadata)
+}
+
+func TestCatalogInventoryGroupKinds(t *testing.T) {
+	for _, kind := range []Kind{ResourceInventoryGroupCreate, ResourceInventoryGroupUpdate, ResourceInventoryGroupDelete, ResourceInventoryGroupHostAdd, ResourceInventoryGroupHostRemove, ResourceInventoryGroupChildAdd, ResourceInventoryGroupChildRemove} {
+		entry, ok := Lookup(kind)
+		require.True(t, ok, kind)
+		assert.Equal(t, InventoryGroupMetadata{}, entry.Metadata, kind)
 	}
 }

@@ -50,6 +50,18 @@ func (e Inventory) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }
 
+func (e InventoryHost) GetDbKey() string {
+	return NewKeyFromInt(e.ID)
+}
+
+func (e InventoryGroup) GetDbKey() string {
+	return NewKeyFromInt(e.ID)
+}
+
+func (e InventorySource) GetDbKey() string {
+	return NewKeyFromInt(e.ID)
+}
+
 func (e HostConfig) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }
@@ -71,6 +83,10 @@ func (e EndpointAlias) GetDbKey() string {
 }
 
 func (e IntegrationGroup) GetDbKey() string {
+	return NewKeyFromInt(e.ID)
+}
+
+func (e IntegrationCall) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }
 

@@ -1,17 +1,27 @@
 <template>
-  <div class="WorkflowEdgeProperties">
+  <div class="WorkflowEdgeProperties" data-testid="workflowEdgeProps-panel">
     <div class="WorkflowEdgeProperties__header">
       <span class="WorkflowEdgeProperties__tile">
         <v-icon>mdi-ray-start-arrow</v-icon>
       </span>
       <div class="WorkflowEdgeProperties__heading">
-        <div class="text-subtitle-2">{{ $t('workflowEdgeCondition') }}</div>
-        <div class="text-caption text--secondary">
+        <div
+          class="text-label-large"
+          data-testid="workflowEdgeProps-heading"
+        >{{ $t('workflowEdgeCondition') }}</div>
+        <div class="text-body-small text-medium-emphasis" data-testid="workflowEdgeProps-nodes">
           #{{ edge.source_node_id }} → #{{ edge.destination_node_id }}
         </div>
       </div>
-      <v-btn icon small :title="$t('close')" @click="$emit('close')">
-        <v-icon small>mdi-close</v-icon>
+      <v-btn
+        icon
+        variant="text"
+        size="small"
+        :title="$t('close')"
+        @click="$emit('close')"
+        data-testid="workflowEdgeProps-close"
+      >
+        <v-icon size="small">mdi-close</v-icon>
       </v-btn>
     </div>
 
@@ -22,19 +32,39 @@
         v-model="edge.condition"
         :items="conditionOptions"
         item-value="value"
-        item-text="text"
+        item-title="text"
         :disabled="!canManage"
-        outlined
-        dense
+        variant="outlined"
+        density="compact"
         hide-details="auto"
-        @change="emitChange"
+        @update:model-value="emitChange"
+        :menu-props="conditionMenuProps"
+        data-testid="workflowEdgeProps-condition"
       >
-        <template v-slot:item="{ item }">
-          <v-icon small left :color="item.color">{{ item.icon }}</v-icon>
-          {{ item.text }}
+        <!-- The item slot draws the whole list item; in Vuetify 4 `item` is the option
+             itself (internalItem the wrapper) -->
+        <template v-slot:item="{ item, props }">
+          <v-list-item
+            v-bind="props"
+            density="compact"
+            class="WorkflowEdgeProperties__conditionItem"
+          >
+            <template v-slot:prepend>
+              <v-icon
+                size="small"
+                :color="item.color"
+                :data-testid="`workflowEdgeProps-conditionOption-${item.value}`"
+              >{{ item.icon }}</v-icon>
+            </template>
+          </v-list-item>
         </template>
         <template v-slot:selection="{ item }">
-          <v-icon small left :color="item.color">{{ item.icon }}</v-icon>
+          <v-icon
+            size="small"
+            start
+            :color="item.color"
+            :data-testid="`workflowEdgeProps-conditionSelected-${item.value}`"
+          >{{ item.icon }}</v-icon>
           {{ item.text }}
         </template>
       </v-select>
@@ -43,39 +73,52 @@
     <template v-if="destinationTemplate">
       <v-divider />
 
-      <div class="pa-4 WorkflowEdgeProperties__inputs">
-        <div class="text-subtitle-2 mb-1">{{ $t('workflowEdgeInputs') }}</div>
+      <div class="pa-4 WorkflowEdgeProperties__inputs" data-testid="workflowEdgeProps-inputs">
+        <div
+          class="text-label-large mb-1"
+          data-testid="workflowEdgeProps-inputsTitle"
+        >{{ $t('workflowEdgeInputs') }}</div>
 
         <v-checkbox
           v-model="explicit"
           :label="$t('workflowEdgeInputsExplicit')"
           :disabled="!canManage"
-          dense
+          density="compact"
           hide-details
           class="mt-0 mb-2"
-          @change="onModeChanged"
+          @update:model-value="onModeChanged"
+          data-testid="workflowEdgeProps-explicit"
         />
 
         <template v-if="!explicit">
-          <div v-if="surveyVars.length === 0" class="text-caption text--secondary">
+          <div
+            v-if="surveyVars.length === 0"
+            class="text-body-small text-medium-emphasis"
+            data-testid="workflowEdgeProps-inputsNone"
+          >
             {{ $t('workflowEdgeInputsByNameNone', { template: destinationTemplate.name }) }}
           </div>
           <template v-else>
-            <div class="text-caption text--secondary mb-2">
+            <div
+              class="text-body-small text-medium-emphasis mb-2"
+              data-testid="workflowEdgeProps-byNameHint"
+            >
               {{ $t('workflowEdgeInputsByNameHint', { template: destinationTemplate.name }) }}
             </div>
-            <div class="WorkflowEdgeProperties__chips">
+            <div class="WorkflowEdgeProperties__chips" data-testid="workflowEdgeProps-varChips">
               <v-chip
                 v-for="v in surveyVars"
                 :key="v.name"
-                x-small
+                size="x-small"
                 label
-                outlined
+                variant="outlined"
+                class="WorkflowEdgeProperties__varChip"
                 :color="hintHas(v.name) ? 'success' : null"
                 :title="hintHas(v.name)
                   ? $t('workflowEdgeInputsMatched', { run: hints.runId }) : null"
+                :data-testid="`workflowEdgeProps-varChip-${v.name}`"
               >
-                <v-icon v-if="hintHas(v.name)" x-small left>mdi-check</v-icon>
+                <v-icon v-if="hintHas(v.name)" size="x-small" start>mdi-check</v-icon>
                 {{ v.name }}
               </v-chip>
             </div>
@@ -83,42 +126,70 @@
         </template>
 
         <template v-else>
-          <div v-if="surveyVars.length === 0" class="text-caption text--secondary">
+          <div
+            v-if="surveyVars.length === 0"
+            class="text-body-small text-medium-emphasis"
+            data-testid="workflowEdgeProps-inputsNone"
+          >
             {{ $t('workflowEdgeInputsByNameNone', { template: destinationTemplate.name }) }}
           </div>
           <template v-else>
-            <div class="text-caption text--secondary mb-3">
+            <div
+              class="text-body-small text-medium-emphasis mb-3"
+              data-testid="workflowEdgeProps-explicitHint"
+            >
               {{ $t('workflowEdgeInputsExplicitHint') }}
             </div>
             <div
               v-for="v in surveyVars"
               :key="v.name"
               class="WorkflowEdgeProperties__row"
+              :data-testid="`workflowEdgeProps-row-${v.name}`"
             >
               <div class="WorkflowEdgeProperties__var" :title="v.title || v.name">
-                <span class="WorkflowEdgeProperties__varName">{{ v.name }}</span>
-                <span class="text-caption text--secondary">{{ typeLabel(v) }}</span>
+                <span
+                  class="WorkflowEdgeProperties__varName"
+                  data-testid="workflowEdgeProps-varName"
+                >{{ v.name }}</span>
+                <span
+                  class="text-body-small text-medium-emphasis"
+                  data-testid="workflowEdgeProps-varType"
+                >{{ typeLabel(v) }}</span>
               </div>
               <v-combobox
-                :value="mappingKey(v.name)"
+                :model-value="mappingKey(v.name)"
                 :items="hintKeys"
                 :disabled="!canManage"
                 :label="$t('workflowEdgeInputsKey')"
                 :error-messages="keyErrors(v.name)"
                 :hint="keyHint(v.name)"
                 persistent-hint
-                outlined
-                dense
+                variant="outlined"
+                density="compact"
                 clearable
                 hide-details="auto"
                 class="WorkflowEdgeProperties__key"
-                @input="setMapping(v.name, $event)"
-              />
+                @update:model-value="setMapping(v.name, $event)"
+                :data-testid="`workflowEdgeProps-key-${v.name}`"
+              >
+                <!-- Vuetify 2 drew the arrow of a combobox without suggestions too; Vuetify 4
+                     drops its menu icon when there is nothing to list -->
+                <template v-if="hintKeys.length === 0" v-slot:append-inner="{ iconColor }">
+                  <v-icon
+                    class="WorkflowEdgeProperties__keyArrow"
+                    :color="iconColor.value"
+                    icon="$dropdown"
+                  />
+                </template>
+              </v-combobox>
             </div>
           </template>
         </template>
 
-        <div class="text-caption text--secondary mt-2">{{ hintsCaption }}</div>
+        <div
+          class="text-body-small text-medium-emphasis mt-2"
+          data-testid="workflowEdgeProps-hintsCaption"
+        >{{ hintsCaption }}</div>
       </div>
     </template>
 
@@ -126,14 +197,16 @@
 
     <div class="pa-4">
       <v-btn
-        outlined
-        small
+        variant="outlined"
+        size="small"
         block
         color="error"
+        class="WorkflowEdgeProperties__delete"
         :disabled="!canManage"
         @click="$emit('delete')"
+        data-testid="workflowEdgeProps-delete"
       >
-        <v-icon left small>mdi-delete-outline</v-icon>
+        <v-icon start size="small">mdi-delete-outline</v-icon>
         {{ $t('workflowEdgeDelete') }}
       </v-btn>
     </div>
@@ -148,7 +221,7 @@ const OUTPUT_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 export default {
   props: {
     // { source_node_id, destination_node_id, condition, input_mode?, input_mappings? }
-    value: { type: Object, required: true },
+    modelValue: { type: Object, required: true },
     canManage: { type: Boolean, default: false },
     // The workflow's nodes and the project's templates, to find the
     // destination's survey variables.
@@ -160,15 +233,22 @@ export default {
     outputHints: { type: Object, default: null },
   },
 
+  emits: ['close', 'delete', 'update:modelValue'],
+
   data() {
     return {
-      edge: this.normalize(this.value),
-      explicit: this.value.input_mode === 'explicit',
+      edge: this.normalize(this.modelValue),
+      explicit: this.modelValue.input_mode === 'explicit',
+      // The menu of the select over its field (the defaults of VSelect, plugins/vuetify.js) with
+      // the class of the zone's menus.
+      conditionMenuProps: {
+        location: 'top', origin: 'top', contentClass: 'WorkflowEdgeProperties__menu',
+      },
     };
   },
 
   watch: {
-    value(v) {
+    modelValue(v) {
       this.edge = this.normalize(v);
       this.explicit = v.input_mode === 'explicit';
     },
@@ -281,7 +361,7 @@ export default {
         delete out.input_mode;
         delete out.input_mappings;
       }
-      this.$emit('input', out);
+      this.$emit('update:modelValue', out);
     },
   },
 };
@@ -346,5 +426,66 @@ export default {
     flex: 1 1 auto;
     min-width: 0;
   }
+
+  // The label of the explicit checkbox in the secondary text colour, as every `.v-label` of
+  // Vuetify 2 (`.theme--light.v-label`: .6, .7 dark); Vuetify 4 writes it in the text colour.
+  .v-checkbox .v-label {
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    opacity: 1;
+  }
+
+  // A variable chip as an x-small chip of Vuetify 2 (`.v-chip.v-size--x-small`): 16 px high, not
+  // 20, with the 20 px line of every chip; the check icon at its own 12 px, 6 px out to the left
+  // and 6 px to the text; without a colour the thin border of the theme (`.theme--light.v-chip`:
+  // dividers), not one in the text colour.
+  &__varChip.v-chip {
+    --v-chip-height: 16px;
+    line-height: 20px;
+
+    .v-icon--start {
+      --v-icon-size-multiplier: 1;
+      margin-inline: -6px 6px;
+    }
+
+    &:not([class*="text-"]) {
+      border-color: rgba(var(--v-border-color), var(--v-border-opacity));
+    }
+  }
+
+  // The arrow of a key field without suggestions: where the menu icon of a combobox stands.
+  &__keyArrow {
+    margin-inline-start: 4px;
+  }
+
+  // `<v-icon left small>` of Vuetify 2 in the Delete button: a 16 px glyph in an 18 px box, 4 px
+  // out to the left and 8 px to the text.
+  &__delete.v-btn .v-icon--start {
+    --v-icon-size-multiplier: 1;
+    width: 18px;
+    height: 18px;
+    margin-inline: -4px 8px;
+  }
+}
+
+// An option of the condition menu is a dense item of Vuetify 2 (40 px, the list of a dense
+// select) with the icon 8 px before the text (`.v-icon--left`), not 32 px.
+.WorkflowEdgeProperties__conditionItem {
+  --v-list-prepend-gap: 8px;
+}
+
+// The selected option as Vuetify 2 showed it on opening: active and highlighted
+// (`.v-list-item--highlighted`), the pressed overlay (.16), not the activated one (.12).
+.WorkflowEdgeProperties__menu .v-list-item--active > .v-list-item__overlay {
+  opacity: calc(var(--v-pressed-opacity) * var(--v-theme-overlay-multiplier));
+}
+
+// The icon of the tile has no colour of its own: the icon colour of Vuetify 2
+// (`.theme--light.v-icon`: .54, white in the dark theme), not the text colour.
+.v-theme--light .WorkflowEdgeProperties__tile > .v-icon {
+  color: rgba(0, 0, 0, .54);
+}
+
+.v-theme--dark .WorkflowEdgeProperties__tile > .v-icon {
+  color: #fff;
 }
 </style>

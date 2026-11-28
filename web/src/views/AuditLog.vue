@@ -1,29 +1,38 @@
 <template>
-  <div class="AuditLog" :class="{ 'AuditLog--fixed': !$vuetify.breakpoint.xs }">
+  <div
+    class="AuditLog"
+    :class="{ 'AuditLog--fixed': !$vuetify.display.xs }"
+    data-testid="audit-page"
+    :data-state="loading ? 'loading' : failed ? 'error' : events.length ? 'ready' : 'empty'"
+  >
     <v-toolbar flat class="flex-grow-0">
-      <v-btn icon class="mr-4" data-testid="audit-back" @click="returnToProjects">
+      <v-btn icon variant="text" class="mr-4" data-testid="audit-back" @click="returnToProjects">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <v-toolbar-title>{{ $t('audit_log') }}</v-toolbar-title>
+      <v-toolbar-title data-testid="audit-title">{{ $t('audit_log') }}</v-toolbar-title>
       <v-spacer />
-      <v-menu offset-y>
-        <template v-slot:activator="{ on, attrs }">
+      <v-menu location="bottom">
+        <template v-slot:activator="{ props }">
           <v-btn
             color="primary"
+            variant="elevated"
             :disabled="!features.audit_log_filters"
             data-testid="audit-export"
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
           >
-            <v-icon left>mdi-download</v-icon>
+            <v-icon start>mdi-download</v-icon>
             {{ $t('audit_export') }}
           </v-btn>
         </template>
         <v-list>
-          <v-list-item :href="exportUrl('csv')" download>
+          <v-list-item :href="exportUrl('csv')" download data-testid="audit-exportMenu-csv">
             {{ $t('audit_export_csv') }}
           </v-list-item>
-          <v-list-item :href="exportUrl('jsonl')" download>
+          <v-list-item
+            :href="exportUrl('jsonl')"
+            download
+            data-testid="audit-exportMenu-jsonl"
+          >
             {{ $t('audit_export_jsonl') }}
           </v-list-item>
         </v-list>
@@ -34,16 +43,16 @@
 
     <v-alert
       v-if="!features.audit_log_filters"
-      text
+      variant="tonal"
       color="hsl(348deg, 86%, 61%)"
-      class="PageAlert"
+      class="PageAlert flex-0-0"
       data-testid="audit-pro-notice"
     >
       <span v-html="$t('audit_filters_only_pro')"></span>
       <v-btn
-        dark
-        class="ml-2"
+        class="ml-2 text-white"
         color="hsl(348deg, 86%, 61%)"
+        data-testid="audit-upgrade"
         @click="upgradeToPro('audit_log_filters')"
       >
         {{ $t('upgrade_to_pro') }}
@@ -51,40 +60,40 @@
     </v-alert>
 
     <AuditFilters
-      :value="filters"
+      :model-value="filters"
       :disabled="!features.audit_log_filters"
       :users="users"
       :projects="projects"
       :style="features.audit_log_filters ? '' : 'opacity: 0.5'"
-      @input="setFilters"
+      @update:model-value="setFilters"
     />
 
-    <div v-if="$vuetify.breakpoint.xs" class="d-flex justify-end px-4 pt-2">
+    <div v-if="$vuetify.display.xs" class="d-flex justify-end px-4 pt-2">
       <v-btn
-        text
+        variant="text"
         :disabled="loading || newer === null"
         data-testid="audit-newer-top"
         @click="load({ after: newer }, 'newer')"
       >
-        <v-icon left>mdi-chevron-left</v-icon>
+        <v-icon start>mdi-chevron-left</v-icon>
         {{ $t('audit_newer') }}
       </v-btn>
       <v-btn
-        text
+        variant="text"
         :disabled="loading || older === null"
         data-testid="audit-older-top"
         @click="load({ before: older }, 'older')"
       >
         {{ $t('audit_older') }}
-        <v-icon right>mdi-chevron-right</v-icon>
+        <v-icon end>mdi-chevron-right</v-icon>
       </v-btn>
     </div>
 
     <div v-if="failed && events.length" class="px-4 pt-2" data-testid="audit-load-failed">
       {{ $t('audit_load_failed') }}
       <v-btn
-        text
-        small
+        variant="text"
+        size="small"
         color="primary"
         class="ml-2"
         data-testid="audit-retry"
@@ -99,22 +108,31 @@
       :headers="headers"
       :items="events"
       :loading="loading"
-      item-key="seq"
+      item-value="seq"
+      :items-per-page="-1"
       hide-default-footer
-      disable-pagination
       disable-sort
       class="mt-2 AuditLog__table"
-      @click:row="selected = $event"
+      :class="{ 'AuditLog__table--mobile': $vuetify.display.xs }"
+      data-testid="audit-table"
+      :data-state="loading ? 'loading' : failed ? 'error' : events.length ? 'ready' : 'empty'"
+      @click:row="(e, { item }) => { selected = item; }"
     >
       <template v-slot:no-data>
-        <span v-if="!failed && direction === 'older'">{{ $t('audit_no_older') }}</span>
-        <span v-else-if="!failed && direction === 'newer'">{{ $t('audit_no_newer') }}</span>
-        <span v-else-if="!failed">{{ $t('audit_no_events') }}</span>
+        <span
+          v-if="!failed && direction === 'older'"
+          data-testid="audit-empty-older"
+        >{{ $t('audit_no_older') }}</span>
+        <span
+          v-else-if="!failed && direction === 'newer'"
+          data-testid="audit-empty-newer"
+        >{{ $t('audit_no_newer') }}</span>
+        <span v-else-if="!failed" data-testid="audit-empty">{{ $t('audit_no_events') }}</span>
         <span v-else data-testid="audit-load-failed">
           {{ $t('audit_load_failed') }}
           <v-btn
-            text
-            small
+            variant="text"
+            size="small"
             color="primary"
             class="ml-2"
             data-testid="audit-retry"
@@ -125,6 +143,29 @@
         </span>
       </template>
 
+      <!-- The loading bar of Vuetify 2: 4 px, its track at .3 of the colour. -->
+      <template v-slot:loader>
+        <v-progress-linear absolute indeterminate height="4" bg-opacity="0.3" color="primary" />
+      </template>
+
+      <!-- On a phone (rows as cards) Vuetify 4 renders no header row, and the loading bar with
+           it; Vuetify 2 kept the bar over the rows. -->
+      <template v-if="loading && $vuetify.display.xs" v-slot:body.prepend>
+        <tr class="v-data-table-progress">
+          <th :colspan="headers.length">
+            <div class="v-data-table-progress__loader">
+              <v-progress-linear
+                absolute
+                indeterminate
+                height="4"
+                bg-opacity="0.3"
+                color="primary"
+              />
+            </div>
+          </th>
+        </tr>
+      </template>
+
       <template v-if="searching" v-slot:loading>
         <span class="d-inline-flex align-center" data-testid="audit-searching">
           <v-progress-circular indeterminate size="16" width="2" class="mr-2" />
@@ -132,8 +173,8 @@
             date: localTime(searchedTo.timestamp),
           }) }}
           <v-btn
-            text
-            small
+            variant="text"
+            size="small"
             color="primary"
             class="ml-2"
             data-testid="audit-stop"
@@ -145,12 +186,16 @@
       </template>
 
       <template v-slot:item.timestamp="{ item }">
-        <span style="white-space: nowrap">{{ localTime(item.timestamp) }}</span>
+        <span style="white-space: nowrap" data-testid="audit-rowTime">{{
+          localTime(item.timestamp)
+        }}</span>
       </template>
 
       <template v-slot:item.actor="{ item }">
-        <span style="white-space: nowrap">
-          <v-icon small class="mr-1">{{ actorIcon(item.actor) }}</v-icon>
+        <span style="white-space: nowrap" data-testid="audit-rowActor">
+          <v-icon size="small" class="mr-1 AuditLog__actorIcon">{{
+            actorIcon(item.actor)
+          }}</v-icon>
           {{ actorLabel(item.actor) }}
         </span>
       </template>
@@ -158,8 +203,10 @@
       <template v-slot:item.action="{ item }">{{ title(item) }}</template>
 
       <template v-slot:item.target="{ item }">
-        <span v-if="item.target">
-          <span class="text--secondary">{{ targetType(item.target.type) }}</span>
+        <span v-if="item.target" data-testid="audit-rowTarget">
+          <span class="text-medium-emphasis" data-testid="audit-rowTargetType">{{
+            targetType(item.target.type)
+          }}</span>
           {{ item.target.name || item.target.id }}
         </span>
       </template>
@@ -167,11 +214,28 @@
       <template v-slot:item.project="{ item }">{{ projectName(item) }}</template>
 
       <template v-slot:item.outcome="{ item }">
-        <span style="white-space: nowrap">
-          <v-icon v-if="item.outcome === 'failure'" small color="error">mdi-close-circle</v-icon>
-          <v-icon v-else-if="item.reason" small color="warning">mdi-alert-circle</v-icon>
-          <v-icon v-else small color="success">mdi-check-circle</v-icon>
-          <span v-if="item.reason" class="ml-1">{{ reason(item.reason) }}</span>
+        <span style="white-space: nowrap" data-testid="audit-rowOutcome">
+          <v-icon
+            v-if="item.outcome === 'failure'"
+            size="small"
+            color="error"
+            data-testid="audit-rowOutcome-failure"
+          >mdi-close-circle</v-icon>
+          <v-icon
+            v-else-if="item.reason"
+            size="small"
+            color="warning"
+            data-testid="audit-rowOutcome-reason"
+          >mdi-alert-circle</v-icon>
+          <v-icon
+            v-else
+            size="small"
+            color="success"
+            data-testid="audit-rowOutcome-success"
+          >mdi-check-circle</v-icon>
+          <span v-if="item.reason" class="ml-1" data-testid="audit-rowReason">{{
+            reason(item.reason)
+          }}</span>
         </span>
       </template>
 
@@ -183,7 +247,7 @@
       class="d-flex align-center px-4 pt-2"
       data-testid="audit-searched-to"
     >
-      <span class="text--secondary">
+      <span class="text-medium-emphasis">
         {{ $t(direction === 'newer' ? 'audit_searched_to_newer' : 'audit_searched_to', {
           date: localTime(searchedTo.timestamp),
         }) }}
@@ -192,7 +256,7 @@
 
     <div class="d-flex justify-end pa-4">
       <v-btn
-        text
+        variant="text"
         :disabled="loading"
         data-testid="audit-latest"
         @click="load({})"
@@ -200,32 +264,33 @@
         {{ $t('audit_latest') }}
       </v-btn>
       <v-btn
-        text
+        variant="text"
         :disabled="loading || newer === null"
         data-testid="audit-newer"
         @click="load({ after: newer }, 'newer')"
       >
-        <v-icon left>mdi-chevron-left</v-icon>
+        <v-icon start>mdi-chevron-left</v-icon>
         {{ $t('audit_newer') }}
       </v-btn>
       <v-btn
-        text
+        variant="text"
         :disabled="loading || older === null"
         data-testid="audit-older"
         @click="load({ before: older }, 'older')"
       >
         {{ $t('audit_older') }}
-        <v-icon right>mdi-chevron-right</v-icon>
+        <v-icon end>mdi-chevron-right</v-icon>
       </v-btn>
     </div>
 
     <v-navigation-drawer
-      :value="selected !== null"
-      right
-      fixed
+      :model-value="selected !== null"
+      location="right"
       temporary
       width="480"
-      @input="onDrawer"
+      class="AuditLog__drawer"
+      data-testid="audit-drawer"
+      @update:model-value="onDrawer"
     >
       <AuditEventCard
         v-if="selected"
@@ -245,6 +310,7 @@ import PageMixin from '@/components/PageMixin';
 import AuditFilters from '@/components/AuditFilters.vue';
 import AuditEventCard from '@/components/AuditEventCard.vue';
 import EventBus from '@/event-bus';
+import i18n from '@/plugins/i18';
 import { getErrorMessage } from '@/lib/error';
 import {
   eventTitle, reasonLabel, targetTypeLabel, actorLabel, actorIcon, filterParams,
@@ -284,13 +350,13 @@ export default {
   computed: {
     headers() {
       return [
-        { text: this.$t('audit_col_time'), value: 'timestamp' },
-        { text: this.$t('audit_col_actor'), value: 'actor' },
-        { text: this.$t('audit_col_action'), value: 'action' },
-        { text: this.$t('audit_col_object'), value: 'target' },
-        { text: this.$t('audit_col_project'), value: 'project' },
-        { text: this.$t('audit_col_result'), value: 'outcome' },
-        { text: this.$t('audit_col_ip'), value: 'ip' },
+        { title: this.$t('audit_col_time'), key: 'timestamp' },
+        { title: this.$t('audit_col_actor'), key: 'actor' },
+        { title: this.$t('audit_col_action'), key: 'action' },
+        { title: this.$t('audit_col_object'), key: 'target' },
+        { title: this.$t('audit_col_project'), key: 'project' },
+        { title: this.$t('audit_col_result'), key: 'outcome' },
+        { title: this.$t('audit_col_ip'), key: 'ip' },
       ];
     },
   },
@@ -303,7 +369,7 @@ export default {
     await Promise.all([this.load({}), this.loadNames()]);
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     this.stop();
   },
 
@@ -440,19 +506,19 @@ export default {
     },
 
     title(event) {
-      return eventTitle(event, this.$i18n);
+      return eventTitle(event, i18n.global);
     },
 
     reason(value) {
-      return reasonLabel(value, this.$i18n);
+      return reasonLabel(value, i18n.global);
     },
 
     targetType(value) {
-      return targetTypeLabel(value, this.$i18n);
+      return targetTypeLabel(value, i18n.global);
     },
 
     actorLabel(actor) {
-      return actorLabel(actor, this.$i18n);
+      return actorLabel(actor, i18n.global);
     },
 
     actorIcon,
@@ -476,7 +542,7 @@ export default {
     min-height: 0;
     overflow: hidden;
 
-    .v-data-table__wrapper {
+    .v-table__wrapper {
       height: 100%;
       overflow: auto;
     }
@@ -485,5 +551,39 @@ export default {
 
 .AuditLog__table tbody tr {
   cursor: pointer;
+}
+
+// An icon without a colour in the secondary text colour of the theme (`.theme--light.v-icon`).
+.v-theme--light .AuditLog__actorIcon {
+  color: rgba(0, 0, 0, .54);
+}
+
+.v-theme--dark .AuditLog__actorIcon {
+  color: #fff;
+}
+
+// The loading line («Searching older events…») in the disabled text colour, as the no-data line
+// (both are `.v-data-table__empty-wrapper` of Vuetify 2).
+.AuditLog__table .v-data-table-rows-loading {
+  color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+}
+
+// The loading bar over the whole width of the table, as in Vuetify 2: App.vue gives the first and
+// last cell of every row 2 px of padding, the bar cell included.
+.AuditLog__table .v-data-table-progress__loader {
+  margin-inline: -2px;
+}
+
+// The event drawer: its border over the content, not beside it (`.v-navigation-drawer__border`,
+// 1 px wide, absolute), so the card starts at the edge as in Vuetify 2.
+.AuditLog__drawer.v-navigation-drawer--right {
+  border-left-width: 0;
+  background-image: linear-gradient(to right,
+    rgba(var(--v-border-color), var(--v-border-opacity)) 1px, transparent 1px);
+}
+
+// The scrim of the drawer covers the window (`.v-overlay`, fixed), not the whole page.
+.AuditLog__drawer ~ .v-navigation-drawer__scrim {
+  position: fixed;
 }
 </style>

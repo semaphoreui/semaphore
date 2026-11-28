@@ -165,7 +165,7 @@ export default {
   pleaseAllowOverridingCliArgumentInTaskTemplateSett:
     'Erlauben Sie das Überschreiben von CLI-Argumenten in den Task-Template-Einstellungen.',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe:
-    'CLI-Argumente (JSON Array). Beispiel: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
+    'CLI-Argumente (JSON Array). Beispiel: [ "-i", "{\'@\'}myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   started: 'Gestartet',
   author: 'Autor',
   duration: 'Dauer',
@@ -214,7 +214,7 @@ export default {
   suppressSuccessAlerts: 'Erfolgsbenachrichtigungen unterdrücken',
   suppressErrorAlerts: 'Fehlerbenachrichtigungen unterdrücken',
   cliArgsJsonArrayExampleIMyinventoryshPrivatekeythe2:
-    'CLI-Argumente (JSON Array). Beispiel: [ "-i", "@myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
+    'CLI-Argumente (JSON Array). Beispiel: [ "-i", "{\'@\'}myinventory.sh", "--private-key=/there/id_rsa", "-vvvv" ]',
   allowCliArgsInTask: 'CLI-Argumente',
   docs: 'Dokumentation',
   editViews: 'Ansichten bearbeiten',
@@ -436,4 +436,29 @@ export default {
   noProjectsText: 'Sie sind in keinem Projekt Mitglied. Bitten Sie Ihren Semaphore-Administrator, Sie zu einem hinzuzufügen.',
   signedInAs: 'Angemeldet als {username} ({email})',
   signedInAsNoEmail: 'Angemeldet als {username}',
+  helpPanelOpen: 'Hilfe zu diesem Dialog',
+  helpPanelOpenPage: 'Hilfe zu dieser Seite',
+  helpPanelClose: 'Hilfe schließen',
+  helpPanelFieldHidden: 'Dieses Feld wird mit den aktuellen Einstellungen nicht angezeigt.',
+
+  // AI agents (Codex, Claude Code) and their MCP inventory
+  agentPrompt: 'Prompt',
+  agent_prompt_required: 'Prompt ist erforderlich',
+  agentApiKeyHint: 'Der API-Schlüssel kommt aus der Variable {variable}: Fügen Sie sie einer Variablengruppe dieser Vorlage als geheime Umgebungsvariable hinzu.',
+  mcpServersOptional: 'MCP-Server (optional)',
+  mcpServers: 'MCP-Server',
+  mcpAddServer: 'Server hinzufügen',
+  mcpRemoveServer: 'Server entfernen',
+  mcpNoServers: 'Keine Server. Der Agent läuft ohne MCP-Tools.',
+  mcpToken: 'Token',
+  mcpTokenOptional: 'Optional',
+  mcpTokenSet: 'Gespeichert',
+  mcpTokenWillBeRemoved: 'Wird entfernt',
+  mcpTokenRemove: 'Token entfernen',
+  mcpTokenKeep: 'Token behalten',
+  mcpServersHint: 'Entfernte Server über HTTP oder SSE. Der Agent sendet das Token im Authorization-Header als Bearer-Token. Ein gespeichertes Token wird verschlüsselt abgelegt und nie angezeigt: Geben Sie ein neues ein, um es zu ersetzen.',
+  mcp_server_name_invalid: 'Bis zu 64 Buchstaben, Ziffern, - und _',
+  mcp_server_name_duplicate: 'Ein anderer Server hat diesen Namen',
+  mcp_server_url_required: 'URL ist erforderlich',
+  mcp_server_url_invalid: 'Eine http- oder https-URL ohne Benutzername und Passwort',
 };

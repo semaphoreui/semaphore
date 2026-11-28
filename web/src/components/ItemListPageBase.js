@@ -36,7 +36,7 @@ export default {
   data() {
     const allowActions = this.allowActions();
 
-    const headers = this.getHeaders().filter((header) => allowActions || header.value !== 'actions');
+    const headers = this.getHeaders().filter((header) => allowActions || header.key !== 'actions');
 
     return {
       headers,
@@ -105,7 +105,8 @@ export default {
           || (this.itemRefs.host_configs || []).length > 0
           || (this.itemRefs.integrations || []).length > 0
           || (this.itemRefs.integration_groups || []).length > 0
-          || (this.itemRefs.endpoints || []).length > 0) {
+          || (this.itemRefs.endpoints || []).length > 0
+          || (this.itemRefs.inventory_sources || []).length > 0) {
           this.itemRefsDialog = true;
           return;
         }

@@ -1,6 +1,18 @@
 <template>
-  <v-form ref="form" lazy-validation v-model="formValid" v-if="item != null">
-    <v-alert :value="formError" color="error" class="pb-2">{{ formError }}</v-alert>
+  <v-form
+    ref="form"
+    v-model="formValid"
+    v-if="item != null"
+    class="project-form"
+    data-testid="newProject-form"
+    :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
+  >
+    <v-alert
+      :model-value="!!formError"
+      color="error"
+      class="pb-2"
+      data-testid="newProject-error"
+    >{{ formError }}</v-alert>
 
     <v-text-field
       v-model="item.name"
@@ -9,8 +21,8 @@
       required
       :disabled="formSaving"
       data-testid="newProject-name"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <v-text-field
@@ -24,8 +36,9 @@
       hint="Should be 0 or greater, 0 - unlimited."
       type="number"
       :step="1"
-      outlined
-      dense
+      data-testid="newProject-maxParallelTasks"
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <v-text-field
@@ -33,8 +46,8 @@
       :label="$t('telegramChatIdOptional')"
       :disabled="formSaving"
       data-testid="newProject-tg"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
     ></v-text-field>
 
     <v-checkbox
@@ -81,3 +94,13 @@ export default {
   },
 };
 </script>
+
+<style lang="scss">
+// The label of the alerts checkbox in the secondary text colour, as every `.v-label` of Vuetify 2
+// (`.theme--light.v-label`: .6, .7 dark); Vuetify 4 writes it in the colour around it, .87 on the
+// New Project page.
+.project-form .v-checkbox .v-label {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  opacity: 1;
+}
+</style>

@@ -1,7 +1,6 @@
 import './setup';
 import { expect } from 'chai';
-import { mount, createLocalVue } from '@vue/test-utils';
-import Vuetify from 'vuetify';
+import { mount } from '@vue/test-utils';
 import i18n from '@/plugins/i18';
 import New from '@/views/project/New.vue';
 import RestoreProject from '@/views/project/RestoreProject.vue';
@@ -20,16 +19,16 @@ describe('No projects screen', () => {
 
   afterEach(() => {
     http.restore();
-    wrappers.splice(0).forEach((w) => w.destroy());
+    wrappers.splice(0).forEach((w) => w.unmount());
   });
 
   function mountWith(component, user) {
     const wrapper = mount(component, {
-      localVue: createLocalVue(),
-      vuetify: new Vuetify(),
-      i18n,
-      propsData: { user },
-      stubs: { ProjectForm: true, RestoreProjectForm: true },
+      props: { user },
+      global: {
+        plugins: [i18n],
+        stubs: { ProjectForm: true, RestoreProjectForm: true },
+      },
     });
     wrappers.push(wrapper);
     return wrapper;
@@ -70,6 +69,6 @@ describe('No projects screen', () => {
     const wrapper = mountWith(RestoreProject, USER);
 
     expect(wrapper.text()).to.contain('No projects yet');
-    expect(wrapper.find('restoreprojectform-stub').exists()).to.equal(false);
+    expect(wrapper.find('restore-project-form-stub').exists()).to.equal(false);
   });
 });

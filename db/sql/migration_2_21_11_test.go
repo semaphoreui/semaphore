@@ -2,6 +2,7 @@ package sql
 
 import (
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/stretchr/testify/assert"
@@ -147,7 +148,7 @@ func createTestTemplateIn(t *testing.T, store *SqlDb, projectID int) int {
 }
 
 func TestMigration_2_21_11_MovesAliasesAndAuthToEndpointsAndGroups(t *testing.T) {
-	before := "2.20.16"
+	before := "2.21.10"
 	store := InitConfigCreateTestStoreAt(&before)
 	f := seedLegacyIntegrations(t, store)
 
@@ -265,12 +266,12 @@ func TestMigration_2_21_11_MovesAliasesAndAuthToEndpointsAndGroups(t *testing.T)
 }
 
 func TestMigration_2_21_11_Rollback(t *testing.T) {
-	before := "2.20.16"
+	before := "2.21.10"
 	store := InitConfigCreateTestStoreAt(&before)
 	f := seedLegacyIntegrations(t, store)
 	require.NoError(t, db.Migrate(store, nil))
 
-	require.NoError(t, db.Rollback(store, "2.20.16"))
+	require.NoError(t, db.Rollback(store, "2.21.10"))
 
 	type oldRow struct {
 		ID           int    `db:"id"`
@@ -326,4 +327,39 @@ func TestMigration_2_21_11_Rollback(t *testing.T) {
 	def, err := store.GetEndpointByAlias("project-one")
 	require.NoError(t, err)
 	assert.Equal(t, "Default", def.Name)
+}
+
+// The call history refers to project__integration, which SQLite rebuilds in
+// this migration: a call must keep its integration through the upgrade and
+// the rollback, and lose it only when the integration itself is deleted.
+func TestMigration_2_21_11_KeepsIntegrationCallHistory(t *testing.T) {
+	before := "2.21.10"
+	store := InitConfigCreateTestStoreAt(&before)
+	f := seedLegacyIntegrations(t, store)
+
+	require.NoError(t, store.CreateIntegrationCall(db.IntegrationCall{
+		ProjectID: f.project.ID, IntegrationID: &f.ownAliases, IntegrationName: "own aliases",
+		Alias: "own-one", Created: time.Now(), SourceIP: "203.0.113.9", Method: "POST",
+		Outcome: db.IntegrationCallOK,
+	}))
+
+	recorded := func() db.IntegrationCall {
+		calls, err := store.GetIntegrationCalls(f.project.ID, db.RetrieveQueryParams{}, "", nil, false)
+		require.NoError(t, err)
+		require.Len(t, calls, 1)
+		return calls[0]
+	}
+
+	require.NoError(t, db.Migrate(store, nil))
+	require.NotNil(t, recorded().IntegrationID)
+	assert.Equal(t, f.ownAliases, *recorded().IntegrationID)
+
+	require.NoError(t, db.Rollback(store, "2.21.10"))
+	require.NotNil(t, recorded().IntegrationID)
+	assert.Equal(t, f.ownAliases, *recorded().IntegrationID)
+
+	require.NoError(t, db.Migrate(store, nil))
+	require.NoError(t, store.DeleteIntegration(f.project.ID, f.ownAliases))
+	assert.Nil(t, recorded().IntegrationID, "the foreign key follows the rebuilt table")
+	assert.Equal(t, "own aliases", recorded().IntegrationName)
 }

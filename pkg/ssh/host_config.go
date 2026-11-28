@@ -135,16 +135,7 @@ func InstallHostConfigs(
 	installation.ConfigFile = path.Join(
 		projectDir, fmt.Sprintf("ssh-config-%s.conf", random.String(10)))
 
-	if err = os.WriteFile(installation.ConfigFile, []byte(strings.Join(blocks, "\n")), 0600); err != nil {
-		return
-	}
-
-	// git runs as the configured process user, which could not otherwise read a
-	// file the server wrote 0600. ChownDir reads Config.Process, which a config
-	// built by hand — a test, a command — does not have.
-	if util.Config.Process != nil {
-		err = util.ChownDir(installation.ConfigFile)
-	}
+	err = os.WriteFile(installation.ConfigFile, []byte(strings.Join(blocks, "\n")), 0600)
 
 	return
 }

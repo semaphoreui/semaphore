@@ -75,6 +75,8 @@ func (d *SqlDb) GetProject(projectID int) (project db.Project, err error) {
 }
 
 func (d *SqlDb) DeleteProject(projectID int) error {
+	// Project runners are removed by the cascade.
+	defer d.runnerCache.Invalidate()
 
 	//tpls, err := d.GetTemplates(projectID, db.TemplateFilter{}, db.RetrieveQueryParams{})
 	//
@@ -90,6 +92,8 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 	}
 
 	statements := []string{
+		// A sync takes the lock of an inventory and then writes its source, the delete goes in the same order
+		"update project__inventory set name=name where project_id=?",
 		// Integrations before their groups, groups before their endpoints: a
 		// group keeps its endpoint from being deleted, and the cascade from
 		// the project row would reach the endpoint first on some engines.
@@ -100,11 +104,14 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		"update project__template set build_template_id = null where project_id=?",
 		"delete from project__template where project_id=?",
 		"delete from project__template_role where project_id=?",
+		"delete from project__workflow_role where project_id=?",
 		"delete from project__invite where project_id=?",
 		"delete from project__user_role where project_id=?",
 		// Before the roles: a mapping keeps its role from being deleted.
 		"delete from group_role_mapping where project_id=?",
 		"delete from `role` where project_id=?",
+		// Before the repositories: a source references one without an ON DELETE action.
+		"delete from project__inventory_source where project_id=?",
 		"delete from project__repository where project_id=?",
 		"delete from project__inventory where project_id=?",
 		// Before the keys: a mapping references access_key without an ON DELETE

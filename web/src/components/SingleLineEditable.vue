@@ -1,15 +1,16 @@
 <template>
   <div>
-    <v-icon small class="pr-1">mdi-message-outline</v-icon>
+    <v-icon size="small" class="pr-1 SingleLineEditable__icon">mdi-message-outline</v-icon>
 
     <span
       key="placeholder"
       v-if="!editable"
       class="SingleLineEditable__content"
+      data-testid="singleLineEditable-text"
       :class="{
-        'SingleLineEditable__content--placeholder': !value,
+        'SingleLineEditable__content--placeholder': !modelValue,
       }"
-    >{{ value || placeholder || $t('empty') }}</span>
+    >{{ modelValue || placeholder || $t('empty') }}</span>
 
     <span
       key="content"
@@ -17,41 +18,62 @@
       ref="editableDiv"
       :contenteditable="true"
       class="SingleLineEditable__editable"
+      data-testid="singleLineEditable-input"
       @paste="handlePaste"
       @keypress="handleKeypress"
-    >{{ value }}</span>
+    >{{ modelValue }}</span>
 
     <v-btn
-      icon @click="edit()"
-      small
+      icon
+      variant="text" @click="edit()"
+      size="small"
       v-if="canEdit && !editable"
       class="ml-1 SingleLineEditable__button"
+      data-testid="singleLineEditable-edit"
     >
       <v-icon>mdi-pencil</v-icon>
     </v-btn>
 
     <v-btn
       icon
+      variant="text"
       @click="save()"
       v-if="editable"
       class="ml-2 SingleLineEditable__button"
-      small
+      size="small"
+      data-testid="singleLineEditable-save"
     >
       <v-icon color="green">mdi-check</v-icon>
     </v-btn>
 
     <v-btn
       icon
+      variant="text"
       @click="cancel()"
       v-if="editable"
       class="SingleLineEditable__button"
-      small
+      size="small"
+      data-testid="singleLineEditable-cancel"
     >
       <v-icon color="red">mdi-close</v-icon>
     </v-btn>
   </div>
 </template>
 <style lang="scss" scoped>
+  // The icon of Vuetify 2 (`.theme--light.v-icon`): 16 px of glyph plus its padding (Vuetify 4 fits
+  // the padding into the 16 px box), grey .54 in the light theme, white in the dark one.
+  .SingleLineEditable__icon {
+    box-sizing: content-box;
+
+    &.v-theme--light {
+      color: rgba(0, 0, 0, .54);
+    }
+
+    &.v-theme--dark {
+      color: #fff;
+    }
+  }
+
   .SingleLineEditable__editable {
     min-width: 50px;
     outline: none;
@@ -76,17 +98,18 @@
 <script>
 export default {
   props: {
-    value: String,
+    modelValue: String,
     placeholder: String,
     canEdit: Boolean,
   },
+  emits: ['update:modelValue', 'save'],
   data() {
     return {
       editable: false,
     };
   },
   watch: {
-    value(newVal) {
+    modelValue(newVal) {
       if (this.$refs.editableDiv.innerText !== newVal) {
         this.$refs.editableDiv.innerText = newVal || '';
       }
@@ -112,12 +135,12 @@ export default {
 
     save() {
       this.editable = false;
-      this.$emit('input', this.$refs.editableDiv.innerText);
+      this.$emit('update:modelValue', this.$refs.editableDiv.innerText);
       this.$emit('save');
     },
 
     cancel() {
-      this.$refs.editableDiv.innerText = this.value;
+      this.$refs.editableDiv.innerText = this.modelValue;
       this.editable = false;
     },
 
