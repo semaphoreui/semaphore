@@ -2,6 +2,7 @@
 
 Cross-cutting UI features of the Vue frontend and their backend halves: per-user preferences stored on the server, server-side paging of task lists, the integration call history, and the built-in help panel.
 
+
 | When you need it | Read |
 | --- | --- |
 | Adding a new per-user preference, or wondering why the side menu stores *unpinned* items in the `option` table | `user-options-unpinned-menu.md` |
@@ -13,6 +14,10 @@ Cross-cutting UI features of the Vue frontend and their backend halves: per-user
 | Tempted to log integration calls into `audit_event`, or to store webhook payloads | `integration-call-history.md` |
 | Picking up the contextual help panel, or adding any help text / docs link to a form | `contextual-help-panel.md` |
 | Wiring the `docs/` submodule into a frontend build or CI job | `contextual-help-panel.md` |
+
+| Changing the Integrations History tab, or what a webhook call records | `integration-call-history.md` |
+| Tempted to log integration calls into `audit_event`, or to store webhook payloads | `integration-call-history.md` |
+
 | Adding built-in help to a dialog or a page, or any help text / docs link to a form | `contextual-help-panel.md` |
 | Changing the help panel, its host logic (`HelpDocsHost`), `EditDialog` or `HelpPage` around it | `contextual-help-panel.md` |
 | Changing the format of help documents or the build that compiles and checks them (`web/vite/help`) | `contextual-help-panel.md` |

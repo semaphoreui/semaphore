@@ -68,7 +68,6 @@
       <v-tab :to="`/project/${projectId}/integrations/history`">{{ $t('history') }}</v-tab>
     </v-tabs>
 
-
     <div
       class="px-4 py-3"
       data-testid="integrations-aliases"
@@ -79,8 +78,6 @@
         v-if="(aliases || []).length === 0"
         data-testid="integrations-aliasesEmpty"
       >There are no aliases.</div>
-
-
       <div
         v-else
         v-for="alias of aliases || []"
