@@ -22,8 +22,11 @@ func TestMigration_2_21_0_McpServersApplyAndRollback(t *testing.T) {
 	target := "2.21.0"
 	require.NoError(t, db.Migrate(store, &target))
 
-	inv, err := store.CreateInventory(db.Inventory{ProjectID: project.ID, Name: "mcp", Type: db.InventoryMcp})
+	// Raw SQL: CreateInventory writes proxy_id, which appears only in 2.21.10.
+	invID, err := store.insert("id", "insert into project__inventory (project_id, name, type, inventory) values (?, ?, ?, '')",
+		project.ID, "mcp", db.InventoryMcp)
 	require.NoError(t, err)
+	inv := db.Inventory{ID: invID, ProjectID: project.ID}
 	secret := "enc"
 	_, err = store.SetMcpServers(project.ID, inv.ID, []db.McpServerChange{{
 		Server: db.McpServer{Name: "a", URL: "https://a", Enabled: true},

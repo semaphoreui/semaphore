@@ -69,3 +69,12 @@ biedt sleutels van drie typen aan; welke u kiest, hangt af van de URL:
 
 Een sleutel die niet bij de URL past, geeft Git geen referenties, en het klonen van een
 privérepository mislukt dan.
+
+## Proxy {#repository-proxyId}
+
+Optioneel. Een proxy van het project waarlangs Git de server van de repository bereikt. Een
+**SSH (jump host)**-proxy werkt met een `ssh`-URL; een **SOCKS5**-, **HTTP**- of **HTTPS**-proxy
+werkt met een `ssh`- of `https`-URL. Voor een `https`-URL gebruikt Git geen jump host.
+
+De proxy heeft de standaard Git-client van de server nodig, `cmd_git`: met `go_git` mislukt elke
+kloon en elke update van de repository.

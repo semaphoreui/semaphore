@@ -391,6 +391,9 @@ func Route(
 	projectUserAPI.Path("/inventory").HandlerFunc(inventoryController.GetInventory).Methods("GET", "HEAD")
 	projectUserAPI.Path("/inventory").HandlerFunc(inventoryController.AddInventory).Methods("POST")
 
+	projectUserAPI.Path("/proxies").HandlerFunc(projects.GetProxy).Methods("GET", "HEAD")
+	projectUserAPI.Path("/proxies").HandlerFunc(projects.AddProxy).Methods("POST")
+
 	projectUserAPI.Path("/environment").HandlerFunc(projects.GetEnvironment).Methods("GET", "HEAD")
 	projectUserAPI.Path("/environment").HandlerFunc(environmentController.AddEnvironment).Methods("POST")
 
@@ -486,6 +489,13 @@ func Route(
 	projectRepoManagement.HandleFunc("/{repository_id}/branches", repositoryController.GetRepositoryBranches).Methods("GET", "HEAD")
 	projectRepoManagement.HandleFunc("/{repository_id}/playbooks", repositoryController.GetRepositoryPlaybooks).Methods("GET", "HEAD")
 
+	projectProxyManagement := projectUserAPI.PathPrefix("/proxies").Subrouter()
+	projectProxyManagement.Use(projects.ProxyMiddleware)
+
+	projectProxyManagement.HandleFunc("/{proxy_id}", projects.GetProxy).Methods("GET", "HEAD")
+	projectProxyManagement.HandleFunc("/{proxy_id}/refs", projects.GetProxyRefs).Methods("GET", "HEAD")
+	projectProxyManagement.HandleFunc("/{proxy_id}", projects.UpdateProxy).Methods("PUT")
+	projectProxyManagement.HandleFunc("/{proxy_id}", projects.RemoveProxy).Methods("DELETE")
 	projectHostConfigManagement := projectUserAPI.PathPrefix("/host_configs").Subrouter()
 	projectHostConfigManagement.Use(projects.HostConfigMiddleware)
 

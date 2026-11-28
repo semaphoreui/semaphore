@@ -40,6 +40,13 @@ heslo je heslo, kterým Ansible odpoví na výzvu.
 Ponechte pole prázdné, když playe oprávnění nezvyšují, nebo když uživatel uvedený výše k tomu
 heslo nepotřebuje.
 
+## Proxy {#inventoryForm-proxyId}
+
+Nepovinné. Proxy projektu, přes kterou se Ansible připojuje k hostům inventáře: každé SSH
+spojení úlohy k těmto hostům vede přes ni a přes proxy, které vyžaduje. Proxy se přihlašuje
+vlastním klíčem z pole **Přístupový klíč**, takže hostům zůstává klíč z pole
+**Přihlašovací údaje uživatele**.
+
 ## Typ {#inventoryForm-type}
 
 Odkud inventář pochází:

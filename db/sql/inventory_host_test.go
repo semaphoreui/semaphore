@@ -12,9 +12,12 @@ import (
 
 func createTestManagedInventory(t *testing.T, store *SqlDb, projectID int, name string) db.Inventory {
 	t.Helper()
-	inventory, err := store.CreateInventory(db.Inventory{ProjectID: projectID, Name: name, Type: db.InventoryManaged})
+	// Raw SQL: migration tests use this helper at schemas older than the
+	// columns CreateInventory writes.
+	id, err := store.insert("id", "insert into project__inventory (project_id, name, type, inventory) values (?, ?, ?, '')",
+		projectID, name, db.InventoryManaged)
 	require.NoError(t, err)
-	return inventory
+	return db.Inventory{ID: id, ProjectID: projectID, Name: name, Type: db.InventoryManaged}
 }
 
 func TestInventoryHosts_CRUD(t *testing.T) {

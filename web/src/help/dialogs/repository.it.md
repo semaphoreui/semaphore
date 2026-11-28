@@ -69,3 +69,12 @@ di tre tipi; quella da scegliere dipende dall'URL:
 
 Una chiave che non corrisponde all'URL non dà a Git alcuna credenziale, e la clonazione di un
 repository privato allora fallisce.
+
+## Proxy {#repository-proxyId}
+
+Facoltativo. Un proxy del progetto attraverso cui Git raggiunge il server del repository. Un proxy
+**SSH (jump host)** funziona con un URL `ssh`; un proxy **SOCKS5**, **HTTP** o **HTTPS** funziona
+con un URL `ssh` o `https`. Git non usa un jump host per un URL `https`.
+
+Il proxy richiede il client Git predefinito del server, `cmd_git`: con `go_git` ogni clone e ogni
+aggiornamento del repository fallisce.

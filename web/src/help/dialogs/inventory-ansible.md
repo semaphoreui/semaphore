@@ -39,6 +39,12 @@ the password Ansible answers the prompt with.
 Leave the field empty when the plays do not escalate privileges, or when the user above needs no
 password to do so.
 
+## Proxy {#inventoryForm-proxyId}
+
+Optional. A proxy of the project that Ansible reaches the hosts of the inventory through: every
+SSH connection of the task to those hosts passes through it, and through the proxies it requires.
+The proxy logs in with its own **Access Key**, so the hosts keep the key of **User Credentials**.
+
 ## Type {#inventoryForm-type}
 
 Where the inventory comes from:

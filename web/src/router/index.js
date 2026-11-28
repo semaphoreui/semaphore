@@ -24,6 +24,7 @@ import InventoryView from '../views/project/InventoryView.vue';
 import InventoryHosts from '../views/project/InventoryHosts.vue';
 import InventoryGroups from '../views/project/InventoryGroups.vue';
 import InventoryVariables from '../views/project/InventoryVariables.vue';
+import Proxies from '../views/project/Proxies.vue';
 import Keys from '../views/project/Keys.vue';
 import Repositories from '../views/project/Repositories.vue';
 import HostConfig from '../views/project/HostConfig.vue';
@@ -217,6 +218,10 @@ const routes = [
       path: 'variables',
       component: InventoryVariables,
     }],
+  },
+  {
+    path: '/project/:projectId/proxies',
+    component: Proxies,
   },
   {
     path: '/project/:projectId/integrations',

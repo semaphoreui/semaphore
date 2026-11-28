@@ -210,6 +210,10 @@ func TestScheduleProceedsWhenTryLockExecutionReturnsTrue(t *testing.T) {
 	assert.Equal(t, 1, dedup.getLockAttempts(scheduleID), "TryLockExecution should be called once")
 }
 
+func (*mockAccessKeyInstaller) InstallAll(keys []db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (ssh.AccessKeyInstallation, error) {
+	return ssh.AccessKeyInstallation{}, nil
+}
+
 // fakeWorkflowService records the runs the scheduler asks for.
 type fakeWorkflowService struct {
 	pro_interfaces.WorkflowService

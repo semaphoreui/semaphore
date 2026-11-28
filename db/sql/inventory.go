@@ -35,7 +35,7 @@ func (d *SqlDb) DeleteInventory(projectID int, inventoryID int) error {
 // the transactional (MCP) writes of an inventory row.
 const inventoryUpdateQuery = "update project__inventory set " +
 	"name=?, type=?, runner_tag=?, ssh_key_id=?, inventory=?, " +
-	"become_key_id=?, template_id=?, repository_id=? " +
+	"become_key_id=?, template_id=?, proxy_id=?, repository_id=? " +
 	"where id=? and project_id=?"
 
 func inventoryUpdateArgs(inventory db.Inventory) []any {
@@ -47,6 +47,7 @@ func inventoryUpdateArgs(inventory db.Inventory) []any {
 		inventory.Inventory,
 		inventory.BecomeKeyID,
 		inventory.TemplateID,
+		inventory.ProxyID,
 		inventory.RepositoryID,
 		inventory.ID,
 		inventory.ProjectID,
@@ -64,6 +65,7 @@ func inventoryInsert(inventory db.Inventory) (string, []any, error) {
 			"become_key_id":  inventory.BecomeKeyID,
 			"template_id":    inventory.TemplateID,
 			"repository_id":  inventory.RepositoryID,
+			"proxy_id":       inventory.ProxyID,
 			"runner_tag":     inventory.RunnerTag,
 			"variables":      inventory.Variables,
 			"variable_count": inventory.VariableCount,

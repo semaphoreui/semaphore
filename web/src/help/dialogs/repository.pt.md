@@ -71,3 +71,12 @@ obrigatório. Propõe chaves de três tipos, e a escolha depende do URL:
 
 Uma chave que não corresponda ao URL não dá credenciais ao Git, e o clone de um repositório
 privado falha nesse caso.
+
+## Proxy {#repository-proxyId}
+
+Opcional. Um proxy do projeto através do qual o Git chega ao servidor do repositório. Um proxy
+**SSH (jump host)** funciona com um URL `ssh`; um proxy **SOCKS5**, **HTTP** ou **HTTPS** funciona
+com um URL `ssh` ou `https`. O Git não usa um jump host para um URL `https`.
+
+O proxy precisa do cliente Git predefinido do servidor, `cmd_git`: com `go_git` falha cada clone e
+cada atualização do repositório.

@@ -16,6 +16,7 @@ type BackupDB struct {
 	inventories     []db.Inventory
 	inventoryHosts  map[int][]db.InventoryHost
 	inventoryGroups map[int][]db.InventoryGroup
+	proxies         []db.Proxy
 	environments    []db.Environment
 	schedules       []db.Schedule
 
@@ -107,6 +108,7 @@ type BackupFormat struct {
 	Keys               []BackupAccessKey     `backup:"keys"`
 	Views              []BackupView          `backup:"views"`
 	Inventories        []BackupInventory     `backup:"inventories"`
+	Proxies            []BackupProxy         `backup:"proxies"`
 	Environments       []BackupEnvironment   `backup:"environments"`
 	Integration        []BackupIntegration   `backup:"integrations"`
 	IntegrationAliases []string              `backup:"integration_aliases"`
@@ -149,8 +151,15 @@ type BackupInventory struct {
 	db.Inventory
 	SSHKey    *string                `backup:"ssh_key"`
 	BecomeKey *string                `backup:"become_key"`
+	Proxy     *string                `backup:"proxy"`
 	Hosts     []BackupInventoryHost  `backup:"hosts"`
 	Groups    []BackupInventoryGroup `backup:"groups"`
+}
+
+type BackupProxy struct {
+	db.Proxy
+	SSHKey        *string `backup:"ssh_key"`
+	RequiresProxy *string `backup:"requires_proxy"`
 }
 
 type BackupInventoryHost struct {
@@ -172,6 +181,7 @@ type BackupInventoryGroup struct {
 type BackupRepository struct {
 	db.Repository
 	SSHKey *string `backup:"ssh_key"`
+	Proxy  *string `backup:"proxy"`
 }
 
 type BackupHostConfig struct {

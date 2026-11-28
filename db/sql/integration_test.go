@@ -21,19 +21,17 @@ func createTestTemplate(t *testing.T, store *SqlDb) (db.Project, db.Template) {
 	})
 	require.NoError(t, err)
 
-	repo, err := store.CreateRepository(db.Repository{
-		Name:      "test repo",
-		ProjectID: project.ID,
-		GitURL:    "git@example.com:test/test.git",
-		GitBranch: "main",
-		SSHKeyID:  key.ID,
-	})
+	// Raw SQL: migration tests use this helper at schemas older than the
+	// columns CreateRepository writes.
+	repoID, err := store.insert("id",
+		"insert into project__repository (project_id, name, git_url, git_branch, ssh_key_id) "+
+			"values (?, 'test repo', 'git@example.com:test/test.git', 'main', ?)", project.ID, key.ID)
 	require.NoError(t, err)
 
 	template, err := store.CreateTemplate(db.Template{
 		Name:         "test template",
 		ProjectID:    project.ID,
-		RepositoryID: repo.ID,
+		RepositoryID: repoID,
 		Playbook:     "test.yml",
 		App:          db.AppBash,
 	})

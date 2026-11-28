@@ -133,6 +133,11 @@ type fakeInstaller struct {
 	calls int
 }
 
+// InstallAll is unused here: galaxy authenticates against one host.
+func (f *fakeInstaller) InstallAll([]db.AccessKey, db.AccessKeyRole, task_logger.Logger) (ssh.AccessKeyInstallation, error) {
+	return ssh.AccessKeyInstallation{}, nil
+}
+
 func (f *fakeInstaller) Install(key db.AccessKey, usage db.AccessKeyRole, _ task_logger.Logger) (ssh.AccessKeyInstallation, error) {
 	f.key, f.usage = key, usage
 	f.calls++
@@ -383,6 +388,10 @@ func TestAnsibleApp_GalaxyEnv_KeepsBothRewrites(t *testing.T) {
 }
 
 type agentInstaller struct{ socket string }
+
+func (a *agentInstaller) InstallAll([]db.AccessKey, db.AccessKeyRole, task_logger.Logger) (ssh.AccessKeyInstallation, error) {
+	return ssh.AccessKeyInstallation{SSHAgent: &ssh.Agent{SocketFile: a.socket}}, nil
+}
 
 func (a *agentInstaller) Install(db.AccessKey, db.AccessKeyRole, task_logger.Logger) (ssh.AccessKeyInstallation, error) {
 	return ssh.AccessKeyInstallation{SSHAgent: &ssh.Agent{SocketFile: a.socket}}, nil

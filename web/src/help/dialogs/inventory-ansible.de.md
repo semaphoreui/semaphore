@@ -42,6 +42,13 @@ Ansible wird, und sein Passwort ist das Passwort, mit dem Ansible die Abfrage be
 Lassen Sie das Feld leer, wenn die Plays keine Rechte erweitern oder wenn der oben angegebene
 Benutzer dafür kein Passwort benötigt.
 
+## Proxy {#inventoryForm-proxyId}
+
+Optional. Ein Proxy des Projekts, über den Ansible die Hosts des Inventars erreicht: Jede
+SSH-Verbindung der Aufgabe zu diesen Hosts läuft über ihn und über die Proxys, die er benötigt.
+Der Proxy meldet sich mit seinem eigenen **Zugangsschlüssel** an, die Hosts behalten also den
+Schlüssel aus **Benutzer-Credentials**.
+
 ## Typ {#inventoryForm-type}
 
 Woher das Inventory stammt:

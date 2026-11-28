@@ -40,6 +40,13 @@ eleva i privilegi con `become`: il suo nome utente è l'utente che Ansible diven
 Lascia il campo vuoto quando i play non elevano i privilegi, o quando l'utente indicato sopra non ha
 bisogno di una password per farlo.
 
+## Proxy {#inventoryForm-proxyId}
+
+Facoltativo. Un proxy del progetto attraverso cui Ansible raggiunge gli host dell'inventario: ogni
+connessione SSH del task verso quegli host passa da lui e dai proxy che richiede. Il proxy accede
+con la propria **Chiave di accesso**, quindi gli host mantengono la chiave di
+**Credenziali utente**.
+
 ## Tipo {#inventoryForm-type}
 
 Da dove proviene l'inventario:

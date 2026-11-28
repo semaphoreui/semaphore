@@ -69,3 +69,12 @@ Oferuje klucze trzech typów, a wybór zależy od adresu URL:
 
 Klucz, który nie pasuje do adresu URL, nie przekazuje Git żadnych danych logowania, a klonowanie
 prywatnego repozytorium kończy się wtedy niepowodzeniem.
+
+## Proxy {#repository-proxyId}
+
+Opcjonalne. Proxy projektu, przez które Git dociera do serwera repozytorium. Proxy
+**SSH (jump host)** działa z adresem URL `ssh`; proxy **SOCKS5**, **HTTP** lub **HTTPS** działa
+z adresem URL `ssh` lub `https`. Dla adresu `https` Git nie używa jump hosta.
+
+Proxy wymaga domyślnego klienta Git serwera, `cmd_git`: z `go_git` każde klonowanie i każda
+aktualizacja repozytorium kończy się błędem.

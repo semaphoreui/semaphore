@@ -8,4 +8,8 @@ import (
 
 type AccessKeyInstaller interface {
 	Install(key db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (installation ssh.AccessKeyInstallation, err error)
+
+	// InstallAll installs several keys into a single agent, for a connection
+	// which authenticates against more than one host, such as a proxy chain.
+	InstallAll(keys []db.AccessKey, usage db.AccessKeyRole, logger task_logger.Logger) (installation ssh.AccessKeyInstallation, err error)
 }

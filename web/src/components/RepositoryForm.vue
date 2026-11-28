@@ -2,7 +2,7 @@
   <v-form
       ref="form"
       v-model="formValid"
-      v-if="item != null && keys != null"
+      v-if="item != null && keys != null && proxies != null"
       class="RepositoryForm"
       data-testid="repository-form"
       :data-state="formSaving ? 'loading' : (formError ? 'error' : 'ready')"
@@ -126,6 +126,22 @@
         </v-tooltip>
       </template>
     </v-autocomplete>
+
+    <v-autocomplete
+        v-model="item.proxy_id"
+        :label="$t('proxy')"
+        clearable
+        :items="proxies"
+        item-value="id"
+        item-title="name"
+        :hint="$t('repositoryProxyHint')"
+        persistent-hint
+        :disabled="formSaving"
+        variant="outlined"
+        density="compact"
+        class="mt-4"
+        data-testid="repository-proxyId"
+    ></v-autocomplete>
   </v-form>
 </template>
 <style lang="scss">
@@ -187,6 +203,7 @@ export default {
       helpKey: null,
 
       keys: null,
+      proxies: null,
       inventoryTypes: [{
         id: 'static',
         name: 'Static',
@@ -200,11 +217,18 @@ export default {
     };
   },
   async created() {
-    this.keys = (await axios({
-      keys: 'get',
-      url: `/api/project/${this.projectId}/keys`,
-      responseType: 'json',
-    })).data;
+    [this.keys, this.proxies] = await Promise.all([
+      axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/keys`,
+        responseType: 'json',
+      }).then((res) => res.data),
+      axios({
+        method: 'get',
+        url: `/api/project/${this.projectId}/proxies`,
+        responseType: 'json',
+      }).then((res) => res.data),
+    ]);
   },
   computed: {
     // A string key is a bare value with no login or private key, so it can not

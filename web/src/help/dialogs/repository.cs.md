@@ -66,3 +66,12 @@ typů; který zvolit, závisí na URL:
 
 Klíč, který neodpovídá URL, nedá Gitu žádné přihlašovací údaje a soukromý repozitář se pak
 nepodaří naklonovat.
+
+## Proxy {#repository-proxyId}
+
+Nepovinné. Proxy projektu, přes kterou se Git připojuje k serveru repozitáře. Proxy
+**SSH (jump host)** funguje s URL `ssh`; proxy **SOCKS5**, **HTTP** nebo **HTTPS** funguje s URL
+`ssh` i `https`. Pro URL `https` Git jump host nepoužije.
+
+Proxy vyžaduje výchozího Git klienta serveru, `cmd_git`: s `go_git` selže každé klonování
+i aktualizace repozitáře.

@@ -33,6 +33,7 @@ var globalRoleAssignment *db.GlobalRoleAssignment
 
 // Runtime created simple ID values for some items we need to reference in other objects
 var repoID int
+var proxyID int
 var hostConfigID int
 var inventoryID int
 var inventoryHostID int
@@ -52,6 +53,7 @@ var capabilities = map[string][]string{
 	"user":                    {},
 	"project":                 {"user"},
 	"repository":              {"access_key"},
+	"proxy":                   {"access_key"},
 	"host_config":             {"access_key"},
 	"inventory":               {"repository"},
 	"inventory_host":          {"repository"},
@@ -141,6 +143,20 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			})
 			printError(err)
 			repoID = pRepo.ID
+		case "proxy":
+			port := 22
+			user := "ansible-proxy"
+			res, err := store.CreateProxy(db.Proxy{
+				ProjectID: userProject.ID,
+				Name:      "ITP-" + uid,
+				Type:      db.ProxySSH,
+				Host:      "bastion.example.org",
+				Port:      &port,
+				User:      &user,
+				SSHKeyID:  &userKey.ID,
+			})
+			printError(err)
+			proxyID = res.ID
 		case "inventory":
 			res, err := store.CreateInventory(db.Inventory{
 				ProjectID:    userProject.ID,
@@ -341,6 +357,7 @@ var pathSubPatterns = []func() string{
 	func() string { return "0" },                            // host_id, x-example: 26, the stand has no hosts
 	func() string { return strconv.Itoa(inventoryHostID) },  // inventory_host_id, x-example: 27
 	func() string { return strconv.Itoa(inventoryGroupID) }, // inventory_group_id, x-example: 28
+	func() string { return strconv.Itoa(proxyID) },          // proxy_id, x-example: 29
 }
 
 // alterRequestPath with the above slice of functions
@@ -386,6 +403,10 @@ func alterRequestBody(t *trans.Transaction) {
 	bodyFieldProcessor("environment_id", environmentID, &request)
 	bodyFieldProcessor("environment_ids", []int{environmentID}, &request)
 	bodyFieldProcessor("inventory_id", inventoryID, &request)
+	bodyFieldProcessor("proxy_id", proxyID, &request)
+	// A proxy chain needs a second proxy to point at, which the fixtures do not
+	// create, so proxies are sent unchained.
+	bodyFieldProcessor("requires_proxy_id", nil, &request)
 	bodyFieldProcessor("repository_id", repoID, &request)
 	bodyFieldProcessor("template_id", templateID, &request)
 	bodyFieldProcessor("build_template_id", nil, &request)

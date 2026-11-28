@@ -51,3 +51,10 @@ pull，因此 Semaphore 會在每個任務開始前重新複製儲存庫。
 - **無**用於公開儲存庫、`git` 或 `file` URL，或絕對路徑。
 
 與 URL 不符的金鑰不會為 Git 提供任何憑證，此時私人儲存庫將無法複製。
+
+## Proxy {#repository-proxyId}
+
+選填。Git 連到儲存庫伺服器時經過的專案代理。**SSH (jump host)** 代理適用於 `ssh` URL；
+**SOCKS5**、**HTTP** 或 **HTTPS** 代理適用於 `ssh` 與 `https` URL。對於 `https` URL，Git 不使用跳板機。
+
+代理需要伺服器的預設 Git 用戶端 `cmd_git`：使用 `go_git` 時，儲存庫的每次複製與更新都會失敗。

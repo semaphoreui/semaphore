@@ -40,10 +40,17 @@ func (t ProgressWrapper) Write(p []byte) (n int, err error) {
 }
 
 func (c GoGitClient) getAuthMethod(r GitRepository) (transport.AuthMethod, error) {
-	// go-git speaks the protocols itself and reads neither the generated ssh
-	// config nor the git rewrites, and every remote operation comes through here.
-	// Failing is better than ignoring the mappings and reaching the host with the
-	// repository credential instead.
+	// go-git has no jump host support, and every remote operation goes through
+	// here. Failing is better than ignoring the proxy and connecting directly,
+	// which would reach the git server only when it is publicly routable and
+	// silently bypass the configured route when it is.
+	if r.Repository.Proxy != nil {
+		return nil, common_errors.NewUserErrorS(
+			"repository proxy is not supported by the go_git client, use git_client: cmd_git")
+	}
+
+	// The same for the credential mappings: go-git speaks the protocols itself
+	// and reads neither the generated ssh config nor the git rewrites.
 	if r.HostConfigs != nil {
 		return nil, common_errors.NewUserErrorS(
 			"host config mappings are not supported by the go_git client, use git_client: cmd_git")
