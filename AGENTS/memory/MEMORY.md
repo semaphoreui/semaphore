@@ -150,6 +150,13 @@ only when the task touches that topic. Keep this file under 150 lines.
   container executors, which render one `sh -c` script under `set -e` in
   `pro_impl/services/tasks/containerexec` (Docker and K8s). On `develop` the server stores no runner
   version (`db/Runner.go`), so an old runner silently ignores new `JobData.Template` fields.
+- The `migrations` ledger records a version *string*, so a number applied on one branch never re-runs
+  on another where it means different SQL. Use one database per branch; to repair, delete the rows
+  (`delete from migrations where version in (…)`) and restart so the real migrations apply.
+- ⚠️ 2026-10-21: an empty-body 400 on every project page is the symptom (`helpers.WriteError`'s
+  default branch, stack trace in the server log) — seen when develop's 2.20.12/13/14 were skipped
+  this way and `project__user_role` was missing. The other branch's DDL stays applied but
+  unrecorded, so drop it too or it collides again when that branch merges.
 - `claude -p` in its default text format prints nothing until the run is over, so an agent run asks for
   `--output-format=stream-json --verbose --include-partial-messages`; Codex runs as `codex exec --json`.
   Check a new agent CLI for this (measured 2026-11-12). How the events reach the log and the
