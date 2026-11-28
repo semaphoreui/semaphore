@@ -1,6 +1,7 @@
 package db_lib
 
 import (
+	"context"
 	"net/http"
 	"net/http/cgi"
 	"net/http/httptest"
@@ -135,7 +136,7 @@ func TestCmdGitClient_AppliesHostConfigs(t *testing.T) {
 		HostConfigs: installation,
 	}
 
-	cmd := client.makeCmd(repo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
+	cmd := client.makeCmd(context.Background(), repo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
 
 	var sshCommand, gitParams string
 	for _, env := range cmd.Env {
@@ -294,14 +295,14 @@ func TestCmdGitClient_MakeCmd_HomePrecedence(t *testing.T) {
 
 	// 1. Default case: ambient HOME is used when not overridden
 	util.Config.EnvVars = map[string]string{}
-	cmd := client.makeCmd(gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
+	cmd := client.makeCmd(context.Background(), gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
 	assert.True(t, containsPrefix(cmd.Env, "HOME=/ambient/home"))
 
 	// 2. Explicit Config.EnvVars overrides ambient HOME and avoids duplicates
 	util.Config.EnvVars = map[string]string{
 		"HOME": "/custom/config/home",
 	}
-	cmdExplicit := client.makeCmd(gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
+	cmdExplicit := client.makeCmd(context.Background(), gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
 	assert.True(t, containsPrefix(cmdExplicit.Env, "HOME=/custom/config/home"))
 	assert.False(t, containsPrefix(cmdExplicit.Env, "HOME=/ambient/home"))
 
@@ -320,7 +321,7 @@ func TestCmdGitClient_MakeCmd_HomePrecedence(t *testing.T) {
 	util.Config.EnvVars = map[string]string{
 		"HOME": "",
 	}
-	cmdEmpty := client.makeCmd(gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
+	cmdEmpty := client.makeCmd(context.Background(), gitRepo, GitRepositoryTmpPath, ssh.AccessKeyInstallation{})
 	assert.True(t, containsPrefix(cmdEmpty.Env, "HOME=/ambient/home"),
 		"expected the ambient HOME when the configured one is empty, got %v", cmdEmpty.Env)
 }

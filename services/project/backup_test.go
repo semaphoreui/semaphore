@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -196,7 +197,7 @@ func TestBackup_BackupSecretStorage(t *testing.T) {
     }
   ],
   "templates": [],
-  "version": 5,
+  "version": 6,
   "views": [],
   "workflows": []
 }`, str)
@@ -367,6 +368,7 @@ func TestRestore_InventoryFromBackupBeforeGroups(t *testing.T) {
 	require.NoError(t, err)
 	backup := &BackupFormat{}
 	require.NoError(t, backup.Unmarshal(`{
+  "version": 5,
   "meta": {"name": "Old Project"},
   "inventories": [{"name": "old", "type": "managed", "hosts": [{"name": "web1", "enabled": true}]}]
 }`))
@@ -425,6 +427,119 @@ func TestVerify_RejectsBrokenInventoryGroups(t *testing.T) {
 				Meta: BackupMeta{Project: db.Project{Name: "p"}},
 				Inventories: []BackupInventory{{
 					Inventory: db.Inventory{Name: "inv", Type: tt.invType},
+					Hosts:     tt.hosts,
+					Groups:    tt.groups,
+				}},
+			}
+
+			assert.ErrorContains(t, backup.Verify(), tt.wantErr)
+		})
+	}
+}
+
+func TestBackupRestore_InventorySources(t *testing.T) {
+	store := sql.InitConfigCreateTestStore()
+	proj, err := store.CreateProject(db.Project{Name: "Sources"})
+	require.NoError(t, err)
+	key, err := store.CreateAccessKey(db.AccessKey{ProjectID: &proj.ID, Name: "none", Type: db.AccessKeyNone})
+	require.NoError(t, err)
+	repo, err := store.CreateRepository(db.Repository{ProjectID: proj.ID, SSHKeyID: key.ID, Name: "infra", GitURL: "git@example.com:infra", GitBranch: "main"})
+	require.NoError(t, err)
+	inv, err := store.CreateInventory(db.Inventory{ProjectID: proj.ID, Name: "inv", Type: db.InventoryManaged, Variables: new("owner: ops")})
+	require.NoError(t, err)
+	source, err := store.CreateInventorySource(db.InventorySource{
+		ProjectID: proj.ID, InventoryID: inv.ID, Name: "static", Type: db.InventorySourceGit,
+		RepositoryID: &repo.ID, Params: db.MapStringAnyField{"path": "inventory/hosts.yml"}, Variables: "region: eu", VariableCount: 1,
+		Status: db.InventorySourceFailed, LastError: "clone failed",
+	})
+	require.NoError(t, err)
+	_, err = store.CreateInventorySource(db.InventorySource{ProjectID: proj.ID, InventoryID: inv.ID, Name: "edge", Type: db.InventorySourceGit, RepositoryID: &repo.ID, Params: db.MapStringAnyField{"path": "edge.ini"}})
+	require.NoError(t, err)
+	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: proj.ID, InventoryID: inv.ID, Name: "web1", Enabled: true, SourceID: &source.ID}, nil)
+	require.NoError(t, err)
+	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: proj.ID, InventoryID: inv.ID, Name: "db1", Enabled: true}, nil)
+	require.NoError(t, err)
+	_, err = store.CreateInventoryGroup(db.InventoryGroup{ProjectID: proj.ID, InventoryID: inv.ID, Name: "web", SourceID: &source.ID}, nil)
+	require.NoError(t, err)
+	_, err = store.CreateInventoryGroup(db.InventoryGroup{ProjectID: proj.ID, InventoryID: inv.ID, Name: "db"}, nil)
+	require.NoError(t, err)
+	user, err := store.CreateUser(db.UserWithPwd{Pwd: "3412341234123", User: db.User{Username: "u", Name: "U", Email: "u@example.com", Admin: true}})
+	require.NoError(t, err)
+
+	backup, err := GetBackup(proj.ID, store, proFactory.NewWorkflowStore(store))
+	require.NoError(t, err)
+	str, err := backup.Marshal()
+	require.NoError(t, err)
+	restoredBackup := &BackupFormat{}
+	require.NoError(t, restoredBackup.Unmarshal(str))
+	restoredBackup.Meta.Name = "Sources restored"
+	require.NoError(t, restoredBackup.Verify())
+	restored, err := restoredBackup.Restore(user, store, proFactory.NewWorkflowStore(store))
+
+	require.NoError(t, err)
+	assert.NotContains(t, str, "clone failed")
+	invs, err := store.GetInventories(restored.ID, db.RetrieveQueryParams{}, []db.InventoryType{})
+	require.NoError(t, err)
+	require.Len(t, invs, 1)
+	assert.Equal(t, "owner: ops", invs[0].VariablesText())
+	repos, err := store.GetRepositories(restored.ID, db.RetrieveQueryParams{})
+	require.NoError(t, err)
+	require.Len(t, repos, 1)
+	sources, err := store.GetInventorySources(restored.ID, invs[0].ID)
+	require.NoError(t, err)
+	require.Len(t, sources, 2)
+	slices.SortFunc(sources, func(a, b db.InventorySource) int { return a.ID - b.ID })
+	assert.Equal(t, "static", sources[0].Name)
+	assert.Equal(t, db.InventorySourceGit, sources[0].Type)
+	assert.Equal(t, &repos[0].ID, sources[0].RepositoryID)
+	assert.Equal(t, "inventory/hosts.yml", sources[0].Params["path"])
+	assert.Equal(t, "region: eu", sources[0].Variables)
+	assert.Equal(t, 1, sources[0].VariableCount)
+	assert.Empty(t, sources[0].Status)
+	assert.Empty(t, sources[0].LastError)
+	assert.Nil(t, sources[0].LastSync)
+	hosts, _, err := store.GetInventoryHosts(restored.ID, invs[0].ID, db.InventoryHostListParams{})
+	require.NoError(t, err)
+	hostOwners := map[string]*int{}
+	for _, h := range hosts {
+		hostOwners[h.Name] = h.SourceID
+	}
+	assert.Equal(t, map[string]*int{"web1": &sources[0].ID, "db1": nil}, hostOwners)
+	groups, err := store.GetInventoryGroups(restored.ID, invs[0].ID)
+	require.NoError(t, err)
+	groupOwners := map[string]*int{}
+	for _, g := range groups {
+		groupOwners[g.Name] = g.SourceID
+	}
+	assert.Equal(t, map[string]*int{"web": &sources[0].ID, "db": nil}, groupOwners)
+}
+
+func TestVerify_RejectsUnknownInventorySource(t *testing.T) {
+	static := []BackupInventorySource{{Name: "static", Type: db.InventorySourceGit, Params: db.MapStringAnyField{"path": "hosts.yml"}}}
+	tests := []struct {
+		name    string
+		invType db.InventoryType
+		sources []BackupInventorySource
+		hosts   []BackupInventoryHost
+		groups  []BackupInventoryGroup
+		wantErr string
+	}{
+		{"not managed", db.InventoryStatic, static, nil, nil, `inventory "inv" is not managed but has sources`},
+		{"duplicated", db.InventoryManaged, append(static, static...), nil, nil, `source "static" of inventory "inv" is duplicated`},
+		{"unknown repository", db.InventoryManaged, []BackupInventorySource{{Name: "static", Repository: new("infra")}}, nil, nil, `source "static" of inventory "inv" names unknown repository "infra"`},
+		{"host of an unknown source", db.InventoryManaged, static, []BackupInventoryHost{{Name: "web1", Source: new("cloud")}}, nil, `host "web1" of inventory "inv" names unknown source "cloud"`},
+		{"group of an unknown source", db.InventoryManaged, static, nil, []BackupInventoryGroup{{Name: "web", Source: new("cloud")}}, `group "web" of inventory "inv" names unknown source "cloud"`},
+		{"empty name", db.InventoryManaged, []BackupInventorySource{{Type: db.InventorySourceGit}}, nil, nil, `source "" of inventory "inv": source name must not be empty`},
+		{"empty type", db.InventoryManaged, []BackupInventorySource{{Name: "static"}}, nil, nil, `source "static" of inventory "inv": source type must not be empty`},
+		{"broken variables", db.InventoryManaged, []BackupInventorySource{{Name: "static", Type: db.InventorySourceGit, Params: db.MapStringAnyField{"path": "hosts.yml"}, Variables: "[1"}}, nil, nil, `variables of source "static" of inventory "inv"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backup := &BackupFormat{
+				Meta: BackupMeta{Project: db.Project{Name: "p"}},
+				Inventories: []BackupInventory{{
+					Inventory: db.Inventory{Name: "inv", Type: tt.invType},
+					Sources:   tt.sources,
 					Hosts:     tt.hosts,
 					Groups:    tt.groups,
 				}},

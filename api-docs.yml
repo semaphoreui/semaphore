@@ -358,11 +358,11 @@ definitions:
 
   ProjectBackup:
     type: object
-    example: {"version":5,"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","app":"ansible","working_directory":".","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"suppress_error_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}],"roles":[{"slug":"deployer","name":"Deployer","permissions":129}]}
+    example: {"version":6,"meta":{"name":"homelab","alert":true,"alert_chat":"Test","max_parallel_tasks":0,"type":null},"templates":[{"inventory":"Build","repository":"Demo","environment":"Empty","name":"Build","playbook":"build.yml","app":"ansible","working_directory":".","arguments":"[]","allow_override_args_in_task":false,"description":"Build Job","vault_key":null,"type":"build","start_version":"1.0.0","build_template":null,"view":"Build","autorun":false,"survey_vars":[],"suppress_success_alerts":false,"suppress_error_alerts":false,"cron":"* * * * *"}],"repositories":[{"name":"Demo","git_url":"https://github.com/semaphoreui/semaphore-demo.git","git_branch":"main","ssh_key":"None"}],"keys":[{"name":"None","type":"none"},{"name":"Vault Password","type":"login_password"}],"views":[{"title":"Build","position":0}],"inventories":[{"name":"Build","inventory":"","ssh_key":"None","become_key":"None","type":"static"},{"name":"Dev","inventory":"","ssh_key":"None","become_key":"None","type":"file"},{"name":"Prod","inventory":"","ssh_key":"None","become_key":"None","type":"file"}],"environments":[{"name":"Empty","password":null,"json":"{}","env":null}],"roles":[{"slug":"deployer","name":"Deployer","permissions":129}]}
     properties:
       version:
         type: integer
-        description: Format version of the backup file, 5. Files written by a newer version are refused. Version 5 carries the hosts and groups of a managed inventory. A version 2 file is accepted and its roles get the workflow verbs the upgrade gives stored roles. A file of version 3 or older is accepted and its roles and permissions get read_project. A file without a version is accepted only when it carries no roles and no template permissions.
+        description: Format version of the backup file, 6. Files written by a newer version are refused. Version 5 carries the hosts and groups of a managed inventory. Version 6 carries the inventory sources and which source owns each host and group. A version 2 file is accepted and its roles get the workflow verbs the upgrade gives stored roles. A file of version 3 or older is accepted and its roles and permissions get read_project. A file without a version is accepted only when it carries no roles and no template permissions.
       meta:
         type: object
         properties:
@@ -491,6 +491,33 @@ definitions:
             variables:
               type: string
               description: Variables of a managed inventory, a YAML or JSON mapping
+            sources:
+              type: array
+              description: Sources a managed inventory imports from, without the sync state
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  type:
+                    type: string
+                    example: git
+                  repository:
+                    type: string
+                    x-nullable: true
+                    description: Name of the repository
+                  key:
+                    type: string
+                    x-nullable: true
+                    description: Name of the access key a source type signs in with, absent for a git source
+                  params:
+                    type: object
+                    description: Settings of the source type, path for a git source
+                    example:
+                      path: hosts.yml
+                  variables:
+                    type: string
+                    description: Variables of group all the last sync imported
             hosts:
               type: array
               description: Hosts of a managed inventory
@@ -505,6 +532,36 @@ definitions:
                     type: boolean
                   variables:
                     type: string
+                  source:
+                    type: string
+                    x-nullable: true
+                    description: Name of the source that owns the host, null for a manual host
+            groups:
+              type: array
+              description: Groups of a managed inventory
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  variables:
+                    type: string
+                  hosts:
+                    type: array
+                    description: Names of the member hosts
+                    items:
+                      type: string
+                  children:
+                    type: array
+                    description: Names of the child groups
+                    items:
+                      type: string
+                  source:
+                    type: string
+                    x-nullable: true
+                    description: Name of the source that owns the group, null for a manual group
       environments:
         type: array
         items:
@@ -1158,6 +1215,10 @@ definitions:
         type: integer
         x-nullable: true
         description: Host of the hosts registry this host is matched to, set by the server
+      source_id:
+        type: integer
+        x-nullable: true
+        description: Source that imported the host, null for a host added by hand. Set by the server.
 
   InventoryHostRequest:
     type: object
@@ -1218,6 +1279,10 @@ definitions:
       host_count:
         type: integer
         description: Number of hosts of the group and of its child groups at any depth, each counted once
+      source_id:
+        type: integer
+        x-nullable: true
+        description: Source that imported the group, null for a group added by hand. Set by the server.
 
   InventoryGroupRequest:
     type: object
@@ -1243,6 +1308,130 @@ definitions:
         maxItems: 1000
         items:
           type: integer
+
+  InventorySource:
+    type: object
+    properties:
+      id:
+        type: integer
+      inventory_id:
+        type: integer
+      project_id:
+        type: integer
+      name:
+        type: string
+        example: static
+      type:
+        type: string
+        example: git
+      repository_id:
+        type: integer
+        x-nullable: true
+      key_id:
+        type: integer
+        x-nullable: true
+        description: Access key a source type signs in with. A git source uses the key of its repository
+      params:
+        type: object
+        description: Settings of the source type. A git source has path, an inventory file or directory relative to the repository root
+        example:
+          path: hosts.yml
+      variables:
+        type: string
+        description: Variables of group all from the last successful sync, set by the server
+      variable_count:
+        type: integer
+        description: Number of top-level variables, set by the server
+      status:
+        type: string
+        description: Empty before the first sync, then syncing, success or failed
+      sync_started:
+        type: string
+        format: date-time
+        x-nullable: true
+      last_sync:
+        type: string
+        format: date-time
+        x-nullable: true
+      last_success:
+        type: string
+        format: date-time
+        x-nullable: true
+      last_error:
+        type: string
+      last_result:
+        type: object
+        x-nullable: true
+        description: What the last successful sync changed
+        properties:
+          hosts_added:
+            type: integer
+          hosts_changed:
+            type: integer
+          hosts_removed:
+            type: integer
+          groups_added:
+            type: integer
+          groups_changed:
+            type: integer
+          groups_removed:
+            type: integer
+          adopted:
+            type: integer
+            description: Hosts and groups added by hand that the sync took over, also counted as changed
+          skipped:
+            type: array
+            x-nullable: true
+            description: Up to 20 of the hosts and groups the sync left out, skipped_count counts all
+            items:
+              type: object
+              properties:
+                kind:
+                  type: string
+                  example: host
+                name:
+                  type: string
+                reason:
+                  type: string
+          skipped_count:
+            type: integer
+          variables_changed:
+            type: boolean
+            description: The variables of group all changed
+      host_count:
+        type: integer
+        description: Number of hosts the source owns
+      group_count:
+        type: integer
+        description: Number of groups the source owns
+      created:
+        type: string
+        format: date-time
+
+  InventorySourceRequest:
+    type: object
+    required: [name, type]
+    properties:
+      name:
+        type: string
+        example: static
+      type:
+        type: string
+        example: git
+        description: Used on create only. An update leaves it as it is.
+      repository_id:
+        type: integer
+        x-nullable: true
+        description: Repository of the project, required for a git source
+      key_id:
+        type: integer
+        x-nullable: true
+        description: Access key a source type signs in with, must be empty for a git source
+      params:
+        type: object
+        description: Settings of the source type. A git source needs path, an inventory file or directory relative to the repository root
+        example:
+          path: hosts.yml
 
   Integration:
     type: object
@@ -2609,6 +2798,13 @@ parameters:
     type: integer
     required: true
     x-example: 28
+  inventory_source_id:
+    name: inventory_source_id
+    description: source ID of a managed inventory
+    in: path
+    type: integer
+    required: true
+    x-example: 29
   perm_id:
     name: perm_id
     description: role grant ID
@@ -4313,6 +4509,11 @@ paths:
           required: false
           type: boolean
           description: Only hosts without a group, can not be used together with group
+        - name: source
+          in: query
+          required: false
+          type: string
+          description: Only hosts of the source with this ID, or manual for hosts added by hand
       responses:
         400:
           description: Invalid query parameter or the inventory is not managed
@@ -4337,8 +4538,8 @@ paths:
       responses:
         400:
           description: >-
-            Invalid host, too many groups, a group to add that is not in this inventory, or the
-            inventory is not managed
+            Invalid host, too many groups, a group to add that is not in this inventory or that
+            belongs to a source, or the inventory is not managed
         201:
           description: host created
           schema:
@@ -4374,7 +4575,8 @@ paths:
         400:
           description: >-
             Invalid host, too many groups, an ID both added and removed, a group to add that is not
-            in this inventory, or the inventory is not managed
+            in this inventory, a group that belongs to a source, a new name or new variables of a
+            host that belongs to a source, or the inventory is not managed
         204:
           description: host updated
     delete:
@@ -4383,7 +4585,7 @@ paths:
       summary: Removes a host of a managed inventory
       responses:
         400:
-          description: The inventory is not managed
+          description: The host belongs to a source or the inventory is not managed
         204:
           description: host removed
 
@@ -4452,7 +4654,8 @@ paths:
         400:
           description: >-
             No hosts, nothing to add or remove, too many hosts or groups, an ID both added and removed,
-            a host or a group to add that is not in this inventory, or the inventory is not managed
+            a host or a group to add that is not in this inventory, a group that belongs to a source,
+            or the inventory is not managed
         404:
           description: The inventory does not exist
         204:
@@ -4523,7 +4726,7 @@ paths:
             $ref: "#/definitions/InventoryGroupRequest"
       responses:
         400:
-          description: Invalid group, a cycle of groups, or the inventory is not managed
+          description: Invalid group, a cycle of groups, the group belongs to a source, or the inventory is not managed
         404:
           description: The group is not in the inventory
         204:
@@ -4534,11 +4737,116 @@ paths:
       summary: Removes a group of a managed inventory
       responses:
         400:
-          description: The inventory is not managed
+          description: The group belongs to a source or the inventory is not managed
         404:
           description: The group is not in the inventory
         204:
           description: group removed
+
+  /project/{project_id}/inventory/{inventory_id}/sources:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+    get:
+      tags:
+        - inventory
+      summary: Get sources of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        200:
+          description: All sources of the inventory
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/InventorySource"
+    post:
+      tags:
+        - inventory
+      summary: Add a source to a managed inventory
+      parameters:
+        - name: InventorySource
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/InventorySourceRequest"
+      responses:
+        400:
+          description: >-
+            Invalid source, a repository that is not in the project, a taken name, or the inventory
+            is not managed
+        201:
+          description: source created
+          schema:
+            $ref: "#/definitions/InventorySource"
+
+  /project/{project_id}/inventory/{inventory_id}/sources/{inventory_source_id}:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+      - $ref: "#/parameters/inventory_source_id"
+    get:
+      tags:
+        - inventory
+      summary: Get a source of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        404:
+          description: The source is not in the inventory
+        200:
+          description: source object
+          schema:
+            $ref: "#/definitions/InventorySource"
+    put:
+      tags:
+        - inventory
+      summary: Updates a source of a managed inventory
+      parameters:
+        - name: InventorySource
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/InventorySourceRequest"
+      responses:
+        400:
+          description: >-
+            Invalid source, a repository that is not in the project, a taken name, or the inventory
+            is not managed
+        404:
+          description: The source is not in the inventory
+        204:
+          description: source updated
+    delete:
+      tags:
+        - inventory
+      summary: Removes a source of a managed inventory with its hosts and groups
+      responses:
+        400:
+          description: The inventory is not managed
+        404:
+          description: The source is not in the inventory
+        204:
+          description: source removed
+
+  /project/{project_id}/inventory/{inventory_id}/sources/{inventory_source_id}/sync:
+    parameters:
+      - $ref: "#/parameters/project_id"
+      - $ref: "#/parameters/inventory_id"
+      - $ref: "#/parameters/inventory_source_id"
+    post:
+      tags:
+        - inventory
+      summary: Starts a sync of a source of a managed inventory
+      responses:
+        400:
+          description: The inventory is not managed
+        404:
+          description: The source is not in the inventory
+        409:
+          description: The source is already syncing
+        204:
+          description: sync started, the source shows its result when it ends
 
   # project environment
   /project/{project_id}/environment:

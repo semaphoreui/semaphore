@@ -77,6 +77,8 @@ type ObjectReferrers struct {
 	Schedules    []ObjectReferrer `json:"schedules"`
 	AccessKeys   []ObjectReferrer `json:"access_keys"`
 	HostConfigs  []ObjectReferrer `json:"host_configs"`
+
+	InventorySources []ObjectReferrer `json:"inventory_sources"`
 }
 
 type IntegrationReferrers struct {
@@ -344,19 +346,41 @@ type InventoryHostListParams struct {
 	GroupID   int // hosts of the group and of its descendants
 	Ungrouped bool
 	IDs       []int // only these hosts, nil means any
+	SourceID  int   // hosts owned by the source
+	Manual    bool  // hosts without a source
 }
 
 // InventoryHostManager handles hosts of managed inventories
 type InventoryHostManager interface {
 	GetInventoryHosts(projectID, inventoryID int, params InventoryHostListParams) (hosts []InventoryHost, total int, err error)
 	GetInventoryHost(projectID, inventoryID, hostID int) (InventoryHost, error)
-	GetEnabledInventoryHosts(projectID, inventoryID int) ([]InventoryHost, error)
+	// GetInventoryContent reads the inventory as one state, a sync can not come between its parts
+	GetInventoryContent(projectID, inventoryID int) (InventoryContent, error)
 	CreateInventoryHost(host InventoryHost, addGroups []int) (InventoryHost, error)
-	// UpdateInventoryHost leaves the enabled flag as it is and reports the groups whose link changed
+	// UpdateInventoryHost leaves the enabled flag as it is and reports the groups whose link changed, host.SourceID is the owner the caller saw
 	UpdateInventoryHost(host InventoryHost, addGroups, removeGroups []int) (added, removed []int, err error)
 	// SetInventoryHostEnabled reports whether the flag was different before
 	SetInventoryHostEnabled(projectID, inventoryID, hostID int, enabled bool) (changed bool, err error)
+	// DeleteInventoryHost deletes a manual host only
 	DeleteInventoryHost(projectID, inventoryID, hostID int) error
+}
+
+// InventorySourceManager handles the sources a managed inventory imports from
+type InventorySourceManager interface {
+	// GetInventorySources fills the host and group counts
+	GetInventorySources(projectID, inventoryID int) ([]InventorySource, error)
+	GetInventorySource(projectID, inventoryID, sourceID int) (InventorySource, error)
+	CreateInventorySource(source InventorySource) (InventorySource, error)
+	// UpdateInventorySource changes the name, the repository and the path only
+	UpdateInventorySource(source InventorySource) error
+	DeleteInventorySource(projectID, inventoryID, sourceID int) error
+	// StartInventorySourceSync returns the number of the new run, 0 when the source is syncing and started after staleBefore
+	StartInventorySourceSync(projectID, inventoryID, sourceID int, now, staleBefore time.Time) (int, error)
+	// ApplyInventoryDocument reads the inventory, plans the sync, writes it and the success of the run in one transaction
+	// It returns ErrNotFound when run is not the current run of the source
+	ApplyInventoryDocument(projectID, inventoryID, sourceID, run int, doc InventoryDocument) (InventorySyncResult, error)
+	// FailInventorySourceSync records the error of the current run
+	FailInventorySourceSync(projectID, inventoryID, sourceID, run int, now time.Time, message string) error
 }
 
 // InventoryGroupManager handles groups of managed inventories, every change of links is applied whole or not at all, an unknown id to remove is ignored
@@ -364,11 +388,12 @@ type InventoryGroupManager interface {
 	GetInventoryGroups(projectID, inventoryID int) ([]InventoryGroup, error)
 	GetInventoryGroup(projectID, inventoryID, groupID int) (InventoryGroup, error)
 	CreateInventoryGroup(group InventoryGroup, addChildren []int) (InventoryGroup, error)
-	// UpdateInventoryGroup reports the child groups whose link changed
+	// UpdateInventoryGroup reports the child groups whose link changed, group.SourceID is the owner the caller saw
 	UpdateInventoryGroup(group InventoryGroup, addChildren, removeChildren []int) (added, removed []int, err error)
+	// DeleteInventoryGroup deletes a manual group only
 	DeleteInventoryGroup(projectID, inventoryID, groupID int) error
-	// ChangeInventoryHostGroups reports by group the hosts whose link changed
-	ChangeInventoryHostGroups(projectID, inventoryID int, hostIDs, add, remove []int) (added, removed map[int][]int, err error)
+	// ChangeInventoryHostGroups reports by group the hosts whose link changed, manual refuses the groups of a source
+	ChangeInventoryHostGroups(projectID, inventoryID int, hostIDs, add, remove []int, manual bool) (added, removed map[int][]int, err error)
 	GetInventoryGroupHosts(projectID, inventoryID int) ([]InventoryGroupHost, error)
 }
 
@@ -726,6 +751,7 @@ type Store interface {
 	McpServerManager
 	InventoryHostManager
 	InventoryGroupManager
+	InventorySourceManager
 	RepositoryManager
 	HostConfigManager
 	EnvironmentManager
@@ -929,6 +955,14 @@ var ViewProps = ObjectProps{
 var HostConfigProps = ObjectProps{
 	TableName:            "project__host_config",
 	Type:                 reflect.TypeFor[HostConfig](),
+	PrimaryColumnName:    "id",
+	SortableColumns:      []string{"name"},
+	DefaultSortingColumn: "name",
+}
+
+var InventorySourceProps = ObjectProps{
+	TableName:            "project__inventory_source",
+	Type:                 reflect.TypeFor[InventorySource](),
 	PrimaryColumnName:    "id",
 	SortableColumns:      []string{"name"},
 	DefaultSortingColumn: "name",

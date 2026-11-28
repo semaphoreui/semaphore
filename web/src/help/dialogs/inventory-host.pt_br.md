@@ -7,6 +7,10 @@ form: src/components/InventoryHostForm.vue
 Um host de um inventário gerenciado. Uma tarefa que usa o inventário é executada nos hosts que estão
 ativados na lista de hosts.
 
+Um host importado de uma fonte de inventário é gerenciado por essa fonte. O nome e as variáveis são
+somente leitura e são atualizados a cada sincronização. A descrição, os grupos não importados e o
+interruptor Enabled continuam editáveis.
+
 ## Nome {#inventoryHostForm-name}
 
 O nome pelo qual o Ansible conhece o host e o endereço ao qual ele se conecta, a menos que as

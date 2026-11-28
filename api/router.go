@@ -107,6 +107,8 @@ func Route(
 	environmentController := projects.NewEnvironmentController(store, encryptionService, accessKeyService, environmentService, secretStorageService)
 	secretStorageController := projects.NewSecretStorageController(store, secretStorageService)
 	repositoryController := projects.NewRepositoryController(accessKeyInstallationService, encryptionService)
+	inventorySourceController := projects.NewInventorySourceController(server.NewInventorySourceService(store,
+		server.NewGitInventoryFetcher(store, accessKeyInstallationService, encryptionService), encryptionService))
 	keyController := projects.NewKeyController(accessKeyService)
 	projectsController := projects.NewProjectsController(accessKeyService)
 	terraformController := proApi.NewTerraformController(encryptionService, terraformStore, store)
@@ -516,6 +518,13 @@ func Route(
 	projectInventoryManagement.HandleFunc("/{inventory_id}/groups/{inventory_group_id}", projects.GetInventoryGroup).Methods("GET", "HEAD")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/groups/{inventory_group_id}", projects.UpdateInventoryGroup).Methods("PUT")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/groups/{inventory_group_id}", projects.RemoveInventoryGroup).Methods("DELETE")
+
+	projectInventoryManagement.HandleFunc("/{inventory_id}/sources", inventorySourceController.GetInventorySources).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/sources", inventorySourceController.AddInventorySource).Methods("POST")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/sources/{inventory_source_id}", inventorySourceController.GetInventorySource).Methods("GET", "HEAD")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/sources/{inventory_source_id}", inventorySourceController.UpdateInventorySource).Methods("PUT")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/sources/{inventory_source_id}", inventorySourceController.RemoveInventorySource).Methods("DELETE")
+	projectInventoryManagement.HandleFunc("/{inventory_id}/sources/{inventory_source_id}/sync", inventorySourceController.SyncInventorySource).Methods("POST")
 
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases", terraformInventoryController.GetTerraformInventoryAliases).Methods("GET", "HEAD")
 	projectInventoryManagement.HandleFunc("/{inventory_id}/terraform/aliases", terraformInventoryController.AddTerraformInventoryAlias).Methods("POST")

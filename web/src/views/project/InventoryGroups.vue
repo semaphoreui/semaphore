@@ -4,7 +4,7 @@
       v-model="editDialog"
       test-id="inventoryGroupDialog"
       help-doc="inventory-group"
-      :save-button-text="itemId === 'new' ? $t('create') : $t('save')"
+      :save-button-text="saveText"
       :title="itemId === 'new' ? $t('inventory_groups_add') : $t('inventory_groups_edit')"
       :max-width="450"
       @save="onSaved()"
@@ -15,6 +15,7 @@
           :inventory-id="inventoryId"
           :item-id="itemId"
           :groups="groups || []"
+          :sources="sourceNames"
           :need-save="needSave"
           :need-reset="needReset"
           @save="onSave"
@@ -44,6 +45,17 @@
             style="max-width: 320px"
             data-testid="inventoryGroups-search"
         />
+        <v-select
+          v-if="sources.length > 0 || sourceFilter !== ''"
+          v-model="sourceFilter"
+          :items="sourceFilterItems"
+          :label="$t('inventory_source_filter')"
+          density="compact"
+          variant="outlined"
+          hide-details
+          style="max-width: 240px"
+          data-testid="inventoryGroups-sourceFilter"
+        />
         <v-spacer></v-spacer>
         <v-btn
             v-if="canManage"
@@ -72,9 +84,26 @@
       </template>
 
       <template v-slot:item.name="{ item }">
-        <span class="text-wrap" style="overflow-wrap: anywhere" data-testid="inventoryGroups-name">
-          {{ item.name }}
-        </span>
+        <div>
+          <span
+            class="text-wrap"
+            style="overflow-wrap: anywhere"
+            data-testid="inventoryGroups-name"
+          >
+            {{ item.name }}
+          </span>
+          <div
+            v-if="item.source_id != null"
+            class="text-body-small text-medium-emphasis"
+            style="overflow-wrap: anywhere"
+            :data-testid="`inventoryGroups-source-${item.id}`"
+          >
+            <v-icon size="x-small">mdi-sync</v-icon>
+            {{ sourcesLoaded
+              ? (sourceNames[item.source_id] || $t('inventory_source_unknown'))
+              : '' }}
+          </div>
+        </div>
       </template>
 
       <template v-slot:item.description="{ item }">
@@ -124,6 +153,7 @@
       <template v-slot:item.actions="{ item }">
         <v-btn-group density="compact" data-testid="inventoryGroups-rowActions">
           <v-btn
+            v-if="item.source_id == null"
             :disabled="busyIds.includes(item.id)"
             :aria-label="$t('inventory_groups_delete')"
             data-testid="inventoryGroups-rowDelete"
@@ -180,9 +210,13 @@ export default {
   data() {
     return {
       groups: null,
+      sources: [],
+      sourcesLoaded: false,
+      sourceFilter: '',
       loading: false,
       searchText: '',
       loadSeq: 0,
+      sourcesSeq: 0,
       itemId: null,
       editDialog: false,
       deleteDialog: false,
@@ -199,7 +233,29 @@ export default {
 
     rows() {
       const search = (this.searchText || '').toLowerCase();
-      return (this.groups || []).filter((group) => group.name.toLowerCase().includes(search));
+      return (this.groups || []).filter((group) => group.name.toLowerCase().includes(search)
+        && (this.sourceFilter === '' || (this.sourceFilter === 'manual'
+          ? group.source_id == null
+          : group.source_id === this.sourceFilter)));
+    },
+
+    sourceFilterItems() {
+      return [
+        { title: this.$t('inventory_source_all'), value: '' },
+        { title: this.$t('inventory_source_manual'), value: 'manual' },
+        ...this.sources.map((source) => ({ title: source.name, value: source.id })),
+      ];
+    },
+
+    sourceNames() {
+      return Object.fromEntries(this.sources.map((source) => [source.id, source.name]));
+    },
+
+    // An imported group has nothing to save
+    saveText() {
+      const group = (this.groups || []).find((g) => g.id === this.itemId);
+      if (group != null && group.source_id != null) return undefined;
+      return this.itemId === 'new' ? this.$t('create') : this.$t('save');
     },
 
     state() {
@@ -236,7 +292,7 @@ export default {
   },
 
   async created() {
-    await this.load();
+    await Promise.all([this.load(), this.loadSources()]);
   },
 
   methods: {
@@ -276,9 +332,30 @@ export default {
     // Nothing of the previous inventory stays on the screen or in an open dialog
     reload() {
       this.groups = null;
+      this.sources = [];
+      this.sourcesLoaded = false;
+      this.sourceFilter = '';
       this.editDialog = false;
       this.deleteDialog = false;
       this.load();
+      this.loadSources();
+    },
+
+    // Without the names the rows still show that a group is imported
+    async loadSources() {
+      this.sourcesSeq += 1;
+      const seq = this.sourcesSeq;
+      try {
+        const response = await axios.get(
+          `/api/project/${this.projectId}/inventory/${this.inventoryId}/sources`,
+        );
+        if (seq !== this.sourcesSeq) return;
+        this.sources = Array.isArray(response.data) ? response.data : [];
+      } catch (err) {
+        if (seq !== this.sourcesSeq) return;
+        this.sources = [];
+      }
+      this.sourcesLoaded = true;
     },
 
     async load() {

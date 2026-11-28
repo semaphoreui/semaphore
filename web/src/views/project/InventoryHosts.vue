@@ -15,6 +15,7 @@
           :inventory-id="inventoryId"
           :item-id="itemId"
           :groups="groups || []"
+          :sources="sourceNames"
           :need-save="needSave"
           :need-reset="needReset"
           @save="onSave"
@@ -119,6 +120,18 @@
           data-testid="inventoryHosts-groupFilter"
           @update:model-value="setGroupFilter"
         />
+        <v-select
+          v-if="sources.length > 0 || sourceFilter !== ''"
+          :model-value="sourceFilter"
+          :items="sourceFilterItems"
+          :label="$t('inventory_source_filter')"
+          density="compact"
+          variant="outlined"
+          hide-details
+          style="max-width: 240px"
+          data-testid="inventoryHosts-sourceFilter"
+          @update:model-value="setSourceFilter"
+        />
         <v-spacer></v-spacer>
         <v-btn
           v-if="canManage"
@@ -196,13 +209,26 @@
       </template>
 
       <template v-slot:item.name="{ item }">
-        <span class="text-wrap" style="overflow-wrap: anywhere" data-testid="inventoryHosts-name">
-          <router-link
-            v-if="features.hosts && item.host_id"
-            :to="`/project/${projectId}/hosts/${item.host_id}`"
-          >{{ item.name }}</router-link>
-          <template v-else>{{ item.name }}</template>
-        </span>
+        <div>
+          <span class="text-wrap" style="overflow-wrap: anywhere" data-testid="inventoryHosts-name">
+            <router-link
+              v-if="features.hosts && item.host_id"
+              :to="`/project/${projectId}/hosts/${item.host_id}`"
+            >{{ item.name }}</router-link>
+            <template v-else>{{ item.name }}</template>
+          </span>
+          <div
+            v-if="item.source_id != null"
+            class="text-body-small text-medium-emphasis"
+            style="overflow-wrap: anywhere"
+            :data-testid="`inventoryHosts-source-${item.id}`"
+          >
+            <v-icon size="x-small">mdi-sync</v-icon>
+            {{ sourcesLoaded
+              ? (sourceNames[item.source_id] || $t('inventory_source_unknown'))
+              : '' }}
+          </div>
+        </div>
       </template>
       <template v-slot:item.last_run="{ item }">
         <span v-if="item.last_status" data-testid="inventoryHosts-lastRun">
@@ -263,6 +289,7 @@
       <template v-slot:item.actions="{ item }">
         <v-btn-group density="compact" data-testid="inventoryHosts-rowActions">
           <v-btn
+            v-if="item.source_id == null"
             :aria-label="$t('inventory_hosts_delete')"
             data-testid="inventoryHosts-rowDelete"
             @click="askDelete(item)"
@@ -354,6 +381,8 @@ export default {
     return {
       rows: null,
       groups: null,
+      sources: [],
+      sourcesLoaded: false,
       total: 0,
       loading: false,
       offset: 0,
@@ -362,6 +391,7 @@ export default {
       searchTimer: null,
       loadSeq: 0,
       groupsSeq: 0,
+      sourcesSeq: 0,
       itemId: null,
       editDialog: false,
       deleteDialog: false,
@@ -400,6 +430,25 @@ export default {
       ];
     },
 
+    sourceFilter() {
+      const { source } = this.$route.query;
+      if (source === 'manual') return 'manual';
+      const id = Number(source);
+      return Number.isInteger(id) && id > 0 ? id : '';
+    },
+
+    sourceFilterItems() {
+      return [
+        { title: this.$t('inventory_source_all'), value: '' },
+        { title: this.$t('inventory_source_manual'), value: 'manual' },
+        ...this.sources.map((source) => ({ title: source.name, value: source.id })),
+      ];
+    },
+
+    sourceNames() {
+      return Object.fromEntries(this.sources.map((source) => [source.id, source.name]));
+    },
+
     groupNames() {
       return Object.fromEntries((this.groups || []).map((group) => [group.id, group.name]));
     },
@@ -421,7 +470,7 @@ export default {
     },
 
     dialogGroups() {
-      const groups = this.groups || [];
+      const groups = (this.groups || []).filter((group) => group.source_id == null);
       if (this.groupsDialogAdd) return groups;
       return groups.filter((group) => this.selectedHosts
         .some((host) => host.groups.includes(group.id)));
@@ -466,11 +515,14 @@ export default {
       this.offset = 0;
       this.selected = [];
       this.groups = null;
+      this.sources = [];
+      this.sourcesLoaded = false;
       this.editDialog = false;
       this.deleteDialog = false;
       this.groupsDialog = false;
       this.load();
       this.loadGroups();
+      this.loadSources();
     },
 
     search() {
@@ -481,6 +533,12 @@ export default {
     },
 
     groupFilter() {
+      this.offset = 0;
+      this.selected = [];
+      this.load();
+    },
+
+    sourceFilter() {
       this.offset = 0;
       this.selected = [];
       this.load();
@@ -497,7 +555,7 @@ export default {
 
   async created() {
     this.searchText = this.search;
-    await Promise.all([this.load(), this.loadGroups()]);
+    await Promise.all([this.load(), this.loadGroups(), this.loadSources()]);
   },
 
   beforeUnmount() {
@@ -529,6 +587,12 @@ export default {
           group: typeof value === 'number' ? value : undefined,
           ungrouped: value === 'ungrouped' ? '1' : undefined,
         },
+      });
+    },
+
+    setSourceFilter(value) {
+      this.$router.replace({
+        query: { ...this.$route.query, source: value === '' ? undefined : value },
       });
     },
 
@@ -602,6 +666,7 @@ export default {
             search: this.search || undefined,
             group: typeof this.groupFilter === 'number' ? this.groupFilter : undefined,
             ungrouped: this.groupFilter === 'ungrouped' ? 1 : undefined,
+            source: this.sourceFilter === '' ? undefined : this.sourceFilter,
             offset: this.offset,
             count: this.count,
           },
@@ -631,6 +696,21 @@ export default {
       } finally {
         if (seq === this.loadSeq) this.loading = false;
       }
+    },
+
+    // Without the names the rows still show that a host is imported
+    async loadSources() {
+      this.sourcesSeq += 1;
+      const seq = this.sourcesSeq;
+      try {
+        const response = await axios.get(`${this.inventoryUrl}/sources`);
+        if (seq !== this.sourcesSeq) return;
+        this.sources = Array.isArray(response.data) ? response.data : [];
+      } catch (err) {
+        if (seq !== this.sourcesSeq) return;
+        this.sources = [];
+      }
+      this.sourcesLoaded = true;
     },
 
     async loadGroups() {

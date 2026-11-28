@@ -157,21 +157,35 @@ func TestInventoryHosts_UpdateMissingIsNotFound(t *testing.T) {
 	}
 }
 
-func TestGetEnabledInventoryHosts(t *testing.T) {
-	store := InitConfigCreateTestStore()
-	project, err := store.CreateProject(db.Project{Name: "test project"})
+func TestGetInventoryContent(t *testing.T) {
+	f := newInventoryGroupFixture(t)
+	on := f.host(t, "on")
+	_, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: f.inventory.ID, Name: "off", Enabled: false}, nil)
 	require.NoError(t, err)
-	inventory := createTestManagedInventory(t, store, project.ID, "managed")
-	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "on", Enabled: true}, nil)
+	child := f.group(t, "child")
+	parent, err := f.store.CreateInventoryGroup(db.InventoryGroup{ProjectID: f.project.ID, InventoryID: f.inventory.ID, Name: "parent"}, []int{child.ID})
 	require.NoError(t, err)
-	_, err = store.CreateInventoryHost(db.InventoryHost{ProjectID: project.ID, InventoryID: inventory.ID, Name: "off", Enabled: false}, nil)
+	_, _, err = f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, []int{on.ID}, []int{child.ID}, nil, true)
 	require.NoError(t, err)
+	for _, source := range []db.InventorySource{{Name: "z", Variables: "first: 1\n"}, {Name: "a", Variables: "second: 2\n"}} {
+		source.ProjectID, source.InventoryID, source.Type, source.Params = f.project.ID, f.inventory.ID, db.InventorySourceGit, db.MapStringAnyField{"path": "hosts.yml"}
+		_, err = f.store.CreateInventorySource(source)
+		require.NoError(t, err)
+	}
 
-	hosts, err := store.GetEnabledInventoryHosts(project.ID, inventory.ID)
+	content, err := f.store.GetInventoryContent(f.project.ID, f.inventory.ID)
 
 	require.NoError(t, err)
-	require.Len(t, hosts, 1)
-	assert.Equal(t, "on", hosts[0].Name)
+	assert.Len(t, content.Hosts, 2)
+	groups := map[int][]int{}
+	for _, group := range content.Groups {
+		groups[group.ID] = group.Children
+	}
+	assert.Equal(t, map[int][]int{parent.ID: {child.ID}, child.ID: nil}, groups)
+	assert.Equal(t, []db.InventoryGroupHost{{GroupID: child.ID, HostID: on.ID}}, content.Members)
+	require.Len(t, content.Sources, 2)
+	assert.Equal(t, "z", content.Sources[0].Name)
+	assert.Equal(t, "second: 2\n", content.Sources[1].Variables)
 }
 
 func TestDeleteInventory_DeletesItsHosts(t *testing.T) {

@@ -15,7 +15,7 @@ func TestBuildManagedInventory(t *testing.T) {
 		{Name: "web1", Variables: "ansible_host: 10.0.0.5"},
 	}
 
-	text, err := buildManagedInventory("http_port: 8080", hosts, nil, nil)
+	text, err := buildManagedInventory("http_port: 8080", nil, hosts, nil, nil)
 
 	require.NoError(t, err)
 	var parsed map[string]any
@@ -34,7 +34,7 @@ func TestBuildManagedInventory(t *testing.T) {
 func TestBuildManagedInventory_KeepsNamesAsStrings(t *testing.T) {
 	hosts := []db.InventoryHost{{Name: "123"}, {Name: "null"}, {Name: "yes"}, {Name: "~"}}
 
-	text, err := buildManagedInventory("", hosts, nil, nil)
+	text, err := buildManagedInventory("", nil, hosts, nil, nil)
 
 	require.NoError(t, err)
 	for _, key := range []string{`"123":`, `"null":`, `"yes":`, `"~":`} {
@@ -48,7 +48,7 @@ func TestBuildManagedInventory_KeepsValuesAsWritten(t *testing.T) {
 		Variables: "mode: 0755\nd: 2024-01-01\non_off: on\nquoted: \"yes\"",
 	}}
 
-	text, err := buildManagedInventory("flag: no", hosts, nil, nil)
+	text, err := buildManagedInventory("flag: no", nil, hosts, nil, nil)
 
 	require.NoError(t, err)
 	for _, line := range []string{"flag: no", "mode: 0755", "d: 2024-01-01", "on_off: on", `quoted: "yes"`} {
@@ -57,7 +57,7 @@ func TestBuildManagedInventory_KeepsValuesAsWritten(t *testing.T) {
 }
 
 func TestBuildManagedInventory_JSONVariables(t *testing.T) {
-	text, err := buildManagedInventory(`{"a": 1, "b": "x"}`, nil, nil, nil)
+	text, err := buildManagedInventory(`{"a": 1, "b": "x"}`, nil, nil, nil, nil)
 
 	require.NoError(t, err)
 	var parsed map[string]map[string]map[string]any
@@ -66,7 +66,7 @@ func TestBuildManagedInventory_JSONVariables(t *testing.T) {
 }
 
 func TestBuildManagedInventory_NoHosts(t *testing.T) {
-	text, err := buildManagedInventory("", nil, nil, nil)
+	text, err := buildManagedInventory("", nil, nil, nil, nil)
 
 	require.NoError(t, err)
 	var parsed map[string]map[string]map[string]any
@@ -79,7 +79,7 @@ func TestBuildManagedInventory_NoHosts(t *testing.T) {
 func TestBuildManagedInventory_HostErrorNamesHostOnly(t *testing.T) {
 	hosts := []db.InventoryHost{{Name: "web1", Variables: "secret: [oops"}}
 
-	_, err := buildManagedInventory("", hosts, nil, nil)
+	_, err := buildManagedInventory("", nil, hosts, nil, nil)
 
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "host web1: ")
@@ -89,7 +89,7 @@ func TestBuildManagedInventory_HostErrorNamesHostOnly(t *testing.T) {
 func TestBuildManagedInventory_RejectsAnchors(t *testing.T) {
 	hosts := []db.InventoryHost{{Name: "web1", Variables: "base: &x {u: 1}\ncopy: *x"}}
 
-	_, err := buildManagedInventory("", hosts, nil, nil)
+	_, err := buildManagedInventory("", nil, hosts, nil, nil)
 
 	assert.ErrorContains(t, err, "host web1")
 }
@@ -105,7 +105,7 @@ func TestBuildManagedInventory_Groups(t *testing.T) {
 	}
 	members := []db.InventoryGroupHost{{GroupID: 11, HostID: 1}}
 
-	text, err := buildManagedInventory("http_port: 80", hosts, groups, members)
+	text, err := buildManagedInventory("http_port: 80", nil, hosts, groups, members)
 
 	require.NoError(t, err)
 	var parsed map[string]any
@@ -134,7 +134,7 @@ func TestBuildManagedInventory_GroupKeepsOnlyEnabledHosts(t *testing.T) {
 	groups := []db.InventoryGroup{{ID: 10, Name: "web"}}
 	members := []db.InventoryGroupHost{{GroupID: 10, HostID: 1}}
 
-	text, err := buildManagedInventory("", nil, groups, members)
+	text, err := buildManagedInventory("", nil, nil, groups, members)
 
 	require.NoError(t, err)
 	var parsed struct {
@@ -147,7 +147,7 @@ func TestBuildManagedInventory_GroupKeepsOnlyEnabledHosts(t *testing.T) {
 func TestBuildManagedInventory_KeepsGroupNamesAsStrings(t *testing.T) {
 	groups := []db.InventoryGroup{{ID: 1, Name: "true"}, {ID: 2, Name: "123"}, {ID: 3, Name: "null"}, {ID: 4, Name: "web-eu"}}
 
-	text, err := buildManagedInventory("", nil, groups, nil)
+	text, err := buildManagedInventory("", nil, nil, groups, nil)
 
 	require.NoError(t, err)
 	var parsed struct {
@@ -165,7 +165,7 @@ func TestBuildManagedInventory_GroupCycle(t *testing.T) {
 		{ID: 2, Name: "web-eu", Children: []int{1}},
 	}
 
-	_, err := buildManagedInventory("", nil, groups, nil)
+	_, err := buildManagedInventory("", nil, nil, groups, nil)
 
 	assert.EqualError(t, err, "group cycle: web, web-eu, web")
 }
@@ -173,7 +173,7 @@ func TestBuildManagedInventory_GroupCycle(t *testing.T) {
 func TestBuildManagedInventory_GroupErrorNamesGroup(t *testing.T) {
 	groups := []db.InventoryGroup{{ID: 1, Name: "web", Variables: "secret: [oops"}}
 
-	_, err := buildManagedInventory("", nil, groups, nil)
+	_, err := buildManagedInventory("", nil, nil, groups, nil)
 
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "group web: ")
@@ -185,11 +185,29 @@ func TestBuildManagedInventory_KeepsOnlyAllAtTheTop(t *testing.T) {
 	groups := []db.InventoryGroup{{ID: 1, Name: "plugin"}}
 	members := []db.InventoryGroupHost{{GroupID: 1, HostID: 1}}
 
-	text, err := buildManagedInventory("", hosts, groups, members)
+	text, err := buildManagedInventory("", nil, hosts, groups, members)
 
 	require.NoError(t, err)
 	var parsed map[string]any
 	require.NoError(t, yaml.Unmarshal([]byte(text), &parsed))
 	assert.Len(t, parsed, 1)
 	assert.Contains(t, parsed, "all")
+}
+
+func TestBuildManagedInventory_MergesSourceVariables(t *testing.T) {
+	sources := []string{"a: 2\nb: 2\nratio: 2000000.0", "b: 3\nc: 3\npw: !vault |\n  $ANSIBLE_VAULT;1.1;AES256\n  6162\n"}
+
+	text, err := buildManagedInventory("a: 1", sources, nil, nil, nil)
+
+	require.NoError(t, err)
+	var parsed map[string]any
+	require.NoError(t, yaml.Unmarshal([]byte(text), &parsed))
+	assert.Equal(t, map[string]any{
+		"all": map[string]any{
+			"vars":  map[string]any{"a": 1, "b": 2, "c": 3, "ratio": 2000000.0, "pw": "$ANSIBLE_VAULT;1.1;AES256\n6162\n"},
+			"hosts": map[string]any{},
+		},
+	}, parsed)
+	assert.Contains(t, text, "pw: !vault |")
+	assert.Contains(t, text, "ratio: 2000000.0\n")
 }

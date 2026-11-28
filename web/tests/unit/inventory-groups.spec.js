@@ -1,9 +1,12 @@
 import './setup';
+import fs from 'node:fs';
 import { expect } from 'chai';
 import { mount } from '@vue/test-utils';
 import InventoryGroups from '@/views/project/InventoryGroups.vue';
 import InventoryGroupForm from '@/components/InventoryGroupForm.vue';
 import EventBus from '@/event-bus';
+import { messages } from '@/lang';
+import EditDialog from '@/components/EditDialog.vue';
 import mockAxios from './helpers/axiosMock';
 
 async function flush() {
@@ -34,6 +37,33 @@ const groups = [
   },
 ];
 
+const sources = [
+  { id: 1, name: 'Static servers' },
+  { id: 2, name: 'Edge devices' },
+];
+
+const withSources = [
+  ...groups.slice(0, 2),
+  {
+    id: 3,
+    name: 'imported-a',
+    description: '',
+    variable_count: 0,
+    children: [],
+    host_count: 1,
+    source_id: 1,
+  },
+  {
+    id: 4,
+    name: 'imported-b',
+    description: '',
+    variable_count: 0,
+    children: [],
+    host_count: 1,
+    source_id: 2,
+  },
+];
+
 const wrappers = [];
 
 function mountGroups(props) {
@@ -48,10 +78,10 @@ function mountGroups(props) {
   return wrapper;
 }
 
-function mountForm(itemId) {
+function mountForm(itemId, props) {
   const wrapper = mount(InventoryGroupForm, {
     props: {
-      projectId: 7, inventoryId: 3, itemId, groups,
+      projectId: 7, inventoryId: 3, itemId, groups, ...props,
     },
     global: {
       mocks: { $t: (k) => k },
@@ -67,7 +97,10 @@ describe('InventoryGroups.vue', () => {
 
   beforeEach(() => {
     http = mockAxios();
-    http.respond((c) => (c.method === 'get' ? groups : {}));
+    http.respond((c) => {
+      if (c.method !== 'get') return {};
+      return c.url.endsWith('/sources') ? [] : groups;
+    });
   });
 
   afterEach(() => {
@@ -142,7 +175,8 @@ describe('InventoryGroups.vue', () => {
     expect(wrapper.findAll('[data-testid="inventoryGroups-name"]')).to.have.length(0);
     expect(wrapper.findComponent({ name: 'YesNoDialog' }).props('modelValue')).to.equal(false);
     expect(wrapper.findComponent({ name: 'EditDialog' }).props('modelValue')).to.equal(false);
-    expect(http.requests.at(-1).url).to.equal('/api/project/7/inventory/4/groups');
+    expect(http.requests.filter((r) => r.url.endsWith('/groups')).at(-1).url)
+      .to.equal('/api/project/7/inventory/4/groups');
   });
 
   it('asks to count again after a group is deleted', async () => {
@@ -160,6 +194,88 @@ describe('InventoryGroups.vue', () => {
     expect(http.requests.find((r) => r.method === 'delete').url)
       .to.equal('/api/project/7/inventory/3/groups/1');
     expect(counted).to.equal(1);
+  });
+
+  describe('with imported groups', () => {
+    beforeEach(() => {
+      http.respond((c) => {
+        if (c.method !== 'get') return {};
+        return c.url.endsWith('/sources') ? sources : withSources;
+      });
+    });
+
+    const names = (wrapper) => wrapper.findAll('[data-testid="inventoryGroups-name"]')
+      .map((e) => e.text());
+
+    it('shows the source under the name of an imported group and none for a manual one', async () => {
+      const wrapper = mountGroups({ isAdmin: true });
+      await flush();
+
+      expect(wrapper.find('[data-testid="inventoryGroups-source-3"]').text()).to.equal('Static servers');
+      expect(wrapper.find('[data-testid="inventoryGroups-source-1"]').exists()).to.equal(false);
+    });
+
+    it('filters the groups by the manual ones and by a source', async () => {
+      const wrapper = mountGroups({ isAdmin: true });
+      await flush();
+      const filter = () => wrapper.findComponent('[data-testid="inventoryGroups-sourceFilter"]');
+
+      expect(filter().props('items').map((item) => item.value)).to.deep.equal(['', 'manual', 1, 2]);
+      filter().vm.$emit('update:modelValue', 'manual');
+      await flush();
+      expect(names(wrapper)).to.deep.equal(['web', 'web-eu']);
+
+      filter().vm.$emit('update:modelValue', 2);
+      await flush();
+      expect(names(wrapper)).to.deep.equal(['imported-b']);
+    });
+
+    it('offers no delete for an imported group', async () => {
+      const wrapper = mountGroups({ isAdmin: true });
+      await flush();
+
+      const rows = wrapper.findAll('[data-testid="inventoryGroups-rowActions"]');
+      expect(rows[0].find('[data-testid="inventoryGroups-rowDelete"]').exists()).to.equal(true);
+      expect(rows[2].find('[data-testid="inventoryGroups-rowDelete"]').exists()).to.equal(false);
+      expect(rows[2].find('[data-testid="inventoryGroups-rowEdit"]').exists()).to.equal(true);
+    });
+
+    it('gives the dialog of an imported group no save button', async () => {
+      const wrapper = mountGroups({ isAdmin: true });
+      await flush();
+      const dialog = () => wrapper.findComponent(EditDialog);
+
+      await wrapper.findAll('[data-testid="inventoryGroups-rowEdit"]')[2].trigger('click');
+      expect(dialog().props('saveButtonText')).to.equal(undefined);
+
+      await wrapper.findAll('[data-testid="inventoryGroups-rowEdit"]')[0].trigger('click');
+      expect(dialog().props('saveButtonText')).to.equal('save');
+    });
+
+    it('renders no save button without a save text', async () => {
+      const wrapper = mount(EditDialog, {
+        props: { modelValue: false, title: 'x', saveButtonText: undefined },
+        global: {
+          mocks: { $t: (k) => k },
+          stubs: { VDialog: { props: ['modelValue'], template: '<div v-if="modelValue"><slot /></div>' } },
+        },
+      });
+      wrappers.push(wrapper);
+      await wrapper.setProps({ modelValue: true });
+      await flush();
+
+      expect(wrapper.find('[data-testid="editDialog-cancel"]').exists()).to.equal(true);
+      expect(wrapper.find('[data-testid="editDialog-save"]').exists()).to.equal(false);
+    });
+  });
+
+  it('uses only translation keys that exist', () => {
+    const files = ['src/views/project/InventoryGroups.vue', 'src/components/InventoryGroupForm.vue'];
+    const keys = files.flatMap((file) => [...fs.readFileSync(file, 'utf8')
+      .matchAll(/\$t\(\s*'([^']+)'/g)].map((m) => m[1]));
+
+    expect(keys).to.include('inventory_source_unknown');
+    expect(keys.filter((key) => !(key in messages.en))).to.deep.equal([]);
   });
 });
 
@@ -227,5 +343,39 @@ describe('InventoryGroupForm.vue', () => {
     expect(writes[0].data.add_children).to.deep.equal([5]);
     expect(writes[0].data.remove_children).to.deep.equal([2]);
     expect(writes[0].data).to.not.have.property('children');
+  });
+
+  it('marks an imported group as locked and a manual one not', async () => {
+    http.respond(() => ({ ...withSources[2], variables: 'a: 1' }));
+    const imported = mountForm(3);
+    await flush();
+    http.respond(() => ({ ...groups[0], variables: 'a: 1' }));
+    const manual = mountForm(1);
+    await flush();
+
+    ['name', 'description'].forEach((field) => {
+      const lock = `[data-testid="inventoryGroupForm-${field}"] .mdi-lock`;
+      expect(imported.find(lock).exists()).to.equal(true);
+      expect(manual.find(lock).exists()).to.equal(false);
+    });
+    expect(imported.find('.InventoryGroupForm__editor--readonly').exists()).to.equal(true);
+    expect(manual.find('.InventoryGroupForm__editor--readonly').exists()).to.equal(false);
+  });
+
+  it('shows an imported group read-only with the source it comes from', async () => {
+    http.respond(() => ({ ...withSources[2], variables: 'a: 1' }));
+    const wrapper = mountForm(3, { sources: { 1: 'Static servers' } });
+    await flush();
+
+    expect(wrapper.find('[data-testid="inventoryGroupForm-imported"]').text())
+      .to.equal('inventory_source_imported_group');
+    ['name', 'description'].forEach((field) => {
+      expect(wrapper.find(`[data-testid="inventoryGroupForm-${field}"] input`).attributes())
+        .to.have.property('readonly');
+    });
+    expect(wrapper.findComponent('[data-testid="inventoryGroupForm-children"]').props('readonly'))
+      .to.equal(true);
+    expect(wrapper.findComponent('[data-testid="inventoryGroupForm-variables"]').props('readonly'))
+      .to.equal(true);
   });
 });

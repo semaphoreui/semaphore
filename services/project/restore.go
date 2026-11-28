@@ -251,10 +251,36 @@ func (e BackupInventory) Verify(backup *BackupFormat) error {
 	if _, err := db.ParseInventoryVariables(e.VariablesText()); err != nil {
 		return fmt.Errorf("variables of inventory %q: %w", e.Name, err)
 	}
+	if len(e.Sources) > 0 && e.Type != db.InventoryManaged {
+		return fmt.Errorf("inventory %q is not managed but has sources", e.Name)
+	}
+	sources := make(map[string]bool)
+	for _, s := range e.Sources {
+		if sources[s.Name] {
+			return fmt.Errorf("source %q of inventory %q is duplicated", s.Name, e.Name)
+		}
+		sources[s.Name] = true
+		if s.Repository != nil && getEntryByName[BackupRepository](s.Repository, backup.Repositories) == nil {
+			return fmt.Errorf("source %q of inventory %q names unknown repository %q", s.Name, e.Name, *s.Repository)
+		}
+		if s.Key != nil && getEntryByName[BackupAccessKey](s.Key, backup.Keys) == nil {
+			return fmt.Errorf("source %q of inventory %q names unknown key %q", s.Name, e.Name, *s.Key)
+		}
+		source := db.InventorySource{Name: s.Name, Type: s.Type, Params: s.Params}
+		if err := source.Validate(); err != nil {
+			return fmt.Errorf("source %q of inventory %q: %w", s.Name, e.Name, err)
+		}
+		if _, err := db.ParseInventoryVariables(s.Variables); err != nil {
+			return fmt.Errorf("variables of source %q of inventory %q: %w", s.Name, e.Name, err)
+		}
+	}
 	names := make(map[string]bool)
 	for i, h := range e.Hosts {
 		if names[h.Name] {
 			return fmt.Errorf("host %q of inventory %q is duplicated", h.Name, e.Name)
+		}
+		if h.Source != nil && !sources[*h.Source] {
+			return fmt.Errorf("host %q of inventory %q names unknown source %q", h.Name, e.Name, *h.Source)
 		}
 		names[h.Name] = true
 		host := db.InventoryHost{Name: h.Name, Variables: h.Variables}
@@ -271,6 +297,9 @@ func (e BackupInventory) Verify(backup *BackupFormat) error {
 			return fmt.Errorf("group %q of inventory %q is duplicated", g.Name, e.Name)
 		}
 		groupIndex[g.Name] = i
+		if g.Source != nil && !sources[*g.Source] {
+			return fmt.Errorf("group %q of inventory %q names unknown source %q", g.Name, e.Name, *g.Source)
+		}
 		group := db.InventoryGroup{Name: g.Name, Variables: g.Variables}
 		if err := group.Validate(); err != nil {
 			return fmt.Errorf("group %q of inventory %q at groups[%d]: %w", g.Name, e.Name, i, err)
@@ -336,8 +365,41 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 	}
 	b.inventories = append(b.inventories, newInventory)
 
+	sourceIDs := make(map[string]*int)
+	for _, s := range e.Sources {
+		var repositoryID *int
+		if repo := findEntityByName[db.Repository](s.Repository, b.repositories); repo != nil {
+			repositoryID = &repo.ID
+		}
+		var keyID *int
+		if s.Key != nil {
+			if key := findEntityByName[db.AccessKey](s.Key, b.keys); key != nil {
+				keyID = &key.ID
+			}
+		}
+		source, err := b.store.CreateInventorySource(db.InventorySource{
+			ProjectID:     b.meta.ID,
+			InventoryID:   newInventory.ID,
+			Name:          s.Name,
+			Type:          s.Type,
+			RepositoryID:  repositoryID,
+			KeyID:         keyID,
+			Params:        s.Params,
+			Variables:     s.Variables,
+			VariableCount: db.CountInventoryVariables(s.Variables),
+		})
+		if err != nil {
+			return fmt.Errorf("source %q of inventory %q: %w", s.Name, e.Name, err)
+		}
+		sourceIDs[s.Name] = &source.ID
+	}
+
 	hostIDs := make(map[string]int)
 	for _, h := range e.Hosts {
+		var sourceID *int
+		if h.Source != nil {
+			sourceID = sourceIDs[*h.Source]
+		}
 		host, err := b.store.CreateInventoryHost(db.InventoryHost{
 			ProjectID:   b.meta.ID,
 			InventoryID: newInventory.ID,
@@ -345,6 +407,7 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 			Description: h.Description,
 			Enabled:     h.Enabled,
 			Variables:   h.Variables,
+			SourceID:    sourceID,
 		}, nil)
 		if err != nil {
 			return fmt.Errorf("host %q of inventory %q: %w", h.Name, e.Name, err)
@@ -354,12 +417,17 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 
 	groups := make(map[string]db.InventoryGroup)
 	for _, g := range e.Groups {
+		var sourceID *int
+		if g.Source != nil {
+			sourceID = sourceIDs[*g.Source]
+		}
 		group, err := b.store.CreateInventoryGroup(db.InventoryGroup{
 			ProjectID:   b.meta.ID,
 			InventoryID: newInventory.ID,
 			Name:        g.Name,
 			Description: g.Description,
 			Variables:   g.Variables,
+			SourceID:    sourceID,
 		}, nil)
 		if err != nil {
 			return fmt.Errorf("group %q of inventory %q: %w", g.Name, e.Name, err)
@@ -385,7 +453,7 @@ func (e BackupInventory) Restore(b *BackupDB) error {
 		}
 		// Batches keep the host id list of one call within database parameter limits
 		for batch := range slices.Chunk(members, 1000) {
-			if _, _, err = b.store.ChangeInventoryHostGroups(b.meta.ID, newInventory.ID, batch, []int{group.ID}, nil); err != nil {
+			if _, _, err = b.store.ChangeInventoryHostGroups(b.meta.ID, newInventory.ID, batch, []int{group.ID}, nil, false); err != nil {
 				return fmt.Errorf("group %q of inventory %q: %w", g.Name, e.Name, err)
 			}
 		}

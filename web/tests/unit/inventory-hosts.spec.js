@@ -1,5 +1,6 @@
 import './setup';
 import { expect } from 'chai';
+import fs from 'node:fs';
 import { reactive } from 'vue';
 import { mount } from '@vue/test-utils';
 import axios from 'axios';
@@ -7,6 +8,7 @@ import InventoryHosts from '@/views/project/InventoryHosts.vue';
 import HostStatus from '@/components/HostStatus.vue';
 import InventoryHostForm from '@/components/InventoryHostForm.vue';
 import EventBus from '@/event-bus';
+import { messages } from '@/lang';
 import mockAxios, { httpError } from './helpers/axiosMock';
 
 async function flush() {
@@ -33,6 +35,32 @@ const groups = [
   { id: 2, name: 'eu', children: [] },
   { id: 3, name: 'web', children: [] },
 ];
+
+const sources = [
+  { id: 1, name: 'Static servers', variables: '' },
+  { id: 2, name: 'Edge devices', variables: '' },
+];
+
+const sourceGroups = [
+  ...groups,
+  {
+    id: 4, name: 'imported', children: [], source_id: 1,
+  },
+  {
+    id: 5, name: 'other-imported', children: [], source_id: 2,
+  },
+];
+
+const importedHost = {
+  id: 1,
+  name: 'web1',
+  description: 'frontend',
+  enabled: true,
+  variables: 'a: 1',
+  variable_count: 1,
+  groups: [2, 4],
+  source_id: 1,
+};
 
 // The text shows the values put into a message, to tell the numbers and names apart
 const t = (key, values) => [key, ...Object.values(values || {})].join(' ');
@@ -62,10 +90,10 @@ function mountHosts(props) {
   return wrapper;
 }
 
-function mountForm(itemId) {
+function mountForm(itemId, props) {
   const wrapper = mount(InventoryHostForm, {
     props: {
-      projectId: 7, inventoryId: 3, itemId, groups,
+      projectId: 7, inventoryId: 3, itemId, groups, ...props,
     },
     global: {
       mocks: { $t: t },
@@ -95,6 +123,7 @@ describe('InventoryHosts.vue', () => {
     });
     http.respond((c) => {
       if (c.method !== 'get') return {};
+      if (c.url.endsWith('/sources')) return sources;
       return c.url.endsWith('/groups') ? groups : hosts;
     });
   });
@@ -453,6 +482,129 @@ describe('InventoryHosts.vue', () => {
       .to.equal(false);
   });
 
+  it('shows the source of an imported host under its name and none for a manual one', async () => {
+    http.respond((c) => {
+      if (c.url.endsWith('/sources')) return sources;
+      return c.url.endsWith('/groups') ? groups : [{ ...hosts[0], source_id: 2 }, hosts[1]];
+    });
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+
+    expect(wrapper.find('[data-testid="inventoryHosts-source-1"]').text()).to.equal('Edge devices');
+    expect(wrapper.find('[data-testid="inventoryHosts-source-2"]').exists()).to.equal(false);
+  });
+
+  it('names the source of an imported host even when the sources did not load', async () => {
+    http.respond((c) => {
+      if (c.url.endsWith('/sources')) throw httpError(500, 'boom');
+      return c.url.endsWith('/groups') ? groups : [{ ...hosts[0], source_id: 2 }];
+    });
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+
+    expect(wrapper.find('[data-testid="inventoryHosts-source-1"]').text())
+      .to.equal('inventory_source_unknown');
+  });
+
+  it('keeps the source filter reachable when the address names a source that is not there', async () => {
+    http.respond((c) => {
+      if (c.url.endsWith('/sources')) return [];
+      return c.url.endsWith('/groups') ? groups : hosts;
+    });
+    route.query = { source: '5' };
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+
+    expect(wrapper.find('[data-testid="inventoryHosts-sourceFilter"]').exists()).to.equal(true);
+  });
+
+  it('shows no unknown source before the sources answer', async () => {
+    let answer;
+    http.respond((c) => {
+      if (c.url.endsWith('/sources')) return new Promise((resolve) => { answer = resolve; });
+      return c.url.endsWith('/groups') ? groups : [importedHost];
+    });
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+
+    expect(wrapper.find('[data-testid="inventoryHosts-source-1"]').text()).to.equal('');
+    answer(sources);
+    await flush();
+    expect(wrapper.find('[data-testid="inventoryHosts-source-1"]').text()).to.equal('Static servers');
+  });
+
+  it('filters the hosts by the manual ones and by a source', async () => {
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+    const filter = wrapper.findComponent('[data-testid="inventoryHosts-sourceFilter"]');
+
+    expect(filter.props('items').map((item) => item.value)).to.deep.equal(['', 'manual', 1, 2]);
+    filter.vm.$emit('update:modelValue', 'manual');
+    await flush();
+    expect(route.query.source).to.equal('manual');
+    expect(hostRequests().at(-1).params).to.include({ source: 'manual', offset: 0 });
+
+    filter.vm.$emit('update:modelValue', 2);
+    await flush();
+    expect(hostRequests().at(-1).params).to.include({ source: 2 });
+
+    filter.vm.$emit('update:modelValue', '');
+    await flush();
+    expect(hostRequests().at(-1).params.source).to.equal(undefined);
+  });
+
+  it('shows no source filter when the inventory has no sources', async () => {
+    http.respond((c) => {
+      if (c.url.endsWith('/sources')) return [];
+      return c.url.endsWith('/groups') ? groups : hosts;
+    });
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+
+    expect(wrapper.find('[data-testid="inventoryHosts-sourceFilter"]').exists()).to.equal(false);
+  });
+
+  it('offers no delete for an imported host', async () => {
+    http.respond((c) => {
+      if (c.url.endsWith('/sources')) return sources;
+      return c.url.endsWith('/groups') ? groups : [importedHost, hosts[1]];
+    });
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+
+    const rows = wrapper.findAll('[data-testid="inventoryHosts-rowActions"]');
+    expect(rows[0].find('[data-testid="inventoryHosts-rowDelete"]').exists()).to.equal(false);
+    expect(rows[0].find('[data-testid="inventoryHosts-rowEdit"]').exists()).to.equal(true);
+    expect(rows[1].find('[data-testid="inventoryHosts-rowDelete"]').exists()).to.equal(true);
+  });
+
+  it('offers only manual groups for the selected hosts', async () => {
+    http.respond((c) => {
+      if (c.url.endsWith('/sources')) return sources;
+      return c.url.endsWith('/groups') ? sourceGroups : [importedHost, hosts[1]];
+    });
+    const wrapper = mountHosts({ isAdmin: true });
+    await flush();
+    await selectBoth(wrapper);
+
+    await wrapper.find('[data-testid="inventoryHosts-addToGroups"]').trigger('click');
+    const select = () => wrapper.findComponent('[data-testid="inventoryHosts-groupsDialogGroups"]');
+    expect(select().props('items').map((g) => g.name)).to.deep.equal(['db', 'eu', 'web']);
+
+    await wrapper.find('[data-testid="inventoryHosts-groupsDialogCancel"]').trigger('click');
+    await wrapper.find('[data-testid="inventoryHosts-removeFromGroups"]').trigger('click');
+    expect(select().props('items').map((g) => g.name)).to.deep.equal(['eu']);
+  });
+
+  it('uses only translation keys that exist', () => {
+    const files = ['src/views/project/InventoryHosts.vue', 'src/components/InventoryHostForm.vue'];
+    const keys = files.flatMap((file) => [...fs.readFileSync(file, 'utf8')
+      .matchAll(/\$t\(\s*'([^']+)'/g)].map((m) => m[1]));
+
+    expect(keys).to.include('inventory_source_unknown');
+    expect(keys.filter((key) => !(key in messages.en))).to.deep.equal([]);
+  });
+
   describe('with the hosts feature', () => {
     const runHosts = [
       {
@@ -569,5 +721,83 @@ describe('InventoryHostForm.vue', () => {
     expect(writes[0].data.add_groups).to.deep.equal([1]);
     expect(writes[0].data.remove_groups).to.deep.equal([2]);
     expect(writes[0].data).to.not.have.property('groups');
+  });
+
+  describe('an imported host', () => {
+    beforeEach(() => {
+      http.respond((c) => (c.method === 'get' ? { ...importedHost } : {}));
+    });
+
+    const mountImported = () => mountForm(1, {
+      groups: sourceGroups,
+      sources: { 1: 'Static servers', 2: 'Edge devices' },
+    });
+
+    it('says where it comes from and does not let name and variables change', async () => {
+      const wrapper = mountImported();
+      await flush();
+
+      expect(wrapper.find('[data-testid="inventoryHostForm-imported"]').text())
+        .to.equal('inventory_source_imported Static servers');
+      expect(wrapper.find('[data-testid="inventoryHostForm-name"] input').attributes())
+        .to.have.property('readonly');
+      expect(wrapper.findComponent('[data-testid="inventoryHostForm-variables"]').props('readonly'))
+        .to.equal(true);
+    });
+
+    it('marks the read-only name and variables with a lock and a dimmed editor', async () => {
+      const wrapper = mountImported();
+      await flush();
+
+      expect(wrapper.find('[data-testid="inventoryHostForm-name"] .mdi-lock').exists()).to.equal(true);
+      expect(wrapper.find('.InventoryHostForm__editor--readonly').exists()).to.equal(true);
+    });
+
+    it('marks nothing as locked for a manual host', async () => {
+      http.respond((c) => (c.method === 'get' ? { ...hosts[0] } : {}));
+      const wrapper = mountForm(1);
+      await flush();
+
+      expect(wrapper.find('[data-testid="inventoryHostForm-name"] .mdi-lock').exists()).to.equal(false);
+      expect(wrapper.find('.InventoryHostForm__editor--readonly').exists()).to.equal(false);
+    });
+
+    it('names the lock of a group of the source', async () => {
+      const wrapper = mountImported();
+      await flush();
+
+      const chip = wrapper.find('[aria-label="inventory_source_group_locked imported"]');
+      expect(chip.exists()).to.equal(true);
+    });
+
+    it('sends the stored name and variables and only manual groups', async () => {
+      const wrapper = mountImported();
+      await flush();
+
+      const groupsField = wrapper.findComponent('[data-testid="inventoryHostForm-groups"]');
+      expect(groupsField.props('items').map((g) => g.name)).to.deep.equal(['db', 'eu', 'web', 'imported']);
+      groupsField.vm.$emit('update:modelValue', [4, 3]);
+      await wrapper.find('[data-testid="inventoryHostForm-description"] input').setValue('new note');
+      await wrapper.setProps({ needSave: true });
+      await flush();
+
+      const [put] = http.requests.filter((r) => r.method !== 'get');
+      expect(put.data).to.include({ name: 'web1', variables: 'a: 1', description: 'new note' });
+      expect(put.data.add_groups).to.deep.equal([3]);
+      expect(put.data.remove_groups).to.deep.equal([2]);
+    });
+
+    it('does not remove a group of the source', async () => {
+      const wrapper = mountImported();
+      await flush();
+
+      wrapper.findComponent('[data-testid="inventoryHostForm-groups"]')
+        .vm.$emit('update:modelValue', [2]);
+      await wrapper.setProps({ needSave: true });
+      await flush();
+
+      const [put] = http.requests.filter((r) => r.method !== 'get');
+      expect(put.data.remove_groups).to.deep.equal([]);
+    });
   });
 });

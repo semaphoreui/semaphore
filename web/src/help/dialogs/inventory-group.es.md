@@ -8,6 +8,9 @@ Un grupo de hosts de un inventario gestionado. Un playbook se ejecuta en una par
 el nombre del grupo, y una variable del grupo se define una vez para todos sus hosts. Los hosts se
 ponen en un grupo en la pestaña Hosts, en el diálogo del host o con las acciones sobre la selección.
 
+Un grupo importado desde una fuente de inventario lo gestiona esa fuente. Todos sus campos son de solo
+lectura y se actualizan en cada sincronización.
+
 ## Nombre {#inventoryGroupForm-name}
 
 El nombre con el que Ansible conoce el grupo, por ejemplo en `hosts: web` de un playbook. El campo

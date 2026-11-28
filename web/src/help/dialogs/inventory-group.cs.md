@@ -8,6 +8,9 @@ Skupina hostů spravovaného inventáře. Playbook běží na části hostů pod
 skupiny se nastaví jednou pro všechny její hosty. Hosté se do skupiny přidávají na kartě Hosts, v
 dialogu hosta nebo akcemi pro vybrané hosty.
 
+Skupinu importovanou ze zdroje inventáře spravuje tento zdroj. Všechna její pole jsou jen pro čtení
+a aktualizují se při každé synchronizaci.
+
 ## Název {#inventoryGroupForm-name}
 
 Název, pod kterým Ansible skupinu zná, například v `hosts: web` playbooku. Pole je povinné. Název je

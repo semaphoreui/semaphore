@@ -100,6 +100,7 @@ const (
 	TargetInventory             = "inventory"
 	TargetInventoryHost         = "inventory_host"
 	TargetInventoryGroup        = "inventory_group"
+	TargetInventorySource       = "inventory_source"
 	TargetRepository            = "repository"
 	TargetTemplate              = "template"
 	TargetSchedule              = "schedule"

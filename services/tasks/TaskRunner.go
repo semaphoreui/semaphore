@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -683,25 +684,19 @@ func (t *TaskRunner) populateDetails() error {
 	}
 
 	if t.Inventory.Type == db.InventoryManaged {
-		var hosts []db.InventoryHost
-		hosts, err = t.pool.store.GetEnabledInventoryHosts(t.Inventory.ProjectID, t.Inventory.ID)
+		var content db.InventoryContent
+		content, err = t.pool.store.GetInventoryContent(t.Inventory.ProjectID, t.Inventory.ID)
 		if err != nil {
 			return err
 		}
 
-		var groups []db.InventoryGroup
-		groups, err = t.pool.store.GetInventoryGroups(t.Inventory.ProjectID, t.Inventory.ID)
-		if err != nil {
-			return err
+		hosts := slices.DeleteFunc(content.Hosts, func(host db.InventoryHost) bool { return !host.Enabled })
+		var sourceVariables []string
+		for _, source := range content.Sources {
+			sourceVariables = append(sourceVariables, source.Variables)
 		}
 
-		var members []db.InventoryGroupHost
-		members, err = t.pool.store.GetInventoryGroupHosts(t.Inventory.ProjectID, t.Inventory.ID)
-		if err != nil {
-			return err
-		}
-
-		t.Inventory.Inventory, err = buildManagedInventory(t.Inventory.VariablesText(), hosts, groups, members)
+		t.Inventory.Inventory, err = buildManagedInventory(t.Inventory.VariablesText(), sourceVariables, hosts, content.Groups, content.Members)
 		if err != nil {
 			t.Log("Managed inventory is invalid: " + err.Error())
 			return err

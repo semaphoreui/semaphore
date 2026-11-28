@@ -37,6 +37,7 @@ var hostConfigID int
 var inventoryID int
 var inventoryHostID int
 var inventoryGroupID int
+var inventorySourceID int
 var environmentID int
 var templateID int
 var integrationID int
@@ -56,6 +57,7 @@ var capabilities = map[string][]string{
 	"inventory":               {"repository"},
 	"inventory_host":          {"repository"},
 	"inventory_group":         {"inventory_host"},
+	"inventory_source":        {"repository"},
 	"environment":             {"repository"},
 	"template":                {"repository", "inventory", "environment", "view"},
 	"task":                    {"template"},
@@ -177,6 +179,24 @@ func resolveCapability(caps []string, resolved []string, uid string) {
 			}, nil)
 			printError(err)
 			inventoryGroupID = group.ID
+		case "inventory_source":
+			res, err := store.CreateInventory(db.Inventory{
+				ProjectID: userProject.ID,
+				Name:      "ITS-" + uid,
+				Type:      db.InventoryManaged,
+			})
+			printError(err)
+			inventoryID = res.ID
+			source, err := store.CreateInventorySource(db.InventorySource{
+				ProjectID:    userProject.ID,
+				InventoryID:  res.ID,
+				Name:         "its-" + uid,
+				Type:         db.InventorySourceGit,
+				RepositoryID: &repoID,
+				Params:       db.MapStringAnyField{"path": "hosts.yml"},
+			})
+			printError(err)
+			inventorySourceID = source.ID
 		case "environment":
 			pwd := "test-pass"
 			env := "{}"
@@ -337,10 +357,11 @@ var pathSubPatterns = []func() string{
 		}
 		return strconv.Itoa(globalRole.ID)
 	}, // global role_id, x-example: 24
-	func() string { return strconv.Itoa(permID) },           // perm_id, x-example: 25
-	func() string { return "0" },                            // host_id, x-example: 26, the stand has no hosts
-	func() string { return strconv.Itoa(inventoryHostID) },  // inventory_host_id, x-example: 27
-	func() string { return strconv.Itoa(inventoryGroupID) }, // inventory_group_id, x-example: 28
+	func() string { return strconv.Itoa(permID) },            // perm_id, x-example: 25
+	func() string { return "0" },                             // host_id, x-example: 26, the stand has no hosts
+	func() string { return strconv.Itoa(inventoryHostID) },   // inventory_host_id, x-example: 27
+	func() string { return strconv.Itoa(inventoryGroupID) },  // inventory_group_id, x-example: 28
+	func() string { return strconv.Itoa(inventorySourceID) }, // inventory_source_id, x-example: 29
 }
 
 // alterRequestPath with the above slice of functions

@@ -9,6 +9,9 @@ groupe, et une variable du groupe est définie une seule fois pour tous ses hôt
 dans un groupe dans l'onglet Hosts, dans la boîte de dialogue de l'hôte ou avec les actions sur la
 sélection.
 
+Un groupe importé depuis une source d'inventaire est géré par cette source. Tous ses champs sont en
+lecture seule et sont mis à jour à chaque synchronisation.
+
 ## Nom {#inventoryGroupForm-name}
 
 Le nom sous lequel Ansible connaît le groupe, par exemple dans `hosts: web` d'un playbook. Le champ

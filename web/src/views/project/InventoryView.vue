@@ -60,6 +60,16 @@
           data-testid="inventoryView-variableCount"
         >{{ inventory.variable_count }}</v-chip>
       </v-tab>
+      <v-tab data-testid="inventoryView-tab-sources" :to="`${listPath}/${inventoryId}/sources`">
+        {{ $t('inventory_tab_sources') }}
+        <v-chip
+          v-if="sourceCount !== 0"
+          size="x-small"
+          class="ml-2 font-weight-bold"
+          style="cursor: inherit"
+          data-testid="inventoryView-sourceCount"
+        >{{ sourceCount ?? '?' }}</v-chip>
+      </v-tab>
     </v-tabs>
 
     <v-divider style="margin-top: -1px;" />
@@ -97,6 +107,7 @@ export default {
       loadSeq: 0,
       hostCount: 0,
       groupCount: 0,
+      sourceCount: 0,
       countSeq: 0,
     };
   },
@@ -152,9 +163,10 @@ export default {
       this.countSeq += 1;
       const seq = this.countSeq;
       const url = `/api/project/${this.projectId}/inventory/${this.inventoryId}`;
-      const [hosts, groups] = await Promise.allSettled([
+      const [hosts, groups, sources] = await Promise.allSettled([
         axios.get(`${url}/hosts`, { params: { count: 1 } }),
         axios.get(`${url}/groups`),
+        axios.get(`${url}/sources`),
       ]);
       if (seq !== this.countSeq) return;
       const hostCount = hosts.status === 'fulfilled'
@@ -162,6 +174,7 @@ export default {
         : NaN;
       this.hostCount = Number.isFinite(hostCount) ? hostCount : null;
       this.groupCount = groups.status === 'fulfilled' ? groups.value.data.length : null;
+      this.sourceCount = sources.status === 'fulfilled' ? sources.value.data.length : null;
     },
 
     showDrawer() {
@@ -175,6 +188,7 @@ export default {
       this.notFound = false;
       this.hostCount = 0;
       this.groupCount = 0;
+      this.sourceCount = 0;
       // Counts of the inventory shown before must not land on this one
       this.countSeq += 1;
       try {
