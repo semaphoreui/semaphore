@@ -16,14 +16,19 @@ import (
 )
 
 type runningJob struct {
-	// mu guards status, logRecords, commit and the listener slices. All of
-	// these are touched concurrently by the job's own goroutine, the log-pipe
-	// goroutines and the runner's progress/poll goroutine, so every access must
-	// hold the lock. Listener callbacks are invoked WITHOUT the lock held
-	// because they re-enter this type (e.g. LocalJob.SetStatus -> SetStatus and
-	// the Terraform log listener calls SetStatus); Go mutexes are not reentrant.
-	mu         sync.Mutex
-	status     task_logger.TaskStatus
+	// mu guards status, executing, logRecords, commit and the listener slices.
+	// All of these are touched concurrently by the job's own goroutine, the
+	// log-pipe goroutines and the runner's progress/poll goroutine, so every
+	// access must hold the lock. Listener callbacks are invoked WITHOUT the
+	// lock held because they re-enter this type (e.g. LocalJob.SetStatus ->
+	// SetStatus and the Terraform log listener calls SetStatus); Go mutexes
+	// are not reentrant.
+	mu     sync.Mutex
+	status task_logger.TaskStatus
+	// executing is true while runJob is inside Run, including the status update
+	// that follows the return. Stopping and stopped are not published and the
+	// job stays in the pool until this is false: Kill returns before Run does.
+	executing  bool
 	logRecords []LogRecord
 
 	// taskID is captured at enqueue time so log/error paths don't need to reach into
@@ -138,11 +143,25 @@ func (p *runningJob) finish(status task_logger.TaskStatus, outputs *string) {
 	p.transition(status, outputs)
 }
 
+// transitionUnlessFinished records status unless the job already has a
+// finished result. A later stop must not replace success or failure.
+func (p *runningJob) transitionUnlessFinished(status task_logger.TaskStatus) bool {
+	return p.transitionStatus(status, nil, true)
+}
+
 func (p *runningJob) transition(status task_logger.TaskStatus, outputs *string) {
+	p.transitionStatus(status, outputs, false)
+}
+
+func (p *runningJob) transitionStatus(status task_logger.TaskStatus, outputs *string, keepFinished bool) bool {
 	p.mu.Lock()
+	if keepFinished && p.status.IsFinished() {
+		p.mu.Unlock()
+		return false
+	}
 	if p.status == status {
 		p.mu.Unlock()
-		return
+		return true
 	}
 	p.status = status
 	if outputs != nil {
@@ -159,6 +178,20 @@ func (p *runningJob) transition(status task_logger.TaskStatus, outputs *string) 
 	for _, l := range listeners {
 		l(status)
 	}
+	return true
+}
+
+func (p *runningJob) setExecuting(executing bool) {
+	p.mu.Lock()
+	p.executing = executing
+	p.mu.Unlock()
+}
+
+// runInProgress reports whether Run has not returned yet.
+func (p *runningJob) runInProgress() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.executing
 }
 
 func (p *runningJob) setHosts(hosts *string) {

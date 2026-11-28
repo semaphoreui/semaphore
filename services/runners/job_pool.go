@@ -279,7 +279,9 @@ func (p *JobPool) existsInQueue(taskID int) bool {
 
 func (p *JobPool) hasRunningJobs() bool {
 	for _, j := range p.snapshotRunningJobs() {
-		if !j.getStatus().IsFinished() {
+		// A finished status can be stored while Run is still unwinding. The
+		// one-off runner must not exit until that call returns.
+		if j.runInProgress() || !j.getStatus().IsFinished() {
 			return true
 		}
 	}
@@ -446,7 +448,16 @@ func (p *JobPool) Run() {
 
 // runJob runs a dequeued task to its final status.
 func (p *JobPool) runJob(t *job, running *runningJob) {
-	running.SetStatus(task_logger.TaskRunningStatus)
+	// Cleared only after the status update below, so a progress report cannot
+	// publish a terminal status or drop the job while Run is still unwinding.
+	running.setExecuting(true)
+	defer running.setExecuting(false)
+
+	// A stop can be recorded before this goroutine starts. Do not replace it
+	// with running, or the error branch below treats the cancellation as a failure.
+	if status := running.getStatus(); status != task_logger.TaskStoppingStatus && status != task_logger.TaskStoppedStatus {
+		running.SetStatus(task_logger.TaskRunningStatus)
+	}
 
 	log.WithFields(log.Fields{"context": "job_running", "task_id": running.taskID, "username": t.username, "alias": t.alias, "incoming_version": t.incomingVersion}).Debug("Running job")
 
@@ -462,7 +473,9 @@ func (p *JobPool) runJob(t *job, running *runningJob) {
 
 		running.Log("Unable to launch the application. Please contact your system administrator for assistance.")
 
-		if running.getStatus() == task_logger.TaskStoppingStatus {
+		// stopped is already the outcome of a cancellation. Treat it like
+		// stopping so this branch does not replace it with failure.
+		if status := running.getStatus(); status == task_logger.TaskStoppingStatus || status == task_logger.TaskStoppedStatus {
 			running.SetStatus(task_logger.TaskStoppedStatus)
 		} else {
 			running.SetStatus(task_logger.TaskFailStatus)
@@ -496,6 +509,14 @@ func (p *JobPool) sendProgress() (ok bool) {
 	for id, j := range p.snapshotRunningJobs() {
 
 		status, logRecords, commit, outputs, hosts := j.getProgress()
+		// Run has not returned. Report stopping instead of a terminal status
+		// so the server does not finalize the task, and hold hosts and outputs
+		// for the report that follows the return.
+		if status.IsFinished() && j.runInProgress() {
+			status = task_logger.TaskStoppingStatus
+			outputs = nil
+			hosts = nil
+		}
 
 		body.Jobs = append(body.Jobs, JobProgress{
 			ID:         id,
@@ -563,6 +584,10 @@ func (p *JobPool) sendProgress() (ok bool) {
 			log.WithFields(log.Fields{"context": "sending_progress", "task_id": jp.ID, "acknowledged": sent, "pending": pending}).Debug("Trimmed acknowledged log records")
 		}
 		if jp.Status.IsFinished() {
+			if j.runInProgress() {
+				log.WithFields(log.Fields{"context": "sending_progress", "task_id": jp.ID, "status": string(j.getStatus())}).Debug("Keeping job until local execution returns")
+				continue
+			}
 			log.WithFields(log.Fields{"context": "sending_progress", "task_id": jp.ID, "status": string(jp.Status)}).Info("Task removed from running list")
 			p.deleteRunningJob(jp.ID)
 		}
@@ -574,9 +599,10 @@ func (p *JobPool) sendProgress() (ok bool) {
 }
 
 // applyTerminatedJobs emergency-stops jobs the server no longer accepts
-// results for — the task reached a terminal status on the server (e.g. force
-// stopped) while the runner was offline. The job's process is killed and the
-// job is dropped from the running list without further progress reports.
+// results for. The task reached a terminal status on the server (for example
+// force stopped) while the runner was offline. The process is killed now. A
+// job whose Run has not returned stays in the running list; the next progress
+// report drops it once execution has finished.
 func (p *JobPool) applyTerminatedJobs(taskIDs []int) {
 	for _, id := range taskIDs {
 		j := p.getRunningJob(id)
@@ -588,7 +614,18 @@ func (p *JobPool) applyTerminatedJobs(taskIDs []int) {
 			log.WithFields(log.Fields{"context": "sending_progress", "task_id": id, "status": string(j.getStatus())}).Warn("Server reported the task as terminated, emergency stopping the job")
 
 			j.job.Kill()
-			j.SetStatus(task_logger.TaskStoppedStatus)
+			// Leave the terminal status to runJob when Run is still unwinding.
+			// Publishing stopped here drops the job before the process is gone.
+			if j.runInProgress() {
+				j.transitionUnlessFinished(task_logger.TaskStoppingStatus)
+			} else {
+				j.SetStatus(task_logger.TaskStoppedStatus)
+			}
+		}
+
+		if j.runInProgress() {
+			log.WithFields(log.Fields{"context": "sending_progress", "task_id": id, "status": string(j.getStatus())}).Debug("Keeping job until local execution returns")
+			continue
 		}
 
 		log.WithFields(log.Fields{"context": "sending_progress", "task_id": id, "status": string(j.getStatus())}).Info("Task removed from running list")
@@ -818,10 +855,26 @@ func (p *JobPool) checkNewJobs() {
 
 		status := runJob.getStatus()
 
-		if status == task_logger.TaskStoppingStatus || status == task_logger.TaskStoppedStatus {
-			log.WithFields(log.Fields{"context": "checking_new_jobs", "task_id": currJob.ID, "status": string(status)}).Debug("Killing job because it is stopping or stopped")
+		localStopping := status == task_logger.TaskStoppingStatus || status == task_logger.TaskStoppedStatus
+		serverStopping := !status.IsFinished() &&
+			(currJob.Status == task_logger.TaskStoppingStatus || currJob.Status == task_logger.TaskStoppedStatus)
+
+		// Record the stop before Kill. Run can return inside Kill and record
+		// success or failure while the local status is still running; applying
+		// stopping afterwards would leave the job there with no goroutine to
+		// move it on. stopping is not terminal, so the job stays in the pool
+		// until Run returns and runJob sets stopped.
+		if serverStopping {
+			runJob.transitionUnlessFinished(task_logger.TaskStoppingStatus)
+		}
+
+		if localStopping || serverStopping {
+			log.WithFields(log.Fields{"context": "checking_new_jobs", "task_id": currJob.ID, "status": string(status), "server_status": string(currJob.Status)}).Debug("Killing job because it is stopping or stopped")
 			runJob.job.Kill()
 		}
+
+		// Kill may have let the job finish. Do not replace that result.
+		status = runJob.getStatus()
 
 		if status.IsFinished() {
 			continue
@@ -846,9 +899,19 @@ func (p *JobPool) checkNewJobs() {
 			}
 		}
 
+		// stopped is terminal. Applying it while Run is still unwinding lets
+		// the next progress report drop the job before the process is gone.
+		if currJob.Status.IsFinished() && runJob.runInProgress() {
+			continue
+		}
+
+		if runJob.getStatus().IsFinished() {
+			continue
+		}
+
 		log.WithFields(log.Fields{"context": "checking_new_jobs", "task_id": currJob.ID, "old_status": string(status), "new_status": string(currJob.Status)}).Debug("Applying job status reported by the server")
 
-		runJob.SetStatus(currJob.Status)
+		runJob.transitionUnlessFinished(currJob.Status)
 	}
 
 	if util.Config.Runner.OneOff {
