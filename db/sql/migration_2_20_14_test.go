@@ -52,7 +52,7 @@ func TestMigration_2_20_14(t *testing.T) {
 	require.NoError(t, db.Migrate(store, nil))
 
 	// Child rows survived the rebuild and still point at the same integration;
-	// the alias moved to the integration's endpoint in 2.20.19.
+	// the alias moved to the integration's endpoint in 2.21.11.
 	for table, want := range map[string]int64{
 		"project__integration_matcher":       1,
 		"project__integration_extract_value": 1,

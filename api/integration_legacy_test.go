@@ -17,7 +17,7 @@ import (
 
 func itoa(i int) string { return strconv.Itoa(i) }
 
-// legacyWebhooks is a project configured the pre-2.20.19 way, seeded on the
+// legacyWebhooks is a project configured the pre-2.21.11 way, seeded on the
 // old schema by hand and then migrated: it is what an upgraded installation
 // looks like, and the tests below send it the webhooks it used to receive.
 type legacyWebhooks struct {

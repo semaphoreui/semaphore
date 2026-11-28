@@ -72,7 +72,7 @@ func TestConvertLegacyIntegrations(t *testing.T) {
 	assert.Empty(t, searchable.Endpoints[0].Aliases)
 }
 
-// legacyBackup is a project backup as a version before 2.20.19 wrote it:
+// legacyBackup is a project backup as a version before 2.21.11 wrote it:
 // aliases and auth on the integrations, project aliases at the top level.
 const legacyBackup = `{
   "meta": {"name": "legacy", "alert": false, "max_parallel_tasks": 0},
@@ -89,7 +89,7 @@ const legacyBackup = `{
   "integration_aliases": ["project-one"]
 }`
 
-// A backup written before 2.20.19 restores to the layout the database
+// A backup written before 2.21.11 restores to the layout the database
 // migration produces: a Default endpoint for the project aliases, an endpoint
 // per integration that had its own, a group per integration.
 func TestRestore_LegacyBackupBecomesEndpointsAndGroups(t *testing.T) {

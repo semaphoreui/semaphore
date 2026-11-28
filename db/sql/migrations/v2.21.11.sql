@@ -107,7 +107,7 @@ alter table `project__integration_group` drop column `legacy_integration_id`;
 drop table `project__integration_alias`;
 
 {{if .Sqlite}}
-create table project__integration_new_2_20_19 (
+create table project__integration_new_2_21_11 (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     name           VARCHAR(255) NOT NULL,
     project_id     INTEGER NOT NULL REFERENCES project(id) ON DELETE CASCADE,
@@ -117,12 +117,12 @@ create table project__integration_new_2_20_19 (
     task_params_id INTEGER REFERENCES project__task_params(id)
 );
 
-insert into project__integration_new_2_20_19 (id, name, project_id, group_id, template_id, workflow_id, task_params_id)
+insert into project__integration_new_2_21_11 (id, name, project_id, group_id, template_id, workflow_id, task_params_id)
     select id, name, project_id, group_id, template_id, workflow_id, task_params_id from project__integration;
 
 drop table project__integration;
 
-alter table project__integration_new_2_20_19 rename to project__integration;
+alter table project__integration_new_2_21_11 rename to project__integration;
 
 create index project__integration__project_id on project__integration(project_id);
 

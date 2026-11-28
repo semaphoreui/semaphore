@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// oldIntegration is a project__integration row of the pre-2.20.19 schema,
+// oldIntegration is a project__integration row of the pre-2.21.11 schema,
 // which the store of this version cannot write.
 type oldIntegration struct {
 	name       string
@@ -146,7 +146,7 @@ func createTestTemplateIn(t *testing.T, store *SqlDb, projectID int) int {
 	return template.ID
 }
 
-func TestMigration_2_20_19_MovesAliasesAndAuthToEndpointsAndGroups(t *testing.T) {
+func TestMigration_2_21_11_MovesAliasesAndAuthToEndpointsAndGroups(t *testing.T) {
 	before := "2.20.16"
 	store := InitConfigCreateTestStoreAt(&before)
 	f := seedLegacyIntegrations(t, store)
@@ -264,7 +264,7 @@ func TestMigration_2_20_19_MovesAliasesAndAuthToEndpointsAndGroups(t *testing.T)
 	assert.Empty(t, matchers, "matchers cascade with their integration")
 }
 
-func TestMigration_2_20_19_Rollback(t *testing.T) {
+func TestMigration_2_21_11_Rollback(t *testing.T) {
 	before := "2.20.16"
 	store := InitConfigCreateTestStoreAt(&before)
 	f := seedLegacyIntegrations(t, store)

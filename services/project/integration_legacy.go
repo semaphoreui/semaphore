@@ -6,7 +6,7 @@ import (
 	"github.com/semaphoreui/semaphore/db"
 )
 
-// LegacyIntegration is what a backup written before 2.20.19 said about how
+// LegacyIntegration is what a backup written before 2.21.11 said about how
 // an integration was reached: through the project aliases (searchable) with
 // its own auth, or through its own aliases.
 type LegacyIntegration struct {
@@ -37,7 +37,7 @@ func isNoAuth(method db.IntegrationAuthMethod) bool {
 	return method == db.IntegrationAuthNone || method == "none"
 }
 
-// ConvertLegacyIntegrations applies the rules the 2.20.19 database migration
+// ConvertLegacyIntegrations applies the rules the 2.21.11 database migration
 // applies, so an old backup restores to the same layout an upgraded
 // installation has:
 //
@@ -125,7 +125,7 @@ func (u uniqueNames) take(name string) string {
 	return candidate
 }
 
-// upgradeLegacyIntegrations rewrites a backup written before 2.20.19 — no
+// upgradeLegacyIntegrations rewrites a backup written before 2.21.11 — no
 // endpoints and no groups, integrations without a group — into the current
 // layout. A current backup is left alone, and so is a legacy one already
 // converted, so the call is safe to repeat.

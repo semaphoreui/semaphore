@@ -61,8 +61,10 @@
   roles API is a stub. Screenshots in `shots-global-roles/`.
 - Integrations-redesign stand (2026-11-01): `config-ri.json` + `database-ri.sqlite`, port `:3103`,
   binary `semaphore-ri` (this worktree, embedded UI), `admin`/`admin123`, project 1 "Upgrade QA".
-  The DB was created by release `2.20.16-beta9` and migrated by the branch (`v2.20.19`), so it shows
+  The DB was created by release `2.20.16-beta9` and migrated by the branch, so it shows
   the migrated layout: endpoints Default / own hmac / own none, four one-integration groups.
+  ⚠️ 2026-11-28: that migration was renamed `v2.20.19` → `v2.21.11`; a DB migrated before the
+  rename records `2.20.19`, so a newer binary re-runs it and fails — recreate the stand DB.
   `config-ri-mysql.json` / `config-ri-pg.json` point at throwaway containers on 33306 / 55432.
 - macOS has no `timeout`; wait for a server with a `for` loop around `curl -sf …/api/ping` and
   `python3 -c 'import time; time.sleep(0.5)'`.

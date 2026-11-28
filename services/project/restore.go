@@ -545,7 +545,7 @@ func (e BackupEndpoint) Restore(b *BackupDB) error {
 
 	// An alias is unique across the instance: when the project the backup was
 	// taken from still holds it, the restored endpoint goes without it and the
-	// user adds a new one, as with the integration aliases before 2.20.19.
+	// user adds a new one, as with the integration aliases before 2.21.11.
 	for _, a := range e.Aliases {
 		_, _ = b.store.CreateEndpointAlias(db.EndpointAlias{Alias: a, ProjectID: b.meta.ID, EndpointID: newEndpoint.ID})
 	}

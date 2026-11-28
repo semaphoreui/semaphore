@@ -103,7 +103,7 @@ const (
 	TargetIntegration           = "integration"
 	TargetIntegrationMatcher    = "integration_matcher"
 	TargetIntegrationExtractor  = "integration_extractor"
-	TargetIntegrationAlias      = "integration_alias" // Deprecated: aliases belong to endpoints since 2.20.19.
+	TargetIntegrationAlias      = "integration_alias" // Deprecated: aliases belong to endpoints since 2.21.11.
 	TargetEndpoint              = "endpoint"
 	TargetEndpointAlias         = "endpoint_alias"
 	TargetIntegrationGroup      = "integration_group"

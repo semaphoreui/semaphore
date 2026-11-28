@@ -103,7 +103,7 @@ const (
 	ResourceIntegrationExtractorCreate  Kind = "resource.integration_extractor/create"
 	ResourceIntegrationExtractorUpdate  Kind = "resource.integration_extractor/update"
 	ResourceIntegrationExtractorDelete  Kind = "resource.integration_extractor/delete"
-	// Deprecated: aliases moved to endpoints in 2.20.19; kept so stored events still render.
+	// Deprecated: aliases moved to endpoints in 2.21.11; kept so stored events still render.
 	ResourceIntegrationAliasCreate Kind = "resource.integration_alias/create"
 	// Deprecated: see ResourceIntegrationAliasCreate.
 	ResourceIntegrationAliasDelete Kind = "resource.integration_alias/delete"

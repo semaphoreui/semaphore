@@ -98,7 +98,7 @@ type BackupFormat struct {
 	IntegrationGroups []BackupIntegrationGroup `backup:"integration_groups"`
 	Integration       []BackupIntegration      `backup:"integrations"`
 	// IntegrationAliases are the project-level aliases of a file written
-	// before 2.20.19; upgradeLegacyIntegrations turns them into a Default
+	// before 2.21.11; upgradeLegacyIntegrations turns them into a Default
 	// endpoint.
 	IntegrationAliases []string              `backup:"integration_aliases,legacy"`
 	Schedules          []BackupSchedule      `backup:"schedules"`
@@ -193,7 +193,7 @@ type BackupIntegrationGroup struct {
 // name: exactly one of Template and Workflow is set. Backups written before
 // workflow targets existed carry "template" only and restore unchanged.
 //
-// The Legacy fields are what a file written before 2.20.19 said about the
+// The Legacy fields are what a file written before 2.21.11 said about the
 // integration's own aliases and auth; upgradeLegacyIntegrations turns them
 // into endpoints and groups. They are never written.
 type BackupIntegration struct {
