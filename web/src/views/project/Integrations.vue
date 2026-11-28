@@ -68,6 +68,8 @@
       <v-tab :to="`/project/${projectId}/integrations/history`">{{ $t('history') }}</v-tab>
     </v-tabs>
 
+    <v-divider style="margin-top: -1px;" />
+
     <div
       class="px-4 py-3"
       data-testid="integrations-aliases"

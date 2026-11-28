@@ -7,8 +7,9 @@ Checked against `develop` on 2026-11-27. The user-facing doc is
   `auth_verify.go`) exists, but no route calls `LoginEmail`/`ResendEmailOtp`, and the community
   `createSession` (`api/login.go`) never sets `SessionVerificationEmail` — do not document it as
   working.
-- `mfa.totp.app_name` is used only by `semaphore users totp enable`; `EnableTotp` in `api/users.go`
-  hard-codes issuer `Semaphore`. The docs carry a dated ⚠️ about it — remove it when fixed.
+- `mfa.totp.app_name` (default `Semaphore`, from the struct tag) is the issuer for both the web
+  `EnableTotp` and `semaphore users totp enable` since `ca819f967`. The `otpauth://` URL is stored
+  at enrolment, so a changed name reaches only accounts set up afterwards.
 - Web enrolment has no confirm-code step: the switch creates the secret at once. The recovery code
   is returned only by `POST /users/{id}/2fas/totp`; using it deletes the TOTP row.
 - `/api/auth/verify` and `/api/auth/recovery` have no attempt limit; bearer API tokens skip the

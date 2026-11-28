@@ -10,32 +10,37 @@
       <v-tab :to="`/project/${projectId}/integrations/history`">{{ $t('history') }}</v-tab>
     </v-tabs>
 
-    <div class="d-flex align-center px-4 py-3">
-      <v-select
-        v-model="integrationId"
-        :items="integrationOptions"
-        :label="$t('integration')"
-        class="mr-4"
-        density="compact"
-        variant="underlined"
-        hide-details
-        style="max-width: 260px"
-        @update:model-value="applyIntegration"
-      ></v-select>
+    <v-divider style="margin-top: -1px;" />
+    <div
+      class="PagePanel"
+    >
+      <div class="PagePanel__main">
+        <v-select
+          v-model="integrationId"
+          :items="integrationOptions"
+          :label="$t('integration')"
+          class="mr-4"
+          density="compact"
+          variant="outlined"
+          hide-details
+          style="max-width: 260px"
+          @update:model-value="applyIntegration"
+        ></v-select>
 
-      <v-text-field
-        v-model="alias"
-        :label="$t('alias')"
-        append-inner-icon="mdi-magnify"
-        clearable
-        density="compact"
-        variant="underlined"
-        hide-details
-        style="max-width: 260px"
-        @keyup.enter="applyAlias(alias)"
-        @click:append-inner="applyAlias(alias)"
-        @click:clear="applyAlias('')"
-      ></v-text-field>
+        <v-text-field
+          v-model="alias"
+          :label="$t('alias')"
+          append-inner-icon="mdi-magnify"
+          clearable
+          density="compact"
+          variant="outlined"
+          hide-details
+          style="max-width: 260px"
+          @keyup.enter="applyAlias(alias)"
+          @click:append-inner="applyAlias(alias)"
+          @click:clear="applyAlias('')"
+        ></v-text-field>
+      </div>
     </div>
 
     <v-divider />

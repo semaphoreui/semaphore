@@ -112,7 +112,6 @@
               <v-icon>mdi-replay</v-icon>
             </template>
             <v-list-item-title>{{ $t('workflowRerunAll') }}</v-list-item-title>
-            <v-list-item-subtitle>{{ $t('workflowRerunAllHint') }}</v-list-item-subtitle>
           </v-list-item>
           <v-list-item
             :disabled="!hasFailedNodes"
@@ -123,9 +122,6 @@
               <v-icon>mdi-skip-next-circle-outline</v-icon>
             </template>
             <v-list-item-title>{{ $t('workflowRerunFailed') }}</v-list-item-title>
-            <v-list-item-subtitle>
-              {{ hasFailedNodes ? $t('workflowRerunFailedHint') : $t('workflowRerunNoFailed') }}
-            </v-list-item-subtitle>
           </v-list-item>
         </v-list>
       </v-menu>
