@@ -70,6 +70,14 @@
       test-id="newTaskDialog"
     />
 
+    <YesNoDialog
+      v-model="runViewTasksDialog"
+      :title="$t('runAll')"
+      :text="$t('askRunViewTasks', { view: viewTitle })"
+      :yes-button-title="$t('runAll')"
+      @yes="runViewTasks()"
+    />
+
     <v-toolbar flat>
       <v-app-bar-nav-icon
         @click="showDrawer()"
@@ -173,6 +181,18 @@
         data-testid="templates-editViews"
       >
         <v-icon>mdi-pencil</v-icon>
+      </v-btn>
+
+      <v-btn
+        icon
+        variant="text"
+        class="mt-2 ml-2"
+        :title="$t('runAll')"
+        @click="runViewTasksDialog = true"
+        v-if="viewId != null && items.some((item) => can(USER_PERMISSIONS.runProjectTasks, item))"
+        data-testid="templates-runAll"
+      >
+        <v-icon>mdi-play-box-multiple</v-icon>
       </v-btn>
     </v-tabs>
 
@@ -366,7 +386,9 @@ import axios from 'axios';
 import EditViewsForm from '@/components/EditViewsForm.vue';
 import TableSettingsSheet from '@/components/TableSettingsSheet.vue';
 import TaskList from '@/components/TaskList.vue';
+import YesNoDialog from '@/components/YesNoDialog.vue';
 import EventBus from '@/event-bus';
+import { getErrorMessage } from '@/lib/error';
 import TaskStatus from '@/components/TaskStatus.vue';
 import socket from '@/socket';
 import NewTaskDialog from '@/components/NewTaskDialog.vue';
@@ -393,6 +415,7 @@ export default {
     TaskList,
     EditViewsForm,
     NewTaskDialog,
+    YesNoDialog,
     ViewTemplateStats,
   },
   props: {
@@ -414,6 +437,7 @@ export default {
       openedItems: [],
       views: null,
       editViewsDialog: null,
+      runViewTasksDialog: null,
       viewItemsLoading: null,
       apps: null,
       itemApp: '',
@@ -433,6 +457,10 @@ export default {
         return parseInt(this.$route.params.viewId, 10);
       }
       return this.$route.params.viewId;
+    },
+
+    viewTitle() {
+      return this.views.find((v) => v.id === this.viewId)?.title;
     },
 
     template() {
@@ -625,6 +653,25 @@ export default {
     createTask(itemId) {
       this.itemId = itemId;
       this.newTaskDialog = true;
+    },
+
+    async runViewTasks() {
+      try {
+        const res = (await axios({
+          method: 'post',
+          url: `/api/project/${this.projectId}/views/${this.viewId}/tasks`,
+          responseType: 'json',
+        })).data;
+        EventBus.$emit('i-snackbar', {
+          color: res.failed_template_ids.length > 0 ? 'warning' : 'success',
+          text: this.$t('viewTasksStarted', {
+            started: res.tasks.length,
+            failed: res.failed_template_ids.length,
+          }),
+        });
+      } catch (err) {
+        EventBus.$emit('i-snackbar', { color: 'error', text: getErrorMessage(err) });
+      }
     },
 
     getHeaders() {
