@@ -16,7 +16,8 @@ func TestAuditConfig_Validate(t *testing.T) {
 		wantErr string
 	}{
 		{"nil section", nil, ""},
-		{"disabled section is ignored", &AuditConfig{TrustedProxyCIDRs: []string{"junk"}}, ""},
+		{"disabled section", &AuditConfig{TrustedProxyCIDRs: []string{"10.0.0.0/8"}}, ""},
+		{"invalid cidr while disabled", &AuditConfig{TrustedProxyCIDRs: []string{"junk"}}, "trusted_proxy_cidrs"},
 		{"enabled without instance id", &AuditConfig{Enabled: true}, "audit.instance_id"},
 		{"instance id with a space", &AuditConfig{Enabled: true, InstanceID: "prod eu"}, "audit.instance_id"},
 		{"instance id too long", &AuditConfig{Enabled: true, InstanceID: strings.Repeat("a", 256)}, "audit.instance_id"},
