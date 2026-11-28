@@ -1327,9 +1327,7 @@ func (p *TaskPool) AddTaskFrom(
 
 	err = taskRunner.populateDetails()
 	if err != nil {
-		taskRunner.Log("Error: " + err.Error())
-		taskRunner.SetStatus(task_logger.TaskFailStatus)
-		taskRunner.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
+		taskRunner.failBeforeQueue("Error: " + err.Error())
 		return
 	}
 
@@ -1340,9 +1338,7 @@ func (p *TaskPool) AddTaskFrom(
 		err = p.encryptionService.CreateTaskSurveySecrets(
 			projectID, newTask.ID, extraSecretVars, taskSecretExpireAt())
 		if err != nil {
-			taskRunner.Log("Error: failed to store survey secrets: " + err.Error())
-			taskRunner.SetStatus(task_logger.TaskFailStatus)
-			taskRunner.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
+			taskRunner.failBeforeQueue("Error: failed to store survey secrets: " + err.Error())
 			return
 		}
 	}

@@ -132,8 +132,14 @@ func (t *TaskRunner) saveStatus() {
 		sockets.Message(user, b)
 	}
 
+	// A failed write is logged, not raised: saveStatus runs on the pool loop,
+	// task goroutines and request handlers, and a database timeout in any of
+	// them must not crash the server or abandon the task half-registered.
 	if err := t.pool.store.UpdateTask(t.Task); err != nil {
-		t.panicOnError(err, "Failed to update TaskRunner status")
+		log.WithError(err).WithFields(log.Fields{
+			"task_id": t.Task.ID,
+			"status":  t.Task.Status,
+		}).Error("Failed to update task status")
 	}
 
 	t.pool.state.UpdateRuntimeFields(t)
@@ -548,18 +554,27 @@ func (t *TaskRunner) startAutorunTasks() {
 	}
 }
 
+// prepareError logs errMsg and returns err. It never panics: populateDetails
+// runs after the task row is stored, and a database error here (a timeout,
+// say) must reach the caller so it can fail the task. A panic would leave the
+// row "waiting" with nothing queued to run it.
 func (t *TaskRunner) prepareError(err error, errMsg string) error {
-	if errors.Is(err, db.ErrNotFound) {
-		t.Log(errMsg)
-		return err
+	if err == nil {
+		return nil
 	}
 
-	if err != nil {
-		t.SetStatus(task_logger.TaskFailStatus)
-		panic(err)
-	}
+	t.Log(errMsg)
+	return err
+}
 
-	return nil
+// failBeforeQueue ends a task that was stored but could not be prepared for
+// the queue, so it shows as failed rather than waiting forever.
+func (t *TaskRunner) failBeforeQueue(msg string) {
+	t.Log(msg)
+	now := tz.Now()
+	t.Task.End = &now
+	t.SetStatus(task_logger.TaskFailStatus)
+	t.recordComplete(audit.SystemActor(audit.ComponentTaskRunner))
 }
 
 func (t *TaskRunner) populateTaskEnvironment() (err error) {
