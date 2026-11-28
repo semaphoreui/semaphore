@@ -1972,6 +1972,17 @@ definitions:
       task_params:
         $ref: '#/definitions/TaskPrams'
 
+  ViewFilter:
+    type: object
+    description: >-
+      Applied by a view of type "all", which then lists only the project's templates
+      whose name contains `name`, ignoring case. Kept but not applied by a custom view.
+      On update, leaving `filter` out keeps the stored one; `{}` clears it.
+    properties:
+      name:
+        type: string
+        example: prod
+
   ViewRequest:
     type: object
     properties:
@@ -1987,6 +1998,14 @@ definitions:
       position:
         type: integer
         minimum: 1
+      type:
+        type: string
+        enum: ["", all]
+        description: >
+          "all" lists the project's templates, narrowed by `filter`; "" (custom)
+          lists the templates assigned to the view. Omitted means custom.
+      filter:
+        $ref: "#/definitions/ViewFilter"
       show_template_stats:
         type: boolean
         description: >
@@ -2008,6 +2027,8 @@ definitions:
       type:
         type: string
         enum: ["", all]
+      filter:
+        $ref: "#/definitions/ViewFilter"
       sort_column:
         type: string
         enum: [name]
@@ -2027,8 +2048,9 @@ definitions:
       Number of templates of a view by the status of their last task,
       returned by the views list with `include=template_stats` for a view
       that has `show_template_stats` on. A Custom
-      view counts the templates assigned to it, the "All" view every
-      template of the project. Every template is in exactly one count.
+      view counts the templates assigned to it, an "All" view the templates
+      it lists: every template of the project, or the ones its name filter
+      keeps. Every template is in exactly one count.
     properties:
       success:
         type: integer

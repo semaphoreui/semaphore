@@ -435,6 +435,27 @@ func TestVerify_RejectsBrokenInventoryGroups(t *testing.T) {
 	}
 }
 
+func TestVerify_RejectsABadViewFilter(t *testing.T) {
+	tests := []struct {
+		name    string
+		filter  db.MapStringAnyField
+		wantErr string
+	}{
+		{"unknown key", db.MapStringAnyField{"app": "ansible"}, "error at views[0]: unknown view filter: app"},
+		{"longer than the column", db.MapStringAnyField{"name": strings.Repeat("a", 1000)}, "error at views[0]: view filter is too long"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backup := &BackupFormat{
+				Meta:  BackupMeta{Project: db.Project{Name: "p"}},
+				Views: []BackupView{{View: db.View{Title: "All", Type: db.ViewTypeAll, Filter: &tt.filter}}},
+			}
+
+			assert.ErrorContains(t, backup.Verify(), tt.wantErr)
+		})
+	}
+}
+
 // TestBackup_Workflow moved to pro_impl/db/sql/backup_workflow_test.go because
 // workflow persistence is a Pro feature requiring the real workflow store
 // (the open-source build only has the no-op stub).

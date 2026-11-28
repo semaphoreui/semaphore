@@ -113,18 +113,33 @@ func GetViews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := helpers.UserFromContext(r)
-	counts, err := helpers.Store(r).GetViewTemplateCounts(
-		project.ID,
-		db.ViewTemplateCountScopeOf(views),
-		&db.Viewer{UserID: user.ID, Admin: user.Admin},
-	)
+	viewer := &db.Viewer{UserID: user.ID, Admin: user.Admin}
+	counts, err := helpers.Store(r).GetViewTemplateCounts(project.ID, db.ViewTemplateCountScopeOf(views), viewer)
 
 	if err != nil {
 		helpers.WriteError(w, err)
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, db.ViewsWithTemplateStats(views, counts))
+	res := db.ViewsWithTemplateStats(views, counts)
+
+	// An "all" view with a name filter lists, so counts, only the matching templates.
+	for i := range res {
+		name := res[i].NameFilter()
+		if res[i].TemplateStats == nil || res[i].Type != db.ViewTypeAll || name == "" {
+			continue
+		}
+
+		named, err := helpers.Store(r).GetViewTemplateCounts(project.ID, db.ViewTemplateCountScope{All: true, Name: name}, viewer)
+		if err != nil {
+			helpers.WriteError(w, err)
+			return
+		}
+
+		res[i].TemplateStats = db.ViewsWithTemplateStats([]db.View{res[i].View}, named)[0].TemplateStats
+	}
+
+	helpers.WriteJSON(w, http.StatusOK, res)
 }
 
 // AddView adds a new key to the database
@@ -204,6 +219,12 @@ func UpdateView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The body's project_id is not trusted: the view stays in the project it
+	// was loaded from.
+	view.ProjectID = oldView.ProjectID
+
+	// A client written before view filters existed sends none: the store then
+	// keeps the stored one. `"filter": {}` clears it.
 	if err := view.Validate(); err != nil {
 		helpers.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),

@@ -130,6 +130,10 @@ func (e BackupEnvironment) Restore(b *BackupDB) error {
 }
 
 func (e BackupView) Verify(backup *BackupFormat) error {
+	// The restore writes the filter, so a bad one must fail here, before any object is created.
+	if err := e.Validate(); err != nil {
+		return err
+	}
 	return verifyDuplicate[BackupView](e.Title, backup.Views)
 }
 

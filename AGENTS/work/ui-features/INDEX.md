@@ -9,6 +9,8 @@ stored on the server, server-side paging of task lists, and the built-in help pa
 | Touching the pin/unpin edit mode of the side menu or its i18n keys | `user-options-unpinned-menu.md` |
 | Changing how History or the per-template task list page through tasks (`before`, `count`, `X-Has-Next`) | `history-keyset-pagination.md` |
 | Tempted to add `COUNT(*)` or `OFFSET` to a task list query | `history-keyset-pagination.md` |
+| Changing template views, the "all" view's name filter, or how a view is saved | `template-views.md` |
+| Writing a SQL `LIKE` search, or wondering why `escapeLike` uses `!` | `template-views.md` |
 | Adding built-in help to a dialog or a page, or any help text / docs link to a form | `contextual-help-panel.md` |
 | Changing the help panel, its host logic (`HelpDocsHost`), `EditDialog` or `HelpPage` around it | `contextual-help-panel.md` |
 | Changing the format of help documents or the build that compiles and checks them (`web/vite/help`) | `contextual-help-panel.md` |

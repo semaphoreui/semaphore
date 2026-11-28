@@ -1,6 +1,9 @@
 package db
 
 import (
+	"encoding/json"
+	"strings"
+
 	"github.com/semaphoreui/semaphore/pkg/common_errors"
 	"github.com/semaphoreui/semaphore/pkg/task_logger"
 )
@@ -11,6 +14,15 @@ const (
 	ViewTypeAll    ViewType = "all"
 	ViewTypeCustom ViewType = ""
 )
+
+// ViewFilterName is the only key a view filter accepts: an "all" view shows the
+// templates whose name contains its value, ignoring case.
+const ViewFilterName = "name"
+
+// maxViewFilterBytes is the width of project__view.filter, which holds the
+// filter as JSON. The encoded form is what has to fit, not the name alone:
+// json.Marshal writes <, > and & as six bytes each.
+const maxViewFilterBytes = 1000
 
 type View struct {
 	ID        int      `db:"id" json:"id" backup:"-"`
@@ -32,7 +44,44 @@ func (view *View) Validate() error {
 	if view.Title == "" {
 		return common_errors.NewValidationError("title can not be empty")
 	}
+
+	if view.Filter == nil {
+		return nil
+	}
+
+	// A key the backend does not apply would be stored and silently do nothing.
+	for key, value := range *view.Filter {
+		if key != ViewFilterName {
+			return common_errors.NewValidationError("unknown view filter: " + key)
+		}
+
+		if _, ok := value.(string); !ok {
+			return common_errors.NewValidationError("view filter name must be a string")
+		}
+	}
+
+	encoded, err := json.Marshal(view.Filter)
+	if err != nil {
+		return err
+	}
+
+	if len(encoded) > maxViewFilterBytes {
+		return common_errors.NewValidationError("view filter is too long")
+	}
+
 	return nil
+}
+
+// NameFilter is what an "all" view matches template names against, empty when
+// the view has no name filter.
+func (view *View) NameFilter() string {
+	if view.Filter == nil {
+		return ""
+	}
+
+	name, _ := (*view.Filter)[ViewFilterName].(string)
+
+	return strings.TrimSpace(name)
 }
 
 // ViewTemplateStats counts the templates of a view by the status of their last
@@ -88,6 +137,9 @@ type ViewTemplateCountScope struct {
 	All bool
 	// ViewIDs counts the templates assigned to these views, unless All is set.
 	ViewIDs []int
+	// Name, when set, counts only the templates whose name contains it,
+	// ignoring case: the templates of an "all" view with a name filter.
+	Name string
 }
 
 // Empty is true when nothing has to be counted.
