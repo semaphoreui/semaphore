@@ -102,7 +102,8 @@ export default {
           || this.itemRefs.inventories.length > 0
           || this.itemRefs.access_keys.length > 0
           || this.itemRefs.schedules.length > 0
-          || (this.itemRefs.host_configs || []).length > 0) {
+          || (this.itemRefs.host_configs || []).length > 0
+          || (this.itemRefs.inventory_sources || []).length > 0) {
           this.itemRefsDialog = true;
           return;
         }

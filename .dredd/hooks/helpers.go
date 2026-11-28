@@ -59,6 +59,7 @@ func truncateAll() {
 		"project__inventory_group_host",
 		"project__inventory_group",
 		"project__inventory_host",
+		"project__inventory_source",
 		"project__inventory",
 		"project__repository",
 		"project__template",

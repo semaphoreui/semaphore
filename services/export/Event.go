@@ -96,6 +96,8 @@ func eventObjectTypeToEntityName(t db.EventObjectType) (string, bool) {
 		return InventoryHost, true
 	case db.EventInventoryGroup:
 		return InventoryGroup, true
+	case db.EventInventorySource:
+		return InventorySource, true
 	case db.EventKey:
 		return AccessKey, true
 	case db.EventProject:
@@ -152,7 +154,7 @@ func (e *EventExporter) exportDependsOn() []string {
 }
 
 func (e *EventExporter) importDependsOn() []string {
-	return []string{Project, User, Integration, AccessKey, Schedule, Environment, Template, Task, Inventory, InventoryHost, InventoryGroup, Repository, View}
+	return []string{Project, User, Integration, AccessKey, Schedule, Environment, Template, Task, Inventory, InventoryHost, InventoryGroup, InventorySource, Repository, View}
 }
 
 func (e *EventExporter) getName() string {

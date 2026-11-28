@@ -10,6 +10,12 @@ async function flush() {
   await new Promise((resolve) => { setTimeout(resolve, 0); });
 }
 
+const sources = [
+  { id: 5, name: 'Edge devices', variables: 'region: edge' },
+  { id: 2, name: 'Static servers', variables: 'ntp: pool.ntp.org' },
+  { id: 4, name: 'Empty', variables: '' },
+];
+
 function mountVariables() {
   return mount(InventoryVariables, {
     props: { projectId: 7, inventoryId: 3, isAdmin: true },
@@ -25,11 +31,13 @@ describe('InventoryVariables.vue', () => {
 
   beforeEach(() => {
     http = mockAxios();
-    http.respond((c) => (c.method === 'get'
-      ? {
+    http.respond((c) => {
+      if (c.method !== 'get') return {};
+      if (c.url.endsWith('/sources')) return sources;
+      return {
         id: 3, name: 'prod', type: 'managed', ssh_key_id: 1, variables: 'a: 1',
-      }
-      : {}));
+      };
+    });
   });
 
   afterEach(() => {
@@ -52,6 +60,24 @@ describe('InventoryVariables.vue', () => {
     EventBus.$off('i-inventory-variables', onSaved);
     expect(put.data).to.deep.equal({ variables: 'a: 2' });
     expect(saved).to.deep.equal([{ projectId: 7, inventoryId: 3, variables: 'a: 2' }]);
+  });
+
+  it('shows the variables of each source read-only below the editor in source order', async () => {
+    const wrapper = mountVariables();
+    await flush();
+
+    const blocks = wrapper.findAll('[data-testid^="inventoryVariables-source-"]');
+    expect(blocks.map((b) => b.attributes('data-testid'))).to.deep.equal([
+      'inventoryVariables-source-2', 'inventoryVariables-source-5',
+    ]);
+    expect(blocks[0].text()).to.contain('inventory_variables_from_source');
+    const editor = blocks[0].findComponent({ name: 'CodeMirror' });
+    expect(editor.props('modelValue')).to.equal('ntp: pool.ntp.org');
+    expect(editor.props('readonly')).to.equal(true);
+    expect(editor.classes()).to.include('InventoryVariables__source');
+    expect(blocks[0].find('.mdi-lock').exists()).to.equal(true);
+    expect(wrapper.find('[data-testid="inventoryVariables-editor"]').classes())
+      .to.not.include('InventoryVariables__source');
   });
 
   it('asks before leaving with unsaved variables', async () => {

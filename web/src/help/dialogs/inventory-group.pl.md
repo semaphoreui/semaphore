@@ -8,6 +8,9 @@ Grupa hostów zarządzanego inwentarza. Playbook jest uruchamiany na części ho
 zmienną grupy ustawia się raz dla wszystkich jej hostów. Hosty dodaje się do grupy na karcie Hosts,
 w oknie hosta lub działaniami na zaznaczonych hostach.
 
+Grupa zaimportowana ze źródła inwentarza jest zarządzana przez to źródło. Wszystkie jej pola są tylko
+do odczytu i są aktualizowane przy każdej synchronizacji.
+
 ## Nazwa {#inventoryGroupForm-name}
 
 Nazwa, pod którą Ansible zna grupę, na przykład w `hosts: web` playbooka. Pole jest wymagane. Nazwa

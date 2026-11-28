@@ -1,12 +1,14 @@
 package db_lib
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/semaphoreui/semaphore/pkg/ssh"
 
@@ -21,14 +23,21 @@ type CmdGitClient struct {
 }
 
 func (c CmdGitClient) makeCmd(
+	ctx context.Context,
 	r GitRepository,
 	targetDir GitRepositoryDirType,
 	installation ssh.AccessKeyInstallation,
 	args ...string,
 ) *exec.Cmd {
-	cmd := exec.Command("git") //nolint:gosec
+	cmd := exec.CommandContext(ctx, "git") //nolint:gosec
+	if !r.Deadline.IsZero() {
+		// git leaves the transfer to helper processes, which outlive it when only git is killed
+		cmd.SysProcAttr = appSysProcAttr()
+		cmd.Cancel = func() error { return killCommandTree(cmd) }
+		cmd.WaitDelay = 10 * time.Second
+	}
 
-	cmd.Env = append(getEnvironmentVars(), installation.GetGitEnvWithHostConfigs(r.HostConfigs)...)
+	cmd.Env = append(BaseEnvironmentVars(), installation.GetGitEnvWithHostConfigs(r.HostConfigs)...)
 
 	// Unlike the app runners, git gets HOME only when nothing has set it already,
 	// and never gets an empty one: GetHomeDir returns "" for an out-of-range
@@ -83,7 +92,10 @@ func (c CmdGitClient) run(r GitRepository, targetDir GitRepositoryDirType, args 
 
 	defer keyInstallation.Destroy() //nolint: errcheck
 
-	cmd := c.makeCmd(r, targetDir, keyInstallation, args...)
+	ctx, cancel := r.deadlineContext()
+	defer cancel()
+
+	cmd := c.makeCmd(ctx, r, targetDir, keyInstallation, args...)
 
 	finishLog := r.Logger.LogCmd(cmd)
 	defer finishLog()
@@ -99,7 +111,10 @@ func (c CmdGitClient) output(r GitRepository, targetDir GitRepositoryDirType, ar
 
 	defer keyInstallation.Destroy() //nolint: errcheck
 
-	bytes, err := c.makeCmd(r, targetDir, keyInstallation, args...).Output()
+	ctx, cancel := r.deadlineContext()
+	defer cancel()
+
+	bytes, err := c.makeCmd(ctx, r, targetDir, keyInstallation, args...).Output()
 	if err != nil {
 		return
 	}

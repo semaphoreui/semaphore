@@ -230,6 +230,17 @@ func TestCatalogInventoryHostKinds(t *testing.T) {
 	}
 }
 
+func TestCatalogInventorySourceKinds(t *testing.T) {
+	for _, kind := range []Kind{ResourceInventorySourceCreate, ResourceInventorySourceUpdate, ResourceInventorySourceDelete} {
+		entry, ok := Lookup(kind)
+		require.True(t, ok, kind)
+		assert.Equal(t, InventorySourceMetadata{}, entry.Metadata, kind)
+	}
+	entry, ok := Lookup(ResourceInventorySourceSync)
+	require.True(t, ok)
+	assert.Equal(t, InventorySourceSyncMetadata{}, entry.Metadata)
+}
+
 func TestCatalogInventoryGroupKinds(t *testing.T) {
 	for _, kind := range []Kind{ResourceInventoryGroupCreate, ResourceInventoryGroupUpdate, ResourceInventoryGroupDelete, ResourceInventoryGroupHostAdd, ResourceInventoryGroupHostRemove, ResourceInventoryGroupChildAdd, ResourceInventoryGroupChildRemove} {
 		entry, ok := Lookup(kind)

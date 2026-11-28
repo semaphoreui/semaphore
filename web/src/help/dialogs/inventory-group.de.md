@@ -8,6 +8,9 @@ Eine Gruppe von Hosts eines verwalteten Inventorys. Ein Playbook läuft über de
 einem Teil der Hosts, und eine Variable der Gruppe wird einmal für alle ihre Hosts gesetzt. Hosts
 kommen auf dem Tab Hosts in eine Gruppe, im Host-Dialog oder mit den Aktionen für die Auswahl.
 
+Eine aus einer Inventarquelle importierte Gruppe wird von dieser Quelle verwaltet. Alle ihre Felder
+sind schreibgeschützt und werden bei jeder Synchronisierung aktualisiert.
+
 ## Name {#inventoryGroupForm-name}
 
 Der Name, unter dem Ansible die Gruppe kennt, zum Beispiel in `hosts: web` eines Playbooks. Das Feld

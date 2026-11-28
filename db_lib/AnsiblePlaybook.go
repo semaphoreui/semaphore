@@ -38,7 +38,7 @@ func (p AnsiblePlaybook) makeCmd(command string, args []string, environmentVars 
 	cmd.Env = append(cmd.Env, "ANSIBLE_FORCE_COLOR=True")
 	cmd.Env = append(cmd.Env, "ANSIBLE_HOST_KEY_CHECKING=False")
 	//cmd.Env = append(cmd.Env, "ANSIBLE_SSH_ARGS=-o UserKnownHostsFile=/dev/null")
-	cmd.Env = append(cmd.Env, getEnvironmentVars()...)
+	cmd.Env = append(cmd.Env, BaseEnvironmentVars()...)
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", GetHomeDir(p.Repository, p.TemplateID)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 

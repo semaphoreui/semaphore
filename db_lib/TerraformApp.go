@@ -98,7 +98,7 @@ func (t *TerraformApp) makeCmd(command string, args []string, environmentVars []
 	cmd := exec.Command(command, args...) //nolint:gosec
 	cmd.Dir = t.GetFullPath()
 
-	cmd.Env = getEnvironmentVars()
+	cmd.Env = BaseEnvironmentVars()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", GetHomeDir(t.Repository, t.Template.ID)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PWD=%s", cmd.Dir))
 

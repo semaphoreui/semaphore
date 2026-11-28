@@ -144,6 +144,7 @@ func AddInventoryGroup(w http.ResponseWriter, r *http.Request) {
 	group := body.InventoryGroup
 	group.ID = 0
 	group.HostCount = 0
+	group.SourceID = nil
 	group.InventoryID = inventory.ID
 	group.ProjectID = inventory.ProjectID
 
@@ -211,6 +212,11 @@ func UpdateInventoryGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if oldGroup.SourceID != nil {
+		helpers.WriteErrorStatus(w, "managed by an inventory source", http.StatusBadRequest)
+		return
+	}
+
 	var body inventoryGroupRequest
 	if !helpers.Bind(w, r, &body) {
 		return
@@ -225,6 +231,7 @@ func UpdateInventoryGroup(w http.ResponseWriter, r *http.Request) {
 	group.ID = groupID
 	group.InventoryID = inventory.ID
 	group.ProjectID = inventory.ProjectID
+	group.SourceID = oldGroup.SourceID
 
 	added, removed, err := helpers.Store(r).UpdateInventoryGroup(group, body.AddChildren, body.RemoveChildren)
 	if err != nil {
@@ -273,6 +280,17 @@ func RemoveInventoryGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	group, err := helpers.Store(r).GetInventoryGroup(inventory.ProjectID, inventory.ID, groupID)
+	if err != nil {
+		helpers.WriteError(w, err)
+		return
+	}
+
+	if group.SourceID != nil {
+		helpers.WriteErrorStatus(w, "managed by an inventory source", http.StatusBadRequest)
+		return
+	}
+
 	// A failed read only leaves names and the count out of the record, as for a host
 	groups, err := helpers.Store(r).GetInventoryGroups(inventory.ProjectID, inventory.ID)
 	if err != nil {
@@ -283,14 +301,10 @@ func RemoveInventoryGroup(w http.ResponseWriter, r *http.Request) {
 		log.WithError(err).Error("Failed to read the group hosts of an inventory")
 	}
 
-	group := db.InventoryGroup{ID: groupID}
 	names := map[int]string{}
 	var parents, children []string
 	for _, g := range groups {
 		names[g.ID] = g.Name
-		if g.ID == groupID {
-			group = g
-		}
 		// The delete also removes, by cascade, the links of the parents to the group
 		if slices.Contains(g.Children, groupID) {
 			parents = append(parents, g.Name)
@@ -363,7 +377,11 @@ func SetInventoryHostGroups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	added, removed, err := helpers.Store(r).ChangeInventoryHostGroups(inventory.ProjectID, inventory.ID, body.Hosts, body.Add, body.Remove)
+	if !manualGroups(w, r, inventory, slices.Concat(body.Add, body.Remove)) {
+		return
+	}
+
+	added, removed, err := helpers.Store(r).ChangeInventoryHostGroups(inventory.ProjectID, inventory.ID, body.Hosts, body.Add, body.Remove, true)
 	if err != nil {
 		helpers.WriteError(w, err)
 		return

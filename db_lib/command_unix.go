@@ -85,3 +85,8 @@ func killProcessGroup(cmd *exec.Cmd, logger task_logger.Logger) {
 		logger.Logf("failed to send SIGKILL to process group: %v", err)
 	}
 }
+
+// killCommandTree kills a command started with appSysProcAttr together with everything it spawned.
+func killCommandTree(cmd *exec.Cmd) error {
+	return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+}

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/semaphoreui/semaphore/db"
 	"github.com/semaphoreui/semaphore/services/audit/audittest"
@@ -471,4 +472,108 @@ func TestGetInventoryHosts_ReturnsLastRun(t *testing.T) {
 		assert.Contains(t, hosts[0], field)
 		assert.Nil(t, hosts[0][field])
 	}
+}
+
+func TestInventoryHost_BodyCannotSetSource(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "managed")
+
+	w, _ := hostCall(f, inventory, http.MethodPost, `{"name":"web1","source_id":7}`, 0, AddInventoryHost)
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	var created db.InventoryHost
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
+	assert.Nil(t, created.SourceID)
+
+	w, _ = hostCall(f, inventory, http.MethodPut, `{"name":"web1","source_id":7}`, created.ID, UpdateInventoryHost)
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+
+	got, err := f.store.GetInventoryHost(f.project.ID, inventory.ID, created.ID)
+	require.NoError(t, err)
+	assert.Nil(t, got.SourceID)
+}
+
+func TestInventoryHost_ImportedIsProtected(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "managed")
+	source, err := f.store.CreateInventorySource(db.InventorySource{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "static", Type: db.InventorySourceGit, Params: db.MapStringAnyField{"path": "hosts.yml"}})
+	require.NoError(t, err)
+	host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1", Variables: "a: 1", Enabled: true, SourceID: &source.ID}, nil)
+	require.NoError(t, err)
+	manual := newInventoryGroup(t, f, inventory, "manual")
+
+	tests := []struct {
+		name   string
+		method string
+		body   string
+		call   http.HandlerFunc
+	}{
+		{"rename", http.MethodPut, `{"name":"web2","variables":"a: 1"}`, UpdateInventoryHost},
+		{"change variables", http.MethodPut, `{"name":"web1","variables":"a: 2"}`, UpdateInventoryHost},
+		{"delete", http.MethodDelete, "", RemoveInventoryHost},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w, rec := hostCall(f, inventory, tt.method, tt.body, host.ID, tt.call)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.JSONEq(t, `{"error":"managed by an inventory source"}`, w.Body.String())
+			assert.Empty(t, rec.All())
+		})
+	}
+
+	body := `{"name":"web1","variables":"a: 1","description":"front","add_groups":[` + strconv.Itoa(manual.ID) + `]}`
+	w, _ := hostCall(f, inventory, http.MethodPut, body, host.ID, UpdateInventoryHost)
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+	w, _ = hostCall(f, inventory, http.MethodPut, `{"enabled":false}`, host.ID, SetInventoryHostEnabled)
+	require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+
+	got, err := f.store.GetInventoryHost(f.project.ID, inventory.ID, host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "web1", got.Name)
+	assert.Equal(t, "a: 1", got.Variables)
+	assert.Equal(t, "front", got.Description)
+	assert.False(t, got.Enabled)
+	assert.Equal(t, []int{manual.ID}, got.Groups)
+	assert.Equal(t, &source.ID, got.SourceID)
+}
+
+// adoptingStore lets a sync take the host between the read and the write of the handler
+type adoptingStore struct {
+	db.Store
+	source db.InventorySource
+}
+
+func (s adoptingStore) UpdateInventoryHost(host db.InventoryHost, addGroups, removeGroups []int) ([]int, []int, error) {
+	started := time.Now().UTC().Truncate(time.Second)
+	run, err := s.StartInventorySourceSync(s.source.ProjectID, s.source.InventoryID, s.source.ID, started, started)
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = s.ApplyInventoryDocument(s.source.ProjectID, s.source.InventoryID, s.source.ID, run,
+		db.InventoryDocument{Hosts: []db.InventoryDocumentHost{{Name: "web1"}}})
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.Store.UpdateInventoryHost(host, addGroups, removeGroups)
+}
+
+func TestUpdateInventoryHost_OwnerChangedIs409(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "managed")
+	source, err := f.store.CreateInventorySource(db.InventorySource{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "static", Type: db.InventorySourceGit, Params: db.MapStringAnyField{"path": "hosts.yml"}})
+	require.NoError(t, err)
+	host, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web1", Enabled: true}, nil)
+	require.NoError(t, err)
+
+	r, rec := f.request(http.MethodPut, `{"name":"web2"}`,
+		map[string]any{"inventory": inventory, "store": adoptingStore{Store: f.store, source: source}},
+		map[string]string{"inventory_id": strconv.Itoa(inventory.ID), "inventory_host_id": strconv.Itoa(host.ID)})
+	w := httptest.NewRecorder()
+	UpdateInventoryHost(w, r)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	assert.JSONEq(t, `{"error":"owner changed, reload and retry"}`, w.Body.String())
+	assert.Empty(t, rec.All())
+	got, err := f.store.GetInventoryHost(f.project.ID, inventory.ID, host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "web1", got.Name)
 }

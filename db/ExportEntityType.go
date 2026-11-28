@@ -58,6 +58,10 @@ func (e InventoryGroup) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }
 
+func (e InventorySource) GetDbKey() string {
+	return NewKeyFromInt(e.ID)
+}
+
 func (e HostConfig) GetDbKey() string {
 	return NewKeyFromInt(e.ID)
 }

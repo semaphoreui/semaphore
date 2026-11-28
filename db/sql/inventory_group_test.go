@@ -66,12 +66,12 @@ func TestChangeInventoryHostGroups_ReportsOnlyChangedLinks(t *testing.T) {
 	web, db1 := f.group(t, "web"), f.group(t, "db")
 	h1, h2 := f.host(t, "h1"), f.host(t, "h2")
 
-	added, removed, err := f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, []int{h1.ID, h2.ID}, []int{web.ID, db1.ID}, nil)
+	added, removed, err := f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, []int{h1.ID, h2.ID}, []int{web.ID, db1.ID}, nil, false)
 	require.NoError(t, err)
 	assert.Equal(t, map[int][]int{web.ID: {h1.ID, h2.ID}, db1.ID: {h1.ID, h2.ID}}, added)
 	assert.Empty(t, removed)
 
-	added, removed, err = f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, []int{h1.ID, h2.ID}, []int{web.ID, db1.ID}, nil)
+	added, removed, err = f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, []int{h1.ID, h2.ID}, []int{web.ID, db1.ID}, nil, false)
 	require.NoError(t, err)
 	assert.Empty(t, added)
 	assert.Empty(t, removed)
@@ -89,7 +89,7 @@ func TestChangeInventoryHostGroups_ForeignHostWritesNothing(t *testing.T) {
 	foreign, err := f.store.CreateInventoryHost(db.InventoryHost{ProjectID: f.project.ID, InventoryID: other.ID, Name: "h1", Enabled: true}, nil)
 	require.NoError(t, err)
 
-	_, _, err = f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, []int{h1.ID, foreign.ID}, []int{web.ID}, nil)
+	_, _, err = f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, []int{h1.ID, foreign.ID}, []int{web.ID}, nil, false)
 
 	var validationErr *common_errors.ValidationError
 	require.ErrorAs(t, err, &validationErr)
@@ -222,7 +222,7 @@ func TestInventoryGroupLinks_RemoveOfUnknownGroupRemovesNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, removed)
 
-	_, bulkRemoved, err := f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, []int{host.ID}, nil, []int{unknown})
+	_, bulkRemoved, err := f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, []int{host.ID}, nil, []int{unknown}, false)
 	require.NoError(t, err)
 	assert.Empty(t, bulkRemoved)
 	assert.Equal(t, int64(1), f.linkCount(t))
@@ -236,7 +236,7 @@ func TestChangeInventoryHostGroups_StoresManyLinks(t *testing.T) {
 		hosts[i] = f.host(t, fmt.Sprintf("h%d", i)).ID
 	}
 
-	added, _, err := f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, hosts, groups, nil)
+	added, _, err := f.store.ChangeInventoryHostGroups(f.project.ID, f.inventory.ID, hosts, groups, nil, false)
 
 	require.NoError(t, err)
 	assert.Len(t, added[groups[2]], 1200)

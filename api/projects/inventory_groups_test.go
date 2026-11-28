@@ -434,3 +434,60 @@ func TestAuditNameChunks(t *testing.T) {
 	}
 	assert.Equal(t, [][]string{nil}, auditNameChunks(inventory, nil))
 }
+
+func TestInventoryGroup_BodyCannotSetSource(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "managed")
+
+	w := groupCall(f, inventory, http.MethodPost, `{"name":"web","source_id":7}`, 0, AddInventoryGroup)
+	require.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	var created db.InventoryGroup
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
+	assert.Nil(t, created.SourceID)
+
+	got, err := f.store.GetInventoryGroup(f.project.ID, inventory.ID, created.ID)
+	require.NoError(t, err)
+	assert.Nil(t, got.SourceID)
+}
+
+func TestInventoryGroup_ImportedIsProtected(t *testing.T) {
+	f := newResourceFixture(t)
+	inventory := newManagedInventory(t, f, "managed")
+	source, err := f.store.CreateInventorySource(db.InventorySource{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "static", Type: db.InventorySourceGit, Params: db.MapStringAnyField{"path": "hosts.yml"}})
+	require.NoError(t, err)
+	group, err := f.store.CreateInventoryGroup(db.InventoryGroup{ProjectID: f.project.ID, InventoryID: inventory.ID, Name: "web", SourceID: &source.ID}, nil)
+	require.NoError(t, err)
+	host := newInventoryHost(t, f, inventory, "web1")
+	groupID := strconv.Itoa(group.ID)
+	hostID := strconv.Itoa(host.ID)
+
+	tests := []struct {
+		name    string
+		method  string
+		body    string
+		groupID int
+		call    http.HandlerFunc
+	}{
+		{"update", http.MethodPut, `{"name":"web","description":"x"}`, group.ID, UpdateInventoryGroup},
+		{"delete", http.MethodDelete, "", group.ID, RemoveInventoryGroup},
+		{"host_groups add", http.MethodPut, `{"hosts":[` + hostID + `],"add":[` + groupID + `]}`, 0, SetInventoryHostGroups},
+		{"host_groups remove", http.MethodPut, `{"hosts":[` + hostID + `],"remove":[` + groupID + `]}`, 0, SetInventoryHostGroups},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := groupCall(f, inventory, tt.method, tt.body, tt.groupID, tt.call)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.JSONEq(t, `{"error":"managed by an inventory source"}`, w.Body.String())
+		})
+	}
+	t.Run("host add_groups", func(t *testing.T) {
+		w, _ := hostCall(f, inventory, http.MethodPut, `{"name":"web1","add_groups":[`+groupID+`]}`, host.ID, UpdateInventoryHost)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.JSONEq(t, `{"error":"managed by an inventory source"}`, w.Body.String())
+	})
+
+	got, err := f.store.GetInventoryGroup(f.project.ID, inventory.ID, group.ID)
+	require.NoError(t, err)
+	assert.Empty(t, got.Description)
+	assert.Zero(t, got.HostCount)
+}

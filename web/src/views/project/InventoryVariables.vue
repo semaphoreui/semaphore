@@ -45,12 +45,40 @@
           @click="save()"
         >{{ $t('save') }}</v-btn>
       </div>
+
+      <div
+        v-for="source in variableSources"
+        :key="source.id"
+        class="mt-6"
+        :data-testid="`inventoryVariables-source-${source.id}`"
+      >
+        <div class="mb-1 text-medium-emphasis">
+          <v-icon size="small">mdi-lock</v-icon>
+          {{ $t('inventory_variables_from_source', { name: source.name }) }}
+        </div>
+        <CodeMirror
+          class="InventoryVariables__source"
+          :style="{ border: '1px solid lightgray' }"
+          :model-value="source.variables"
+          minimal
+          readonly
+          :tab-size="2"
+          :extensions="cmExtensions"
+        />
+      </div>
     </div>
   </div>
 </template>
 <style>
 .InventoryVariables__editor .cm-editor {
   height: 360px !important;
+}
+.InventoryVariables__source .cm-editor {
+  height: 160px !important;
+}
+
+.InventoryVariables__source .cm-editor {
+  filter: brightness(0.9);
 }
 </style>
 <script>
@@ -79,6 +107,7 @@ export default {
   data() {
     return {
       inventory: null,
+      sources: [],
       error: null,
       state: 'loading',
       savedVariables: null,
@@ -94,6 +123,12 @@ export default {
   computed: {
     canManage() {
       return this.can(USER_PERMISSIONS.manageProjectResources);
+    },
+
+    variableSources() {
+      return this.sources
+        .filter((source) => (source.variables || '').trim() !== '')
+        .sort((a, b) => a.id - b.id);
     },
 
     dirty() {
@@ -128,6 +163,7 @@ export default {
   },
 
   async created() {
+    this.loadSources();
     try {
       this.inventory = await this.loadProjectResource('inventory', this.inventoryId);
       this.savedVariables = this.inventory.variables || '';
@@ -139,6 +175,18 @@ export default {
   },
 
   methods: {
+    // Without the sources the manual variables are still shown
+    async loadSources() {
+      try {
+        const response = await axios.get(
+          `/api/project/${this.projectId}/inventory/${this.inventoryId}/sources`,
+        );
+        this.sources = Array.isArray(response.data) ? response.data : [];
+      } catch (err) {
+        this.sources = [];
+      }
+    },
+
     onBeforeUnload(ev) {
       if (this.dirty) {
         ev.preventDefault();

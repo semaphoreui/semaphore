@@ -37,3 +37,8 @@ func waitCommand(cmd *exec.Cmd, stopCh <-chan struct{}, logger task_logger.Logge
 		return <-waitCh
 	}
 }
+
+// killCommandTree kills only the main process, see waitCommand.
+func killCommandTree(cmd *exec.Cmd) error {
+	return cmd.Process.Kill()
+}

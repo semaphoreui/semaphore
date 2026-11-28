@@ -349,3 +349,32 @@ type InventoryGroupMetadata struct {
 	Part  int `json:"part,omitempty"`
 	Parts int `json:"parts,omitempty"`
 }
+
+type InventorySourceMetadata struct {
+	InventoryID   int    `json:"inventory_id"`
+	InventoryName string `json:"inventory_name"`
+	Type          string `json:"type"`
+	// Name of the repository, empty for a source without one.
+	Repository string `json:"repository,omitempty"`
+	// Settings of the type, the path for git. Secrets are not among them.
+	Params map[string]any `json:"params,omitempty"`
+	// Hosts and groups a deleted source took with it, only counted as there may be thousands.
+	Hosts  int `json:"hosts,omitempty"`
+	Groups int `json:"groups,omitempty"`
+}
+
+// InventorySourceSyncMetadata counts what a sync changed, adopted rows are also counted as changed.
+type InventorySourceSyncMetadata struct {
+	InventoryID   int    `json:"inventory_id"`
+	InventoryName string `json:"inventory_name"`
+	HostsAdded    int    `json:"hosts_added"`
+	HostsChanged  int    `json:"hosts_changed"`
+	HostsRemoved  int    `json:"hosts_removed"`
+	GroupsAdded   int    `json:"groups_added"`
+	GroupsChanged int    `json:"groups_changed"`
+	GroupsRemoved int    `json:"groups_removed"`
+	Adopted       int    `json:"adopted"`
+	Skipped       int    `json:"skipped"`
+	// VariablesChanged is true when the variables of the source changed
+	VariablesChanged bool `json:"variables_changed"`
+}

@@ -13,6 +13,15 @@
     >{{ formError }}</v-alert>
 
     <template v-if="item != null">
+      <v-alert
+        v-if="imported"
+        type="info"
+        variant="tonal"
+        density="compact"
+        class="mb-4"
+        data-testid="inventoryGroupForm-imported"
+      >{{ $t('inventory_source_imported_group', { name: sourceName }) }}</v-alert>
+
       <v-text-field
         v-model.trim="item.name"
         :label="$t('name')"
@@ -20,6 +29,8 @@
         :hint="nameHint"
         persistent-hint
         required
+        :readonly="imported"
+        :append-inner-icon="imported ? 'mdi-lock' : undefined"
         :disabled="formSaving"
         variant="outlined"
         density="compact"
@@ -30,6 +41,8 @@
       <v-text-field
         v-model="item.description"
         :label="$t('description')"
+        :readonly="imported"
+        :append-inner-icon="imported ? 'mdi-lock' : undefined"
         :disabled="formSaving"
         variant="outlined"
         density="compact"
@@ -44,7 +57,8 @@
         :label="$t('inventory_groups_children')"
         multiple
         chips
-        closable-chips
+        :closable-chips="!imported"
+        :readonly="imported"
         :disabled="formSaving"
         variant="outlined"
         density="compact"
@@ -54,12 +68,14 @@
       <div class="mt-2 mb-1 text-medium-emphasis">{{ $t('inventory_hosts_variables') }}</div>
       <CodeMirror
         class="InventoryGroupForm__editor"
+        :class="{ 'InventoryGroupForm__editor--readonly': imported }"
         :style="{ border: '1px solid lightgray' }"
         v-model="item.variables"
         minimal
         :tab-size="2"
         :extensions="cmExtensions"
         :disabled="formSaving"
+        :readonly="imported"
         data-testid="inventoryGroupForm-variables"
       />
     </template>
@@ -68,6 +84,10 @@
 <style>
 .InventoryGroupForm__editor .cm-editor {
   height: 160px !important;
+}
+
+.InventoryGroupForm__editor--readonly .cm-editor {
+  filter: brightness(0.9);
 }
 </style>
 <script>
@@ -86,6 +106,7 @@ export default {
   props: {
     inventoryId: [Number, String],
     groups: Array,
+    sources: { type: Object, default: () => ({}) },
   },
 
   emits: ['error'],
@@ -101,6 +122,14 @@ export default {
   },
 
   computed: {
+    imported() {
+      return this.item != null && this.item.source_id != null;
+    },
+
+    sourceName() {
+      return this.sources[this.item.source_id] || this.$t('inventory_source_unknown');
+    },
+
     // The rule Ansible applies to group names, with letters of any alphabet
     nameHint() {
       return /^[^\p{L}_]|[^\p{L}\p{N}_]/u.test(this.item.name)

@@ -8,6 +8,9 @@ Een groep hosts van een beheerde inventaris. Een playbook wordt via de naam van 
 van de hosts uitgevoerd, en een variabele van de groep wordt één keer ingesteld voor al haar hosts.
 Hosts komen in een groep op het tabblad Hosts, in het hostvenster of met de acties voor de selectie.
 
+Een groep die uit een inventarisbron is geïmporteerd, wordt door die bron beheerd. Alle velden zijn
+alleen-lezen en worden bij elke synchronisatie bijgewerkt.
+
 ## Naam {#inventoryGroupForm-name}
 
 De naam waaronder Ansible de groep kent, bijvoorbeeld in `hosts: web` van een playbook. Het veld is

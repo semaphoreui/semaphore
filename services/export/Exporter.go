@@ -20,6 +20,7 @@ const (
 	Inventory               = "Inventory"
 	InventoryHost           = "InventoryHost"
 	InventoryGroup          = "InventoryGroup"
+	InventorySource         = "InventorySource"
 	Repository              = "Repository"
 	HostConfig              = "HostConfig"
 	View                    = "View"
@@ -414,6 +415,8 @@ func getUniqueKeys(exporters map[string]TypeExporter) map[string]bool {
 
 func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUsers bool) *ExporterChain {
 
+	contents := &inventoryContents{byInventory: map[int]db.InventoryContent{}}
+
 	exporters := map[string]TypeExporter{
 		User:                    &UserExporter{MergeExisting: mergeExistingUsers},
 		Project:                 &ProjectExporter{},
@@ -426,8 +429,9 @@ func InitProjectExporters(mapper KeyMapper, skipTaskOutput bool, mergeExistingUs
 		HostConfig:              &HostConfigExporter{},
 		SecretStorage:           &SecretStorageExporter{},
 		Inventory:               &InventoryExporter{},
-		InventoryHost:           &InventoryHostExporter{},
-		InventoryGroup:          &InventoryGroupExporter{},
+		InventoryHost:           &InventoryHostExporter{contents: contents},
+		InventoryGroup:          &InventoryGroupExporter{contents: contents},
+		InventorySource:         &InventorySourceExporter{contents: contents},
 		View:                    &ViewExporter{},
 		Role:                    &RoleExporter{},
 		RoleMapping:             &RoleMappingExporter{},

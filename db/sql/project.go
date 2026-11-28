@@ -92,6 +92,8 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 	}
 
 	statements := []string{
+		// A sync takes the lock of an inventory and then writes its source, the delete goes in the same order
+		"update project__inventory set name=name where project_id=?",
 		"delete from project__workflow_run where project_id=?",
 		"update project__template set build_template_id = null where project_id=?",
 		"delete from project__template where project_id=?",
@@ -102,6 +104,8 @@ func (d *SqlDb) DeleteProject(projectID int) error {
 		// Before the roles: a mapping keeps its role from being deleted.
 		"delete from group_role_mapping where project_id=?",
 		"delete from `role` where project_id=?",
+		// Before the repositories: a source references one without an ON DELETE action.
+		"delete from project__inventory_source where project_id=?",
 		"delete from project__repository where project_id=?",
 		"delete from project__inventory where project_id=?",
 		// Before the keys: a mapping references access_key without an ON DELETE
