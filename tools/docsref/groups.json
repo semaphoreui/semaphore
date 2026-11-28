@@ -19,6 +19,7 @@
         "interface",
         "web_host",
         "tls.",
+        "health.",
         "cookie_hash",
         "cookie_encryption",
         "max_request_body_size",
