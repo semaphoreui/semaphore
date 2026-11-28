@@ -53,13 +53,8 @@ var totpEnableCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		issuer := "Semaphore"
-		if util.Config.Mfa.Totp.Issuer != "" {
-			issuer = util.Config.Mfa.Totp.Issuer
-		}
-
 		key, err := totp.Generate(totp.GenerateOpts{
-			Issuer:      issuer,
+			Issuer:      util.Config.Mfa.Totp.Issuer,
 			AccountName: user.Email,
 		})
 
